@@ -102,7 +102,7 @@ export default function MembresPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
           <p className="text-slate-500 font-medium">{t('membres_loading')}</p>
         </div>
       </div>
@@ -115,14 +115,14 @@ export default function MembresPage() {
         <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-8 shadow-sm border max-w-md text-center">
           <h3 className="text-lg font-bold text-slate-800">{t('text_error_loading')}</h3>
           <p className="text-slate-500 text-sm">{error}</p>
-          <button onClick={refetch} className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-medium">{t('btn_retry')}</button>
+          <button onClick={refetch} className="px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 font-medium">{t('btn_retry')}</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 font-['DM_Sans',sans-serif] p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 p-8">
       <div className="max-w-[1600px] mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -137,7 +137,7 @@ export default function MembresPage() {
           </div>
           <button
             onClick={() => setModalOpen(true)}
-            className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium"
+            className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 flex items-center gap-2 font-medium"
           >
             <Plus size={20} />
             {t('membres_add_btn')}
@@ -161,39 +161,39 @@ export default function MembresPage() {
                     type="text" placeholder={`${t('label_nom')} *`} required
                     value={formData.nom}
                     onChange={e => setFormData({ ...formData, nom: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <input
                     type="text" placeholder={`${t('label_prenom')} *`} required
                     value={formData.prenom}
                     onChange={e => setFormData({ ...formData, prenom: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <input
                   type="email" placeholder={`${t('label_email')} *`} required
                   value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <input
                   type="password" placeholder={`${t('label_password')} *`} required
                   value={formData.password}
                   onChange={e => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <input
                     type="text" placeholder={t('label_telephone')}
                     value={formData.telephone}
                     onChange={e => setFormData({ ...formData, telephone: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <input
                     type="text" placeholder={t('label_adresse')}
                     value={formData.adresse}
                     onChange={e => setFormData({ ...formData, adresse: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -209,7 +209,7 @@ export default function MembresPage() {
                         type="radio" name="role" value="USER"
                         checked={formData.role === 'USER'}
                         onChange={() => setFormData({ ...formData, role: 'USER' })}
-                        className="mt-0.5 accent-emerald-600"
+                        className="mt-0.5 accent-primary-600"
                       />
                       <div>
                         <p className="text-sm font-medium text-slate-700">{t('role_user')}</p>
@@ -221,7 +221,7 @@ export default function MembresPage() {
                         type="radio" name="role" value="ADMIN"
                         checked={formData.role === 'ADMIN'}
                         onChange={() => setFormData({ ...formData, role: 'ADMIN' })}
-                        className="mt-0.5 accent-emerald-600"
+                        className="mt-0.5 accent-primary-600"
                       />
                       <div>
                         <p className="text-sm font-medium text-slate-700">{t('role_admin')}</p>
@@ -248,7 +248,7 @@ export default function MembresPage() {
                 <button
                   type="submit"
                   disabled={adding}
-                  className="w-full py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium"
+                  className="w-full py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all font-medium"
                 >
                   {adding ? t('membres_adding') : t('membres_add_submit')}
                 </button>
@@ -308,7 +308,7 @@ export default function MembresPage() {
                   setSearchQuery(e.target.value);
                   setPage(1);
                 }}
-                className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+                className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50"
               />
             </div>
             <select
@@ -317,7 +317,7 @@ export default function MembresPage() {
                 setRoleFilter(e.target.value);
                 setPage(1);
               }}
-              className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+              className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50"
             >
               <option value="">{t('membres_all_roles')}</option>
               <option value="USER">{t('role_user')}</option>
@@ -353,7 +353,7 @@ export default function MembresPage() {
                   <tr key={membre.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold shadow-md">
+                        <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold shadow-md">
                           {getInitials(membre.nom, membre.prenom)}
                         </div>
                         <div>
@@ -410,7 +410,7 @@ export default function MembresPage() {
                 <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
                   {t('btn_prev')}
                 </button>
-                <span className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium">{page}</span>
+                <span className="px-4 py-2 bg-primary-600 text-white rounded-lg font-medium">{page}</span>
                 <button onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))} disabled={page >= meta.totalPages} className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
                   {t('btn_next')}
                 </button>

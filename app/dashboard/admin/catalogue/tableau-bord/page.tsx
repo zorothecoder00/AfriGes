@@ -32,10 +32,10 @@ const STATUT_STYLE: Record<StatutStock, string> = {
 
 function Kpi({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone: string }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-4">
+    <div className="bg-white rounded-2xl border border-slate-200 p-4">
       <div className={`inline-flex items-center justify-center w-9 h-9 rounded-lg mb-2 ${tone}`}>{icon}</div>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-xs text-gray-400">{label}</p>
+      <p className="text-2xl font-bold text-slate-900">{value}</p>
+      <p className="text-xs text-slate-400">{label}</p>
     </div>
   );
 }
@@ -66,25 +66,25 @@ export default function CatalogueTableauBordPage() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <div className="p-6 max-w-6xl mx-auto space-y-5">
-        <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour au catalogue
         </Link>
 
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><LayoutDashboard className="w-6 h-6 text-blue-600" /> Tableau de bord catalogue</h2>
-            <p className="text-sm text-gray-400">Rotation, jours de stock, ruptures probables et suggestions de réapprovisionnement.</p>
+            <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><LayoutDashboard className="w-6 h-6 text-blue-600" /> Tableau de bord catalogue</h2>
+            <p className="text-sm text-slate-400">Rotation, jours de stock, ruptures probables et suggestions de réapprovisionnement.</p>
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <label className="flex items-center gap-1.5 text-gray-500">Période
-              <select value={periode} onChange={(e) => setPeriode(Number(e.target.value))} className="px-2 py-1.5 border border-gray-200 rounded-lg bg-white">
+            <label className="flex items-center gap-1.5 text-slate-500">Période
+              <select value={periode} onChange={(e) => setPeriode(Number(e.target.value))} className="px-2 py-1.5 border border-slate-200 rounded-lg bg-white">
                 {[7, 14, 30, 60, 90].map((d) => <option key={d} value={d}>{d} j</option>)}
               </select>
             </label>
-            <label className="flex items-center gap-1.5 text-gray-500">Horizon réappro
-              <select value={horizon} onChange={(e) => setHorizon(Number(e.target.value))} className="px-2 py-1.5 border border-gray-200 rounded-lg bg-white">
+            <label className="flex items-center gap-1.5 text-slate-500">Horizon réappro
+              <select value={horizon} onChange={(e) => setHorizon(Number(e.target.value))} className="px-2 py-1.5 border border-slate-200 rounded-lg bg-white">
                 {[7, 14, 30, 45, 60].map((d) => <option key={d} value={d}>{d} j</option>)}
               </select>
             </label>
@@ -92,7 +92,7 @@ export default function CatalogueTableauBordPage() {
         </div>
 
         {loading || !data ? (
-          <div className="flex items-center justify-center py-24 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
+          <div className="flex items-center justify-center py-24 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
         ) : (
           <>
             {/* KPIs */}
@@ -109,7 +109,7 @@ export default function CatalogueTableauBordPage() {
             {/* Suggestions de réapprovisionnement */}
             <Section title="Suggestions de réapprovisionnement" icon={<RefreshCw className="w-4 h-4 text-violet-600" />} empty={data.reappro.length === 0} emptyLabel="Aucun réapprovisionnement nécessaire.">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-400 text-xs uppercase">
+                <thead className="bg-slate-50 text-slate-400 text-xs uppercase">
                   <tr>
                     <th className="text-left px-4 py-2.5 font-semibold">Produit</th>
                     <th className="text-center px-4 py-2.5 font-semibold">État</th>
@@ -120,15 +120,15 @@ export default function CatalogueTableauBordPage() {
                     <th className="text-right px-4 py-2.5 font-semibold">Qté à commander</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-slate-50">
                   {data.reappro.map((m) => (
-                    <tr key={m.produitId} className="hover:bg-gray-50/60">
-                      <td className="px-4 py-2.5"><Link href={`/dashboard/admin/catalogue/produits/${m.produitId}`} className="font-medium text-gray-800 hover:text-blue-600 hover:underline">{m.nom}</Link><span className="block text-[11px] text-gray-400 font-mono">{m.codeProduit ?? "—"}</span></td>
+                    <tr key={m.produitId} className="hover:bg-slate-50/60">
+                      <td className="px-4 py-2.5"><Link href={`/dashboard/admin/catalogue/produits/${m.produitId}`} className="font-medium text-slate-800 hover:text-blue-600 hover:underline">{m.nom}</Link><span className="block text-[11px] text-slate-400 font-mono">{m.codeProduit ?? "—"}</span></td>
                       <td className="px-4 py-2.5 text-center"><span className={`text-[10px] px-2 py-0.5 rounded-full ${STATUT_STYLE[m.statutStock]}`}>{STATUT_STOCK_LABEL[m.statutStock]}</span></td>
                       <td className="px-4 py-2.5 text-right">{m.stockActuel}</td>
-                      <td className="px-4 py-2.5 text-right text-gray-500">{m.consoJournaliere}</td>
+                      <td className="px-4 py-2.5 text-right text-slate-500">{m.consoJournaliere}</td>
                       <td className="px-4 py-2.5 text-right">{m.joursDeStock != null ? `${m.joursDeStock} j` : "—"}</td>
-                      <td className="px-4 py-2.5 text-right text-xs text-gray-500"><span className="inline-flex items-center gap-1"><Calendar className="w-3 h-3" />{dateCourte(m.dateRupture)}</span></td>
+                      <td className="px-4 py-2.5 text-right text-xs text-slate-500"><span className="inline-flex items-center gap-1"><Calendar className="w-3 h-3" />{dateCourte(m.dateRupture)}</span></td>
                       <td className="px-4 py-2.5 text-right font-bold text-violet-700">{m.quantiteReappro}</td>
                     </tr>
                   ))}
@@ -139,7 +139,7 @@ export default function CatalogueTableauBordPage() {
             {/* Alertes rupture / critique */}
             <Section title="Alertes stock" icon={<AlertTriangle className="w-4 h-4 text-rose-600" />} empty={data.alertes.length === 0} emptyLabel="Aucune alerte de rupture ou stock critique.">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-400 text-xs uppercase">
+                <thead className="bg-slate-50 text-slate-400 text-xs uppercase">
                   <tr>
                     <th className="text-left px-4 py-2.5 font-semibold">Produit</th>
                     <th className="text-center px-4 py-2.5 font-semibold">État</th>
@@ -148,14 +148,14 @@ export default function CatalogueTableauBordPage() {
                     <th className="text-right px-4 py-2.5 font-semibold">Rupture prévue</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-slate-50">
                   {data.alertes.map((m) => (
-                    <tr key={m.produitId} className="hover:bg-gray-50/60">
-                      <td className="px-4 py-2.5"><Link href={`/dashboard/admin/catalogue/produits/${m.produitId}`} className="font-medium text-gray-800 hover:text-blue-600 hover:underline">{m.nom}</Link><span className="block text-[11px] text-gray-400 font-mono">{m.codeProduit ?? "—"}</span></td>
+                    <tr key={m.produitId} className="hover:bg-slate-50/60">
+                      <td className="px-4 py-2.5"><Link href={`/dashboard/admin/catalogue/produits/${m.produitId}`} className="font-medium text-slate-800 hover:text-blue-600 hover:underline">{m.nom}</Link><span className="block text-[11px] text-slate-400 font-mono">{m.codeProduit ?? "—"}</span></td>
                       <td className="px-4 py-2.5 text-center"><span className={`text-[10px] px-2 py-0.5 rounded-full ${STATUT_STYLE[m.statutStock]}`}>{STATUT_STOCK_LABEL[m.statutStock]}</span></td>
                       <td className="px-4 py-2.5 text-right">{m.stockActuel}</td>
                       <td className="px-4 py-2.5 text-right">{m.joursDeStock != null ? `${m.joursDeStock} j` : "—"}</td>
-                      <td className="px-4 py-2.5 text-right text-xs text-gray-500">{dateCourte(m.dateRupture)}</td>
+                      <td className="px-4 py-2.5 text-right text-xs text-slate-500">{dateCourte(m.dateRupture)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -166,19 +166,19 @@ export default function CatalogueTableauBordPage() {
               {/* Top ventes */}
               <Section title="Meilleures ventes" icon={<TrendingUp className="w-4 h-4 text-emerald-600" />} empty={data.topVentes.length === 0} emptyLabel="Aucune vente sur la période.">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-400 text-xs uppercase">
+                  <thead className="bg-slate-50 text-slate-400 text-xs uppercase">
                     <tr>
                       <th className="text-left px-4 py-2.5 font-semibold">Produit</th>
                       <th className="text-right px-4 py-2.5 font-semibold">Vendus</th>
                       <th className="text-right px-4 py-2.5 font-semibold">Rotation</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-slate-50">
                     {data.topVentes.map((m) => (
-                      <tr key={m.produitId} className="hover:bg-gray-50/60">
-                        <td className="px-4 py-2.5"><Link href={`/dashboard/admin/catalogue/produits/${m.produitId}`} className="font-medium text-gray-800 hover:text-blue-600 hover:underline">{m.nom}</Link></td>
+                      <tr key={m.produitId} className="hover:bg-slate-50/60">
+                        <td className="px-4 py-2.5"><Link href={`/dashboard/admin/catalogue/produits/${m.produitId}`} className="font-medium text-slate-800 hover:text-blue-600 hover:underline">{m.nom}</Link></td>
                         <td className="px-4 py-2.5 text-right font-semibold">{m.quantiteVendue}</td>
-                        <td className="px-4 py-2.5 text-right text-gray-500">{m.rotation}×</td>
+                        <td className="px-4 py-2.5 text-right text-slate-500">{m.rotation}×</td>
                       </tr>
                     ))}
                   </tbody>
@@ -188,19 +188,19 @@ export default function CatalogueTableauBordPage() {
               {/* Dormants */}
               <Section title="Produits dormants" icon={<Moon className="w-4 h-4 text-slate-500" />} empty={data.dormants.length === 0} emptyLabel="Aucun produit dormant.">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-400 text-xs uppercase">
+                  <thead className="bg-slate-50 text-slate-400 text-xs uppercase">
                     <tr>
                       <th className="text-left px-4 py-2.5 font-semibold">Produit</th>
                       <th className="text-right px-4 py-2.5 font-semibold">Stock</th>
                       <th className="text-right px-4 py-2.5 font-semibold">Valeur immo.</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-slate-50">
                     {data.dormants.map((m) => (
-                      <tr key={m.produitId} className="hover:bg-gray-50/60">
-                        <td className="px-4 py-2.5"><Link href={`/dashboard/admin/catalogue/produits/${m.produitId}`} className="font-medium text-gray-800 hover:text-blue-600 hover:underline">{m.nom}</Link></td>
+                      <tr key={m.produitId} className="hover:bg-slate-50/60">
+                        <td className="px-4 py-2.5"><Link href={`/dashboard/admin/catalogue/produits/${m.produitId}`} className="font-medium text-slate-800 hover:text-blue-600 hover:underline">{m.nom}</Link></td>
                         <td className="px-4 py-2.5 text-right">{m.stockActuel}</td>
-                        <td className="px-4 py-2.5 text-right text-gray-500">{formatCurrency(m.valeurStock)}</td>
+                        <td className="px-4 py-2.5 text-right text-slate-500">{formatCurrency(m.valeurStock)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -218,9 +218,9 @@ function Section({ title, icon, empty, emptyLabel, children }: {
   title: string; icon: React.ReactNode; empty: boolean; emptyLabel: string; children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-      <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2"><h3 className="font-semibold text-gray-800 flex items-center gap-2">{icon} {title}</h3></div>
-      {empty ? <div className="py-10 text-center text-sm text-gray-400">{emptyLabel}</div> : <div className="overflow-x-auto">{children}</div>}
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2"><h3 className="font-semibold text-slate-800 flex items-center gap-2">{icon} {title}</h3></div>
+      {empty ? <div className="py-10 text-center text-sm text-slate-400">{emptyLabel}</div> : <div className="overflow-x-auto">{children}</div>}
     </div>
   );
 }

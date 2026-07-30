@@ -179,7 +179,7 @@ function CycleIndicator({ statut }: { statut: string }) {
           <React.Fragment key={s.key}>
             <div className={`flex flex-col items-center gap-0.5 min-w-0 flex-shrink-0 ${active ? "" : ""}`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                active ? "bg-indigo-600 text-white ring-2 ring-indigo-300" :
+                active ? "bg-primary-600 text-white ring-2 ring-indigo-300" :
                 done   ? "bg-emerald-500 text-white" :
                          "bg-slate-200 text-slate-400"
               }`}>
@@ -270,7 +270,7 @@ export default function EvaluationsPage() {
               <RefreshCw className="w-4 h-4" />
             </button>
             <button onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700">
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700">
               <Plus className="w-4 h-4" /> Nouvelle évaluation
             </button>
           </div>
@@ -298,7 +298,7 @@ export default function EvaluationsPage() {
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
               {Object.entries(STATUT_CONFIG).map(([key, cfg]) => (
                 <button key={key} onClick={() => setStatut(statut === key ? "" : key)}
-                  className={`p-3 rounded-xl border text-left transition-all ${statut === key ? "border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400" : "bg-white border-slate-200 hover:border-slate-300"}`}>
+                  className={`p-3 rounded-xl border text-left transition-all ${statut === key ? "border-indigo-400 bg-indigo-50 ring-1 ring-primary-400" : "bg-white border-slate-200 hover:border-slate-300"}`}>
                   <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md w-fit mb-1.5 ${cfg.badge}`}>{cfg.icon}</div>
                   <p className="text-xl font-bold text-slate-900">{stats[key] ?? 0}</p>
                   <p className="text-[11px] text-slate-500 leading-tight">{cfg.label}</p>
@@ -312,20 +312,20 @@ export default function EvaluationsPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input value={search} onChange={(e) => handleSearch(e.target.value)}
                   placeholder="Rechercher un collaborateur…"
-                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </div>
               <select value={typeEval} onChange={(e) => { setTypeEval(e.target.value); setPage(1); }}
-                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 <option value="">Toutes méthodes</option>
                 {Object.entries(TYPE_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
               <select value={periode} onChange={(e) => { setPeriode(e.target.value); setPage(1); }}
-                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 <option value="">Toutes périodes</option>
                 {Object.entries(PERIODE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </select>
               <select value={annee} onChange={(e) => { setAnnee(e.target.value); setPage(1); }}
-                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 <option value="">Toutes années</option>
                 {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
@@ -373,7 +373,7 @@ export default function EvaluationsPage() {
           <>
             <div className="flex items-center gap-3">
               <select value={annee} onChange={(e) => setAnnee(e.target.value)}
-                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
               <p className="text-sm text-slate-500">{kpiEvals.reduce((s, e) => s + e.objectifs.length, 0)} objectifs KPI suivis</p>
@@ -671,7 +671,7 @@ function CreateEvalModal({ onClose, onCreated }: { onClose: () => void; onCreate
         <div className="overflow-y-auto flex-1 p-6 space-y-4">
           <EField label="Collaborateur *">
             <select value={form.profilRHId} onChange={(e) => set("profilRHId", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
               <option value="">— Sélectionner —</option>
               {collabs.map((c) => (
                 <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>
@@ -695,19 +695,19 @@ function CreateEvalModal({ onClose, onCreated }: { onClose: () => void; onCreate
           <div className="grid grid-cols-3 gap-3">
             <EField label="Période *">
               <select value={form.periode} onChange={(e) => set("periode", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 {Object.entries(PERIODE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </select>
             </EField>
             <EField label="Année *">
               <select value={form.annee} onChange={(e) => set("annee", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
             </EField>
             <EField label="Date début *">
               <input type="date" value={form.dateDebut} onChange={(e) => set("dateDebut", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </EField>
           </div>
 
@@ -728,7 +728,7 @@ function CreateEvalModal({ onClose, onCreated }: { onClose: () => void; onCreate
                       <input value={c.libelle}
                         onChange={(e) => setCriteres((prev) => prev.map((x, j) => j === i ? { ...x, libelle: e.target.value } : x))}
                         placeholder="Libellé du critère…"
-                        className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                        className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary-500" />
                     )}
                     <StarRating value={c.note} onChange={(v) => setCriteres((prev) => prev.map((x, j) => j === i ? { ...x, note: v } : x))} />
                     <button onClick={() => setCriteres((prev) => prev.filter((_, j) => j !== i))} className="text-slate-300 hover:text-red-400">
@@ -748,7 +748,7 @@ function CreateEvalModal({ onClose, onCreated }: { onClose: () => void; onCreate
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
           <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
           </button>
         </div>
@@ -796,16 +796,16 @@ function ActionsPDISection({ evaluationId, canEdit }: { evaluationId: number; ca
         <div className="p-3 bg-slate-50 rounded-xl space-y-2">
           <input value={form.objectif} onChange={(e) => setForm((f) => ({ ...f, objectif: e.target.value }))}
             placeholder="Objectif de développement…"
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary-500" />
           <input value={form.actionPrevue} onChange={(e) => setForm((f) => ({ ...f, actionPrevue: e.target.value }))}
             placeholder="Action prévue (formation, accompagnement…)"
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary-500" />
           <div className="flex items-center gap-2">
             <input type="date" value={form.echeance} onChange={(e) => setForm((f) => ({ ...f, echeance: e.target.value }))}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary-500" />
             <button onClick={() => setShowAdd(false)} className="ml-auto px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-100 rounded-lg">Annuler</button>
             <button onClick={handleAdd} disabled={creating}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+              className="flex items-center gap-1 px-3 py-1.5 text-xs text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50">
               {creating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Enregistrer
             </button>
           </div>
@@ -1106,7 +1106,7 @@ function EvalDetailModal({ eval_: e, onClose, onUpdated }: { eval_: Evaluation; 
                   ] as [keyof typeof form, string][]).map(([k, l]) => (
                     <EField key={k} label={l}>
                       <textarea value={form[k]} rows={2} onChange={(ev) => setForm((f) => ({ ...f, [k]: ev.target.value }))}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
                     </EField>
                   ))}
                 </div>
@@ -1181,11 +1181,11 @@ function EvalDetailModal({ eval_: e, onClose, onUpdated }: { eval_: Evaluation; 
                             <div className="flex items-center gap-2">
                               <input type="number" value={kpiAtteinte[kpi.id] ?? ""}
                                 onChange={(ev) => setKpiAtteinte((p) => ({ ...p, [kpi.id]: ev.target.value }))}
-                                className="w-24 px-2 py-1 border border-indigo-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                className="w-24 px-2 py-1 border border-indigo-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                                 placeholder="Valeur" />
                               {kpi.unite && <span className="text-xs text-slate-500">{kpi.unite}</span>}
                               <button onClick={() => handleUpdateAtteinte(kpi.id)} disabled={savingKpi}
-                                className="px-2 py-1 text-xs text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50">
+                                className="px-2 py-1 text-xs text-white bg-primary-600 rounded hover:bg-primary-700 disabled:opacity-50">
                                 {savingKpi ? "…" : "OK"}
                               </button>
                               <button onClick={() => setEditingKpi(null)} className="text-xs text-slate-400 hover:text-slate-600">Annuler</button>
@@ -1225,28 +1225,28 @@ function EvalDetailModal({ eval_: e, onClose, onUpdated }: { eval_: Evaluation; 
                       <div className="grid grid-cols-2 gap-3">
                         <EField label="Libellé *">
                           <input value={kpiForm.libelle} onChange={(e) => setKpiForm((f) => ({ ...f, libelle: e.target.value }))}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                             placeholder="Ex: Chiffre d'affaires" />
                         </EField>
                         <EField label="Indicateur">
                           <input value={kpiForm.indicateur} onChange={(e) => setKpiForm((f) => ({ ...f, indicateur: e.target.value }))}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                             placeholder="Ex: Ventes mensuelles" />
                         </EField>
                         <EField label="Valeur cible *">
                           <input type="number" value={kpiForm.valeurCible} onChange={(e) => setKpiForm((f) => ({ ...f, valeurCible: e.target.value }))}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                             placeholder="100" />
                         </EField>
                         <EField label="Unité">
                           <input value={kpiForm.unite} onChange={(e) => setKpiForm((f) => ({ ...f, unite: e.target.value }))}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                             placeholder="Ex: FCFA, %, unités" />
                         </EField>
                         <EField label="Poids (%)">
                           <input type="number" min={0} max={100} value={kpiForm.poids}
                             onChange={(e) => setKpiForm((f) => ({ ...f, poids: e.target.value }))}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                             placeholder="Ex: 30" />
                         </EField>
                       </div>
@@ -1254,7 +1254,7 @@ function EvalDetailModal({ eval_: e, onClose, onUpdated }: { eval_: Evaluation; 
                         <button onClick={() => setShowAddKpi(false)}
                           className="px-3 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
                         <button onClick={handleAddKpi} disabled={savingKpi}
-                          className="flex items-center gap-1.5 px-3 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                          className="flex items-center gap-1.5 px-3 py-2 text-sm text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50">
                           {savingKpi ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Ajouter
                         </button>
                       </div>
@@ -1284,13 +1284,13 @@ function EvalDetailModal({ eval_: e, onClose, onUpdated }: { eval_: Evaluation; 
               {editPlan ? (
                 <div className="space-y-3">
                   <textarea value={plan} onChange={(e) => setPlan(e.target.value)} rows={8}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
                     placeholder={"Actions à mettre en place :\n\n1. Formation sur …\n2. Accompagnement par …\n3. Objectifs intermédiaires …"} />
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => { setPlan(e.planAmelioration ?? ""); setEditPlan(false); }}
                       className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
                     <button onClick={handleSavePlan} disabled={loading}
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50">
                       {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Enregistrer
                     </button>
                   </div>
@@ -1334,7 +1334,7 @@ function EvalDetailModal({ eval_: e, onClose, onUpdated }: { eval_: Evaluation; 
             </button>
             {subTab === "synthese" && editMode && (
               <button onClick={handleSaveSynthese} disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
                 {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Enregistrer
               </button>
             )}

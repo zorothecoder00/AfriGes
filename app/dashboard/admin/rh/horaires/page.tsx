@@ -3,11 +3,15 @@
 import { useState } from "react";
 import {
   ArrowLeft, Plus, RefreshCw, Clock, Edit2, Trash2,
-  Star, StarOff, Users, CheckCircle, X, Save,
+  Star, StarOff, Users, CheckCircle, Save,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
+import Button from "@/components/ui/Button";
+import Badge from "@/components/ui/Badge";
+import Input from "@/components/ui/Input";
+import Modal from "@/components/ui/Modal";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -48,35 +52,32 @@ export default function HorairesPage() {
   const configs = res?.data ?? [];
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
 
         {/* En-tête */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <Link href="/dashboard/admin/rh/pointages" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
+            <Link href="/dashboard/admin/rh/pointages" className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 mb-2">
               <ArrowLeft size={15} /> Pointages
             </Link>
-            <h1 className="text-2xl font-bold text-slate-900">Configurations d&apos;horaires</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Définissez les plages horaires de référence pour le calcul automatique</p>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Configurations d&apos;horaires</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Définissez les plages horaires de référence pour le calcul automatique</p>
           </div>
-          <button onClick={() => { setEditing(null); setShowModal(true); }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">
-            <Plus className="w-4 h-4" /> Nouvel horaire
-          </button>
+          <Button onClick={() => { setEditing(null); setShowModal(true); }} icon={<Plus className="w-4 h-4" />}>
+            Nouvel horaire
+          </Button>
         </div>
 
         {/* Liste */}
         {loading ? (
-          <div className="flex justify-center py-16 text-slate-400"><RefreshCw className="w-6 h-6 animate-spin" /></div>
+          <div className="flex justify-center py-16 text-slate-400 dark:text-slate-500"><RefreshCw className="w-6 h-6 animate-spin" /></div>
         ) : configs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center py-16 text-slate-400">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col items-center py-16 text-slate-400 dark:text-slate-500">
             <Clock className="w-10 h-10 mb-2 opacity-30" />
             <p className="text-sm">Aucune configuration d&apos;horaires</p>
-            <button onClick={() => { setEditing(null); setShowModal(true); }}
-              className="mt-4 px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">
+            <Button onClick={() => { setEditing(null); setShowModal(true); }} className="mt-4" size="sm">
               Créer la première config
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="grid gap-3">
@@ -101,7 +102,6 @@ export default function HorairesPage() {
           </div>
         )}
 
-      </div>
 
       {/* Modal créer / éditer */}
       {showModal && (
@@ -135,54 +135,50 @@ function ConfigCard({ cfg, onEdit, onDelete, onToggleDefault }: {
   const joursOuvres = (cfg.joursOuvres as number[] | null) ?? [1,2,3,4,5];
 
   return (
-    <div className={`bg-white rounded-xl border overflow-hidden ${cfg.estDefaut ? "border-emerald-300 ring-1 ring-emerald-200" : "border-slate-200"}`}>
+    <div className={`bg-white dark:bg-slate-800 rounded-2xl border shadow-sm overflow-hidden ${cfg.estDefaut ? "border-emerald-300 dark:border-emerald-700 ring-1 ring-emerald-200 dark:ring-emerald-800" : "border-slate-200 dark:border-slate-700"}`}>
       <div className="flex items-start gap-4 px-5 py-4">
-        <div className={`p-2.5 rounded-xl flex-shrink-0 ${cfg.estDefaut ? "bg-emerald-100" : "bg-slate-100"}`}>
-          <Clock className={`w-5 h-5 ${cfg.estDefaut ? "text-emerald-600" : "text-slate-500"}`} />
+        <div className={`p-2.5 rounded-xl flex-shrink-0 ${cfg.estDefaut ? "bg-emerald-100 dark:bg-emerald-900/40" : "bg-slate-100 dark:bg-slate-700"}`}>
+          <Clock className={`w-5 h-5 ${cfg.estDefaut ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"}`} />
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-sm font-semibold text-slate-900">{cfg.nom ?? "Horaire sans nom"}</h3>
-            {cfg.estDefaut && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-semibold rounded-full">
-                <Star className="w-3 h-3" /> Par défaut
-              </span>
-            )}
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{cfg.nom ?? "Horaire sans nom"}</h3>
+            {cfg.estDefaut && <Badge variant="success" icon={<Star className="w-3 h-3" />}>Par défaut</Badge>}
             {cfg._count.collaborateurs > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-medium rounded-full">
-                <Users className="w-3 h-3" /> {cfg._count.collaborateurs} collaborateur{cfg._count.collaborateurs > 1 ? "s" : ""}
-              </span>
+              <Badge variant="neutral" icon={<Users className="w-3 h-3" />}>
+                {cfg._count.collaborateurs} collaborateur{cfg._count.collaborateurs > 1 ? "s" : ""}
+              </Badge>
             )}
           </div>
 
-          <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-xs text-slate-600">
+          <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
             <div className="flex items-center gap-1.5">
-              <span className="text-slate-400">Arrivée</span>
+              <span className="text-slate-400 dark:text-slate-500">Arrivée</span>
               <span className="font-mono font-medium">{cfg.heureArrivee ?? "—"}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-slate-400">Départ</span>
+              <span className="text-slate-400 dark:text-slate-500">Départ</span>
               <span className="font-mono font-medium">{cfg.heureDepart ?? "—"}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-slate-400">Durée</span>
+              <span className="text-slate-400 dark:text-slate-500">Durée</span>
               <span className="font-medium">{fmtMin(cfg.dureeJourneeMinutes)}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-slate-400">Pause</span>
+              <span className="text-slate-400 dark:text-slate-500">Pause</span>
               <span className="font-medium">{fmtMin(cfg.pauseDejeunnerMinutes)}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-slate-400">Tolérance</span>
+              <span className="text-slate-400 dark:text-slate-500">Tolérance</span>
               <span className="font-medium">{cfg.toleranceRetardMin != null ? `${cfg.toleranceRetardMin}min` : "—"}</span>
             </div>
             <div className="col-span-2 flex items-center gap-1.5 flex-wrap">
-              <span className="text-slate-400">Jours</span>
+              <span className="text-slate-400 dark:text-slate-500">Jours</span>
               <div className="flex gap-1">
                 {[1,2,3,4,5,6,7].map((j) => (
                   <span key={j} className={`text-[10px] font-medium px-1 py-0.5 rounded ${
-                    joursOuvres.includes(j) ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"
+                    joursOuvres.includes(j) ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" : "bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500"
                   }`}>{JOURS_NOMS[j]}</span>
                 ))}
               </div>
@@ -193,16 +189,16 @@ function ConfigCard({ cfg, onEdit, onDelete, onToggleDefault }: {
         <div className="flex items-center gap-1 flex-shrink-0">
           {!cfg.estDefaut && (
             <button onClick={onToggleDefault} title="Définir par défaut"
-              className="p-1.5 hover:bg-amber-50 rounded-lg text-slate-400 hover:text-amber-500 transition-colors">
+              className="p-1.5 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg text-slate-400 dark:text-slate-500 hover:text-amber-500 transition-colors">
               <StarOff className="w-4 h-4" />
             </button>
           )}
           <button onClick={onEdit} title="Modifier"
-            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors">
+            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
             <Edit2 className="w-4 h-4" />
           </button>
           <button onClick={onDelete} title="Supprimer"
-            className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors">
+            className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors">
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
@@ -278,41 +274,23 @@ function HoraireModal({ initial, onClose, onSaved }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="text-base font-semibold text-slate-900">{isEdit ? "Modifier l'horaire" : "Nouvel horaire"}</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Nom */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nom de la configuration</label>
-            <input type="text" value={nom} onChange={(e) => setNom(e.target.value)}
-              placeholder="Ex: Standard bureau, Équipe du matin…"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-          </div>
+    <Modal open onClose={onClose} title={isEdit ? "Modifier l'horaire" : "Nouvel horaire"} size="sm">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input
+            label="Nom de la configuration"
+            type="text" value={nom} onChange={(e) => setNom(e.target.value)}
+            placeholder="Ex: Standard bureau, Équipe du matin…"
+          />
 
           {/* Heures */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Heure d&apos;arrivée</label>
-              <input type="time" value={heureArrivee} onChange={(e) => setHeureArrivee(e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Heure de départ</label>
-              <input type="time" value={heureDepart} onChange={(e) => setHeureDepart(e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </div>
+            <Input label="Heure d'arrivée" type="time" value={heureArrivee} onChange={(e) => setHeureArrivee(e.target.value)} />
+            <Input label="Heure de départ" type="time" value={heureDepart} onChange={(e) => setHeureDepart(e.target.value)} />
           </div>
 
           {/* Durée calculée automatiquement */}
           {dureeAuto && (
-            <p className="text-xs text-emerald-600 bg-emerald-50 rounded-lg px-3 py-1.5 flex items-center gap-1.5">
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-1.5 flex items-center gap-1.5">
               <CheckCircle className="w-3.5 h-3.5" />
               Durée calculée automatiquement : <strong>{fmtMin(dureeAuto)}</strong> (après {Number(pause) || 0}min de pause)
             </p>
@@ -320,28 +298,20 @@ function HoraireModal({ initial, onClose, onSaved }: {
 
           {/* Pause & Tolérance */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Pause déjeuner (min)</label>
-              <input type="number" min="0" max="180" value={pause} onChange={(e) => setPause(e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Tolérance retard (min)</label>
-              <input type="number" min="0" max="60" value={tolerance} onChange={(e) => setTolerance(e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </div>
+            <Input label="Pause déjeuner (min)" type="number" min="0" max="180" value={pause} onChange={(e) => setPause(e.target.value)} />
+            <Input label="Tolérance retard (min)" type="number" min="0" max="60" value={tolerance} onChange={(e) => setTolerance(e.target.value)} />
           </div>
 
           {/* Jours ouvrés */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Jours ouvrés</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Jours ouvrés</label>
             <div className="flex gap-1.5">
               {[1,2,3,4,5,6,7].map((j) => (
                 <button key={j} type="button" onClick={() => toggleJour(j)}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     joursOuvres.includes(j)
-                      ? "bg-emerald-600 text-white"
-                      : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      ? "bg-primary-600 text-white"
+                      : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600"
                   }`}>
                   {JOURS_NOMS[j]}
                 </button>
@@ -351,31 +321,27 @@ function HoraireModal({ initial, onClose, onSaved }: {
 
           {/* Par défaut */}
           <label className="flex items-center gap-3 cursor-pointer">
-            <div className={`relative w-10 h-5 rounded-full transition-colors ${estDefaut ? "bg-emerald-500" : "bg-slate-200"}`}
+            <div className={`relative w-10 h-5 rounded-full transition-colors ${estDefaut ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-700"}`}
               onClick={() => setEstDefaut((v) => !v)}>
               <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${estDefaut ? "left-5" : "left-0.5"}`} />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-700">Horaire par défaut</p>
-              <p className="text-xs text-slate-400">Appliqué aux nouveaux collaborateurs sans config</p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Horaire par défaut</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Appliqué aux nouveaux collaborateurs sans config</p>
             </div>
           </label>
 
           {/* Boutons */}
           <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose}
-              className="flex-1 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+            <Button type="button" variant="secondary" onClick={onClose} className="flex-1 justify-center">
               Annuler
-            </button>
-            <button type="submit" disabled={saving}
-              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-              {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            </Button>
+            <Button type="submit" disabled={saving} loading={saving} icon={<Save className="w-4 h-4" />} className="flex-1 justify-center">
               {isEdit ? "Enregistrer" : "Créer"}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -402,31 +368,27 @@ function ConfirmDelete({ cfg, onCancel, onDeleted }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-red-100 rounded-xl"><Trash2 className="w-5 h-5 text-red-600" /></div>
-          <h2 className="text-base font-semibold text-slate-900">Supprimer la configuration</h2>
+    <Modal open onClose={onCancel} size="sm">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2.5 bg-red-100 dark:bg-red-900/30 rounded-xl"><Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" /></div>
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Supprimer la configuration</h2>
         </div>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
           Voulez-vous supprimer <strong>«{cfg.nom ?? "cette config"}»</strong> ?
           {cfg._count.collaborateurs > 0 && (
-            <span className="block mt-1 text-red-600">
+            <span className="block mt-1 text-red-600 dark:text-red-400">
               Cette config est utilisée par {cfg._count.collaborateurs} collaborateur(s). La suppression sera bloquée.
             </span>
           )}
         </p>
-        <div className="flex gap-2">
-          <button onClick={onCancel} className="flex-1 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+        <div className="flex gap-2 pt-4">
+          <Button variant="secondary" onClick={onCancel} className="flex-1 justify-center">
             Annuler
-          </button>
-          <button onClick={handleConfirm} disabled={loading}
-            className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+          </Button>
+          <Button variant="danger" onClick={handleConfirm} disabled={loading} loading={loading} icon={<Trash2 className="w-4 h-4" />} className="flex-1 justify-center">
             Supprimer
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

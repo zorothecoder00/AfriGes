@@ -6,9 +6,12 @@ import Link from "next/link";
 import {
   ArrowLeft, UserPlus, User, Check,
   Briefcase, Calendar, Building2, ChevronRight,
-  Loader2, AlertCircle, RefreshCw,
+  AlertCircle, RefreshCw,
 } from "lucide-react";
 import { useMutation, useApi } from "@/hooks/useApi";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import Input from "@/components/ui/Input";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -115,22 +118,21 @@ export default function NouveauCollaborateurPage() {
     setForm((f) => ({ ...f, [field]: value }));
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-3xl mx-auto p-6 space-y-6">
+    <div className="max-w-3xl mx-auto p-6 space-y-6">
 
         {/* ── En-tête ── */}
         <div>
           <Link
             href="/dashboard/admin/rh/collaborateurs"
-            className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-3"
+            className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 mb-3"
           >
             <ArrowLeft size={15} /> Retour aux collaborateurs
           </Link>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <UserPlus className="w-6 h-6 text-emerald-600" />
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50 flex items-center gap-2">
+            <UserPlus className="w-6 h-6 text-primary-600 dark:text-primary-400" />
             Nouveau dossier collaborateur
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Créez le dossier RH d&apos;un gestionnaire déjà enregistré dans le système.
           </p>
         </div>
@@ -142,20 +144,20 @@ export default function NouveauCollaborateurPage() {
             { n: 2, label: "Profil RH" },
           ].map(({ n, label }, i) => (
             <div key={n} className="flex items-center gap-3">
-              {i > 0 && <ChevronRight className="w-4 h-4 text-slate-300" />}
+              {i > 0 && <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600" />}
               <button
                 type="button"
                 onClick={() => n < step && setStep(n as 1 | 2)}
                 className="flex items-center gap-2 text-sm"
               >
                 <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold
-                  ${step === n ? "bg-emerald-600 text-white"
-                    : step > n ? "bg-emerald-100 text-emerald-700"
-                    : "bg-slate-200 text-slate-400"}`}
+                  ${step === n ? "bg-primary-600 text-white"
+                    : step > n ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                    : "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500"}`}
                 >
                   {step > n ? <Check className="w-3.5 h-3.5" /> : n}
                 </span>
-                <span className={step === n ? "font-semibold text-slate-800" : "text-slate-400"}>
+                <span className={step === n ? "font-semibold text-slate-800 dark:text-slate-100" : "text-slate-400 dark:text-slate-500"}>
                   {label}
                 </span>
               </button>
@@ -167,33 +169,34 @@ export default function NouveauCollaborateurPage() {
 
           {/* ── Étape 1 : Sélection gestionnaire ── */}
           {step === 1 && (
-            <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+            <Card>
+              <div className="space-y-5">
               <div>
-                <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                  <User className="w-4 h-4 text-emerald-600" />
+                <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  <User className="w-4 h-4 text-primary-600 dark:text-primary-400" />
                   Sélectionner le gestionnaire
                 </h2>
-                <p className="text-sm text-slate-500 mt-1">
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                   Seuls les gestionnaires sans dossier RH sont affichés.
                 </p>
               </div>
 
               {gestLoading ? (
-                <div className="flex items-center gap-2 text-sm text-slate-400 py-4">
+                <div className="flex items-center gap-2 text-sm text-slate-400 dark:text-slate-500 py-4">
                   <RefreshCw className="w-4 h-4 animate-spin" /> Chargement…
                 </div>
               ) : gestionnaires.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-8 text-center">
                   <AlertCircle className="w-8 h-8 text-amber-400" />
-                  <p className="text-sm font-medium text-slate-700">
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
                     Aucun gestionnaire disponible
                   </p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
                     Tous les gestionnaires ont déjà un dossier RH, ou il n&apos;en existe aucun.
                   </p>
                   <Link
                     href="/dashboard/admin/gestionnaires"
-                    className="mt-2 text-xs text-emerald-600 underline"
+                    className="mt-2 text-xs text-primary-600 dark:text-primary-400 underline"
                   >
                     Créer un gestionnaire
                   </Link>
@@ -201,13 +204,13 @@ export default function NouveauCollaborateurPage() {
               ) : (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">
                       Gestionnaire <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={form.gestionnaireId}
                       onChange={(e) => set("gestionnaireId", e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                     >
                       <option value="">-- Sélectionner un gestionnaire --</option>
                       {gestionnaires.map((g) => {
@@ -225,44 +228,46 @@ export default function NouveauCollaborateurPage() {
 
                   {/* Fiche récap du gestionnaire sélectionné */}
                   {selectedGestionnaire && (
-                    <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-                      <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                    <div className="flex items-center gap-3 p-4 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl">
+                      <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
                         {selectedGestionnaire.member.prenom[0]}{selectedGestionnaire.member.nom[0]}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-slate-800">
+                        <div className="font-semibold text-slate-800 dark:text-slate-100">
                           {selectedGestionnaire.member.prenom} {selectedGestionnaire.member.nom}
                         </div>
-                        <div className="text-sm text-slate-500">{selectedGestionnaire.member.email}</div>
+                        <div className="text-sm text-slate-500 dark:text-slate-400">{selectedGestionnaire.member.email}</div>
                         <div className="flex items-center gap-3 mt-1 flex-wrap">
-                          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                          <span className="text-xs bg-primary-100 dark:bg-primary-800/40 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full">
                             {selectedGestionnaire.role.replace(/_/g, " ")}
                           </span>
                           {selectedGestionnaire.member.affectationsPDV[0]?.pointDeVente && (
-                            <span className="text-xs text-slate-400 flex items-center gap-1">
+                            <span className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
                               <Building2 className="w-3 h-3" />
                               {selectedGestionnaire.member.affectationsPDV[0].pointDeVente.nom}
                             </span>
                           )}
                         </div>
                       </div>
-                      <Check className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                      <Check className="w-5 h-5 text-primary-600 dark:text-primary-400 flex-shrink-0" />
                     </div>
                   )}
                 </>
               )}
 
               <div className="flex justify-end pt-2">
-                <button
+                <Button
                   type="button"
                   disabled={!form.gestionnaireId}
                   onClick={() => setStep(2)}
-                  className="px-5 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                  icon={<ChevronRight className="w-4 h-4" />}
+                  className="flex-row-reverse"
                 >
-                  Suivant <ChevronRight className="w-4 h-4" />
-                </button>
+                  Suivant
+                </Button>
               </div>
-            </div>
+              </div>
+            </Card>
           )}
 
           {/* ── Étape 2 : Profil RH ── */}
@@ -270,22 +275,22 @@ export default function NouveauCollaborateurPage() {
             <>
               {/* Récap gestionnaire */}
               {selectedGestionnaire && (
-                <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm">
-                  <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                <div className="flex items-center gap-3 p-3 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl text-sm">
+                  <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                     {selectedGestionnaire.member.prenom[0]}{selectedGestionnaire.member.nom[0]}
                   </div>
                   <div>
-                    <span className="font-semibold text-slate-800">
+                    <span className="font-semibold text-slate-800 dark:text-slate-100">
                       {selectedGestionnaire.member.prenom} {selectedGestionnaire.member.nom}
                     </span>
-                    <span className="text-slate-400 ml-2">
+                    <span className="text-slate-400 dark:text-slate-500 ml-2">
                       — {selectedGestionnaire.role.replace(/_/g, " ")}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="ml-auto text-xs text-emerald-600 hover:underline"
+                    className="ml-auto text-xs text-primary-600 dark:text-primary-400 hover:underline"
                   >
                     Modifier
                   </button>
@@ -293,19 +298,20 @@ export default function NouveauCollaborateurPage() {
               )}
 
               {/* Contrat & Poste */}
-              <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
-                <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-emerald-600" />
+              <Card>
+                <div className="space-y-5">
+                <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-primary-600 dark:text-primary-400" />
                   Contrat & Poste
                 </h2>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Type de contrat</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Type de contrat</label>
                     <select
                       value={form.typeContrat}
                       onChange={(e) => set("typeContrat", e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                     >
                       <option value="">Sélectionner…</option>
                       {["CDI", "CDD", "STAGE", "CONSULTANT", "PRESTATAIRE", "FREELANCE"].map((c) => (
@@ -315,84 +321,65 @@ export default function NouveauCollaborateurPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Statut initial</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Statut initial</label>
                     <select
                       value={form.statut}
                       onChange={(e) => set("statut", e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                     >
                       <option value="ACTIF">Actif</option>
                       <option value="EN_PERIODE_ESSAI">Période d&apos;essai</option>
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Date d&apos;embauche</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                      <input
-                        type="date"
-                        value={form.dateEmbauche}
-                        onChange={(e) => set("dateEmbauche", e.target.value)}
-                        className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-                  </div>
+                  <Input
+                    type="date"
+                    label="Date d'embauche"
+                    value={form.dateEmbauche}
+                    onChange={(e) => set("dateEmbauche", e.target.value)}
+                    icon={<Calendar className="w-4 h-4" />}
+                  />
 
                   {(form.typeContrat === "CDD" || form.typeContrat === "STAGE") && (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Date de fin</label>
-                      <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                        <input
-                          type="date"
-                          value={form.dateFin}
-                          onChange={(e) => set("dateFin", e.target.value)}
-                          className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        />
-                      </div>
-                    </div>
+                    <Input
+                      type="date"
+                      label="Date de fin"
+                      value={form.dateFin}
+                      onChange={(e) => set("dateFin", e.target.value)}
+                      icon={<Calendar className="w-4 h-4" />}
+                    />
                   )}
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Fonction / Titre du poste</label>
-                    <input
-                      type="text"
-                      value={form.fonction}
-                      onChange={(e) => set("fonction", e.target.value)}
-                      placeholder="Ex : Responsable commercial"
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
+                  <Input
+                    type="text"
+                    label="Fonction / Titre du poste"
+                    value={form.fonction}
+                    onChange={(e) => set("fonction", e.target.value)}
+                    placeholder="Ex : Responsable commercial"
+                  />
+
+                  <Input
+                    type="text"
+                    label="Service"
+                    value={form.service}
+                    onChange={(e) => set("service", e.target.value)}
+                    placeholder="Ex : Service commercial"
+                  />
+
+                  <Input
+                    type="text"
+                    label="Département"
+                    value={form.departement}
+                    onChange={(e) => set("departement", e.target.value)}
+                    placeholder="Ex : Direction commerciale"
+                  />
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Service</label>
-                    <input
-                      type="text"
-                      value={form.service}
-                      onChange={(e) => set("service", e.target.value)}
-                      placeholder="Ex : Service commercial"
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Département</label>
-                    <input
-                      type="text"
-                      value={form.departement}
-                      onChange={(e) => set("departement", e.target.value)}
-                      placeholder="Ex : Direction commerciale"
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Niveau hiérarchique</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Niveau hiérarchique</label>
                     <select
                       value={form.niveauHierarchique}
                       onChange={(e) => set("niveauHierarchique", e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                     >
                       <option value="">Sélectionner…</option>
                       {[
@@ -405,44 +392,40 @@ export default function NouveauCollaborateurPage() {
                     </select>
                   </div>
                 </div>
-              </div>
+                </div>
+              </Card>
 
               {/* Informations personnelles */}
-              <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
-                <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                  <User className="w-4 h-4 text-emerald-600" />
+              <Card>
+              <div className="space-y-5">
+                <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  <User className="w-4 h-4 text-primary-600 dark:text-primary-400" />
                   Informations personnelles
-                  <span className="text-xs font-normal text-slate-400">(optionnel)</span>
+                  <span className="text-xs font-normal text-slate-400 dark:text-slate-500">(optionnel)</span>
                 </h2>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Date de naissance</label>
-                    <input
-                      type="date"
-                      value={form.dateNaissance}
-                      onChange={(e) => set("dateNaissance", e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
+                  <Input
+                    type="date"
+                    label="Date de naissance"
+                    value={form.dateNaissance}
+                    onChange={(e) => set("dateNaissance", e.target.value)}
+                  />
+
+                  <Input
+                    type="text"
+                    label="Lieu de naissance"
+                    value={form.lieuNaissance}
+                    onChange={(e) => set("lieuNaissance", e.target.value)}
+                    placeholder="Ex : Cotonou"
+                  />
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Lieu de naissance</label>
-                    <input
-                      type="text"
-                      value={form.lieuNaissance}
-                      onChange={(e) => set("lieuNaissance", e.target.value)}
-                      placeholder="Ex : Cotonou"
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Sexe</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Sexe</label>
                     <select
                       value={form.sexe}
                       onChange={(e) => set("sexe", e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                     >
                       <option value="">Sélectionner…</option>
                       <option value="MASCULIN">Masculin</option>
@@ -451,23 +434,20 @@ export default function NouveauCollaborateurPage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nationalité</label>
-                    <input
-                      type="text"
-                      value={form.nationalite}
-                      onChange={(e) => set("nationalite", e.target.value)}
-                      placeholder="Ex : Béninoise"
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
+                  <Input
+                    type="text"
+                    label="Nationalité"
+                    value={form.nationalite}
+                    onChange={(e) => set("nationalite", e.target.value)}
+                    placeholder="Ex : Béninoise"
+                  />
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Situation matrimoniale</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Situation matrimoniale</label>
                     <select
                       value={form.situationMatrimoniale}
                       onChange={(e) => set("situationMatrimoniale", e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                     >
                       <option value="">Sélectionner…</option>
                       {[
@@ -480,69 +460,55 @@ export default function NouveauCollaborateurPage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nombre d&apos;enfants</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={form.nbEnfants}
-                      onChange={(e) => set("nbEnfants", e.target.value)}
-                      placeholder="0"
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
+                  <Input
+                    type="number"
+                    min="0"
+                    label="Nombre d'enfants"
+                    value={form.nbEnfants}
+                    onChange={(e) => set("nbEnfants", e.target.value)}
+                    placeholder="0"
+                  />
 
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Téléphone secondaire</label>
-                    <input
+                    <Input
                       type="tel"
+                      label="Téléphone secondaire"
                       value={form.telephoneSecondaire}
                       onChange={(e) => set("telephoneSecondaire", e.target.value)}
                       placeholder="+229 00 00 00 00"
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
                 </div>
               </div>
+              </Card>
 
               {/* Notes */}
-              <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-3">
-                <label className="block text-sm font-medium text-slate-700">Notes internes</label>
+              <Card>
+                <div className="space-y-3">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Notes internes</label>
                 <textarea
                   value={form.notes}
                   onChange={(e) => set("notes", e.target.value)}
                   rows={3}
                   placeholder="Informations complémentaires sur ce collaborateur…"
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 resize-none"
                 />
-              </div>
+                </div>
+              </Card>
 
               {/* Actions */}
               <div className="flex justify-between items-center pt-2">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="px-4 py-2.5 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 flex items-center gap-2"
-                >
-                  <ArrowLeft className="w-4 h-4" /> Retour
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-6 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {loading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Création…</>
-                  ) : (
-                    <><UserPlus className="w-4 h-4" /> Créer le dossier</>
-                  )}
-                </button>
+                <Button variant="secondary" type="button" onClick={() => setStep(1)} icon={<ArrowLeft className="w-4 h-4" />}>
+                  Retour
+                </Button>
+                <Button type="submit" disabled={loading} loading={loading} icon={<UserPlus className="w-4 h-4" />}>
+                  {loading ? "Création…" : "Créer le dossier"}
+                </Button>
               </div>
             </>
           )}
         </form>
 
-      </div>
     </div>
   );
 }

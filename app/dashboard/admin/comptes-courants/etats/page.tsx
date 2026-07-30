@@ -112,17 +112,17 @@ export default function EtatsCCPage() {
           <div>
             <label className="block text-xs text-slate-500 mb-1">Du</label>
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
           <div>
             <label className="block text-xs text-slate-500 mb-1">Au</label>
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
           <div>
             <label className="block text-xs text-slate-500 mb-1">Regroupement</label>
             <select value={granularite} onChange={(e) => setGranularite(e.target.value as Granularite)}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
               {GRANULARITES.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>

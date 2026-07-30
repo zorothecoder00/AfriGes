@@ -65,18 +65,18 @@ export default function ReferentielsCataloguePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <div className="p-6 max-w-4xl mx-auto space-y-6">
-        <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour
         </Link>
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Catalogue · Référentiels</h2>
-          <p className="text-sm text-gray-400">Familles, catégories, marques et unités qui structurent le catalogue produits.</p>
+          <h2 className="text-2xl font-bold text-slate-900">Catalogue · Référentiels</h2>
+          <p className="text-sm text-slate-400">Familles, catégories, marques et unités qui structurent le catalogue produits.</p>
         </div>
 
         {loading || !data ? (
-          <div className="flex items-center justify-center py-20 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
+          <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
         ) : (
           <div className="flex flex-col md:flex-row gap-4 md:gap-6">
             <SideTabs
@@ -92,7 +92,7 @@ export default function ReferentielsCataloguePage() {
                 };
               })}
             />
-            <div className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+            <div className="flex-1 min-w-0 bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
               {tab === "familles" && (
                 <HierarchieSection
                   type="familles" childType="sous-familles" parentKey="familleId"
@@ -148,23 +148,23 @@ function HierarchieSection({ type, childType, parentKey, items, onCreate, onPatc
           placeholder={`Nouvelle ${type === "familles" ? "famille" : "catégorie"}…`}
           className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
         <button onClick={async () => { if (nouveau.trim() && await onCreate(type, { nom: nouveau.trim() })) setNouveau(""); }}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
           <Plus className="w-4 h-4" /> Ajouter
         </button>
       </div>
 
-      {items.length === 0 ? <p className="text-sm text-gray-400 py-4 text-center">Aucun élément.</p> : (
-        <ul className="divide-y divide-gray-50">
+      {items.length === 0 ? <p className="text-sm text-slate-400 py-4 text-center">Aucun élément.</p> : (
+        <ul className="divide-y divide-slate-50">
           {items.map((it) => (
             <li key={it.id} className="py-1.5">
               <div className="flex items-center gap-2">
-                <button onClick={() => toggleOpen(it.id)} className="text-gray-400 hover:text-gray-600">
+                <button onClick={() => toggleOpen(it.id)} className="text-slate-400 hover:text-slate-600">
                   {open.has(it.id) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 </button>
                 <RefRow item={it} type={type} onPatch={onPatch} onRemove={onRemove} childLabel={`${it.enfants.length} sous-élément(s)`} />
               </div>
               {open.has(it.id) && (
-                <div className="ml-8 mt-1.5 space-y-1.5 border-l border-gray-100 pl-3">
+                <div className="ml-8 mt-1.5 space-y-1.5 border-l border-slate-100 pl-3">
                   {it.enfants.map((ch) => (
                     <RefRow key={ch.id} item={ch} type={childType} onPatch={onPatch} onRemove={onRemove} small />
                   ))}
@@ -200,12 +200,12 @@ function FlatSection({ type, items, extraLabel, extraKey, onCreate, onPatch, onR
             className="w-28 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
         )}
         <button onClick={async () => { if (nom.trim() && await onCreate(type, { nom: nom.trim(), ...(extraKey ? { [extraKey]: extra.trim() || undefined } : {}) })) { setNom(""); setExtra(""); } }}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
           <Plus className="w-4 h-4" /> Ajouter
         </button>
       </div>
-      {items.length === 0 ? <p className="text-sm text-gray-400 py-4 text-center">Aucun élément.</p> : (
-        <ul className="divide-y divide-gray-50">
+      {items.length === 0 ? <p className="text-sm text-slate-400 py-4 text-center">Aucun élément.</p> : (
+        <ul className="divide-y divide-slate-50">
           {items.map((it) => (
             <li key={it.id} className="py-1.5"><RefRow item={it} type={type} onPatch={onPatch} onRemove={onRemove} showExtra={!!extraKey} /></li>
           ))}
@@ -235,23 +235,23 @@ function RefRow({ item, type, onPatch, onRemove, small, childLabel, showExtra }:
           <input value={val} autoFocus onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => e.key === "Enter" && save()}
             className={`flex-1 px-2 py-1 border border-blue-300 rounded-lg ${small ? "text-xs" : "text-sm"} focus:outline-none focus:ring-2 focus:ring-blue-500`} />
           <button onClick={save} disabled={busy} className="text-emerald-600 hover:text-emerald-700">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}</button>
-          <button onClick={() => { setEdit(false); setVal(item.nom); }} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+          <button onClick={() => { setEdit(false); setVal(item.nom); }} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
         </>
       ) : (
         <>
-          <span className={`flex-1 ${small ? "text-xs" : "text-sm"} font-medium ${item.actif ? "text-gray-800" : "text-gray-400 line-through"}`}>
+          <span className={`flex-1 ${small ? "text-xs" : "text-sm"} font-medium ${item.actif ? "text-slate-800" : "text-slate-400 line-through"}`}>
             {item.nom}
-            {showExtra && item.extra ? <span className="text-gray-400 font-normal ml-1">({item.extra})</span> : null}
+            {showExtra && item.extra ? <span className="text-slate-400 font-normal ml-1">({item.extra})</span> : null}
           </span>
-          <span className="text-[10px] text-gray-400">{childLabel ?? `${item.count} produit(s)`}</span>
+          <span className="text-[10px] text-slate-400">{childLabel ?? `${item.count} produit(s)`}</span>
           {/* actif toggle */}
           <button onClick={() => onPatch(type, item.id, { actif: !item.actif })}
             title={item.actif ? "Désactiver" : "Activer"}
-            className={`relative w-8 h-4.5 rounded-full transition-colors ${item.actif ? "bg-emerald-500" : "bg-gray-300"}`} style={{ height: 18, width: 32 }}>
+            className={`relative w-8 h-4.5 rounded-full transition-colors ${item.actif ? "bg-emerald-500" : "bg-slate-300"}`} style={{ height: 18, width: 32 }}>
             <span className="absolute top-0.5 bg-white rounded-full transition-transform" style={{ height: 14, width: 14, left: item.actif ? 15 : 2 }} />
           </button>
-          <button onClick={() => setEdit(true)} className="text-gray-400 hover:text-blue-600" title="Renommer"><Pencil className="w-3.5 h-3.5" /></button>
-          <button onClick={() => onRemove(type, item.id)} className="text-gray-400 hover:text-rose-500" title="Supprimer"><Trash2 className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setEdit(true)} className="text-slate-400 hover:text-blue-600" title="Renommer"><Pencil className="w-3.5 h-3.5" /></button>
+          <button onClick={() => onRemove(type, item.id)} className="text-slate-400 hover:text-rose-500" title="Supprimer"><Trash2 className="w-3.5 h-3.5" /></button>
         </>
       )}
     </div>

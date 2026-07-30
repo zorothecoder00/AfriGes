@@ -215,7 +215,7 @@ export default function NouveauCompteCourantPage() {
                     <input
                       autoFocus value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
                       placeholder="Rechercher par nom, téléphone ou code client…"
-                      className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+                      className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50"
                     />
                     {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />}
                   </div>
@@ -266,7 +266,7 @@ export default function NouveauCompteCourantPage() {
                   <span className="text-xs font-semibold text-slate-500">Nom du {typeCompte === "MENAGE" ? "ménage" : typeCompte === "COMMUNAUTE" ? "de la communauté" : "groupement"} <span className="text-rose-500">*</span></span>
                   <input value={libelle} onChange={(e) => setLibelle(e.target.value)}
                     placeholder="Ex. Ménage Kouassi, Tontine des couturières…"
-                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500" />
                 </label>
 
                 <div>
@@ -276,7 +276,7 @@ export default function NouveauCompteCourantPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)}
                       placeholder="Ajouter un membre par nom, téléphone ou code…"
-                      className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500" />
                     {memberSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />}
                   </div>
                   {memberResults.length > 0 && (
@@ -334,14 +334,14 @@ export default function NouveauCompteCourantPage() {
                     <input
                       type="number" min={0} value={depotOuverture} onChange={(e) => setDepotOuverture(e.target.value)}
                       placeholder={minOuverture != null ? `min. ${minOuverture.toLocaleString("fr-FR")}` : "0"}
-                      className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </label>
                   <label className="block">
                     <span className="text-xs font-semibold text-slate-500">Mode de paiement</span>
                     <select value={modeOuverture} onChange={(e) => setModeOuverture(e.target.value)}
                       disabled={!depotOuverture.trim()}
-                      className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
+                      className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50">
                       {MODES.map((m) => <option key={m} value={m}>{m}</option>)}
                     </select>
                   </label>

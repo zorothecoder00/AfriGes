@@ -112,7 +112,7 @@ export default function RIAConfigPage() {
             </label>
             <div className="flex items-center gap-3">
               <input type="number" min={0} max={100} step={0.5} value={form.tauxGenere} onChange={(e) => set("tauxGenere", e.target.value)}
-                className="w-32 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                className="w-32 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
               <span className="text-slate-500 text-sm">% mensuel sur le capital engagé chez les clients</span>
             </div>
           </div>
@@ -123,7 +123,7 @@ export default function RIAConfigPage() {
               Part distribuée à l&apos;investisseur (%)
             </label>
             <input type="number" min={0} step={0.5} value={form.tauxDistribue} onChange={(e) => set("tauxDistribue", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
             <p className="text-xs text-slate-400 mt-1">Versé au capitalDisponible de l&apos;investisseur</p>
           </div>
 
@@ -132,7 +132,7 @@ export default function RIAConfigPage() {
               Part réinvestie automatiquement (%)
             </label>
             <input type="number" min={0} step={0.5} value={form.tauxReinvesti} onChange={(e) => set("tauxReinvesti", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
             <p className="text-xs text-slate-400 mt-1">Ajouté au capitalInvesti + capitalDisponible</p>
           </div>
 
@@ -141,7 +141,7 @@ export default function RIAConfigPage() {
               Fonds de sécurité (%)
             </label>
             <input type="number" min={0} step={0.5} value={form.tauxFondSecurite} onChange={(e) => set("tauxFondSecurite", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
             <p className="text-xs text-slate-400 mt-1">Bloqué dans le fonds de réserve</p>
           </div>
 
@@ -175,7 +175,7 @@ export default function RIAConfigPage() {
 
         <div className="flex justify-end">
           <button onClick={submit} disabled={submitting || !isValid}
-            className="px-6 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            className="px-6 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {submitting ? "Enregistrement…" : "Appliquer la configuration"}
           </button>
         </div>

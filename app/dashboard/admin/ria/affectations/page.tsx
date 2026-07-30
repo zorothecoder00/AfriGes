@@ -167,7 +167,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Portefeuille *</label>
             <select value={form.portefeuilleId} onChange={(e) => set("portefeuilleId", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
               <option value="">Sélectionner…</option>
               {pfs.map((pf) => (
                 <option key={pf.id} value={pf.id}>
@@ -228,7 +228,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input value={clientSearch} onChange={(e) => setClientSearch(e.target.value)}
                 placeholder={selectedClient ? "Changer de client…" : "Rechercher par nom, téléphone…"}
-                className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
             </div>
 
             {/* Liste résultats */}
@@ -280,7 +280,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                 onClick={() => handleModeChange("pourcentage")}
                 className={`px-4 py-1.5 text-xs font-medium transition-colors ${
                   modeEffectif === "pourcentage"
-                    ? "bg-emerald-600 text-white"
+                    ? "bg-primary-600 text-white"
                     : "bg-white text-slate-500 hover:bg-slate-50"
                 }`}
               >
@@ -293,7 +293,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                 title={capitalInvesti === 0 ? "Pas de capital investi dans ce portefeuille" : undefined}
                 className={`px-4 py-1.5 text-xs font-medium transition-colors ${
                   modeEffectif === "montant"
-                    ? "bg-emerald-600 text-white"
+                    ? "bg-primary-600 text-white"
                     : capitalInvesti === 0
                     ? "bg-slate-50 text-slate-300 cursor-not-allowed"
                     : "bg-white text-slate-500 hover:bg-slate-50"
@@ -345,7 +345,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Classe de risque</label>
             <select value={form.classeRisque} onChange={(e) => set("classeRisque", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
               {["A", "B", "C", "D", "E"].map((r) => <option key={r} value={r}>Classe {r}</option>)}
             </select>
           </div>
@@ -354,7 +354,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
         <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
           <button onClick={submit} disabled={loading || !form.clientId}
-            className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? "Création…" : "Créer"}
           </button>
         </div>
@@ -468,7 +468,7 @@ function EditModal({
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Date de début d&apos;affectation *</label>
             <input type="date" value={dateDebut} onChange={e => setDateDebut(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
             <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
               <AlertTriangle className="w-3 h-3 flex-shrink-0" />
               Seuls les financements après cette date seront comptés dans la ligne de crédit.
@@ -480,19 +480,19 @@ function EditModal({
             <label className="block text-xs font-medium text-slate-600 mb-2">Allocation (ligne de crédit)</label>
             <div className="flex rounded-lg border border-slate-200 overflow-hidden mb-3 w-fit">
               <button type="button" onClick={() => handleModeChange("pourcentage")}
-                className={`px-4 py-1.5 text-xs font-medium transition-colors ${saisieMode === "pourcentage" ? "bg-emerald-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>
+                className={`px-4 py-1.5 text-xs font-medium transition-colors ${saisieMode === "pourcentage" ? "bg-primary-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>
                 Par % du capital
               </button>
               <button type="button" onClick={() => handleModeChange("montant")}
                 disabled={capitalInvesti === 0}
-                className={`px-4 py-1.5 text-xs font-medium transition-colors ${saisieMode === "montant" ? "bg-emerald-600 text-white" : capitalInvesti === 0 ? "bg-slate-50 text-slate-300 cursor-not-allowed" : "bg-white text-slate-500 hover:bg-slate-50"}`}>
+                className={`px-4 py-1.5 text-xs font-medium transition-colors ${saisieMode === "montant" ? "bg-primary-600 text-white" : capitalInvesti === 0 ? "bg-slate-50 text-slate-300 cursor-not-allowed" : "bg-white text-slate-500 hover:bg-slate-50"}`}>
                 Par montant (FCFA)
               </button>
             </div>
             <div className="flex items-center gap-3">
               <input type="number" min={0} value={valeurSaisie}
                 onChange={e => handleValeurSaisie(e.target.value)}
-                className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
               <span className="text-sm font-semibold text-slate-500 shrink-0">
                 {saisieMode === "pourcentage" ? "%" : "FCFA"}
               </span>
@@ -511,7 +511,7 @@ function EditModal({
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Classe de risque</label>
             <select value={classeRisque} onChange={e => setClasseRisque(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
               {["A", "B", "C", "D", "E"].map(r => <option key={r} value={r}>Classe {r}</option>)}
             </select>
           </div>
@@ -520,7 +520,7 @@ function EditModal({
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
               placeholder="Observations sur cette affectation..." />
           </div>
         </div>
@@ -528,7 +528,7 @@ function EditModal({
         <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
           <button onClick={submit} disabled={loading}
-            className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? "Enregistrement…" : "Enregistrer"}
           </button>
         </div>
@@ -580,7 +580,7 @@ export default function AffectationsPage() {
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
           <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700">
             <Plus className="w-4 h-4" /> Nouvelle affectation
           </button>
         </div>
@@ -598,7 +598,7 @@ export default function AffectationsPage() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Investisseur ou client…"
-            className="pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm w-52 focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+            className="pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm w-52 focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
         </div>
       </div>
 

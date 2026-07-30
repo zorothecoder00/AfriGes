@@ -252,7 +252,7 @@ export default function POPCPage() {
                         <input type="number" min={0} value={form[c.key]}
                           onChange={(e) => setField(c.key, e.target.value)}
                           title={estAgent ? "Salaire d'UN agent — multiplié par le nombre d'agents" : undefined}
-                          className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-primary-400" />
                         {estAgent && nbAgents !== 1 && (
                           <p className="text-[10px] text-gray-400 text-right mt-0.5">= {fmt(chargeLigne("salaireAgents"))} pour {nbAgents} agents</p>
                         )}
@@ -300,7 +300,7 @@ export default function POPCPage() {
                       <td className="py-1.5">
                         <input type="number" min={0} value={form[c.key]}
                           onChange={(e) => setField(c.key, e.target.value)}
-                          className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-primary-400" />
                       </td>
                       <td className="py-1.5">
                         {hasTaux ? (
@@ -308,7 +308,7 @@ export default function POPCPage() {
                             onChange={(e) => setViaTaux(c.key, e.target.value)}
                             disabled={chargesTotales <= 0}
                             title="% des charges totales — la valeur se calcule automatiquement"
-                            className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-50 disabled:text-gray-300" />
+                            className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:bg-gray-50 disabled:text-gray-300" />
                         ) : (
                           <span className="block text-right text-gray-300 pr-2">—</span>
                         )}
@@ -336,7 +336,7 @@ export default function POPCPage() {
                   <span className="text-xs text-gray-500">{c.label}{c.suffix ? ` (${c.suffix})` : ""}</span>
                   <input type="number" min={0} value={form[c.key]}
                     onChange={(e) => setField(c.key, e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
                 </label>
               ))}
             </div>
@@ -349,7 +349,7 @@ export default function POPCPage() {
 
           <div className="flex items-center gap-3">
             <button onClick={handleSave} disabled={save.loading}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl disabled:opacity-50">
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-xl disabled:opacity-50">
               <Save className="w-4 h-4" /> {save.loading ? "Enregistrement…" : "Enregistrer & générer les objectifs"}
             </button>
             <button onClick={handleValider} disabled={valider.loading || !param?.id || statut === "VALIDE"}

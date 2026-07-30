@@ -9,9 +9,9 @@ import { ViewAsProvider } from '@/contexts/ViewAsContext'
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  // Le tableau de bord admin principal a son propre en-tête (logo + carte de
-  // profil) — le bandeau global ferait doublon avec le logo affiché en dessous.
-  const hasOwnHeader = pathname === "/dashboard/admin";
+  // Toutes les pages admin (racine + sous-pages) ont leur propre en-tête via
+  // AdminTopbar (logo + recherche + compte) — le bandeau global ferait doublon.
+  const hasOwnHeader = pathname.startsWith("/dashboard/admin");
 
   return (
     <ViewAsProvider>

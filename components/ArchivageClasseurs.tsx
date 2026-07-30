@@ -182,11 +182,11 @@ export default function ArchivageClasseurs({ apiBase, backHref }: { apiBase: str
         )}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <FolderTree className="w-5 h-5 text-indigo-600" /> Archivage — classeurs numériques
+            <FolderTree className="w-5 h-5 text-primary-600" /> Archivage — classeurs numériques
           </h1>
           <div className="flex items-center gap-2">
             <select value={year} onChange={(e) => { setYear(Number(e.target.value)); setOpenMois(new Set()); setOpenSem(new Set()); }}
-              className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+              className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300">
               {annees.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
             <button onClick={() => setRefresh((x) => x + 1)} className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
@@ -242,7 +242,7 @@ export default function ArchivageClasseurs({ apiBase, backHref }: { apiBase: str
                           <div className="w-full flex items-center justify-between gap-3 px-3 py-2 hover:bg-slate-50">
                             <button onClick={() => toggle(openSem, semKey, setOpenSem)} className="flex items-center gap-2 text-sm text-slate-700 flex-1 text-left min-w-0">
                               {semOpen ? <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
-                              <Calendar className="w-3.5 h-3.5 text-indigo-400 shrink-0" /> {s.label}
+                              <Calendar className="w-3.5 h-3.5 text-primary-400 shrink-0" /> {s.label}
                             </button>
                             <div className="flex items-center gap-2 shrink-0">
                               <Rubriques agg={s.agg} rapport={s.rapport} />
@@ -252,8 +252,8 @@ export default function ArchivageClasseurs({ apiBase, backHref }: { apiBase: str
                           {semOpen && (
                             <div className="px-3 pb-2 space-y-1">
                               {s.jours.map((j) => (
-                                <div key={j.date} className="flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg hover:bg-indigo-50">
-                                  <button onClick={() => setJour(j.date)} className="text-sm text-slate-600 flex-1 text-left min-w-0 hover:text-indigo-700">{j.label}</button>
+                                <div key={j.date} className="flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg hover:bg-primary-50">
+                                  <button onClick={() => setJour(j.date)} className="text-sm text-slate-600 flex-1 text-left min-w-0 hover:text-primary-700">{j.label}</button>
                                   <div className="flex items-center gap-2 shrink-0">
                                     <Rubriques agg={j.agg} rapport={j.rapport} />
                                     <ExportNoeud apiBase={apiBase} label={j.label} jours={[j]} />
@@ -286,7 +286,7 @@ function DetailJourModal({ apiBase, date, onClose }: { apiBase: string; date: st
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-3xl shadow-xl max-h-[88vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="font-bold text-slate-900 flex items-center gap-2"><Calendar className="w-5 h-5 text-indigo-600" /> {d?.label ?? date}</h2>
+          <h2 className="font-bold text-slate-900 flex items-center gap-2"><Calendar className="w-5 h-5 text-primary-600" /> {d?.label ?? date}</h2>
           <div className="flex items-center gap-1">
             {d && (
               <>
@@ -354,7 +354,7 @@ function DetailJourModal({ apiBase, date, onClose }: { apiBase: string; date: st
         ) : null}
 
         <div className="px-6 py-3 border-t border-slate-100 flex justify-end">
-          <button onClick={onClose} className="px-5 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Fermer</button>
+          <button onClick={onClose} className="px-5 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">Fermer</button>
         </div>
       </div>
     </div>

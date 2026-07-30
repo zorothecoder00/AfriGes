@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import {
-  ArrowLeft, RefreshCw, Plus, X, Save, Trash2, CalendarDays,
+  RefreshCw, Plus, Save, Trash2, CalendarDays,
   Users, Send, Undo2, Info,
 } from "lucide-react";
-import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import Button from "@/components/ui/Button";
+import Badge from "@/components/ui/Badge";
+import Input from "@/components/ui/Input";
+import Modal from "@/components/ui/Modal";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -59,40 +62,33 @@ export default function PlanningEquipePage() {
   const plannings = data?.data ?? [];
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="p-6 space-y-5 max-w-6xl mx-auto">
+    <div className="p-6 space-y-5 max-w-6xl mx-auto">
 
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
-              <ArrowLeft size={15} /> Dashboard RH
-            </Link>
-            <h1 className="text-2xl font-bold text-slate-900">Planning d&apos;équipe</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Roulement hebdomadaire des collaborateurs</p>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Planning d&apos;équipe</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Roulement hebdomadaire des collaborateurs</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={refetch} className="p-2 text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">
-              <RefreshCw className="w-4 h-4" />
-            </button>
-            <button onClick={() => setShowNew(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700">
-              <Plus className="w-4 h-4" /> Nouveau planning
-            </button>
+            <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="border border-slate-200 dark:border-slate-700" title="Rafraîchir" />
+            <Button onClick={() => setShowNew(true)} icon={<Plus className="w-4 h-4" />}>
+              Nouveau planning
+            </Button>
           </div>
         </div>
 
-        <div className="flex items-start gap-3 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-800">
-          <Info className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 px-4 py-3 bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 rounded-xl text-xs text-primary-800 dark:text-primary-200">
+          <Info className="w-4 h-4 text-primary-500 dark:text-primary-400 flex-shrink-0 mt-0.5" />
           <p>Indépendant des horaires de référence individuels (onglet Horaires) — ce planning gère l&apos;affectation d&apos;équipe semaine par semaine. Un planning n&apos;est visible des collaborateurs qu&apos;une fois <strong>publié</strong>.</p>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-slate-400">
+          <div className="flex items-center justify-center py-20 text-slate-400 dark:text-slate-500">
             <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
           </div>
         ) : plannings.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-20 text-slate-400">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center py-20 text-slate-400 dark:text-slate-500">
             <CalendarDays className="w-10 h-10 mb-2 opacity-30" />
             <p className="text-sm">Aucun planning d&apos;équipe créé</p>
           </div>
@@ -100,20 +96,19 @@ export default function PlanningEquipePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {plannings.map((p) => (
               <button key={p.id} onClick={() => setSelectedId(p.id)}
-                className="text-left bg-white rounded-xl border border-slate-200 p-4 hover:border-indigo-300 transition-all">
+                className="text-left bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-4 hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-md transition-all">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-slate-800">{semaineLabel(p.semaineDebut)}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.statut === "PUBLIE" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{semaineLabel(p.semaineDebut)}</span>
+                  <Badge variant={p.statut === "PUBLIE" ? "success" : "warning"}>
                     {p.statut === "PUBLIE" ? "Publié" : "Brouillon"}
-                  </span>
+                  </Badge>
                 </div>
-                <p className="text-xs text-slate-500 flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {p._count.affectations} affectation{p._count.affectations > 1 ? "s" : ""}</p>
-                {p.notes && <p className="text-xs text-slate-400 mt-1 truncate">{p.notes}</p>}
+                <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {p._count.affectations} affectation{p._count.affectations > 1 ? "s" : ""}</p>
+                {p.notes && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 truncate">{p.notes}</p>}
               </button>
             ))}
           </div>
         )}
-      </div>
 
       {showNew && <NewPlanningModal onClose={() => setShowNew(false)} onCreated={(id) => { setShowNew(false); refetch(); setSelectedId(id); }} />}
       {selectedId !== null && (
@@ -140,33 +135,20 @@ function NewPlanningModal({ onClose, onCreated }: { onClose: () => void; onCreat
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="font-semibold text-slate-900">Nouveau planning d&apos;équipe</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
-        </div>
-        <div className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Lundi de la semaine *</label>
-            <input type="date" value={semaineDebut} onChange={(e) => setSemaineDebut(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
-          </div>
-        </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
-          <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
-          </button>
+    <Modal open onClose={onClose} title="Nouveau planning d'équipe" size="sm">
+      <div className="space-y-4">
+        <Input type="date" label="Lundi de la semaine *" value={semaineDebut} onChange={(e) => setSemaineDebut(e.target.value)} />
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Notes</label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+            className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 resize-none" />
         </div>
       </div>
-    </div>
+      <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-slate-100 dark:border-slate-700">
+        <Button variant="secondary" onClick={onClose}>Annuler</Button>
+        <Button onClick={handleSubmit} disabled={loading} loading={loading} icon={<Save className="w-4 h-4" />}>Créer</Button>
+      </div>
+    </Modal>
   );
 }
 
@@ -218,67 +200,58 @@ function PlanningDetailModal({ planningId, onClose, onUpdated }: { planningId: n
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <div>
-            <h2 className="font-semibold text-slate-900">{planning ? semaineLabel(planning.semaineDebut) : "Planning"}</h2>
-            {planning && (
-              <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${planning.statut === "PUBLIE" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-                {planning.statut === "PUBLIE" ? "Publié" : "Brouillon"}
-              </span>
-            )}
-          </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
-        </div>
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      title={planning ? semaineLabel(planning.semaineDebut) : "Planning"}
+    >
+      <div className="space-y-4">
+          {planning && (
+            <Badge variant={planning.statut === "PUBLIE" ? "success" : "warning"}>
+              {planning.statut === "PUBLIE" ? "Publié" : "Brouillon"}
+            </Badge>
+          )}
 
-        <div className="overflow-y-auto flex-1 p-6 space-y-4">
           {loading || !planning ? (
-            <div className="flex justify-center py-10 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin" /></div>
+            <div className="flex justify-center py-10 text-slate-400 dark:text-slate-500"><RefreshCw className="w-5 h-5 animate-spin" /></div>
           ) : (
             <>
               {!showAdd && (
-                <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium">
                   <Plus className="w-4 h-4" /> Ajouter une affectation
                 </button>
               )}
 
               {showAdd && (
-                <div className="p-4 bg-slate-50 rounded-xl space-y-3">
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-xl space-y-3">
                   <select value={form.profilRHId} onChange={(e) => set("profilRHId", e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500">
                     <option value="">— Collaborateur —</option>
                     {collabs.map((c) => <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>)}
                   </select>
                   <div className="grid grid-cols-3 gap-2">
-                    <input type="date" value={form.date}
+                    <Input type="date" value={form.date}
                       min={planning.semaineDebut.slice(0, 10)}
-                      onChange={(e) => set("date", e.target.value)}
-                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    <input type="time" value={form.heureDebut} onChange={(e) => set("heureDebut", e.target.value)}
-                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    <input type="time" value={form.heureFin} onChange={(e) => set("heureFin", e.target.value)}
-                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      onChange={(e) => set("date", e.target.value)} />
+                    <Input type="time" value={form.heureDebut} onChange={(e) => set("heureDebut", e.target.value)} />
+                    <Input type="time" value={form.heureFin} onChange={(e) => set("heureFin", e.target.value)} />
                   </div>
-                  <input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Rôle / poste (facultatif)"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Rôle / poste (facultatif)" />
                   <div className="flex justify-end gap-2">
-                    <button onClick={() => setShowAdd(false)} className="px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-100 rounded-lg">Annuler</button>
-                    <button onClick={handleAdd} disabled={adding}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-                      {adding ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Ajouter
-                    </button>
+                    <Button variant="ghost" size="sm" onClick={() => setShowAdd(false)}>Annuler</Button>
+                    <Button size="sm" onClick={handleAdd} disabled={adding} loading={adding} icon={<Save className="w-3.5 h-3.5" />}>Ajouter</Button>
                   </div>
                 </div>
               )}
 
               {parJour.size === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-8">Aucune affectation pour ce planning.</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">Aucune affectation pour ce planning.</p>
               ) : (
                 <div className="space-y-4">
                   {Array.from(parJour.entries()).map(([jour, affs]) => (
                     <div key={jour}>
-                      <p className="text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1.5">
                         {JOURS[(new Date(jour).getDay() + 6) % 7]} {formatDate(jour)}
                       </p>
                       <div className="space-y-1.5">
@@ -292,21 +265,28 @@ function PlanningDetailModal({ planningId, onClose, onUpdated }: { planningId: n
               )}
             </>
           )}
-        </div>
-
-        <div className="flex justify-between gap-3 px-6 py-4 border-t border-slate-200">
-          <button onClick={handleDelete} disabled={planning?.statut === "PUBLIE"}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">
-            <Trash2 className="w-4 h-4" /> Supprimer
-          </button>
-          <button onClick={handlePublier} disabled={savingPlanning || !planning}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-            {savingPlanning ? <RefreshCw className="w-4 h-4 animate-spin" /> : planning?.statut === "PUBLIE" ? <Undo2 className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-            {planning?.statut === "PUBLIE" ? "Repasser en brouillon" : "Publier"}
-          </button>
-        </div>
       </div>
-    </div>
+
+      <div className="flex justify-between gap-3 pt-4 mt-4 border-t border-slate-100 dark:border-slate-700">
+        <Button
+          variant="danger"
+          size="sm"
+          onClick={handleDelete}
+          disabled={planning?.statut === "PUBLIE"}
+          icon={<Trash2 className="w-4 h-4" />}
+        >
+          Supprimer
+        </Button>
+        <Button
+          onClick={handlePublier}
+          disabled={savingPlanning || !planning}
+          loading={savingPlanning}
+          icon={planning?.statut === "PUBLIE" ? <Undo2 className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+        >
+          {planning?.statut === "PUBLIE" ? "Repasser en brouillon" : "Publier"}
+        </Button>
+      </div>
+    </Modal>
   );
 }
 
@@ -320,13 +300,13 @@ function AffectationRow({ affectation: a, planningId, onChanged }: { affectation
   };
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2 border border-slate-200 rounded-lg">
+    <div className="flex items-center gap-3 px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg">
       <div className="flex-1 min-w-0">
-        <span className="text-sm font-medium text-slate-800">{member.prenom} {member.nom}</span>
-        <span className="text-xs text-slate-400 ml-2">{a.heureDebut} – {a.heureFin}</span>
-        {a.role && <span className="text-xs text-slate-500 ml-2">· {a.role}</span>}
+        <span className="text-sm font-medium text-slate-800 dark:text-slate-100">{member.prenom} {member.nom}</span>
+        <span className="text-xs text-slate-400 dark:text-slate-500 ml-2">{a.heureDebut} – {a.heureFin}</span>
+        {a.role && <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">· {a.role}</span>}
       </div>
-      <button onClick={handleDelete} disabled={loading} className="text-slate-300 hover:text-red-400 flex-shrink-0">
+      <button onClick={handleDelete} disabled={loading} className="text-slate-300 dark:text-slate-600 hover:text-red-400 flex-shrink-0">
         <Trash2 className="w-3.5 h-3.5" />
       </button>
     </div>

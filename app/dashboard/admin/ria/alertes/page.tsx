@@ -448,7 +448,7 @@ export default function AlertesRIAPage() {
             ))}
           </div>
           <button onClick={handleSaveConfig} disabled={savingConfig}
-            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50 font-medium">
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50 font-medium">
             <Settings size={16} />
             {savingConfig ? "Enregistrement…" : "Enregistrer les seuils"}
           </button>

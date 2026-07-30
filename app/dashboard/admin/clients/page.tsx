@@ -670,7 +670,7 @@ export default function ClientsPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
           <p className="text-slate-500 font-medium">{t('clients_loading')}</p>
         </div>
       </div>
@@ -683,14 +683,14 @@ export default function ClientsPage() {
         <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-8 shadow-sm border max-w-md text-center">
           <h3 className="text-lg font-bold text-slate-800">{t('text_error_loading')}</h3>
           <p className="text-slate-500 text-sm">{error}</p>
-          <button onClick={refetch} className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-medium">{t('btn_retry')}</button>
+          <button onClick={refetch} className="px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 font-medium">{t('btn_retry')}</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 font-['DM_Sans',sans-serif]"
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20"
       onClick={() => setQuickStatusClient(null)}>
       <ClienteleTabBar>
       <div className="max-w-[1600px] mx-auto space-y-6 p-8">
@@ -711,7 +711,7 @@ export default function ClientsPage() {
               </button>
             )}
             <button onClick={() => setModalOpen(true)}
-              className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
+              className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 flex items-center gap-2 font-medium">
               <Plus size={20} /> {t('clients_add_btn')}
             </button>
           </div>
@@ -747,7 +747,7 @@ export default function ClientsPage() {
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1.5">Type client</label>
                   <select value={plafondType} onChange={e => setPlafondType(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500">
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
                     <option value="">-- Non défini --</option>
                     <option value="COMPTANT">Comptant</option>
                     <option value="CREDIT">Crédit</option>
@@ -760,7 +760,7 @@ export default function ClientsPage() {
                     type="number" min={0} value={plafondLimite}
                     onChange={e => setPlafondLimite(e.target.value)}
                     placeholder="Laisser vide = aucun plafond"
-                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <p className="text-xs text-slate-400 mt-1">
                     {plafondClient.soldeActuel != null
@@ -792,7 +792,7 @@ export default function ClientsPage() {
                   Annuler
                 </button>
                 <button onClick={handlePlafondSubmit} disabled={plafondLoading}
-                  className="flex items-center gap-2 px-5 py-2 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 font-medium">
+                  className="flex items-center gap-2 px-5 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 font-medium">
                   {plafondLoading
                     ? <><Loader2 className="w-4 h-4 animate-spin" /> Enregistrement…</>
                     : <><CreditCard className="w-4 h-4" /> Enregistrer</>}
@@ -823,17 +823,17 @@ export default function ClientsPage() {
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Nom <span className="text-red-500">*</span></label>
                       <input type="text" required value={formData.nom} onChange={e => setFormData({...formData, nom: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" placeholder="Nom" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50" placeholder="Nom" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Prénom <span className="text-red-500">*</span></label>
                       <input type="text" required value={formData.prenom} onChange={e => setFormData({...formData, prenom: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" placeholder="Prénom" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50" placeholder="Prénom" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Sexe</label>
                       <select value={formData.sexe} onChange={e => setFormData({...formData, sexe: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
                         <option value="">-- Sélectionner --</option>
                         <option value="MASCULIN">Masculin</option>
                         <option value="FEMININ">Féminin</option>
@@ -843,27 +843,27 @@ export default function ClientsPage() {
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Date de naissance</label>
                       <input type="date" value={formData.dateNaissance} onChange={e => setFormData({...formData, dateNaissance: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Tél. principal <span className="text-red-500">*</span></label>
                       <input type="text" required value={formData.telephone} onChange={e => setFormData({...formData, telephone: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 07XXXXXXXX" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Ex : 07XXXXXXXX" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Tél. secondaire</label>
                       <input type="text" value={formData.telephoneSecondaire} onChange={e => setFormData({...formData, telephoneSecondaire: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Optionnel" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Optionnel" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">N° CNI</label>
                       <input type="text" value={formData.numeroCNI} onChange={e => setFormData({...formData, numeroCNI: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Numéro pièce d'identité" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Numéro pièce d'identité" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Statut <span className="text-red-500">*</span></label>
                       <select value={formData.etat} onChange={e => setFormData({...formData, etat: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
                         <option value="ACTIF">Actif</option>
                         <option value="SUSPENDU">Suspendu</option>
                         <option value="BLOQUE">Bloqué</option>
@@ -879,22 +879,22 @@ export default function ClientsPage() {
                     <div className="col-span-2">
                       <label className="block text-xs font-medium text-slate-600 mb-1">Adresse</label>
                       <input type="text" value={formData.adresse} onChange={e => setFormData({...formData, adresse: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Rue, numéro…" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Rue, numéro…" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Quartier</label>
                       <input type="text" value={formData.quartier} onChange={e => setFormData({...formData, quartier: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Quartier" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Quartier" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Ville</label>
                       <input type="text" value={formData.ville} onChange={e => setFormData({...formData, ville: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ville" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Ville" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Commune</label>
                       <input type="text" value={formData.commune} onChange={e => setFormData({...formData, commune: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Commune" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Commune" />
                     </div>
                     <div className="col-span-2">
                       <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
@@ -932,12 +932,12 @@ export default function ClientsPage() {
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Activité / Métier</label>
                       <input type="text" value={formData.activite} onChange={e => setFormData({...formData, activite: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : Commerçant, Agriculteur…" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Ex : Commerçant, Agriculteur…" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Nom du commerce</label>
                       <input type="text" value={formData.nomCommerce} onChange={e => setFormData({...formData, nomCommerce: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Nom de la boutique / entreprise" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Nom de la boutique / entreprise" />
                     </div>
                   </div>
                 </section>
@@ -949,12 +949,12 @@ export default function ClientsPage() {
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Photo client (URL)</label>
                       <input type="url" value={formData.photoUrl} onChange={e => setFormData({...formData, photoUrl: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="https://…" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="https://…" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Pièce d&apos;identité (URL)</label>
                       <input type="url" value={formData.pieceIdentiteUrl} onChange={e => setFormData({...formData, pieceIdentiteUrl: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="https://…" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="https://…" />
                     </div>
                   </div>
                 </section>
@@ -986,7 +986,7 @@ export default function ClientsPage() {
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Type client</label>
                       <select value={formData.typeClient} onChange={e => setFormData({...formData, typeClient: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
                         <option value="">-- Sélectionner --</option>
                         <option value="COMPTANT">Comptant</option>
                         <option value="CREDIT">Crédit</option>
@@ -995,7 +995,7 @@ export default function ClientsPage() {
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Limite de crédit (FCFA)</label>
                       <input type="number" min={0} value={formData.limiteCredit} onChange={e => setFormData({...formData, limiteCredit: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Laisser vide = aucun plafond" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Laisser vide = aucun plafond" />
                     </div>
                   </div>
                 </section>
@@ -1007,7 +1007,7 @@ export default function ClientsPage() {
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Agent terrain</label>
                       <select value={formData.agentTerrainId} onChange={e => setFormData({...formData, agentTerrainId: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
                         <option value="">-- Aucun agent --</option>
                         {agentsTerrainOptions.map(a => (
                           <option key={a.id} value={a.id}>{a.member.prenom} {a.member.nom}</option>
@@ -1040,7 +1040,7 @@ export default function ClientsPage() {
                   Annuler
                 </button>
                 <button onClick={handleSubmit as never} disabled={adding}
-                  className="px-5 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium">
+                  className="px-5 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 font-medium">
                   {adding ? t('btn_adding') : t('clients_add_btn')}
                 </button>
               </div>
@@ -1098,7 +1098,7 @@ export default function ClientsPage() {
                   ))}
                 </div>
                 <button onClick={handleAffecter} disabled={affectLoading}
-                  className="w-full py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium flex items-center justify-center gap-2 transition-colors">
+                  className="w-full py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-60 font-medium flex items-center justify-center gap-2 transition-colors">
                   <Link2 size={15} />
                   {affectLoading ? 'En cours…' : 'Enregistrer les assignations'}
                 </button>
@@ -1240,10 +1240,10 @@ export default function ClientsPage() {
                 placeholder="Nom, téléphone, code client, quartier…"
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
-                className="w-full pl-11 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
+                className="w-full pl-11 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50" />
             </div>
             <select value={filterEtat} onChange={e => { setFilterEtat(e.target.value); setFilterAvance(''); setPage(1); }}
-              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
               <option value="">Tous les statuts</option>
               <option value="ACTIF">Actif</option>
               <option value="SUSPENDU">Suspendu</option>
@@ -1251,28 +1251,28 @@ export default function ClientsPage() {
               <option value="INACTIF">Archivé</option>
             </select>
             <select value={filterPdvId} onChange={e => { setFilterPdvId(e.target.value); setPage(1); }}
-              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
               <option value="">{t('clients_all_pdv')}</option>
               {pdvOptions.map(p => (
                 <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>
               ))}
             </select>
             <select value={filterAgentId} onChange={e => { setFilterAgentId(e.target.value); setPage(1); }}
-              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
               <option value="">Tous les agents</option>
               {agentsTerrainOptions.map(a => (
                 <option key={a.id} value={String(a.member.id)}>{a.member.prenom} {a.member.nom}</option>
               ))}
             </select>
             <select value={filterSegment} onChange={e => { setFilterSegment(e.target.value); setPage(1); }}
-              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
               <option value="">Tous segments</option>
               <option value="ORDINAIRE">Ordinaire</option>
               <option value="RIA">★ RIA</option>
             </select>
             {allTags.length > 0 && (
               <select value={filterTagId} onChange={e => { setFilterTagId(e.target.value); setPage(1); }}
-                className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+                className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
                 <option value="">Tous les tags</option>
                 {allTags.map(t => (
                   <option key={t.id} value={String(t.id)}>{t.nom}</option>
@@ -1564,7 +1564,7 @@ export default function ClientsPage() {
                   className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
                   {t('btn_prev')}
                 </button>
-                <span className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium">{page}</span>
+                <span className="px-4 py-2 bg-primary-600 text-white rounded-lg font-medium">{page}</span>
                 <button onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))} disabled={page >= meta.totalPages}
                   className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
                   {t('btn_next')}

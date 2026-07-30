@@ -211,19 +211,19 @@ export default function CarrieresPage() {
             </button>
             {activeTab === "parcours" && (
               <button onClick={() => setShowNewMouvement(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700">
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700">
                 <Plus className="w-4 h-4" /> Nouveau mouvement
               </button>
             )}
             {activeTab === "demandes" && (
               <button onClick={() => setShowNewDemande(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700">
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700">
                 <Plus className="w-4 h-4" /> Nouvelle demande
               </button>
             )}
             {activeTab === "succession" && (
               <button onClick={() => setShowNewPoste(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700">
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700">
                 <Plus className="w-4 h-4" /> Nouveau poste critique
               </button>
             )}
@@ -253,7 +253,7 @@ export default function CarrieresPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
                 <button key={key} onClick={() => setTypeFilt(typeFilt === key ? "" : key)}
-                  className={`p-4 rounded-xl border text-left transition-all ${typeFilt === key ? "border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400" : "bg-white border-slate-200 hover:border-slate-300"}`}>
+                  className={`p-4 rounded-xl border text-left transition-all ${typeFilt === key ? "border-indigo-400 bg-indigo-50 ring-1 ring-primary-400" : "bg-white border-slate-200 hover:border-slate-300"}`}>
                   <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md w-fit mb-2 ${cfg.badge}`}>{cfg.icon} <span className="text-xs font-medium">{cfg.label}</span></div>
                   <p className="text-2xl font-bold text-slate-900">{mouvStats[key] ?? 0}</p>
                 </button>
@@ -266,10 +266,10 @@ export default function CarrieresPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                   placeholder="Rechercher un collaborateur…"
-                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </div>
               <select value={anneeFilt} onChange={(e) => { setAnneeFilt(e.target.value); setPage(1); }}
-                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 <option value="">Toutes années</option>
                 {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
@@ -315,7 +315,7 @@ export default function CarrieresPage() {
               {Object.entries(STATUT_DEMANDE_CONFIG).map(([key, cfg]) => (
                 <button key={key} onClick={() => setDemandeStatutFilt(demandeStatutFilt === key ? "" : key)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    demandeStatutFilt === key ? "ring-1 ring-indigo-400 " + cfg.badge : cfg.badge + " opacity-60 hover:opacity-100"
+                    demandeStatutFilt === key ? "ring-1 ring-primary-400 " + cfg.badge : cfg.badge + " opacity-60 hover:opacity-100"
                   }`}>
                   {cfg.label} ({demandesStats[key] ?? 0})
                 </button>
@@ -649,7 +649,7 @@ function MouvementModal({ onClose, onCreated }: { onClose: () => void; onCreated
         <div className="overflow-y-auto flex-1 p-6 space-y-4">
           <EField label="Collaborateur *">
             <select value={form.profilRHId} onChange={(e) => set("profilRHId", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
               <option value="">— Sélectionner —</option>
               {collabs.map((c) => <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>)}
             </select>
@@ -671,46 +671,46 @@ function MouvementModal({ onClose, onCreated }: { onClose: () => void; onCreated
           <div className="grid grid-cols-2 gap-3">
             <EField label="Ancienne fonction">
               <input value={form.ancienneFonction} onChange={(e) => set("ancienneFonction", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Ex: Technicien" />
             </EField>
             <EField label="Nouvelle fonction">
               <input value={form.nouvelleFonction} onChange={(e) => set("nouvelleFonction", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Ex: Chef d'équipe" />
             </EField>
             <EField label="Ancien département">
               <input value={form.ancienDepartement} onChange={(e) => set("ancienDepartement", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Ex: Commercial" />
             </EField>
             <EField label="Nouveau département">
               <input value={form.nouveauDepartement} onChange={(e) => set("nouveauDepartement", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Ex: Direction" />
             </EField>
             <EField label="Ancien salaire (FCFA)">
               <input type="number" value={form.ancienSalaire} onChange={(e) => set("ancienSalaire", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="150000" />
             </EField>
             <EField label="Nouveau salaire (FCFA)">
               <input type="number" value={form.nouveauSalaire} onChange={(e) => set("nouveauSalaire", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="200000" />
             </EField>
           </div>
 
           <EField label="Motif / Contexte">
             <textarea value={form.motif} onChange={(e) => set("motif", e.target.value)} rows={2}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
               placeholder="Raison du mouvement, contexte…" />
           </EField>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
           <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Enregistrer
           </button>
         </div>
@@ -809,7 +809,7 @@ function DemandeModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
         <div className="overflow-y-auto flex-1 p-6 space-y-4">
           <EField label="Collaborateur *">
             <select value={form.profilRHId} onChange={(e) => set("profilRHId", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
               <option value="">— Sélectionner —</option>
               {collabs.map((c) => <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>)}
             </select>
@@ -831,31 +831,31 @@ function DemandeModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
           <div className="grid grid-cols-2 gap-3">
             <EField label="Nouvelle fonction">
               <input value={form.nouvelleFonction} onChange={(e) => set("nouvelleFonction", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Ex: Chef d'équipe" />
             </EField>
             <EField label="Nouveau département">
               <input value={form.nouveauDepartement} onChange={(e) => set("nouveauDepartement", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Ex: Direction" />
             </EField>
             <EField label="Nouveau salaire (FCFA)">
               <input type="number" value={form.nouveauSalaire} onChange={(e) => set("nouveauSalaire", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="200000" />
             </EField>
           </div>
 
           <EField label="Motif / Contexte">
             <textarea value={form.motif} onChange={(e) => set("motif", e.target.value)} rows={2}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
               placeholder="Raison de la demande, contexte…" />
           </EField>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
           <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Soumettre
           </button>
         </div>
@@ -892,31 +892,31 @@ function PosteModal({ onClose, onCreated }: { onClose: () => void; onCreated: ()
         <div className="p-6 space-y-4">
           <EField label="Titre du poste *">
             <input value={form.titre} onChange={(e) => set("titre", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="Ex: Directeur Commercial" />
           </EField>
           <div className="grid grid-cols-2 gap-3">
             <EField label="Département">
               <input value={form.departement} onChange={(e) => set("departement", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Ex: Commercial" />
             </EField>
             <EField label="Successeurs requis">
               <input type="number" min={1} max={10} value={form.nbSuccesseursRequis}
                 onChange={(e) => set("nbSuccesseursRequis", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </EField>
           </div>
           <EField label="Description">
             <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={2}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
               placeholder="Rôle stratégique, responsabilités clés…" />
           </EField>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
           <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
           </button>
         </div>
@@ -1042,7 +1042,7 @@ function GererSuccesseursModal({ poste: p, onClose, onUpdated }: { poste: PosteC
             <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl space-y-3">
               <EField label="Collaborateur *">
                 <select value={addForm.profilRHId} onChange={(e) => setAddForm((f) => ({ ...f, profilRHId: e.target.value }))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-primary-500">
                   <option value="">— Sélectionner —</option>
                   {collabs.filter((c) => !successeurs.some((s) => s.profilRH.id === c.id))
                     .map((c) => <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>)}
@@ -1050,7 +1050,7 @@ function GererSuccesseursModal({ poste: p, onClose, onUpdated }: { poste: PosteC
               </EField>
               <EField label="Niveau de préparation *">
                 <select value={addForm.readiness} onChange={(e) => setAddForm((f) => ({ ...f, readiness: e.target.value }))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-primary-500">
                   {Object.entries(READINESS_CONFIG).map(([k, cfg]) => <option key={k} value={k}>{cfg.label}</option>)}
                 </select>
               </EField>
@@ -1062,14 +1062,14 @@ function GererSuccesseursModal({ poste: p, onClose, onUpdated }: { poste: PosteC
               </label>
               <EField label="Notes">
                 <input value={addForm.notes} onChange={(e) => setAddForm((f) => ({ ...f, notes: e.target.value }))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                   placeholder="Observations…" />
               </EField>
               <div className="flex gap-2 justify-end">
                 <button onClick={() => setShowAdd(false)}
                   className="px-3 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
                 <button onClick={handleAdd} disabled={saving}
-                  className="flex items-center gap-1.5 px-3 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50">
                   {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Ajouter
                 </button>
               </div>
@@ -1083,7 +1083,7 @@ function GererSuccesseursModal({ poste: p, onClose, onUpdated }: { poste: PosteC
             <span>Mise à jour : maintenant</span>
           </div>
           <button onClick={() => { onUpdated(); onClose(); }}
-            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">
+            className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">
             Terminer
           </button>
         </div>

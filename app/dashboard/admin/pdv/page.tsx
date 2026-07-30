@@ -223,7 +223,7 @@ export default function PDVPage() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 font-['DM_Sans',sans-serif] p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 p-8">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* ── Header ────────────────────────────────────────────────────── */}
@@ -658,7 +658,7 @@ export default function PDVPage() {
                   {t('btn_cancel')}
                 </button>
                 <button onClick={handleToggleActif} disabled={toggling}
-                  className={`flex-1 py-2.5 ${togglePdv.actif ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white rounded-xl font-medium disabled:opacity-60 transition-colors`}>
+                  className={`flex-1 py-2.5 ${togglePdv.actif ? 'bg-red-600 hover:bg-red-700' : 'bg-primary-600 hover:bg-primary-700'} text-white rounded-xl font-medium disabled:opacity-60 transition-colors`}>
                   {toggling ? '…' : togglePdv.actif ? t('btn_deactivate') : t('btn_activate')}
                 </button>
               </div>
@@ -727,7 +727,7 @@ export default function PDVPage() {
                       <td className="px-5 py-4">
                         {pdv.rpv ? (
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                            <div className="w-7 h-7 bg-gradient-to-br from-emerald-400 to-primary-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
                               {initials(pdv.rpv.nom, pdv.rpv.prenom)}
                             </div>
                             <span className="text-sm text-slate-700">{pdv.rpv.prenom} {pdv.rpv.nom}</span>

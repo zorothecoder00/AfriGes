@@ -5,9 +5,14 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import {
   Plus, Search, CheckCircle2, Clock,
-  Shield, FileWarning, Ban, ArrowLeft,
+  Shield, FileWarning, Ban,
 } from "lucide-react";
-import Link from "next/link";
+import Button from "@/components/ui/Button";
+import Badge, { type BadgeVariant } from "@/components/ui/Badge";
+import Input from "@/components/ui/Input";
+import Modal from "@/components/ui/Modal";
+import KpiCard from "@/components/ui/KpiCard";
+import Pagination from "@/components/ui/Pagination";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type TypeSanction = "AVERTISSEMENT" | "BLAME" | "MISE_A_PIED" | "RETROGRADATION" | "LICENCIEMENT" | "AUTRE";
@@ -55,13 +60,13 @@ const TYPE_LABELS: Record<TypeSanction, string> = {
   LICENCIEMENT: "Licenciement",
   AUTRE: "Autre",
 };
-const TYPE_COLORS: Record<TypeSanction, string> = {
-  AVERTISSEMENT: "bg-yellow-100 text-yellow-700",
-  BLAME: "bg-orange-100 text-orange-700",
-  MISE_A_PIED: "bg-red-100 text-red-700",
-  RETROGRADATION: "bg-purple-100 text-purple-700",
-  LICENCIEMENT: "bg-red-200 text-red-800 font-semibold",
-  AUTRE: "bg-gray-100 text-gray-700",
+const TYPE_VARIANTS: Record<TypeSanction, BadgeVariant> = {
+  AVERTISSEMENT: "warning",
+  BLAME: "warning",
+  MISE_A_PIED: "error",
+  RETROGRADATION: "purple",
+  LICENCIEMENT: "error",
+  AUTRE: "neutral",
 };
 const STATUT_LABELS: Record<StatutProcedure, string> = {
   OUVERTE: "Ouverte",
@@ -69,14 +74,15 @@ const STATUT_LABELS: Record<StatutProcedure, string> = {
   CLOTUREE: "Clôturée",
   ANNULEE: "Annulée",
 };
-const STATUT_COLORS: Record<StatutProcedure, string> = {
-  OUVERTE: "bg-blue-100 text-blue-700",
-  EN_INSTRUCTION: "bg-yellow-100 text-yellow-700",
-  CLOTUREE: "bg-green-100 text-green-700",
-  ANNULEE: "bg-gray-100 text-gray-500",
+const STATUT_VARIANTS: Record<StatutProcedure, BadgeVariant> = {
+  OUVERTE: "info",
+  EN_INSTRUCTION: "warning",
+  CLOTUREE: "success",
+  ANNULEE: "neutral",
 };
 
 const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString("fr-FR") : "—";
+const inputCls = "mt-1 w-full border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500";
 
 /* ─── ProcDetailModal ────────────────────────────────────── */
 function ProcDetailModal({ proc, onClose, onRefresh }: {
@@ -119,121 +125,108 @@ function ProcDetailModal({ proc, onClose, onRefresh }: {
     : `Matricule ${proc.profilRH.matricule}`;
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <Modal open onClose={onClose} size="lg">
         {/* Header */}
         <div className="flex items-start justify-between mb-5">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`px-2 py-0.5 rounded text-xs font-medium ${TYPE_COLORS[proc.type]}`}>{TYPE_LABELS[proc.type]}</span>
-              <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUT_COLORS[proc.statut]}`}>{STATUT_LABELS[proc.statut]}</span>
+              <Badge variant={TYPE_VARIANTS[proc.type]}>{TYPE_LABELS[proc.type]}</Badge>
+              <Badge variant={STATUT_VARIANTS[proc.statut]}>{STATUT_LABELS[proc.statut]}</Badge>
             </div>
-            <h3 className="font-semibold text-gray-800 mt-1">{collaborateur}</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Matricule {proc.profilRH.matricule} · Procédure du {fmt(proc.dateProcedure)}</p>
+            <h3 className="font-semibold text-slate-800 dark:text-slate-100 mt-1">{collaborateur}</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Matricule {proc.profilRH.matricule} · Procédure du {fmt(proc.dateProcedure)}</p>
           </div>
-          <div className="flex items-center gap-2">
-            {proc.statut !== "CLOTUREE" && proc.statut !== "ANNULEE" && (
-              <button onClick={() => setEditMode(!editMode)} className={`px-3 py-1.5 text-xs rounded-lg border ${editMode ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
-                {editMode ? "Mode lecture" : "Modifier"}
-              </button>
-            )}
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
-          </div>
+          {proc.statut !== "CLOTUREE" && proc.statut !== "ANNULEE" && (
+            <Button size="sm" variant={editMode ? "secondary" : "ghost"} onClick={() => setEditMode(!editMode)} className="border border-slate-200 dark:border-slate-700">
+              {editMode ? "Mode lecture" : "Modifier"}
+            </Button>
+          )}
         </div>
 
         {/* Info */}
         <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
           <div>
-            <span className="text-xs text-gray-500 block">Motif</span>
-            <span className="text-gray-800 font-medium">{proc.motif}</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 block">Motif</span>
+            <span className="text-slate-800 dark:text-slate-100 font-medium">{proc.motif}</span>
           </div>
           <div>
-            <span className="text-xs text-gray-500 block">Date incident</span>
-            <span className="text-gray-800">{fmt(proc.dateIncident)}</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 block">Date incident</span>
+            <span className="text-slate-800 dark:text-slate-100">{fmt(proc.dateIncident)}</span>
           </div>
         </div>
 
         {editMode ? (
-          <div className="space-y-3 border-t pt-4">
+          <div className="space-y-3 border-t border-slate-100 dark:border-slate-700 pt-4">
             <div>
-              <label className="text-xs text-gray-500">Faits reprochés</label>
-              <textarea value={form.faitsReproches} onChange={(e) => setForm((p) => ({ ...p, faitsReproches: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" rows={3} />
+              <label className="text-xs text-slate-500 dark:text-slate-400">Faits reprochés</label>
+              <textarea value={form.faitsReproches} onChange={(e) => setForm((p) => ({ ...p, faitsReproches: e.target.value }))} className={inputCls} rows={3} />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-gray-500">Date de convocation</label>
-                <input type="date" value={form.dateConvocation} onChange={(e) => setForm((p) => ({ ...p, dateConvocation: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" />
-              </div>
+              <Input label="Date de convocation" type="date" value={form.dateConvocation} onChange={(e) => setForm((p) => ({ ...p, dateConvocation: e.target.value }))} />
               {proc.type === "MISE_A_PIED" && (
-                <div>
-                  <label className="text-xs text-gray-500">Durée suspension (jours)</label>
-                  <input type="number" value={form.dureeSuspension} onChange={(e) => setForm((p) => ({ ...p, dureeSuspension: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" />
-                </div>
+                <Input label="Durée suspension (jours)" type="number" value={form.dureeSuspension} onChange={(e) => setForm((p) => ({ ...p, dureeSuspension: e.target.value }))} />
               )}
             </div>
             <div>
-              <label className="text-xs text-gray-500">Réponse du collaborateur</label>
-              <textarea value={form.reponseCollab} onChange={(e) => setForm((p) => ({ ...p, reponseCollab: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" rows={2} />
+              <label className="text-xs text-slate-500 dark:text-slate-400">Réponse du collaborateur</label>
+              <textarea value={form.reponseCollab} onChange={(e) => setForm((p) => ({ ...p, reponseCollab: e.target.value }))} className={inputCls} rows={2} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Décision</label>
-              <textarea value={form.decision} onChange={(e) => setForm((p) => ({ ...p, decision: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" rows={2} />
+              <label className="text-xs text-slate-500 dark:text-slate-400">Décision</label>
+              <textarea value={form.decision} onChange={(e) => setForm((p) => ({ ...p, decision: e.target.value }))} className={inputCls} rows={2} />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Notes internes</label>
-              <textarea value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" rows={2} />
+              <label className="text-xs text-slate-500 dark:text-slate-400">Notes internes</label>
+              <textarea value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} className={inputCls} rows={2} />
             </div>
             <div className="flex justify-end">
-              <button onClick={handleSave} disabled={loading} className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm disabled:opacity-50">
-                {loading ? "Enregistrement…" : "Enregistrer"}
-              </button>
+              <Button onClick={handleSave} disabled={loading} loading={loading}>Enregistrer</Button>
             </div>
           </div>
         ) : (
-          <div className="space-y-3 border-t pt-4 text-sm">
+          <div className="space-y-3 border-t border-slate-100 dark:border-slate-700 pt-4 text-sm">
             {proc.faitsReproches && (
-              <div><span className="text-xs text-gray-500 block">Faits reprochés</span><p className="text-gray-800 mt-0.5">{proc.faitsReproches}</p></div>
+              <div><span className="text-xs text-slate-500 dark:text-slate-400 block">Faits reprochés</span><p className="text-slate-800 dark:text-slate-100 mt-0.5">{proc.faitsReproches}</p></div>
             )}
             {proc.dateConvocation && (
-              <div><span className="text-xs text-gray-500 block">Convocation</span><p className="text-gray-800">{fmt(proc.dateConvocation)}</p></div>
+              <div><span className="text-xs text-slate-500 dark:text-slate-400 block">Convocation</span><p className="text-slate-800 dark:text-slate-100">{fmt(proc.dateConvocation)}</p></div>
             )}
             {proc.reponseCollab && (
-              <div><span className="text-xs text-gray-500 block">Réponse collaborateur</span><p className="text-gray-800 mt-0.5">{proc.reponseCollab}</p></div>
+              <div><span className="text-xs text-slate-500 dark:text-slate-400 block">Réponse collaborateur</span><p className="text-slate-800 dark:text-slate-100 mt-0.5">{proc.reponseCollab}</p></div>
             )}
             {proc.decision && (
-              <div><span className="text-xs text-gray-500 block">Décision</span><p className="text-gray-800 font-medium mt-0.5">{proc.decision}</p></div>
+              <div><span className="text-xs text-slate-500 dark:text-slate-400 block">Décision</span><p className="text-slate-800 dark:text-slate-100 font-medium mt-0.5">{proc.decision}</p></div>
             )}
             {proc.dureeSuspension && (
-              <div><span className="text-xs text-gray-500 block">Durée suspension</span><p className="text-gray-800">{proc.dureeSuspension} jour(s)</p></div>
+              <div><span className="text-xs text-slate-500 dark:text-slate-400 block">Durée suspension</span><p className="text-slate-800 dark:text-slate-100">{proc.dureeSuspension} jour(s)</p></div>
             )}
             {proc.notes && (
-              <div><span className="text-xs text-gray-500 block">Notes</span><p className="text-gray-600 italic mt-0.5">{proc.notes}</p></div>
+              <div><span className="text-xs text-slate-500 dark:text-slate-400 block">Notes</span><p className="text-slate-600 dark:text-slate-300 italic mt-0.5">{proc.notes}</p></div>
             )}
           </div>
         )}
 
         {/* Workflow */}
         {(proc.statut === "OUVERTE" || proc.statut === "EN_INSTRUCTION") && (
-          <div className="border-t pt-4 mt-4 space-y-3">
+          <div className="border-t border-slate-100 dark:border-slate-700 pt-4 mt-4 space-y-3">
             {proc.statut === "OUVERTE" && (
-              <button onClick={() => handleAction("INSTRUIRE")} disabled={loading} className="w-full py-2 rounded-xl bg-yellow-100 text-yellow-700 font-medium text-sm hover:bg-yellow-200">
+              <Button variant="secondary" onClick={() => handleAction("INSTRUIRE")} disabled={loading} className="w-full justify-center !bg-amber-100 dark:!bg-amber-900/30 !text-amber-700 dark:!text-amber-300 !border-amber-200 dark:!border-amber-800">
                 Mettre en instruction
-              </button>
+              </Button>
             )}
             <div className="space-y-2">
-              <label className="text-xs text-gray-500">Décision de clôture</label>
-              <textarea value={clotureDecision} onChange={(e) => setClotureDecision(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} placeholder="Saisir la décision finale..." />
-              <button onClick={() => handleAction("CLOTURER")} disabled={loading} className="w-full py-2 rounded-xl bg-green-100 text-green-700 font-medium text-sm hover:bg-green-200">
+              <label className="text-xs text-slate-500 dark:text-slate-400">Décision de clôture</label>
+              <textarea value={clotureDecision} onChange={(e) => setClotureDecision(e.target.value)} className={inputCls} rows={2} placeholder="Saisir la décision finale..." />
+              <Button variant="success" onClick={() => handleAction("CLOTURER")} disabled={loading} className="w-full justify-center">
                 Clôturer la procédure
-              </button>
+              </Button>
             </div>
-            <button onClick={() => handleAction("ANNULER")} disabled={loading} className="w-full py-2 rounded-xl bg-red-50 text-red-600 text-sm hover:bg-red-100">
+            <Button variant="danger" onClick={() => handleAction("ANNULER")} disabled={loading} className="w-full justify-center">
               Annuler la procédure
-            </button>
+            </Button>
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -290,30 +283,28 @@ function CreateProcModal({ onClose, onCreated }: { onClose: () => void; onCreate
     setForm((p) => ({ ...p, [k]: e.target.value }));
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold text-gray-800 mb-5">Ouvrir une procédure disciplinaire</h2>
+    <Modal open onClose={onClose} title="Ouvrir une procédure disciplinaire" size="md">
         <div className="space-y-3">
           {/* Collaborateur */}
           <div>
-            <label className="text-xs text-gray-500">Collaborateur *</label>
+            <label className="text-xs text-slate-500 dark:text-slate-400">Collaborateur *</label>
             <div className="relative mt-1">
               <input
                 value={selectedCollab ? `${selectedCollab.prenom} ${selectedCollab.nom} (${selectedCollab.matricule})` : collabSearch}
                 onChange={(e) => { setCollabSearch(e.target.value); setSelectedCollab(null); setForm((p) => ({ ...p, profilRHId: "" })); setShowDropdown(true); }}
                 onFocus={() => setShowDropdown(true)}
                 placeholder="Rechercher un collaborateur..."
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className={inputCls}
               />
               {showDropdown && collabOptions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 z-10 bg-white border rounded-xl shadow-lg mt-1 max-h-48 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 z-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg mt-1 max-h-48 overflow-y-auto">
                   {collabOptions.map((c) => (
                     <button
                       key={c.id}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                      className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
                       onClick={() => { setSelectedCollab(c); setForm((p) => ({ ...p, profilRHId: String(c.id) })); setShowDropdown(false); }}
                     >
-                      {c.prenom} {c.nom} <span className="text-gray-400 text-xs">({c.matricule})</span>
+                      {c.prenom} {c.nom} <span className="text-slate-400 dark:text-slate-500 text-xs">({c.matricule})</span>
                     </button>
                   ))}
                 </div>
@@ -323,56 +314,42 @@ function CreateProcModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
           {/* Type */}
           <div>
-            <label className="text-xs text-gray-500">Type de sanction *</label>
-            <select value={form.type} onChange={set("type")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm">
+            <label className="text-xs text-slate-500 dark:text-slate-400">Type de sanction *</label>
+            <select value={form.type} onChange={set("type")} className={inputCls}>
               {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
 
-          {/* Motif */}
-          <div>
-            <label className="text-xs text-gray-500">Motif *</label>
-            <input value={form.motif} onChange={set("motif")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" placeholder="Motif succinct" />
-          </div>
+          <Input label="Motif *" value={form.motif} onChange={set("motif")} placeholder="Motif succinct" />
 
           {/* Faits */}
           <div>
-            <label className="text-xs text-gray-500">Faits reprochés</label>
-            <textarea value={form.faitsReproches} onChange={set("faitsReproches")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" rows={3} />
+            <label className="text-xs text-slate-500 dark:text-slate-400">Faits reprochés</label>
+            <textarea value={form.faitsReproches} onChange={set("faitsReproches")} className={inputCls} rows={3} />
           </div>
 
           {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-500">Date incident *</label>
-              <input type="date" value={form.dateIncident} onChange={set("dateIncident")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500">Date convocation</label>
-              <input type="date" value={form.dateConvocation} onChange={set("dateConvocation")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" />
-            </div>
+            <Input label="Date incident *" type="date" value={form.dateIncident} onChange={set("dateIncident")} />
+            <Input label="Date convocation" type="date" value={form.dateConvocation} onChange={set("dateConvocation")} />
           </div>
 
           {form.type === "MISE_A_PIED" && (
-            <div>
-              <label className="text-xs text-gray-500">Durée suspension (jours)</label>
-              <input type="number" value={form.dureeSuspension} onChange={set("dureeSuspension")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" min={1} />
-            </div>
+            <Input label="Durée suspension (jours)" type="number" value={form.dureeSuspension} onChange={set("dureeSuspension")} min={1} />
           )}
 
           <div>
-            <label className="text-xs text-gray-500">Notes internes</label>
-            <textarea value={form.notes} onChange={set("notes")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" rows={2} />
+            <label className="text-xs text-slate-500 dark:text-slate-400">Notes internes</label>
+            <textarea value={form.notes} onChange={set("notes")} className={inputCls} rows={2} />
           </div>
         </div>
         <div className="flex gap-3 mt-6 justify-end">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg border text-sm text-gray-600 hover:bg-gray-50">Annuler</button>
-          <button onClick={handleSubmit} disabled={loading} className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50">
-            {loading ? "Ouverture…" : "Ouvrir la procédure"}
-          </button>
+          <Button variant="secondary" onClick={onClose}>Annuler</Button>
+          <Button variant="danger" onClick={handleSubmit} disabled={loading} loading={loading}>
+            Ouvrir la procédure
+          </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -394,35 +371,31 @@ function ProcRow({ proc, onSelect, onRefresh }: {
   }
 
   return (
-    <tr className="hover:bg-gray-50 border-b border-gray-100 last:border-0">
+    <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/40 border-b border-slate-100 dark:border-slate-700 last:border-0">
       <td className="px-4 py-3">
-        <div className="font-medium text-gray-800 text-sm">{collaborateur}</div>
-        <div className="text-xs text-gray-400">{proc.profilRH.matricule}</div>
+        <div className="font-medium text-slate-800 dark:text-slate-100 text-sm">{collaborateur}</div>
+        <div className="text-xs text-slate-400 dark:text-slate-500">{proc.profilRH.matricule}</div>
       </td>
       <td className="px-4 py-3">
-        <span className={`px-2 py-0.5 rounded text-xs font-medium ${TYPE_COLORS[proc.type]}`}>
-          {TYPE_LABELS[proc.type]}
-        </span>
+        <Badge variant={TYPE_VARIANTS[proc.type]}>{TYPE_LABELS[proc.type]}</Badge>
       </td>
-      <td className="px-4 py-3 text-sm text-gray-600 max-w-xs">
+      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300 max-w-xs">
         <p className="truncate">{proc.motif}</p>
       </td>
-      <td className="px-4 py-3 text-xs text-gray-500">{fmt(proc.dateIncident)}</td>
+      <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">{fmt(proc.dateIncident)}</td>
       <td className="px-4 py-3">
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUT_COLORS[proc.statut]}`}>
-          {STATUT_LABELS[proc.statut]}
-        </span>
+        <Badge variant={STATUT_VARIANTS[proc.statut]}>{STATUT_LABELS[proc.statut]}</Badge>
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1.5">
           {proc.statut === "OUVERTE" && (
-            <button onClick={() => quickAction("INSTRUIRE")} disabled={loading} title="Instruire" className="px-2.5 py-1 text-xs rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200">
+            <Button size="sm" variant="secondary" onClick={() => quickAction("INSTRUIRE")} disabled={loading} title="Instruire" className="!bg-amber-100 dark:!bg-amber-900/30 !text-amber-700 dark:!text-amber-300 !border-amber-200 dark:!border-amber-800">
               Instruire
-            </button>
+            </Button>
           )}
-          <button onClick={() => onSelect(proc)} className="px-2.5 py-1 text-xs rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200">
+          <Button size="sm" variant="ghost" onClick={() => onSelect(proc)} className="border border-slate-200 dark:border-slate-700">
             Voir
-          </button>
+          </Button>
         </div>
       </td>
     </tr>
@@ -444,65 +417,57 @@ export default function DisciplinairePage() {
   const { data, loading, refetch } = useApi<ProcsResponse>(`/api/admin/rh/disciplinaire?${params}`);
   const handleRefresh = useCallback(() => refetch(), [refetch]);
 
-  const STATS: { key: StatutProcedure; label: string; icon: React.ReactNode; color: string }[] = [
-    { key: "OUVERTE",        label: "Ouvertes",       icon: <FileWarning size={18} />, color: "text-blue-600 bg-blue-50" },
-    { key: "EN_INSTRUCTION", label: "En instruction", icon: <Clock size={18} />,      color: "text-yellow-600 bg-yellow-50" },
-    { key: "CLOTUREE",       label: "Clôturées",      icon: <CheckCircle2 size={18} />, color: "text-green-600 bg-green-50" },
-    { key: "ANNULEE",        label: "Annulées",       icon: <Ban size={18} />,         color: "text-gray-500 bg-gray-50" },
+  const STATS: { key: StatutProcedure; label: string; icon: React.ReactNode; accent: "primary" | "warning" | "success" | "neutral" }[] = [
+    { key: "OUVERTE",        label: "Ouvertes",       icon: <FileWarning size={18} />, accent: "primary" },
+    { key: "EN_INSTRUCTION", label: "En instruction", icon: <Clock size={18} />,       accent: "warning" },
+    { key: "CLOTUREE",       label: "Clôturées",      icon: <CheckCircle2 size={18} />, accent: "success" },
+    { key: "ANNULEE",        label: "Annulées",       icon: <Ban size={18} />,          accent: "neutral" },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
-              <ArrowLeft size={15} /> Dashboard RH
-            </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Procédures disciplinaires</h1>
-            <p className="text-sm text-gray-500 mt-1">Suivi et gestion des procédures disciplinaires</p>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Procédures disciplinaires</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Suivi et gestion des procédures disciplinaires</p>
           </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 shadow-sm"
-          >
-            <Plus size={16} /> Nouvelle procédure
-          </button>
+          <Button variant="danger" onClick={() => setShowCreate(true)} icon={<Plus size={16} />}>
+            Nouvelle procédure
+          </Button>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {STATS.map(({ key, label, icon, color }) => (
-            <button
-              key={key}
-              onClick={() => setStatut(statut === key ? "" : key)}
-              className={`bg-white rounded-2xl p-4 shadow-sm border text-left transition-all ${statut === key ? "border-red-300 ring-2 ring-red-100" : "border-gray-100 hover:border-gray-200"}`}
-            >
-              <div className={`p-2 rounded-lg w-fit ${color}`}>{icon}</div>
-              <div className="mt-2 text-2xl font-bold text-gray-800">{data?.stats?.[key] ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-0.5">{label}</div>
+          {STATS.map(({ key, label, icon, accent }) => (
+            <button key={key} onClick={() => setStatut(statut === key ? "" : key)} className="text-left">
+              <KpiCard
+                label={label}
+                value={data?.stats?.[key] ?? 0}
+                icon={icon}
+                accent={accent}
+                className={statut === key ? "border-red-300 dark:border-red-700 ring-2 ring-red-100 dark:ring-red-900/40" : ""}
+              />
             </button>
           ))}
         </div>
 
         {/* Search */}
-        <div className="relative max-w-md">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
+        <div className="max-w-md">
+          <Input
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Rechercher par motif, nom..."
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm bg-white"
+            icon={<Search size={15} />}
           />
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
           {loading ? (
-            <div className="text-center py-12 text-gray-400">Chargement…</div>
+            <div className="text-center py-12 text-slate-400 dark:text-slate-500">Chargement…</div>
           ) : !data?.data?.length ? (
-            <div className="text-center py-12 text-gray-400">
+            <div className="text-center py-12 text-slate-400 dark:text-slate-500">
               <Shield size={40} className="mx-auto mb-3 opacity-30" />
               <p>Aucune procédure trouvée</p>
             </div>
@@ -510,13 +475,13 @@ export default function DisciplinairePage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Collaborateur</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Motif</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Date incident</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Statut</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Actions</th>
+                  <tr className="bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-700">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Collaborateur</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Motif</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Date incident</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Statut</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -530,14 +495,9 @@ export default function DisciplinairePage() {
         </div>
 
         {/* Pagination */}
-        {data && data.meta.totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2">
-            <button disabled={page === 1} onClick={() => setPage(page - 1)} className="px-3 py-1.5 text-sm border rounded-lg disabled:opacity-40 hover:bg-gray-50">Précédent</button>
-            <span className="text-sm text-gray-600">{page} / {data.meta.totalPages}</span>
-            <button disabled={page === data.meta.totalPages} onClick={() => setPage(page + 1)} className="px-3 py-1.5 text-sm border rounded-lg disabled:opacity-40 hover:bg-gray-50">Suivant</button>
-          </div>
+        {data && (
+          <Pagination page={page} totalPages={data.meta.totalPages} total={data.meta.total} onPageChange={setPage} itemLabel="procédure(s)" />
         )}
-      </div>
 
       {showCreate && <CreateProcModal onClose={() => setShowCreate(false)} onCreated={handleRefresh} />}
       {selected && <ProcDetailModal proc={selected} onClose={() => setSelected(null)} onRefresh={handleRefresh} />}

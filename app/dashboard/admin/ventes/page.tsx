@@ -594,7 +594,7 @@ export default function VentesPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-blue-50/20 font-['DM_Sans',sans-serif] p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-blue-50/20 p-8">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* ─── Header ──────────────────────────────────────────────────────── */}
@@ -622,13 +622,13 @@ export default function VentesPage() {
                   <Receipt size={18} /> Pro-forma
                 </button>
                 <button onClick={() => setVenteModalOpen(true)}
-                  className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
+                  className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 flex items-center gap-2 font-medium">
                   <Plus size={20} /> {t('ventes_new_btn')}
                 </button>
               </>
             ) : (
               <button onClick={() => setPackModalOpen(true)}
-                className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
+                className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 flex items-center gap-2 font-medium">
                 <Plus size={20} /> Planifier une livraison
               </button>
             )}
@@ -661,7 +661,7 @@ export default function VentesPage() {
                   <React.Fragment key={n}>
                     <div className={`flex items-center gap-1.5 ${venteStep >= n ? 'text-emerald-600' : 'text-slate-400'}`}>
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                        venteStep > n ? 'bg-emerald-600 text-white' : venteStep === n ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'
+                        venteStep > n ? 'bg-primary-600 text-white' : venteStep === n ? 'bg-primary-600 text-white' : 'bg-slate-200 text-slate-500'
                       }`}>
                         {venteStep > n ? <CheckCircle className="w-3.5 h-3.5" /> : n}
                       </div>
@@ -681,7 +681,7 @@ export default function VentesPage() {
                     <select
                       value={selectedPdvId}
                       onChange={e => { setSelectedPdvId(e.target.value); setStockPdv([]); setLignes([]); }}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                       <option value="">Sélectionner un PDV</option>
                       {pdvOptions.map(p => (
                         <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>
@@ -696,14 +696,14 @@ export default function VentesPage() {
                       <button type="button"
                         onClick={() => { setClientType('search'); setClientNomManuel(''); setClientTelManuel(''); }}
                         className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${
-                          clientType === 'search' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                          clientType === 'search' ? 'bg-primary-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                         }`}>
                         Client enregistré
                       </button>
                       <button type="button"
                         onClick={() => { setClientType('walkin'); setSelectedClient(null); setClientSearch(''); }}
                         className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${
-                          clientType === 'walkin' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                          clientType === 'walkin' ? 'bg-primary-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                         }`}>
                         Anonyme / Walk-in
                       </button>
@@ -729,7 +729,7 @@ export default function VentesPage() {
                               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                               <input type="text" placeholder="Nom, prénom ou téléphone…"
                                 value={clientSearch} onChange={e => setClientSearch(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm" />
+                                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50 text-sm" />
                             </div>
                             {venteClientsOptions.length > 0 && (
                               <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -758,17 +758,17 @@ export default function VentesPage() {
                       <div className="grid grid-cols-2 gap-3">
                         <input type="text" placeholder="Nom (optionnel)" value={clientNomManuel}
                           onChange={e => setClientNomManuel(e.target.value)}
-                          className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
+                          className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
                         <input type="text" placeholder="Téléphone (optionnel)" value={clientTelManuel}
                           onChange={e => setClientTelManuel(e.target.value)}
-                          className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
+                          className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
                       </div>
                     )}
                   </div>
 
                   <button type="button" onClick={goToStep2}
                     disabled={!selectedPdvId || stockLoading}
-                    className="w-full py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium flex items-center justify-center gap-2 transition-colors">
+                    className="w-full py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-60 font-medium flex items-center justify-center gap-2 transition-colors">
                     {stockLoading
                       ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Chargement stock…</>
                       : <>Suivant <ChevronRight size={16} /></>}
@@ -794,7 +794,7 @@ export default function VentesPage() {
                   {/* Sélecteur produit */}
                   <div className="flex gap-2">
                     <select value={produitSelectId} onChange={e => setProduitSelectId(e.target.value)}
-                      className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                      className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
                       <option value="">Choisir un produit…</option>
                       {stockPdv
                         .filter(s => !lignes.find(l => l.produitId === s.produitId))
@@ -812,7 +812,7 @@ export default function VentesPage() {
                         })}
                     </select>
                     <button type="button" onClick={addLigne} disabled={!produitSelectId}
-                      className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+                      className="px-4 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 transition-colors">
                       <Plus size={16} />
                     </button>
                   </div>
@@ -844,12 +844,12 @@ export default function VentesPage() {
                                 <span className="text-xs text-slate-500 shrink-0">Prix :</span>
                                 <input type="number" min="0" step="1" value={l.prixUnitaire}
                                   onChange={e => updateLignePrix(l.produitId, Number(e.target.value))}
-                                  className="w-24 px-2 py-1 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                                  className="w-24 px-2 py-1 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary-500" />
                               </div>
                               <span className="text-slate-400">×</span>
                               <input type="number" min="1" max={l.stockDispo} value={l.quantite}
                                 onChange={e => updateLigneQte(l.produitId, Number(e.target.value))}
-                                className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                                className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary-500" />
                               <span className="text-slate-400">=</span>
                               <span className="font-semibold text-slate-800 w-20 text-right shrink-0">
                                 {formatCurrency(l.quantite * l.prixUnitaire)}
@@ -883,7 +883,7 @@ export default function VentesPage() {
                       Retour
                     </button>
                     <button type="button" onClick={goToStep3} disabled={lignes.length === 0 && !produitSelectId}
-                      className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
+                      className="flex-1 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-60 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
                       Suivant <ChevronRight size={16} />
                     </button>
                   </div>
@@ -926,7 +926,7 @@ export default function VentesPage() {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Mode de paiement *</label>
                     <select required value={modePaiement} onChange={e => setModePaiement(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                       {MODE_PAIEMENT_OPTIONS.map(([k, v]) => (
                         <option key={k} value={k}>{v}</option>
                       ))}
@@ -959,10 +959,10 @@ export default function VentesPage() {
                                   setMontantPaye(String(Math.max(0, montantTotal - applique)));
                                 }}
                                 placeholder="Montant à imputer sur le CC"
-                                className="flex-1 px-3 py-2 border border-emerald-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                                className="flex-1 px-3 py-2 border border-emerald-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500" />
                               <button type="button"
                                 onClick={() => { const max = Math.min(ccInfo.solde, montantTotal); setCcMontant(String(max)); setMontantPaye(String(Math.max(0, montantTotal - max))); }}
-                                className="px-3 py-2 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 whitespace-nowrap">
+                                className="px-3 py-2 text-xs font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 whitespace-nowrap">
                                 Payer tout ({formatCurrency(Math.min(ccInfo.solde, montantTotal))})
                               </button>
                             </div>
@@ -986,7 +986,7 @@ export default function VentesPage() {
                     </label>
                     <input type="number" required min="0" step="1" value={montantPaye}
                       onChange={e => setMontantPaye(e.target.value)}
-                      className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                      className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                         montantPaye !== '' && Number(montantPaye) < resteAPayer ? 'border-orange-400 bg-orange-50' : 'border-slate-200'
                       }`} />
                     {resteAPayer === 0 && ccApplique > 0 ? (
@@ -1004,7 +1004,7 @@ export default function VentesPage() {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optionnel)</label>
                     <textarea value={notesVente} onChange={e => setNotesVente(e.target.value)} rows={2}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm resize-none" />
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm resize-none" />
                   </div>
 
                   {createVenteError && (
@@ -1018,7 +1018,7 @@ export default function VentesPage() {
                     </button>
                     <button type="submit"
                       disabled={creatingVente || Number(montantPaye || 0) < resteAPayer}
-                      className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
+                      className="flex-1 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-60 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
                       <CreditCard size={15} />
                       {creatingVente ? 'Enregistrement…' : 'Confirmer la vente'}
                     </button>
@@ -1049,7 +1049,7 @@ export default function VentesPage() {
                   <React.Fragment key={n}>
                     <div className={`flex items-center gap-1.5 ${packStep >= n ? 'text-emerald-600' : 'text-slate-400'}`}>
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                        packStep > n ? 'bg-emerald-600 text-white' : packStep === n ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'
+                        packStep > n ? 'bg-primary-600 text-white' : packStep === n ? 'bg-primary-600 text-white' : 'bg-slate-200 text-slate-500'
                       }`}>
                         {packStep > n ? <CheckCircle className="w-3.5 h-3.5" /> : n}
                       </div>
@@ -1071,11 +1071,11 @@ export default function VentesPage() {
                     <input autoFocus type="text" placeholder="Nom, prénom ou téléphone…"
                       value={packClientSearch}
                       onChange={e => { setPackClientSearch(e.target.value); setPackSelectedClient(null); setEligibilitePack(null); setEligibiliteError(null); }}
-                      className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
+                      className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50" />
                   </div>
                   {checkingEligibility && (
                     <div className="flex items-center gap-3 py-3 text-slate-500 text-sm">
-                      <div className="w-5 h-5 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin shrink-0" />
+                      <div className="w-5 h-5 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin shrink-0" />
                       Vérification en cours…
                     </div>
                   )}
@@ -1155,7 +1155,7 @@ export default function VentesPage() {
                         required
                         value={packSelectedPdvId ?? ''}
                         onChange={e => setPackSelectedPdvId(e.target.value ? Number(e.target.value) : null)}
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                       >
                         <option value="">— Choisir le point de vente —</option>
                         {packClientPdvs.map(pdv => (
@@ -1181,7 +1181,7 @@ export default function VentesPage() {
                       <label className="block text-sm font-medium text-slate-700 mb-1">Pack à utiliser *</label>
                       <select required value={formPack.souscriptionId}
                         onChange={e => setFormPack(f => ({ ...f, souscriptionId: e.target.value }))}
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                         <option value="">Sélectionner un pack</option>
                         {eligibilitePack.souscriptions.map(s => (
                           <option key={s.id} value={s.id}>
@@ -1268,7 +1268,7 @@ export default function VentesPage() {
                                   : row
                                 ));
                               }}
-                              className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-w-0 truncate">
+                              className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-0 truncate">
                               <option value="">— Produit —</option>
                               {produits.map(p => {
                                 const dispo = Math.max(0, (p.totalStock ?? p.stock ?? 0) - (p.quantiteReservee ?? 0));
@@ -1279,12 +1279,12 @@ export default function VentesPage() {
                               value={ligne.quantite}
                               onChange={e => setPackLignes(l => l.map((row, i) => i === idx ? { ...row, quantite: e.target.value } : row))}
                               placeholder="Qté"
-                              className={`border rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 ${stockDepasse ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
+                              className={`border rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary-500 ${stockDepasse ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
                             <input type="number" min="0" step="1"
                               value={ligne.prixUnitaire}
                               onChange={e => setPackLignes(l => l.map((row, i) => i === idx ? { ...row, prixUnitaire: e.target.value } : row))}
                               placeholder="Prix"
-                              className="border-2 border-emerald-300 bg-emerald-50 rounded-xl px-2 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                              className="border-2 border-emerald-300 bg-emerald-50 rounded-xl px-2 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500" />
                             <button type="button"
                               onClick={() => setPackLignes(l => l.filter((_, i) => i !== idx))}
                               disabled={packLignes.length === 1}
@@ -1338,7 +1338,7 @@ export default function VentesPage() {
                     </button>
                     <button type="submit"
                       disabled={adding || (packClientPdvs.length > 0 && !packSelectedPdvId) || packLignes.every(l => !l.produitId || !(parseInt(l.quantite) > 0))}
-                      className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
+                      className="flex-1 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-60 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
                       <Truck size={15} />
                       {adding ? 'Enregistrement…' : 'Planifier la livraison'}
                     </button>
@@ -1393,15 +1393,15 @@ export default function VentesPage() {
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input type="text" placeholder="Référence, client…" value={searchVentes}
                     onChange={e => { setSearchVentes(e.target.value); setPageVentes(1); }}
-                    className="w-full pl-11 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm" />
+                    className="w-full pl-11 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50 text-sm" />
                 </div>
                 <select value={filterPdvId} onChange={e => { setFilterPdvId(e.target.value); setPageVentes(1); }}
-                  className="px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                  className="px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
                   <option value="">{t('ventes_all_pdv')}</option>
                   {pdvOptions.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
                 </select>
                 <select value={filterStatut} onChange={e => { setFilterStatut(e.target.value); setPageVentes(1); }}
-                  className="px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                  className="px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
                   <option value="">Tous statuts</option>
                   <option value="CONFIRMEE">Confirmées</option>
                   <option value="BROUILLON">Brouillon</option>
@@ -1410,10 +1410,10 @@ export default function VentesPage() {
                 <div className="flex gap-2">
                   <input type="date" value={filterDateDebut} onChange={e => setFilterDateDebut(e.target.value)}
                     title="Date de début"
-                    className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs" />
+                    className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs" />
                   <input type="date" value={filterDateFin} onChange={e => setFilterDateFin(e.target.value)}
                     title="Date de fin"
-                    className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs" />
+                    className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs" />
                 </div>
               </div>
             </div>
@@ -1430,7 +1430,7 @@ export default function VentesPage() {
               </div>
               {ventesLoading && !ventesResponse ? (
                 <div className="flex justify-center py-12">
-                  <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+                  <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -1456,7 +1456,7 @@ export default function VentesPage() {
                             </td>
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-primary-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
                                   {initials(parts[parts.length - 1] ?? '', parts[0] ?? '')}
                                 </div>
                                 <div>
@@ -1561,7 +1561,7 @@ export default function VentesPage() {
                       className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors text-sm">
                       {t('btn_prev')}
                     </button>
-                    <span className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm">{pageVentes}</span>
+                    <span className="px-4 py-2 bg-primary-600 text-white rounded-lg font-medium text-sm">{pageVentes}</span>
                     <button onClick={() => setPageVentes(p => Math.min(ventesMeta.totalPages, p + 1))} disabled={pageVentes >= ventesMeta.totalPages}
                       className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors text-sm">
                       {t('btn_next')}
@@ -1606,7 +1606,7 @@ export default function VentesPage() {
                 Pour créer des packs, gérer les souscriptions et suivre les cycles de paiement, rendez-vous sur la page <strong>Packs clients</strong>.
               </p>
               <Link href="/dashboard/admin/packs"
-                className="ml-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
+                className="ml-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
                 <Layers size={14} /> Gérer les packs
               </Link>
             </div>
@@ -1617,7 +1617,7 @@ export default function VentesPage() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input type="text" placeholder="Rechercher par client…" value={searchPacks}
                   onChange={e => { setSearchPacks(e.target.value); setPagePacks(1); }}
-                  className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
+                  className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50" />
               </div>
             </div>
 
@@ -1633,7 +1633,7 @@ export default function VentesPage() {
               </div>
               {packsLoading && !packsResponse ? (
                 <div className="flex justify-center py-12">
-                  <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+                  <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -1658,7 +1658,7 @@ export default function VentesPage() {
                           <tr key={r.id} className={`hover:bg-slate-50 transition-colors ${isPlanifiee ? 'bg-orange-50/40' : ''}`}>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 bg-gradient-to-br ${isPlanifiee ? 'from-orange-400 to-orange-600' : 'from-emerald-400 to-emerald-600'} rounded-full flex items-center justify-center text-white font-semibold shadow-sm`}>
+                                <div className={`w-10 h-10 bg-gradient-to-br ${isPlanifiee ? 'from-orange-400 to-orange-600' : 'from-emerald-400 to-primary-600'} rounded-full flex items-center justify-center text-white font-semibold shadow-sm`}>
                                   {initials(parts[parts.length - 1] ?? '', parts[0] ?? '')}
                                 </div>
                                 <div>
@@ -1745,7 +1745,7 @@ export default function VentesPage() {
                       className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors">
                       {t('btn_prev')}
                     </button>
-                    <span className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium">{pagePacks}</span>
+                    <span className="px-4 py-2 bg-primary-600 text-white rounded-lg font-medium">{pagePacks}</span>
                     <button onClick={() => setPagePacks(p => Math.min(packsMeta.totalPages, p + 1))} disabled={pagePacks >= packsMeta.totalPages}
                       className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors">
                       {t('btn_next')}

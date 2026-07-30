@@ -22,7 +22,7 @@ interface PromoRow {
 const STATUT_STYLE: Record<string, string> = {
   EN_COURS: "bg-emerald-100 text-emerald-700 border-emerald-200",
   PROGRAMMEE: "bg-blue-100 text-blue-700 border-blue-200",
-  EXPIREE: "bg-gray-100 text-gray-400 border-gray-200",
+  EXPIREE: "bg-slate-100 text-slate-400 border-slate-200",
   INACTIVE: "bg-slate-100 text-slate-500 border-slate-200",
 };
 const STATUT_LABEL: Record<string, string> = {
@@ -96,40 +96,40 @@ export default function PromotionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <div className="p-6 max-w-6xl mx-auto space-y-5">
-        <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour au catalogue
         </Link>
 
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><Tag className="w-6 h-6 text-blue-600" /> Promotions</h2>
-            <p className="text-sm text-gray-400">{rows.length} promotion(s). Remises par produit, catégorie, famille, marque, agence, communauté ou client.</p>
+            <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><Tag className="w-6 h-6 text-blue-600" /> Promotions</h2>
+            <p className="text-sm text-slate-400">{rows.length} promotion(s). Remises par produit, catégorie, famille, marque, agence, communauté ou client.</p>
           </div>
           <button onClick={() => { setEditId(null); setModalOpen(true); }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow-sm">
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold shadow-sm">
             <Plus className="w-4 h-4" /> Nouvelle promotion
           </button>
         </div>
 
         <div className="flex gap-2 flex-wrap items-center">
           <select value={statut} onChange={(e) => setStatut(e.target.value)}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">Toutes</option>
             {Object.keys(STATUT_LABEL).map((s) => <option key={s} value={s}>{STATUT_LABEL[s]}</option>)}
           </select>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-20 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
+            <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
           ) : rows.length === 0 ? (
-            <div className="py-20 text-center text-gray-400"><Filter className="w-8 h-8 mx-auto mb-2 opacity-40" /> Aucune promotion.</div>
+            <div className="py-20 text-center text-slate-400"><Filter className="w-8 h-8 mx-auto mb-2 opacity-40" /> Aucune promotion.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wide">
+                <thead className="bg-slate-50 text-slate-400 text-xs uppercase tracking-wide">
                   <tr>
                     <th className="text-left px-4 py-3 font-semibold">Promotion</th>
                     <th className="text-left px-4 py-3 font-semibold">Périmètre</th>
@@ -140,25 +140,25 @@ export default function PromotionsPage() {
                     <th className="text-center px-4 py-3 font-semibold">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-slate-50">
                   {rows.map((p) => {
                     const st = statutPromotion(p);
                     return (
-                      <tr key={p.id} className="hover:bg-gray-50/60">
+                      <tr key={p.id} className="hover:bg-slate-50/60">
                         <td className="px-4 py-3">
-                          <p className="font-medium text-gray-800">{p.nom}</p>
-                          <p className="text-[11px] text-gray-400 font-mono">{p.code}{p.priorite ? ` · prio ${p.priorite}` : ""}</p>
+                          <p className="font-medium text-slate-800">{p.nom}</p>
+                          <p className="text-[11px] text-slate-400 font-mono">{p.code}{p.priorite ? ` · prio ${p.priorite}` : ""}</p>
                         </td>
-                        <td className="px-4 py-3 text-xs text-gray-600">
+                        <td className="px-4 py-3 text-xs text-slate-600">
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 mr-1">{CIBLE_PROMOTION_LABEL[p.cible as keyof typeof CIBLE_PROMOTION_LABEL] ?? p.cible}</span>
                           {perimetreLabel(p)}
                         </td>
                         <td className="px-4 py-3">
                           <span className="font-semibold text-blue-700">{libelleRemise(p)}</span>
-                          <p className="text-[10px] text-gray-400">{TYPE_REMISE_LABEL[p.typeRemise]}</p>
+                          <p className="text-[10px] text-slate-400">{TYPE_REMISE_LABEL[p.typeRemise]}</p>
                         </td>
-                        <td className="px-4 py-3 text-xs text-gray-500">{restrictionsLabel(p)}</td>
-                        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                        <td className="px-4 py-3 text-xs text-slate-500">{restrictionsLabel(p)}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
                           {new Date(p.dateDebut).toLocaleDateString("fr-FR")}<br />→ {new Date(p.dateFin).toLocaleDateString("fr-FR")}
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -166,11 +166,11 @@ export default function PromotionsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-1.5">
-                            <button onClick={() => toggleActif(p)} title={p.actif ? "Désactiver" : "Activer"} className="p-1.5 text-gray-400 hover:text-amber-600 rounded-lg hover:bg-amber-50">
+                            <button onClick={() => toggleActif(p)} title={p.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50">
                               {p.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
                             </button>
-                            <button onClick={() => { setEditId(p.id); setModalOpen(true); }} title="Modifier" className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"><Pencil className="w-4 h-4" /></button>
-                            <button onClick={() => supprimer(p)} title="Supprimer" className="p-1.5 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => { setEditId(p.id); setModalOpen(true); }} title="Modifier" className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"><Pencil className="w-4 h-4" /></button>
+                            <button onClick={() => supprimer(p)} title="Supprimer" className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50"><Trash2 className="w-4 h-4" /></button>
                           </div>
                         </td>
                       </tr>

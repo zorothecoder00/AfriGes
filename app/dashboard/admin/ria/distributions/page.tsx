@@ -93,7 +93,7 @@ function PlanifierModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Portefeuille *</label>
             <select value={form.portefeuilleId} onChange={(e) => set("portefeuilleId", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
               <option value="">Sélectionner…</option>
               {pfs.map((pf) => (
                 <option key={pf.id} value={pf.id}>
@@ -107,14 +107,14 @@ function PlanifierModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Mois *</label>
               <select value={form.mois} onChange={(e) => set("mois", e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                 {MOIS_LABELS.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Année *</label>
               <input type="number" value={form.annee} onChange={(e) => set("annee", e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
             </div>
           </div>
 
@@ -149,7 +149,7 @@ function PlanifierModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
         <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
           <button onClick={submit} disabled={loading}
-            className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? "Planification…" : "Planifier"}
           </button>
         </div>
@@ -205,7 +205,7 @@ export default function DistributionsPage() {
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
           <button onClick={() => setShowPlan(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700">
             <Plus className="w-4 h-4" /> Planifier une distribution
           </button>
         </div>
@@ -215,12 +215,12 @@ export default function DistributionsPage() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <select value={mois} onChange={(e) => setMois(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
             <option value="">Tous les mois</option>
             {MOIS_LABELS.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
           </select>
           <input type="number" value={annee} onChange={(e) => setAnnee(e.target.value)} placeholder="Année"
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-24 focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-24 focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
         </div>
         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
           {["", "PLANIFIE", "DISTRIBUE"].map((s) => (
@@ -272,7 +272,7 @@ export default function DistributionsPage() {
                   <td className="px-4 py-3">
                     {d.statut === "PLANIFIE" && (
                       <button onClick={() => traiter(d.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700">
+                        className="flex items-center gap-1 px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700">
                         <CheckCircle className="w-3 h-3" /> Traiter
                       </button>
                     )}

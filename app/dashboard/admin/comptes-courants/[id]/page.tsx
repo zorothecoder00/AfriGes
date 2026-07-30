@@ -60,7 +60,7 @@ interface RetraitPending {
 const STATUT_STYLE: Record<string, string> = {
   ACTIF: "bg-emerald-100 text-emerald-700 border-emerald-200",
   SUSPENDU: "bg-amber-100 text-amber-700 border-amber-200",
-  CLOTURE: "bg-gray-100 text-gray-600 border-gray-200",
+  CLOTURE: "bg-slate-100 text-slate-600 border-slate-200",
   DECEDE: "bg-slate-200 text-slate-700 border-slate-300",
   BLACKLIST: "bg-red-100 text-red-700 border-red-200",
   FRAUDULEUX: "bg-rose-100 text-rose-700 border-rose-200",
@@ -83,7 +83,7 @@ const NATURE_LABEL: Record<string, string> = {
 const NATURE_STYLE: Record<string, string> = {
   DEPOT: "bg-emerald-100 text-emerald-700", RETRAIT: "bg-orange-100 text-orange-700",
   PAIEMENT_CREDIT: "bg-blue-100 text-blue-700", PAIEMENT_COMPTANT: "bg-blue-100 text-blue-700",
-  CORRECTION: "bg-amber-100 text-amber-700", ANNULATION: "bg-gray-100 text-gray-600",
+  CORRECTION: "bg-amber-100 text-amber-700", ANNULATION: "bg-slate-100 text-slate-600",
   TRANSFERT: "bg-violet-100 text-violet-700",
 };
 const MODES = ["Espèces", "Mobile Money", "Carte", "Virement"];
@@ -374,21 +374,21 @@ export default function CompteCourantDetailPage() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
       <div className="p-6 max-w-5xl mx-auto space-y-6">
-        <Link href="/dashboard/admin/comptes-courants" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/dashboard/admin/comptes-courants" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour aux comptes courants
         </Link>
 
         {loading && !c ? (
-          <div className="flex items-center justify-center py-20 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-3" /> Chargement…</div>
+          <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-3" /> Chargement…</div>
         ) : !c ? (
-          <p className="text-center py-20 text-gray-400">Compte introuvable.</p>
+          <p className="text-center py-20 text-slate-400">Compte introuvable.</p>
         ) : (
           <>
             {/* En-tête compte */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-5 flex items-center justify-between text-white gap-4 flex-wrap">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center overflow-hidden ring-2 ring-white/30">
@@ -423,7 +423,7 @@ export default function CompteCourantDetailPage() {
                 <div className="px-6 py-2 bg-red-50 text-red-700 text-xs border-t border-red-100">Motif de blocage : {c.motifBlocage}</div>
               )}
               {/* Actions */}
-              <div className="px-6 py-3 flex items-center gap-2 border-t border-gray-100">
+              <div className="px-6 py-3 flex items-center gap-2 border-t border-slate-100">
                 {canDeposit && c.statut === "ACTIF" && (
                   <button onClick={() => setDepotOpen(true)}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium shadow-sm">
@@ -432,7 +432,7 @@ export default function CompteCourantDetailPage() {
                 )}
                 {canDeposit && c.statut === "ACTIF" && creditsPayables.length > 0 && (
                   <button onClick={() => setPayOpen(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium shadow-sm">
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-medium shadow-sm">
                     <CreditCard className="w-4 h-4" /> Payer un crédit
                   </button>
                 )}
@@ -443,7 +443,7 @@ export default function CompteCourantDetailPage() {
                   </button>
                 )}
                 {canDeposit && c.statut !== "ACTIF" && (
-                  <span className="text-xs text-gray-400">Opérations bloquées : compte {STATUT_LABEL[c.statut]?.toLowerCase()}.</span>
+                  <span className="text-xs text-slate-400">Opérations bloquées : compte {STATUT_LABEL[c.statut]?.toLowerCase()}.</span>
                 )}
                 {canManageStatus && (
                   <button onClick={() => { setNewStatut(""); setMotifStatut(""); setStatutOpen(true); }}
@@ -463,8 +463,8 @@ export default function CompteCourantDetailPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><User className="w-4 h-4 text-gray-400" /> Informations client</h3>
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><User className="w-4 h-4 text-slate-400" /> Informations client</h3>
                 <div className="space-y-2.5 text-sm">
                   <Row icon={<Hash className="w-4 h-4" />} label="Code client" value={c.client.codeClient ?? "—"} />
                   <Row icon={<Phone className="w-4 h-4" />} label="Téléphone" value={c.client.telephone + (c.client.telephoneSecondaire ? ` · ${c.client.telephoneSecondaire}` : "")} />
@@ -474,9 +474,9 @@ export default function CompteCourantDetailPage() {
                   <Row icon={<User className="w-4 h-4" />} label="Agent" value={c.client.agentTerrain ? `${c.client.agentTerrain.prenom} ${c.client.agentTerrain.nom}` : "—"} />
                 </div>
               </div>
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-gray-800 flex items-center gap-2"><Wallet className="w-4 h-4 text-gray-400" /> Informations compte</h3>
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2"><Wallet className="w-4 h-4 text-slate-400" /> Informations compte</h3>
                   {canCorrigerCC && (
                     <button onClick={openEditCompte}
                       className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg">
@@ -523,8 +523,8 @@ export default function CompteCourantDetailPage() {
 
             {/* Documents (CDC §14, Lot 5) — visible si permission EXPORT (RBAC granulaire) */}
             {canExport && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-              <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><FileText className="w-4 h-4 text-gray-400" /> Documents</h3>
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><FileText className="w-4 h-4 text-slate-400" /> Documents</h3>
               <div className="flex flex-wrap gap-3">
                 <button onClick={() => { setReleveFrom(""); setReleveTo(""); setReleveOpen(true); }}
                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium">
@@ -545,7 +545,7 @@ export default function CompteCourantDetailPage() {
                   </a>
                 )}
               </div>
-              <p className="text-[11px] text-gray-400 mt-3">Documents PDF officiels AFRISIME · le relevé peut être filtré sur une période. L&apos;attestation de fermeture est disponible pour les comptes clôturés.</p>
+              <p className="text-[11px] text-slate-400 mt-3">Documents PDF officiels AFRISIME · le relevé peut être filtré sur une période. L&apos;attestation de fermeture est disponible pour les comptes clôturés.</p>
             </div>
             )}
 
@@ -562,8 +562,8 @@ export default function CompteCourantDetailPage() {
                     <div key={rt.id} className="px-6 py-3 flex items-center justify-between gap-4 flex-wrap">
                       <div className="text-sm">
                         <span className="font-semibold text-orange-700">− {formatCurrency(Math.abs(N(rt.montant)))}</span>
-                        <span className="text-xs text-gray-500 ml-3">Solde après : {formatCurrency(N(rt.soldeApres))}</span>
-                        <p className="text-[11px] text-gray-400 mt-0.5">
+                        <span className="text-xs text-slate-500 ml-3">Solde après : {formatCurrency(N(rt.soldeApres))}</span>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
                           {new Date(rt.createdAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
                           {rt.user ? ` · initié par ${rt.user.prenom} ${rt.user.nom}` : ""}
                           {rt.modePaiement ? ` · ${rt.modePaiement}` : ""}
@@ -591,20 +591,20 @@ export default function CompteCourantDetailPage() {
             )}
 
             {/* Historique des mouvements (CDC §7) */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-gray-400" />
-                <h3 className="font-bold text-gray-800">Historique des mouvements</h3>
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-slate-400" />
+                <h3 className="font-bold text-slate-800">Historique des mouvements</h3>
               </div>
               {mouvementsVisibles.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 text-sm">
-                  <ArrowDownCircle className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+                <div className="text-center py-12 text-slate-400 text-sm">
+                  <ArrowDownCircle className="w-8 h-8 mx-auto mb-2 text-slate-200" />
                   Aucun mouvement pour l&apos;instant.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b border-gray-100 text-xs uppercase text-gray-500">
+                    <thead className="bg-slate-50 border-b border-slate-100 text-xs uppercase text-slate-500">
                       <tr>
                         <th className="text-left px-5 py-3 font-semibold">Date</th>
                         <th className="text-left px-5 py-3 font-semibold">Nature</th>
@@ -618,7 +618,7 @@ export default function CompteCourantDetailPage() {
                         <th className="px-5 py-3"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-slate-50">
                       {mouvementsVisibles.map((m) => {
                         const neg = N(m.montant) < 0;
                         const annule = m.statut === "ANNULE";
@@ -631,8 +631,8 @@ export default function CompteCourantDetailPage() {
                             < Date.UTC(created.getUTCFullYear(), created.getUTCMonth(), created.getUTCDate())
                           : false;
                         return (
-                          <tr key={m.id} className={`hover:bg-gray-50/60 ${annule ? "opacity-60" : ""}`}>
-                            <td className="px-5 py-3 text-xs text-gray-500">
+                          <tr key={m.id} className={`hover:bg-slate-50/60 ${annule ? "opacity-60" : ""}`}>
+                            <td className="px-5 py-3 text-xs text-slate-500">
                               {/* Date d'opération saisie prioritaire ; « antérieure » uniquement si backdatée. */}
                               {dateOp
                                 ? <span title={`Saisi le ${created.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`}>
@@ -642,34 +642,34 @@ export default function CompteCourantDetailPage() {
                                 : created.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
                             </td>
                             <td className="px-5 py-3">
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${NATURE_STYLE[m.nature] ?? "bg-gray-100 text-gray-600"}`}>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${NATURE_STYLE[m.nature] ?? "bg-slate-100 text-slate-600"}`}>
                                 {NATURE_LABEL[m.nature] ?? m.nature}
                               </span>
                               {m.numeroJour != null && <span className="text-[10px] px-1.5 py-0.5 ml-1 rounded-full bg-blue-100 text-blue-700 font-medium">J{m.numeroJour}</span>}
-                              {annule && <span className="text-[10px] px-1.5 py-0.5 ml-1 rounded-full bg-gray-200 text-gray-500 font-medium">Rejeté</span>}
+                              {annule && <span className="text-[10px] px-1.5 py-0.5 ml-1 rounded-full bg-slate-200 text-slate-500 font-medium">Rejeté</span>}
                             </td>
-                            <td className={`px-5 py-3 text-right font-semibold ${annule ? "text-gray-400 line-through" : neg ? "text-orange-600" : "text-emerald-600"}`}>
+                            <td className={`px-5 py-3 text-right font-semibold ${annule ? "text-slate-400 line-through" : neg ? "text-orange-600" : "text-emerald-600"}`}>
                               {neg ? "−" : "+"} {formatCurrency(Math.abs(N(m.montant)))}
                             </td>
-                            <td className="px-5 py-3 text-right text-gray-600">{formatCurrency(N(m.soldeAvant))}</td>
-                            <td className="px-5 py-3 text-right text-gray-800">{annule ? "—" : formatCurrency(N(m.soldeApres))}</td>
-                            <td className="px-5 py-3 text-xs text-gray-600">
+                            <td className="px-5 py-3 text-right text-slate-600">{formatCurrency(N(m.soldeAvant))}</td>
+                            <td className="px-5 py-3 text-right text-slate-800">{annule ? "—" : formatCurrency(N(m.soldeApres))}</td>
+                            <td className="px-5 py-3 text-xs text-slate-600">
                               {m.user ? `${m.user.prenom} ${m.user.nom}` : "—"}
-                              {m.agentApporteur && <span className="block text-[10px] text-gray-400">apporté par {m.agentApporteur.prenom} {m.agentApporteur.nom}</span>}
+                              {m.agentApporteur && <span className="block text-[10px] text-slate-400">apporté par {m.agentApporteur.prenom} {m.agentApporteur.nom}</span>}
                             </td>
-                            <td className="px-5 py-3 text-xs text-gray-500">{m.agence ?? "—"}</td>
-                            <td className="px-5 py-3 font-mono text-[11px] text-gray-500">{m.reference}</td>
-                            <td className="px-5 py-3 text-[11px] text-gray-500 max-w-[200px] truncate" title={m.observation ?? ""}>{m.observation ?? "—"}</td>
+                            <td className="px-5 py-3 text-xs text-slate-500">{m.agence ?? "—"}</td>
+                            <td className="px-5 py-3 font-mono text-[11px] text-slate-500">{m.reference}</td>
+                            <td className="px-5 py-3 text-[11px] text-slate-500 max-w-[200px] truncate" title={m.observation ?? ""}>{m.observation ?? "—"}</td>
                             <td className="px-5 py-3 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 {canCorrigerCC && !annule && (
                                   <button onClick={() => openEditMvt(m)} title="Corriger ce mouvement"
-                                    className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600">
+                                    className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-600">
                                     <Pencil className="w-3.5 h-3.5" /> Corriger
                                   </button>
                                 )}
                                 <a href={recuUrl(m.id)} target="_blank" rel="noopener noreferrer" title="Reçu PDF"
-                                  className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-emerald-600">
+                                  className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-emerald-600">
                                   <Printer className="w-3.5 h-3.5" /> Reçu
                                 </a>
                               </div>
@@ -695,45 +695,45 @@ export default function CompteCourantDetailPage() {
               <button onClick={() => setDepotOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-500">Compte {c.numeroCompte} · {c.client.prenom} {c.client.nom}</p>
+              <p className="text-xs text-slate-500">Compte {c.numeroCompte} · {c.client.prenom} {c.client.nom}</p>
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">Montant (FCFA)</span>
                 <input type="number" min={0} autoFocus value={montant} onChange={(e) => setMontant(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </label>
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">Mode de paiement</span>
                 <select value={mode} onChange={(e) => setMode(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
                   {MODES.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </label>
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">Référence (optionnel)</span>
                 <input value={reference} onChange={(e) => setReference(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </label>
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">Observation (optionnel)</span>
                 <input value={observation} onChange={(e) => setObservation(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-500">N° de jour (optionnel)</span>
                   <input type="number" min={1} value={numeroJour} onChange={(e) => setNumeroJour(e.target.value)} placeholder="Ex. 1, 2…"
-                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
                 </label>
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-500">Date du dépôt (optionnel)</span>
                   <input type="date" value={dateDepot} onChange={(e) => setDateDepot(e.target.value)}
-                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
                 </label>
               </div>
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">Agent apporteur (optionnel)</span>
                 <select value={agentApporteur} onChange={(e) => setAgentApporteur(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
                   <option value="">— Aucun —</option>
                   {collecteurs.map((a) => <option key={a.id} value={a.id}>{a.prenom} {a.nom}</option>)}
                 </select>
@@ -768,7 +768,7 @@ export default function CompteCourantDetailPage() {
               <button onClick={() => setStatutOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-slate-500">
                 Compte {c.numeroCompte} · statut actuel :{" "}
                 <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${STATUT_STYLE[c.statut] ?? ""}`}>{STATUT_LABEL[c.statut] ?? c.statut}</span>
               </p>
@@ -784,7 +784,7 @@ export default function CompteCourantDetailPage() {
               </label>
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">
-                  Motif {newStatut && newStatut !== "ACTIF" ? <span className="text-red-500">*</span> : <span className="text-gray-400">(optionnel)</span>}
+                  Motif {newStatut && newStatut !== "ACTIF" ? <span className="text-red-500">*</span> : <span className="text-slate-400">(optionnel)</span>}
                 </span>
                 <textarea value={motifStatut} onChange={(e) => setMotifStatut(e.target.value)} rows={3}
                   placeholder={newStatut === "ACTIF" ? "Ex : régularisation, levée de suspension…" : "Ex : décès, fraude avérée, demande client…"}
@@ -817,7 +817,7 @@ export default function CompteCourantDetailPage() {
               <button onClick={() => setRetraitOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-slate-500">
                 Solde disponible : <span className="font-semibold text-emerald-700">{formatCurrency(N(c.solde))}</span>
               </p>
               <label className="block">
@@ -883,17 +883,17 @@ export default function CompteCourantDetailPage() {
             </div>
             <div className="p-6 space-y-4">
               <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 text-sm space-y-1">
-                <div className="flex justify-between"><span className="text-gray-500">Montant</span><span className="font-semibold text-orange-700">− {formatCurrency(Math.abs(N(valRetrait.montant)))}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Solde après</span><span className="font-medium text-gray-800">{formatCurrency(N(valRetrait.soldeApres))}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Initié par</span><span className="text-gray-700">{valRetrait.user ? `${valRetrait.user.prenom} ${valRetrait.user.nom}` : "—"}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Montant</span><span className="font-semibold text-orange-700">− {formatCurrency(Math.abs(N(valRetrait.montant)))}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Solde après</span><span className="font-medium text-slate-800">{formatCurrency(N(valRetrait.soldeApres))}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Initié par</span><span className="text-slate-700">{valRetrait.user ? `${valRetrait.user.prenom} ${valRetrait.user.nom}` : "—"}</span></div>
               </div>
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">Confirmez avec votre mot de passe</span>
                 <input type="password" autoFocus value={valPassword} onChange={(e) => setValPassword(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") submitValider(); }}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </label>
-              <p className="text-[11px] text-gray-400">Le débit du compte et l&apos;écriture comptable sont produits à la validation.</p>
+              <p className="text-[11px] text-slate-400">Le débit du compte et l&apos;écriture comptable sont produits à la validation.</p>
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
               <button onClick={() => setValRetrait(null)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Annuler</button>
@@ -915,7 +915,7 @@ export default function CompteCourantDetailPage() {
               <button onClick={() => setRejRetrait(null)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-500">Retrait de <span className="font-semibold text-orange-700">{formatCurrency(Math.abs(N(rejRetrait.montant)))}</span> — {rejRetrait.reference}</p>
+              <p className="text-xs text-slate-500">Retrait de <span className="font-semibold text-orange-700">{formatCurrency(Math.abs(N(rejRetrait.montant)))}</span> — {rejRetrait.reference}</p>
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">Motif du rejet <span className="text-red-500">*</span></span>
                 <textarea value={rejMotif} onChange={(e) => setRejMotif(e.target.value)} rows={3} autoFocus
@@ -943,17 +943,17 @@ export default function CompteCourantDetailPage() {
               <button onClick={() => setReleveOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-500">Laissez les dates vides pour un relevé depuis l&apos;ouverture du compte.</p>
+              <p className="text-xs text-slate-500">Laissez les dates vides pour un relevé depuis l&apos;ouverture du compte.</p>
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-500">Du</span>
                   <input type="date" value={releveFrom} onChange={(e) => setReleveFrom(e.target.value)}
-                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
                 </label>
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-500">Au</span>
                   <input type="date" value={releveTo} onChange={(e) => setReleveTo(e.target.value)}
-                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
                 </label>
               </div>
             </div>
@@ -977,7 +977,7 @@ export default function CompteCourantDetailPage() {
               <button onClick={() => setEditCompteOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-500">Compte {c.numeroCompte} · le solde et les totaux ne sont pas modifiables (dérivés des mouvements).</p>
+              <p className="text-xs text-slate-500">Compte {c.numeroCompte} · le solde et les totaux ne sont pas modifiables (dérivés des mouvements).</p>
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">Libellé {c.typeCompte !== "INDIVIDUEL" ? "(nom du ménage / communauté)" : "(optionnel)"}</span>
                 <input value={ecLibelle} onChange={(e) => setEcLibelle(e.target.value)}
@@ -1002,7 +1002,7 @@ export default function CompteCourantDetailPage() {
                   {Object.keys(TYPE_COMPTE_LABEL).map((t) => <option key={t} value={t}>{TYPE_COMPTE_LABEL[t]}</option>)}
                 </select>
               </label>
-              <p className="text-[11px] text-gray-400">Modifier les codes agence/guichet régénère le RIB complet.</p>
+              <p className="text-[11px] text-slate-400">Modifier les codes agence/guichet régénère le RIB complet.</p>
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
               <button onClick={() => setEditCompteOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Annuler</button>
@@ -1024,12 +1024,12 @@ export default function CompteCourantDetailPage() {
               <button onClick={() => setEditMvt(null)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-500">{NATURE_LABEL[editMvt.nature] ?? editMvt.nature} · {editMvt.reference}</p>
+              <p className="text-xs text-slate-500">{NATURE_LABEL[editMvt.nature] ?? editMvt.nature} · {editMvt.reference}</p>
               {emMontantEditable ? (
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-500">Montant (FCFA)</span>
                   <input type="number" min={0} value={emMontant} onChange={(e) => setEmMontant(e.target.value)}
-                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
                   <span className="text-[11px] text-amber-600 mt-1 block">Corriger le montant recalcule le solde du compte et tout l&apos;historique postérieur.</span>
                 </label>
               ) : (
@@ -1040,13 +1040,13 @@ export default function CompteCourantDetailPage() {
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">Observation</span>
                 <input value={emObservation} onChange={(e) => setEmObservation(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-500">Mode de paiement</span>
                   <select value={emMode} onChange={(e) => setEmMode(e.target.value)}
-                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
                     <option value="">— Aucun —</option>
                     {MODES.map((mm) => <option key={mm} value={mm}>{mm}</option>)}
                   </select>
@@ -1054,26 +1054,26 @@ export default function CompteCourantDetailPage() {
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-500">Agence</span>
                   <input value={emAgence} onChange={(e) => setEmAgence(e.target.value)}
-                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
                 </label>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-500">N° de jour</span>
                   <input type="number" min={1} value={emNumeroJour} onChange={(e) => setEmNumeroJour(e.target.value)}
-                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
                 </label>
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-500">Date d&apos;opération</span>
                   <input type="date" value={emDate} onChange={(e) => setEmDate(e.target.value)}
-                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
                 </label>
               </div>
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">
               <button onClick={() => setEditMvt(null)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl">Annuler</button>
               <button onClick={submitEditMvt} disabled={emSaving}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
+                className="inline-flex items-center gap-2 px-5 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
                 {emSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />} Enregistrer
               </button>
             </div>
@@ -1087,17 +1087,17 @@ export default function CompteCourantDetailPage() {
 
 function Kpi({ label, value, icon, bg }: { label: string; value: string; icon: React.ReactNode; bg: string }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3 shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3 shadow-sm">
       <div className={`${bg} p-2.5 rounded-xl shrink-0`}>{icon}</div>
-      <div><p className="text-xs text-gray-500">{label}</p><p className="font-bold text-gray-900 text-lg">{value}</p></div>
+      <div><p className="text-xs text-slate-500">{label}</p><p className="font-bold text-slate-900 text-lg">{value}</p></div>
     </div>
   );
 }
 function Row({ icon, label, value, mono }: { icon: React.ReactNode; label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="flex items-center gap-2 text-gray-500"><span className="text-gray-300">{icon}</span>{label}</span>
-      <span className={`font-medium text-gray-800 text-right ${mono ? "font-mono text-xs" : ""}`}>{value}</span>
+      <span className="flex items-center gap-2 text-slate-500"><span className="text-slate-300">{icon}</span>{label}</span>
+      <span className={`font-medium text-slate-800 text-right ${mono ? "font-mono text-xs" : ""}`}>{value}</span>
     </div>
   );
 }
@@ -1171,10 +1171,10 @@ function MembresSection({ compteId, membres, canManage, excludeIds, onChanged }:
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-      <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
         <Users className="w-4 h-4 text-indigo-500" /> Membres du compte
-        <span className="text-xs font-normal text-gray-400">({membres.length})</span>
+        <span className="text-xs font-normal text-slate-400">({membres.length})</span>
       </h3>
 
       <ul className="space-y-2">
@@ -1189,8 +1189,8 @@ function MembresSection({ compteId, membres, canManage, excludeIds, onChanged }:
                   : <span className="text-xs font-bold text-slate-500">{initials(m.client.prenom, m.client.nom)}</span>}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">{m.client.prenom} {m.client.nom}</p>
-                <p className="text-[11px] text-gray-400">{m.client.telephone}{m.client.codeClient ? ` · ${m.client.codeClient}` : ""}</p>
+                <p className="text-sm font-medium text-slate-800 truncate">{m.client.prenom} {m.client.nom}</p>
+                <p className="text-[11px] text-slate-400">{m.client.telephone}{m.client.codeClient ? ` · ${m.client.codeClient}` : ""}</p>
               </div>
               {titulaire ? (
                 <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">Titulaire</span>
@@ -1211,7 +1211,7 @@ function MembresSection({ compteId, membres, canManage, excludeIds, onChanged }:
                   </button>
                 </>
               ) : (
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-slate-500">
                   {ROLE_MEMBRE_LABEL[m.role] ?? m.role}{m.quotePart != null ? ` · ${m.quotePart}%` : ""}
                 </span>
               )}
@@ -1223,11 +1223,11 @@ function MembresSection({ compteId, membres, canManage, excludeIds, onChanged }:
       {canManage && (
         <div className="mt-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Ajouter un membre par nom, téléphone ou code…"
-              className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />}
+              className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />}
           </div>
           {results.length > 0 && (
             <div className="mt-2 border border-slate-100 rounded-xl divide-y divide-slate-50 overflow-hidden">
@@ -1235,8 +1235,8 @@ function MembresSection({ compteId, membres, canManage, excludeIds, onChanged }:
                 <button key={c.id} type="button" onClick={() => ajouter(c.id)} disabled={adding === c.id}
                   className="w-full text-left px-4 py-2.5 hover:bg-indigo-50/50 flex items-center justify-between disabled:opacity-50">
                   <span>
-                    <span className="font-medium text-gray-800">{c.prenom} {c.nom}</span>
-                    <span className="text-xs text-gray-400 ml-2">{c.telephone}{c.codeClient ? ` · ${c.codeClient}` : ""}</span>
+                    <span className="font-medium text-slate-800">{c.prenom} {c.nom}</span>
+                    <span className="text-xs text-slate-400 ml-2">{c.telephone}{c.codeClient ? ` · ${c.codeClient}` : ""}</span>
                   </span>
                   {adding === c.id ? <Loader2 className="w-4 h-4 animate-spin text-indigo-500" /> : <UserPlus className="w-4 h-4 text-indigo-500" />}
                 </button>
@@ -1256,7 +1256,7 @@ const FREQ_MOT: Record<string, string> = { QUOTIDIENNE: "/ jour", HEBDOMADAIRE: 
 const STATUT_PLAN_STYLE: Record<string, string> = {
   EN_COURS: "bg-blue-50 text-blue-700 border-blue-200",
   ATTEINT: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  ABANDONNE: "bg-gray-100 text-gray-600 border-gray-200",
+  ABANDONNE: "bg-slate-100 text-slate-600 border-slate-200",
   EXPIRE: "bg-rose-50 text-rose-700 border-rose-200",
 };
 const STATUT_PLAN_LABEL: Record<string, string> = {
@@ -1348,11 +1348,11 @@ function EpargneSection({ compteId, canManage, compteActif }:
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-gray-800 flex items-center gap-2">
+        <h3 className="font-bold text-slate-800 flex items-center gap-2">
           <PiggyBank className="w-4 h-4 text-pink-500" /> Épargne programmée
-          <span className="text-xs font-normal text-gray-400">({plans.length})</span>
+          <span className="text-xs font-normal text-slate-400">({plans.length})</span>
         </h3>
         {canManage && compteActif && (
           <button onClick={() => { resetCreate(); setCreateOpen(true); }}
@@ -1363,7 +1363,7 @@ function EpargneSection({ compteId, canManage, compteActif }:
       </div>
 
       {plans.length === 0 ? (
-        <p className="text-sm text-gray-400 py-6 text-center">Aucun plan d&apos;épargne. Définissez un objectif pour accompagner ce client.</p>
+        <p className="text-sm text-slate-400 py-6 text-center">Aucun plan d&apos;épargne. Définissez un objectif pour accompagner ce client.</p>
       ) : (
         <div className="space-y-3">
           {plans.map((p) => {
@@ -1374,7 +1374,7 @@ function EpargneSection({ compteId, canManage, compteActif }:
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-gray-800 flex items-center gap-1.5"><Target className="w-4 h-4 text-pink-500" />{p.libelle}</p>
+                      <p className="font-semibold text-slate-800 flex items-center gap-1.5"><Target className="w-4 h-4 text-pink-500" />{p.libelle}</p>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${STATUT_PLAN_STYLE[p.statut] ?? ""}`}>
                         {STATUT_PLAN_LABEL[p.statut] ?? p.statut}
                       </span>
@@ -1382,14 +1382,14 @@ function EpargneSection({ compteId, canManage, compteActif }:
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">En retard</span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-xs text-slate-400 mt-0.5">
                       {formatCurrency(p.montantCotisation)} {FREQ_MOT[p.frequence] ?? ""} · échéance {formatDate(p.dateEcheance)}
                       {enCours && pr.joursRestants >= 0 ? ` · ${pr.joursRestants} j restants` : ""}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-gray-900">{formatCurrency(p.montantCumule)}</p>
-                    <p className="text-[11px] text-gray-400">/ {formatCurrency(p.objectifMontant)}</p>
+                    <p className="text-sm font-bold text-slate-900">{formatCurrency(p.montantCumule)}</p>
+                    <p className="text-[11px] text-slate-400">/ {formatCurrency(p.objectifMontant)}</p>
                   </div>
                 </div>
 
@@ -1398,7 +1398,7 @@ function EpargneSection({ compteId, canManage, compteActif }:
                   <div className={`h-full rounded-full ${p.statut === "ATTEINT" ? "bg-emerald-500" : pr.enRetard ? "bg-amber-500" : "bg-pink-500"}`}
                     style={{ width: `${Math.min(100, pr.tauxProgression)}%` }} />
                 </div>
-                <div className="flex items-center justify-between mt-1.5 text-[11px] text-gray-500">
+                <div className="flex items-center justify-between mt-1.5 text-[11px] text-slate-500">
                   <span>{pr.tauxProgression}% atteint</span>
                   {enCours && (
                     <span className={pr.ecart < 0 ? "text-amber-600" : "text-emerald-600"}>
@@ -1442,8 +1442,8 @@ function EpargneSection({ compteId, canManage, compteActif }:
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setCreateOpen(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h4 className="font-bold text-gray-800 flex items-center gap-2"><PiggyBank className="w-5 h-5 text-pink-500" /> Nouveau plan d&apos;épargne</h4>
-              <button onClick={() => setCreateOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <h4 className="font-bold text-slate-800 flex items-center gap-2"><PiggyBank className="w-5 h-5 text-pink-500" /> Nouveau plan d&apos;épargne</h4>
+              <button onClick={() => setCreateOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-3">
               <label className="block">
@@ -1489,10 +1489,10 @@ function EpargneSection({ compteId, canManage, compteActif }:
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !cotSaving && setCotiser(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
-              <h4 className="font-bold text-gray-800 flex items-center gap-2"><Target className="w-5 h-5 text-pink-500" /> Cotiser</h4>
-              <button onClick={() => setCotiser(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <h4 className="font-bold text-slate-800 flex items-center gap-2"><Target className="w-5 h-5 text-pink-500" /> Cotiser</h4>
+              <button onClick={() => setCotiser(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
             </div>
-            <p className="text-xs text-gray-500 mb-4">{cotiser.libelle} · {formatCurrency(cotiser.montantCumule)} / {formatCurrency(cotiser.objectifMontant)}</p>
+            <p className="text-xs text-slate-500 mb-4">{cotiser.libelle} · {formatCurrency(cotiser.montantCumule)} / {formatCurrency(cotiser.objectifMontant)}</p>
             <div className="space-y-3">
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">Montant (FCFA)</span>
@@ -1506,7 +1506,7 @@ function EpargneSection({ compteId, canManage, compteActif }:
                   {MODES.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </label>
-              <p className="text-[11px] text-gray-400 flex items-center gap-1"><Calendar className="w-3 h-3" /> La cotisation est un dépôt crédité sur le compte courant.</p>
+              <p className="text-[11px] text-slate-400 flex items-center gap-1"><Calendar className="w-3 h-3" /> La cotisation est un dépôt crédité sur le compte courant.</p>
               <button onClick={envoyerCotisation} disabled={cotSaving}
                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-pink-600 hover:bg-pink-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
                 {cotSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Enregistrer la cotisation
@@ -1591,39 +1591,39 @@ function PrelevementsSection({ compteId, canManage, compteActif, creditsPayables
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
       <div className="flex items-center justify-between mb-1">
-        <h3 className="font-bold text-gray-800 flex items-center gap-2">
+        <h3 className="font-bold text-slate-800 flex items-center gap-2">
           <Repeat className="w-4 h-4 text-indigo-500" /> Prélèvement automatique
-          <span className="text-xs font-normal text-gray-400">({autorisations.length})</span>
+          <span className="text-xs font-normal text-slate-400">({autorisations.length})</span>
         </h3>
         {canManage && compteActif && creditsDispo.length > 0 && (
           <button onClick={() => { setCreditId(""); setMontantMax(""); setMontantMinSolde(""); setCreateOpen(true); }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-medium">
             <Plus className="w-3.5 h-3.5" /> Autoriser un crédit
           </button>
         )}
       </div>
-      <p className="text-[11px] text-gray-400 mb-4">Le système règle automatiquement les échéances dues en débitant le compte courant (exécution quotidienne).</p>
+      <p className="text-[11px] text-slate-400 mb-4">Le système règle automatiquement les échéances dues en débitant le compte courant (exécution quotidienne).</p>
 
       {autorisations.length === 0 ? (
-        <p className="text-sm text-gray-400 py-6 text-center">Aucun prélèvement automatique configuré.</p>
+        <p className="text-sm text-slate-400 py-6 text-center">Aucun prélèvement automatique configuré.</p>
       ) : (
         <div className="space-y-2">
           {autorisations.map((a) => (
             <div key={a.id} className="rounded-xl border border-slate-200 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-semibold text-gray-800 flex items-center gap-1.5">
+                  <p className="font-semibold text-slate-800 flex items-center gap-1.5">
                     <CreditCard className="w-4 h-4 text-indigo-500" /> {a.credit.reference}
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${a.actif ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${a.actif ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-500 border-slate-200"}`}>
                       {a.actif ? "Actif" : "Suspendu"}
                     </span>
                   </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-slate-400 mt-0.5">
                     Reste dû {formatCurrency(a.credit.soldeRestant)} · échéance/jour {formatCurrency(a.credit.montantJournalier)}
                   </p>
-                  <p className="text-[11px] text-gray-400 mt-1">
+                  <p className="text-[11px] text-slate-400 mt-1">
                     {a.montantMax != null ? `Plafond ${formatCurrency(a.montantMax)}/exécution · ` : ""}
                     {a.montantMinSolde != null ? `garde ${formatCurrency(a.montantMinSolde)} · ` : ""}
                     {a.nbPrelevements} prélèvement(s), {formatCurrency(a.totalPreleve)} au total
@@ -1654,14 +1654,14 @@ function PrelevementsSection({ compteId, canManage, compteActif, creditsPayables
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setCreateOpen(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h4 className="font-bold text-gray-800 flex items-center gap-2"><Repeat className="w-5 h-5 text-indigo-500" /> Autoriser un prélèvement</h4>
-              <button onClick={() => setCreateOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <h4 className="font-bold text-slate-800 flex items-center gap-2"><Repeat className="w-5 h-5 text-indigo-500" /> Autoriser un prélèvement</h4>
+              <button onClick={() => setCreateOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-3">
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">Crédit à prélever</span>
                 <select value={creditId} onChange={(e) => setCreditId(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
                   <option value="">— Sélectionner —</option>
                   {creditsDispo.map((c) => (
                     <option key={c.creditId} value={c.creditId}>{c.reference} — reste {formatCurrency(c.soldeRestant)}</option>
@@ -1672,17 +1672,17 @@ function PrelevementsSection({ compteId, canManage, compteActif, creditsPayables
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-500">Plafond / exécution</span>
                   <input type="number" min={0} value={montantMax} onChange={(e) => setMontantMax(e.target.value)} placeholder="illimité"
-                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
                 </label>
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-500">Solde à préserver</span>
                   <input type="number" min={0} value={montantMinSolde} onChange={(e) => setMontantMinSolde(e.target.value)} placeholder="paramétrage"
-                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
                 </label>
               </div>
-              <p className="text-[11px] text-gray-400">Chaque jour, l&apos;échéance due est réglée depuis le compte courant, dans la limite du plafond et sans descendre sous le solde à préserver.</p>
+              <p className="text-[11px] text-slate-400">Chaque jour, l&apos;échéance due est réglée depuis le compte courant, dans la limite du plafond et sans descendre sous le solde à préserver.</p>
               <button onClick={creer} disabled={saving}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Repeat className="w-4 h-4" />} Activer le prélèvement
               </button>
             </div>
@@ -1743,9 +1743,9 @@ function FideliteSection({ compteId, canManage }: { compteId: number; canManage:
   if (!f) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-gray-800 flex items-center gap-2">
+        <h3 className="font-bold text-slate-800 flex items-center gap-2">
           <Award className="w-4 h-4 text-yellow-500" /> Fidélité &amp; récompenses
         </h3>
         {canManage && (
@@ -1761,13 +1761,13 @@ function FideliteSection({ compteId, canManage }: { compteId: number; canManage:
         <div className="rounded-xl border border-slate-200 p-4">
           <div className="flex items-center gap-2 mb-1">
             <Star className="w-4 h-4 text-yellow-500" />
-            <span className="text-2xl font-extrabold text-gray-900">{f.soldePoints.toLocaleString("fr-FR")}</span>
-            <span className="text-xs text-gray-400">points</span>
+            <span className="text-2xl font-extrabold text-slate-900">{f.soldePoints.toLocaleString("fr-FR")}</span>
+            <span className="text-xs text-slate-400">points</span>
           </div>
           <span className={`text-xs px-2.5 py-0.5 rounded-full border font-semibold ${NIVEAU_STYLE[f.niveau] ?? ""}`}>
             Niveau {NIVEAU_LABEL[f.niveau] ?? f.niveau}
           </span>
-          <p className="text-[11px] text-gray-400 mt-2">Gagnés {f.totalGagnes.toLocaleString("fr-FR")} · utilisés {f.totalUtilises.toLocaleString("fr-FR")}</p>
+          <p className="text-[11px] text-slate-400 mt-2">Gagnés {f.totalGagnes.toLocaleString("fr-FR")} · utilisés {f.totalUtilises.toLocaleString("fr-FR")}</p>
         </div>
 
         {/* Progression niveau suivant */}
@@ -1778,20 +1778,20 @@ function FideliteSection({ compteId, canManage }: { compteId: number; canManage:
               <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
                 <div className="h-full rounded-full bg-yellow-400" style={{ width: `${f.progression.pct}%` }} />
               </div>
-              <p className="text-[11px] text-gray-500 mt-1.5">
+              <p className="text-[11px] text-slate-500 mt-1.5">
                 {f.progression.restant.toLocaleString("fr-FR")} pts pour {NIVEAU_LABEL[f.progression.prochainNiveau]}
               </p>
             </>
           ) : (
             <p className="text-sm font-semibold text-violet-600 flex items-center gap-1"><Sparkles className="w-4 h-4" /> Niveau maximum atteint</p>
           )}
-          <p className="text-[10px] text-gray-400 mt-2">1 pt / {f.bareme.pointsParMontant.toLocaleString("fr-FR")} FCFA{f.bareme.bonusParDepot > 0 ? ` · +${f.bareme.bonusParDepot} pts/dépôt` : ""}</p>
+          <p className="text-[10px] text-slate-400 mt-2">1 pt / {f.bareme.pointsParMontant.toLocaleString("fr-FR")} FCFA{f.bareme.bonusParDepot > 0 ? ` · +${f.bareme.bonusParDepot} pts/dépôt` : ""}</p>
         </div>
 
         {/* Avantages du niveau */}
         <div className="rounded-xl border border-slate-200 p-4">
           <p className="text-xs font-semibold text-slate-500 mb-2">Avantages</p>
-          <ul className="space-y-1 text-xs text-gray-600">
+          <ul className="space-y-1 text-xs text-slate-600">
             <li className="flex items-center gap-1.5">
               <span className={f.avantages.reductionFraisDossier > 0 ? "text-emerald-500" : "text-slate-300"}>●</span>
               Réduction frais de dossier {f.avantages.reductionFraisDossier > 0 ? `−${f.avantages.reductionFraisDossier}%` : "—"}
@@ -1816,8 +1816,8 @@ function FideliteSection({ compteId, canManage }: { compteId: number; canManage:
             {f.historique.slice(0, 8).map((t) => (
               <div key={t.id} className="flex items-center justify-between px-3 py-2 text-xs">
                 <div className="min-w-0">
-                  <span className="text-gray-700">{t.motif}</span>
-                  <span className="text-gray-400 ml-2">{FID_TYPE_LABEL[t.type] ?? t.type} · {formatDate(t.createdAt)}</span>
+                  <span className="text-slate-700">{t.motif}</span>
+                  <span className="text-slate-400 ml-2">{FID_TYPE_LABEL[t.type] ?? t.type} · {formatDate(t.createdAt)}</span>
                 </div>
                 <span className={`font-semibold shrink-0 ${t.points >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                   {t.points >= 0 ? "+" : ""}{t.points}
@@ -1833,8 +1833,8 @@ function FideliteSection({ compteId, canManage }: { compteId: number; canManage:
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setOpen(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h4 className="font-bold text-gray-800 flex items-center gap-2"><Sparkles className="w-5 h-5 text-yellow-500" /> Points de fidélité</h4>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <h4 className="font-bold text-slate-800 flex items-center gap-2"><Sparkles className="w-5 h-5 text-yellow-500" /> Points de fidélité</h4>
+              <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-3">
               <label className="block">
@@ -1866,7 +1866,7 @@ function FideliteSection({ compteId, canManage }: { compteId: number; canManage:
                   className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-yellow-500" />
               </label>
               {type === "DEPENSE" && f.soldePoints > 0 && (
-                <p className="text-[11px] text-gray-400">Solde disponible : {f.soldePoints.toLocaleString("fr-FR")} points.</p>
+                <p className="text-[11px] text-slate-400">Solde disponible : {f.soldePoints.toLocaleString("fr-FR")} points.</p>
               )}
               <button onClick={soumettre} disabled={saving}
                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
@@ -1885,7 +1885,7 @@ function FideliteSection({ compteId, canManage }: { compteId: number; canManage:
 const STATUT_BLOCAGE_STYLE: Record<string, string> = {
   ACTIF: "bg-indigo-50 text-indigo-700 border-indigo-200",
   LIBERE: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  ANNULE: "bg-gray-100 text-gray-500 border-gray-200",
+  ANNULE: "bg-slate-100 text-slate-500 border-slate-200",
 };
 const STATUT_BLOCAGE_LABEL: Record<string, string> = { ACTIF: "Bloqué", LIBERE: "Libéré", ANNULE: "Annulé" };
 
@@ -1943,14 +1943,14 @@ function BlocageSection({ compteId, canManage, compteActif, onChanged }:
   if (!d) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-gray-800 flex items-center gap-2">
+        <h3 className="font-bold text-slate-800 flex items-center gap-2">
           <Lock className="w-4 h-4 text-indigo-500" /> Épargne bloquée
         </h3>
         {canManage && compteActif && d.soldeDisponible > 0 && (
           <button onClick={() => { setMontant(""); setDateDeblocage(""); setMotif(""); setOpen(true); }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-medium">
             <Lock className="w-3.5 h-3.5" /> Bloquer une épargne
           </button>
         )}
@@ -1959,17 +1959,17 @@ function BlocageSection({ compteId, canManage, compteActif, onChanged }:
       {/* Synthèse disponible / bloqué */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="rounded-xl border border-slate-200 p-3">
-          <p className="text-[11px] text-gray-400">Disponible</p>
+          <p className="text-[11px] text-slate-400">Disponible</p>
           <p className="text-lg font-bold text-emerald-600">{formatCurrency(d.soldeDisponible)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 p-3">
-          <p className="text-[11px] text-gray-400">Bloqué</p>
+          <p className="text-[11px] text-slate-400">Bloqué</p>
           <p className="text-lg font-bold text-indigo-600">{formatCurrency(d.montantBloque)}</p>
         </div>
       </div>
 
       {d.blocages.length === 0 ? (
-        <p className="text-sm text-gray-400 py-4 text-center">Aucun blocage d&apos;épargne.</p>
+        <p className="text-sm text-slate-400 py-4 text-center">Aucun blocage d&apos;épargne.</p>
       ) : (
         <div className="space-y-2">
           {d.blocages.map((b) => {
@@ -1977,13 +1977,13 @@ function BlocageSection({ compteId, canManage, compteActif, onChanged }:
             return (
               <div key={b.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2.5">
                 <div className="min-w-0">
-                  <p className="font-semibold text-gray-800 flex items-center gap-1.5">
+                  <p className="font-semibold text-slate-800 flex items-center gap-1.5">
                     {formatCurrency(b.montant)}
                     <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${STATUT_BLOCAGE_STYLE[b.statut] ?? ""}`}>
                       {STATUT_BLOCAGE_LABEL[b.statut] ?? b.statut}
                     </span>
                   </p>
-                  <p className="text-[11px] text-gray-400">
+                  <p className="text-[11px] text-slate-400">
                     {actif ? `Jusqu'au ${formatDate(b.dateDeblocage)}` : `${b.statut === "LIBERE" ? "Libéré" : "Annulé"} le ${b.libereLe ? formatDate(b.libereLe) : "—"}`}
                     {b.motif ? ` · ${b.motif}` : ""}
                   </p>
@@ -2012,29 +2012,29 @@ function BlocageSection({ compteId, canManage, compteActif, onChanged }:
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setOpen(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
-              <h4 className="font-bold text-gray-800 flex items-center gap-2"><Lock className="w-5 h-5 text-indigo-500" /> Bloquer une épargne</h4>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <h4 className="font-bold text-slate-800 flex items-center gap-2"><Lock className="w-5 h-5 text-indigo-500" /> Bloquer une épargne</h4>
+              <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
             </div>
-            <p className="text-xs text-gray-500 mb-4">Disponible : {formatCurrency(d.soldeDisponible)}</p>
+            <p className="text-xs text-slate-500 mb-4">Disponible : {formatCurrency(d.soldeDisponible)}</p>
             <div className="space-y-3">
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">Montant à bloquer (FCFA)</span>
                 <input type="number" min={0} value={montant} onChange={(e) => setMontant(e.target.value)} autoFocus
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </label>
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">Débloqué le</span>
                 <input type="date" value={dateDeblocage} onChange={(e) => setDateDeblocage(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </label>
               <label className="block">
                 <span className="text-xs font-semibold text-slate-500">Motif <span className="font-normal text-slate-400">(optionnel)</span></span>
                 <input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Ex. achat d'un terrain…"
-                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </label>
-              <p className="text-[11px] text-gray-400">Les fonds bloqués restent indisponibles (retrait, paiement, prélèvement) jusqu&apos;à la date choisie.</p>
+              <p className="text-[11px] text-slate-400">Les fonds bloqués restent indisponibles (retrait, paiement, prélèvement) jusqu&apos;à la date choisie.</p>
               <button onClick={bloquer} disabled={saving}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />} Bloquer
               </button>
             </div>
@@ -2054,34 +2054,34 @@ function AgencesSection({ compteId, agenceDomiciliation }: { compteId: number; a
   const lignes = data?.data ?? [];
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-      <h3 className="font-bold text-gray-800 mb-1 flex items-center gap-2">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
         <Building2 className="w-4 h-4 text-teal-500" /> Activité par agence
       </h3>
-      <p className="text-[11px] text-gray-400 mb-4">
+      <p className="text-[11px] text-slate-400 mb-4">
         Compte domicilié à <span className="font-medium">{agenceDomiciliation}</span> — utilisable dans toutes les agences AfriSime (synchronisation temps réel).
       </p>
 
       {lignes.length === 0 ? (
-        <p className="text-sm text-gray-400 py-4 text-center">Aucune opération enregistrée.</p>
+        <p className="text-sm text-slate-400 py-4 text-center">Aucune opération enregistrée.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-gray-400 border-b border-gray-100">
+              <tr className="text-slate-400 border-b border-slate-100">
                 <th className="text-left py-2 font-semibold">Agence d&apos;opération</th>
                 <th className="text-center py-2 font-semibold">Opérations</th>
                 <th className="text-right py-2 font-semibold">Entrées</th>
                 <th className="text-right py-2 font-semibold">Sorties</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-50">
               {lignes.map((l) => (
                 <tr key={l.agence}>
-                  <td className="py-2.5 text-gray-800 font-medium flex items-center gap-1.5">
+                  <td className="py-2.5 text-slate-800 font-medium flex items-center gap-1.5">
                     <Building2 className="w-3.5 h-3.5 text-teal-400" /> {l.agence}
                   </td>
-                  <td className="py-2.5 text-center text-gray-600">{l.nbOperations}</td>
+                  <td className="py-2.5 text-center text-slate-600">{l.nbOperations}</td>
                   <td className="py-2.5 text-right text-emerald-600 font-medium">{formatCurrency(l.totalEntrees)}</td>
                   <td className="py-2.5 text-right text-orange-600 font-medium">{formatCurrency(l.totalSorties)}</td>
                 </tr>

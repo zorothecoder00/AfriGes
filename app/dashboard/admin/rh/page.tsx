@@ -7,10 +7,25 @@ import {
   Users, Banknote, GraduationCap, Clock, Gift,
   CalendarDays, MapPin, Star, UserCheck, FileWarning,
   Building2, TrendingUp, AlertTriangle, CheckCircle2,
-  ArrowRight, ArrowLeft, RefreshCw, ClipboardList, Brain, Rocket, FileText, Bell,
+  ArrowRight, RefreshCw, ClipboardList, Brain, Rocket, FileText, Bell,
   CalendarClock, ShieldAlert, Download,
 } from "lucide-react";
 import { exportMultiSheetXlsx } from "@/lib/exportXlsx";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+
+/* ─── Accents sémantiques (mêmes tokens que KpiCard.tsx) ──── */
+const ACCENT = {
+  primary: "text-primary-600 bg-primary-50 dark:text-primary-300 dark:bg-primary-900/30",
+  success: "text-emerald-600 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-900/30",
+  warning: "text-amber-600 bg-amber-50 dark:text-amber-300 dark:bg-amber-900/30",
+  error:   "text-red-600 bg-red-50 dark:text-red-300 dark:bg-red-900/30",
+  purple:  "text-purple-600 bg-purple-50 dark:text-purple-300 dark:bg-purple-900/30",
+  teal:    "text-teal-600 bg-teal-50 dark:text-teal-300 dark:bg-teal-900/30",
+  neutral: "text-slate-600 bg-slate-50 dark:text-slate-300 dark:bg-slate-700",
+  accent:  "text-accent-600 bg-accent-50 dark:text-accent-300 dark:bg-accent-700/20",
+} as const;
+type AccentKey = keyof typeof ACCENT;
 
 /* ─── Types ─────────────────────────────────────────────── */
 interface RHStats {
@@ -70,28 +85,28 @@ interface RHStats {
 
 /* ─── StatCard ───────────────────────────────────────────── */
 function StatCard({
-  href, icon, title, value, sub, color, alert,
+  href, icon, title, value, sub, accent, alert,
 }: {
   href: string;
   icon: React.ReactNode;
   title: string;
   value: number | string;
   sub?: string;
-  color: string;
+  accent: AccentKey;
   alert?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className={`group bg-white rounded-2xl border shadow-sm p-5 flex items-start gap-4 hover:shadow-md transition-all ${alert ? "border-red-200 bg-red-50/30" : "border-gray-100 hover:border-gray-200"}`}
+      className={`group bg-white dark:bg-slate-800 rounded-2xl border shadow-sm p-5 flex items-start gap-4 hover:shadow-md transition-all ${alert ? "border-red-200 bg-red-50/30 dark:border-red-800 dark:bg-red-900/10" : "border-slate-100 hover:border-slate-200 dark:border-slate-700 dark:hover:border-slate-600"}`}
     >
-      <div className={`p-2.5 rounded-xl flex-shrink-0 ${color}`}>{icon}</div>
+      <div className={`p-2.5 rounded-xl flex-shrink-0 ${ACCENT[accent]}`}>{icon}</div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-gray-500 font-medium">{title}</p>
-        <p className={`text-2xl font-bold mt-0.5 ${alert ? "text-red-600" : "text-gray-800"}`}>{value}</p>
-        {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{title}</p>
+        <p className={`text-2xl font-bold mt-0.5 ${alert ? "text-red-600 dark:text-red-400" : "text-slate-800 dark:text-slate-100"}`}>{value}</p>
+        {sub && <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{sub}</p>}
       </div>
-      <ArrowRight size={16} className="text-gray-300 group-hover:text-gray-500 flex-shrink-0 mt-1 transition-colors" />
+      <ArrowRight size={16} className="text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 flex-shrink-0 mt-1 transition-colors" />
     </Link>
   );
 }
@@ -99,7 +114,7 @@ function StatCard({
 /* ─── SectionTitle ───────────────────────────────────────── */
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-3">{children}</h2>
+    <h2 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-6 mb-3">{children}</h2>
   );
 }
 
@@ -169,45 +184,46 @@ export default function RHDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-6">
-      <div className="max-w-6xl mx-auto space-y-2">
+    <div className="p-6 max-w-6xl mx-auto space-y-2">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
-              <ArrowLeft size={15} /> Dashboard Admin
-            </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Tableau de bord RH</h1>
-            <p className="text-sm text-gray-500 mt-1">Vue consolidée de la gestion des ressources humaines</p>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Tableau de bord RH</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Vue consolidée de la gestion des ressources humaines</p>
           </div>
           <div className="flex items-center gap-2">
             <Link
               href="/dashboard/admin/rh/notifications"
-              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-sm font-medium transition-all"
               title="Déclencheurs de notifications RH"
+              className="inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors px-4 py-2.5 text-sm
+                border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100
+                dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
             >
-              <Bell size={16} /> <span>Déclencheurs</span>
+              <Bell size={16} /> Déclencheurs
             </Link>
-            <button
+            <Button
+              variant="secondary"
+              icon={<Download size={16} />}
               onClick={exportDashboard}
               disabled={!s}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 hover:text-gray-800 hover:border-gray-300 text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               title="Exporter le tableau de bord"
             >
-              <Download size={16} /> <span>Exporter</span>
-            </button>
-            <button
+              Exporter
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={refetch}
-              className={`p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-all ${loading ? "animate-spin" : ""}`}
-            >
-              <RefreshCw size={16} />
-            </button>
+              loading={loading}
+              className="!p-2.5 border border-slate-200 dark:border-slate-700"
+              title="Rafraîchir"
+            />
           </div>
         </div>
 
         {loading && !s && (
-          <div className="flex items-center justify-center py-20 text-gray-400">
+          <div className="flex items-center justify-center py-20 text-slate-400 dark:text-slate-500">
             <RefreshCw size={20} className="animate-spin mr-2" /> Chargement…
           </div>
         )}
@@ -223,7 +239,7 @@ export default function RHDashboardPage() {
                 title="Onboardings en cours"
                 value={s.recrutement.candidaturesEnAttente}
                 sub="Nouveaux collaborateurs"
-                color="text-violet-600 bg-violet-50"
+                accent="purple"
               />
             </div>
 
@@ -236,14 +252,14 @@ export default function RHDashboardPage() {
                 title="Total collaborateurs"
                 value={s.effectifs.total}
                 sub={`${s.effectifs.actifs} actifs · ${s.effectifs.enEssai} en essai`}
-                color="text-indigo-600 bg-indigo-50"
+                accent="primary"
               />
               <StatCard
                 href="/dashboard/admin/rh/collaborateurs?statut=SUSPENDU"
                 icon={<AlertTriangle size={20} />}
                 title="Suspendus"
                 value={s.effectifs.suspendus}
-                color="text-orange-600 bg-orange-50"
+                accent="accent"
                 alert={s.effectifs.suspendus > 0}
               />
               <StatCard
@@ -252,7 +268,7 @@ export default function RHDashboardPage() {
                 title="Départements"
                 value={Object.keys(s.effectifs.parDepartement).length}
                 sub="Voir l'organigramme"
-                color="text-teal-600 bg-teal-50"
+                accent="teal"
               />
               <StatCard
                 href="/dashboard/admin/rh/recrutement"
@@ -260,14 +276,13 @@ export default function RHDashboardPage() {
                 title="Postes ouverts"
                 value={s.recrutement.postesOuverts}
                 sub={`${s.recrutement.candidaturesEnAttente} candidature(s) en attente`}
-                color="text-green-600 bg-green-50"
+                accent="success"
               />
             </div>
 
             {/* ── Répartition départements ── */}
             {Object.keys(s.effectifs.parDepartement).length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Répartition par département</h3>
+              <Card title="Répartition par département">
                 <div className="space-y-2">
                   {Object.entries(s.effectifs.parDepartement)
                     .sort(([, a], [, b]) => b - a)
@@ -275,16 +290,16 @@ export default function RHDashboardPage() {
                       const pct = Math.round((count / s.effectifs.total) * 100);
                       return (
                         <div key={dept} className="flex items-center gap-3">
-                          <span className="text-xs text-gray-600 w-40 truncate">{dept}</span>
-                          <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${pct}%` }} />
+                          <span className="text-xs text-slate-600 dark:text-slate-300 w-40 truncate">{dept}</span>
+                          <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary-400 rounded-full" style={{ width: `${pct}%` }} />
                           </div>
-                          <span className="text-xs text-gray-500 w-12 text-right">{count} ({pct}%)</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400 w-12 text-right">{count} ({pct}%)</span>
                         </div>
                       );
                     })}
                 </div>
-              </div>
+              </Card>
             )}
 
             {/* ── Présence & Congés ── */}
@@ -295,14 +310,14 @@ export default function RHDashboardPage() {
                 icon={<CheckCircle2 size={20} />}
                 title="Présents aujourd'hui"
                 value={s.pointages.presentsAujourdhui}
-                color="text-emerald-600 bg-emerald-50"
+                accent="success"
               />
               <StatCard
                 href="/dashboard/admin/rh/pointages"
                 icon={<AlertTriangle size={20} />}
                 title="Absents aujourd'hui"
                 value={s.pointages.absentsAujourdhui}
-                color="text-red-600 bg-red-50"
+                accent="error"
                 alert={s.pointages.absentsAujourdhui > 0}
               />
               <StatCard
@@ -310,7 +325,7 @@ export default function RHDashboardPage() {
                 icon={<CalendarDays size={20} />}
                 title="Congés en cours"
                 value={s.pointages.congesAujourdhui}
-                color="text-blue-600 bg-blue-50"
+                accent="primary"
               />
               <StatCard
                 href="/dashboard/admin/rh/conges"
@@ -318,7 +333,7 @@ export default function RHDashboardPage() {
                 title="Demandes en attente"
                 value={s.conges.enAttente}
                 sub={`${s.conges.approuves} approuvées`}
-                color="text-yellow-600 bg-yellow-50"
+                accent="warning"
                 alert={s.conges.enAttente > 0}
               />
             </div>
@@ -331,7 +346,7 @@ export default function RHDashboardPage() {
                 icon={<Banknote size={20} />}
                 title="Fiches brouillon"
                 value={s.paie.brouillons}
-                color="text-gray-600 bg-gray-50"
+                accent="neutral"
               />
               <StatCard
                 href="/dashboard/admin/rh/paie?statut=CONTROLE"
@@ -339,7 +354,7 @@ export default function RHDashboardPage() {
                 title="En contrôle RH"
                 value={s.paie.enControle}
                 sub="Validation en cours"
-                color="text-yellow-600 bg-yellow-50"
+                accent="warning"
                 alert={s.paie.enControle > 0}
               />
               <StatCard
@@ -348,7 +363,7 @@ export default function RHDashboardPage() {
                 title="Validées"
                 value={s.paie.valides}
                 sub="Prêtes à mettre en paiement"
-                color="text-blue-600 bg-blue-50"
+                accent="primary"
                 alert={s.paie.valides > 0}
               />
               <StatCard
@@ -357,7 +372,7 @@ export default function RHDashboardPage() {
                 title="En paiement"
                 value={s.paie.enPaiement}
                 sub="Ordres émis"
-                color="text-purple-600 bg-purple-50"
+                accent="purple"
                 alert={s.paie.enPaiement > 0}
               />
             </div>
@@ -368,14 +383,14 @@ export default function RHDashboardPage() {
                 title="Masse salariale (mois)"
                 value={s.paie.totalNetMois > 0 ? `${s.paie.totalNetMois.toLocaleString("fr-FR")} F` : "—"}
                 sub="Total net payé ce mois"
-                color="text-emerald-600 bg-emerald-50"
+                accent="success"
               />
               <StatCard
                 href="/dashboard/admin/rh/avantages"
                 icon={<Gift size={20} />}
                 title="Remboursements en attente"
                 value={s.avantages.remboursementsEnAttente}
-                color="text-purple-600 bg-purple-50"
+                accent="purple"
                 alert={s.avantages.remboursementsEnAttente > 0}
               />
             </div>
@@ -388,21 +403,21 @@ export default function RHDashboardPage() {
                 icon={<GraduationCap size={20} />}
                 title="Formations planifiées"
                 value={s.formations.planifiees}
-                color="text-indigo-600 bg-indigo-50"
+                accent="primary"
               />
               <StatCard
                 href="/dashboard/admin/rh/formations"
                 icon={<GraduationCap size={20} />}
                 title="Formations en cours"
                 value={s.formations.enCours}
-                color="text-yellow-600 bg-yellow-50"
+                accent="warning"
               />
               <StatCard
                 href="/dashboard/admin/rh/missions"
                 icon={<MapPin size={20} />}
                 title="Missions en cours"
                 value={s.missions.enCours}
-                color="text-teal-600 bg-teal-50"
+                accent="teal"
               />
               <StatCard
                 href="/dashboard/admin/rh/missions"
@@ -410,7 +425,7 @@ export default function RHDashboardPage() {
                 title="Missions créées"
                 value={s.missions.crees}
                 sub="En attente de validation"
-                color="text-gray-600 bg-gray-50"
+                accent="neutral"
               />
             </div>
 
@@ -423,7 +438,7 @@ export default function RHDashboardPage() {
                 title="Documents stratégiques"
                 value="Gérer"
                 sub="Manuel, politiques, règlement, codes"
-                color="text-indigo-600 bg-indigo-50"
+                accent="primary"
               />
             </div>
 
@@ -435,21 +450,21 @@ export default function RHDashboardPage() {
                 icon={<Star size={20} />}
                 title="Évaluations en cours"
                 value={s.evaluations.enCours}
-                color="text-yellow-600 bg-yellow-50"
+                accent="warning"
               />
               <StatCard
                 href="/dashboard/admin/rh/evaluations"
                 icon={<Star size={20} />}
                 title="Évaluations brouillon"
                 value={s.evaluations.brouillons}
-                color="text-gray-600 bg-gray-50"
+                accent="neutral"
               />
               <StatCard
                 href="/dashboard/admin/rh/disciplinaire"
                 icon={<FileWarning size={20} />}
                 title="Procédures ouvertes"
                 value={s.disciplinaire.ouvertes}
-                color="text-red-600 bg-red-50"
+                accent="error"
                 alert={s.disciplinaire.ouvertes > 0}
               />
               <StatCard
@@ -457,7 +472,7 @@ export default function RHDashboardPage() {
                 icon={<FileWarning size={20} />}
                 title="En instruction"
                 value={s.disciplinaire.enInstruction}
-                color="text-orange-600 bg-orange-50"
+                accent="accent"
                 alert={s.disciplinaire.enInstruction > 0}
               />
             </div>
@@ -470,7 +485,7 @@ export default function RHDashboardPage() {
                 icon={<ShieldAlert size={20} />}
                 title="Accidents en cours"
                 value={s.sst.accidentsOuverts}
-                color="text-red-600 bg-red-50"
+                accent="error"
                 alert={s.sst.accidentsOuverts > 0}
               />
               <StatCard
@@ -478,7 +493,7 @@ export default function RHDashboardPage() {
                 icon={<ShieldAlert size={20} />}
                 title="Visites médicales en retard"
                 value={s.sst.visitesEnRetard}
-                color="text-orange-600 bg-orange-50"
+                accent="accent"
                 alert={s.sst.visitesEnRetard > 0}
               />
               <StatCard
@@ -486,14 +501,13 @@ export default function RHDashboardPage() {
                 icon={<ShieldAlert size={20} />}
                 title="Incidents ouverts"
                 value={s.sst.incidentsOuverts}
-                color="text-amber-600 bg-amber-50"
+                accent="warning"
                 alert={s.sst.incidentsOuverts > 0}
               />
             </div>
 
             {/* ── Liens rapides ── */}
-            <div className="mt-6 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">Accès rapide</h3>
+            <Card title="Accès rapide" className="mt-6">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                 {[
                   { href: "/dashboard/admin/rh/collaborateurs", icon: <Users size={16} />, label: "Collaborateurs" },
@@ -518,17 +532,16 @@ export default function RHDashboardPage() {
                   <Link
                     key={href}
                     href={href}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50 text-sm text-gray-600 hover:text-indigo-700 transition-all"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-primary-200 hover:bg-primary-50 dark:hover:border-primary-800 dark:hover:bg-primary-900/20 text-sm text-slate-600 dark:text-slate-300 hover:text-primary-700 dark:hover:text-primary-300 transition-all"
                   >
-                    <span className="text-gray-400">{icon}</span>
+                    <span className="text-slate-400 dark:text-slate-500">{icon}</span>
                     {label}
                   </Link>
                 ))}
               </div>
-            </div>
+            </Card>
           </>
         )}
-      </div>
     </div>
   );
 }

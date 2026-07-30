@@ -431,7 +431,7 @@ export default function GestionStockPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 font-['DM_Sans',sans-serif] p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 p-8">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* Header */}
@@ -454,7 +454,7 @@ export default function GestionStockPage() {
             <button onClick={handleExport} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
               <Download size={18} /> Exporter
             </button>
-            <button onClick={() => setApproModal(true)} className="px-5 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 font-medium">
+            <button onClick={() => setApproModal(true)} className="px-5 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 flex items-center gap-2 font-medium">
               <PackagePlus size={18} /> Approvisionner
             </button>
             <button onClick={() => setTransferModal(true)} className="px-5 py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-all shadow-lg shadow-amber-200 flex items-center gap-2 font-medium">
@@ -662,7 +662,7 @@ export default function GestionStockPage() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">PDV / Dépôt destination *</label>
                   <select required value={approForm.pointDeVenteId}
                     onChange={e => setApproForm(f => ({ ...f, pointDeVenteId: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
                     <option value="">Choisir un PDV…</option>
                     {pdvs.map(p => (
                       <option key={p.id} value={p.id}>
@@ -675,7 +675,7 @@ export default function GestionStockPage() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Fournisseur enregistré (optionnel)</label>
                   <select value={approForm.fournisseurId}
                     onChange={e => setApproForm(f => ({ ...f, fournisseurId: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
                     <option value="">Aucun / fournisseur non enregistré…</option>
                     {fournisseursOptions.map(f => (
                       <option key={f.id} value={f.id}>{f.nom}</option>
@@ -688,7 +688,7 @@ export default function GestionStockPage() {
                     <input type="text" placeholder="Nom du fournisseur ou de la source…"
                       value={approForm.fournisseurNom}
                       onChange={e => setApproForm(f => ({ ...f, fournisseurNom: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
                   </div>
                 )}
 
@@ -700,7 +700,7 @@ export default function GestionStockPage() {
                       <div className="flex items-center gap-2">
                         <select required value={ligne.produitId}
                           onChange={e => updateApproLigne(idx, 'produitId', e.target.value)}
-                          className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                          className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
                           <option value="">Choisir un produit…</option>
                           {produitsOptions.map(p => (
                             <option key={p.id} value={p.id}>{p.nom}</option>
@@ -709,7 +709,7 @@ export default function GestionStockPage() {
                         <input type="number" required min="1" placeholder="Qté"
                           value={ligne.quantite}
                           onChange={e => updateApproLigne(idx, 'quantite', e.target.value)}
-                          className="w-24 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
+                          className="w-24 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
                         <button type="button" onClick={() => toggleApproLigneLot(idx)}
                           title="Traçabilité lot / péremption"
                           className={`p-2 rounded-lg transition-colors ${ligne.lotOuvert ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}>
@@ -729,21 +729,21 @@ export default function GestionStockPage() {
                             <input type="text" placeholder="Ex: LOT-2026-01"
                               value={ligne.numeroLot}
                               onChange={e => updateApproLigne(idx, 'numeroLot', e.target.value)}
-                              className="w-full px-2.5 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                              className="w-full px-2.5 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500" />
                           </div>
                           <div>
                             <label className="block text-xs text-slate-500 mb-1">DLC</label>
                             <input type="date"
                               value={ligne.dlc}
                               onChange={e => updateApproLigne(idx, 'dlc', e.target.value)}
-                              className="w-full px-2.5 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                              className="w-full px-2.5 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500" />
                           </div>
                           <div>
                             <label className="block text-xs text-slate-500 mb-1">DLUO</label>
                             <input type="date"
                               value={ligne.dluo}
                               onChange={e => updateApproLigne(idx, 'dluo', e.target.value)}
-                              className="w-full px-2.5 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                              className="w-full px-2.5 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500" />
                           </div>
                         </div>
                       )}
@@ -764,11 +764,11 @@ export default function GestionStockPage() {
                   <input type="text" placeholder="Ex: Livraison hebdomadaire, lot n°12…"
                     value={approForm.notes}
                     onChange={e => setApproForm(f => ({ ...f, notes: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
                 </div>
 
                 <button type="submit" disabled={approvisionning}
-                  className="w-full py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 font-medium transition-colors flex items-center justify-center gap-2">
+                  className="w-full py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-60 font-medium transition-colors flex items-center justify-center gap-2">
                   {approvisionning
                     ? 'Enregistrement…'
                     : <><PackagePlus size={16} /> Enregistrer l&apos;approvisionnement</>}

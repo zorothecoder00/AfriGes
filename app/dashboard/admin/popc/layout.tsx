@@ -32,7 +32,7 @@ export default function PopcLayout({ children }: { children: ReactNode }) {
         <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-3">
           <ArrowLeft size={15} /> Dashboard Admin
         </Link>
-        <SideTabs accent="indigo" items={items} />
+        <SideTabs accent="brand" items={items} />
       </div>
       <div className="flex-1 min-w-0">{children}</div>
     </div>

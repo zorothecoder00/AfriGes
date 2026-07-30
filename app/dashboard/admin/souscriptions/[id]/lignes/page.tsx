@@ -262,7 +262,7 @@ export default function LignesSouscriptionPage() {
     : "—";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-emerald-50/10 font-['DM_Sans',sans-serif] p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-emerald-50/10 p-6">
       <div className="max-w-5xl mx-auto space-y-6">
 
         {/* Header */}

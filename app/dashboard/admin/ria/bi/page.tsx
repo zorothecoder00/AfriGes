@@ -221,7 +221,7 @@ export default function BIPage() {
             ] as [AdvTab, string, React.ReactNode][]).map(([key, label, icon]) => (
               <button key={key} onClick={() => setAdvTab(key)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                  advTab === key ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                  advTab === key ? "bg-primary-600 text-white border-emerald-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                 }`}>
                 {icon} {label}
               </button>

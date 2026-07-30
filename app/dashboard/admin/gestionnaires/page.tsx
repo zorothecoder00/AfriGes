@@ -311,7 +311,7 @@ export default function GestionnairesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50/20 font-['DM_Sans',sans-serif] p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50/20 p-8">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* Header */}

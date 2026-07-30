@@ -75,7 +75,7 @@ const STATUT_BADGE: Record<string, string> = {
   VALIDE_RH:       "bg-indigo-100 text-indigo-700",
   APPROUVE:        "bg-emerald-100 text-emerald-700",
   REJETE:          "bg-red-100 text-red-700",
-  ANNULE:          "bg-gray-100 text-gray-500",
+  ANNULE:          "bg-slate-100 text-slate-500",
 };
 
 const STATUT_LABEL: Record<string, string> = {
@@ -106,7 +106,7 @@ const TYPE_COLOR: Record<string, string> = {
   FORMATION:    "bg-blue-100 text-blue-700",
   MATERNITE:    "bg-pink-100 text-pink-700",
   PATERNITE:    "bg-cyan-100 text-cyan-700",
-  SANS_SOLDE:   "bg-gray-100 text-gray-600",
+  SANS_SOLDE:   "bg-slate-100 text-slate-600",
 };
 
 const TYPE_DOT: Record<string, string> = {
@@ -117,17 +117,17 @@ const TYPE_DOT: Record<string, string> = {
   FORMATION:    "bg-blue-400",
   MATERNITE:    "bg-pink-400",
   PATERNITE:    "bg-cyan-400",
-  SANS_SOLDE:   "bg-gray-400",
+  SANS_SOLDE:   "bg-slate-400",
 };
 
 const NEXT_ACTIONS: Record<string, { action: string; label: string; color: string }[]> = {
   EN_ATTENTE:     [
-    { action: "VALIDER_MANAGER", label: "Valider (manager)", color: "bg-blue-600 hover:bg-blue-700" },
+    { action: "VALIDER_MANAGER", label: "Valider (manager)", color: "bg-primary-600 hover:bg-primary-700" },
     { action: "APPROUVER",       label: "Approuver direct",  color: "bg-emerald-600 hover:bg-emerald-700" },
     { action: "REJETER",         label: "Rejeter",           color: "bg-red-500 hover:bg-red-600" },
   ],
   VALIDE_MANAGER: [
-    { action: "VALIDER_RH",      label: "Valider (RH)",      color: "bg-indigo-600 hover:bg-indigo-700" },
+    { action: "VALIDER_RH",      label: "Valider (RH)",      color: "bg-primary-600 hover:bg-primary-700" },
     { action: "APPROUVER",       label: "Approuver direct",  color: "bg-emerald-600 hover:bg-emerald-700" },
     { action: "REJETER",         label: "Rejeter",           color: "bg-red-500 hover:bg-red-600" },
   ],
@@ -227,7 +227,7 @@ export default function CongesPage() {
               <Settings className="w-4 h-4" /> Politiques
             </button>
             <button onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700">
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">
               <Plus className="w-4 h-4" /> Nouvelle demande
             </button>
           </div>
@@ -271,9 +271,9 @@ export default function CongesPage() {
                   <input value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                     placeholder="Nom du collaborateur…"
-                    className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
                 </div>
-                <button onClick={handleSearch} className="px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                <button onClick={handleSearch} className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
                   <Search className="w-4 h-4" />
                 </button>
               </div>
@@ -308,7 +308,7 @@ export default function CongesPage() {
                   <CalendarDays className="w-10 h-10 mb-2 opacity-30" />
                   <p className="text-sm">Aucune demande trouvée</p>
                   <button onClick={() => setShowCreate(true)}
-                    className="mt-4 px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                    className="mt-4 px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">
                     Créer une demande
                   </button>
                 </div>
@@ -397,7 +397,7 @@ export default function CongesPage() {
                         <p className={`text-xs font-semibold mb-1 ${isToday ? "text-emerald-600" : isWE ? "text-slate-300" : "text-slate-500"}`}>{d}</p>
                         <div className="space-y-0.5">
                           {absents.slice(0, 3).map((a, i) => (
-                            <div key={i} className={`text-[9px] px-1 py-0.5 rounded truncate flex items-center gap-1 ${TYPE_COLOR[a.type] ?? "bg-gray-100 text-gray-600"}`}>
+                            <div key={i} className={`text-[9px] px-1 py-0.5 rounded truncate flex items-center gap-1 ${TYPE_COLOR[a.type] ?? "bg-slate-100 text-slate-600"}`}>
                               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${TYPE_DOT[a.type]}`} />
                               {a.prenom} {a.nom[0]}.
                             </div>
@@ -460,7 +460,7 @@ export default function CongesPage() {
                       ) : (
                         <div className="space-y-1.5">
                           {items.map((d) => (
-                            <div key={d.id} className={`text-xs px-2 py-1 rounded flex items-center justify-between gap-2 ${TYPE_COLOR[d.type] ?? "bg-gray-100 text-gray-600"}`}>
+                            <div key={d.id} className={`text-xs px-2 py-1 rounded flex items-center justify-between gap-2 ${TYPE_COLOR[d.type] ?? "bg-slate-100 text-slate-600"}`}>
                               <span className="flex items-center gap-1.5 truncate">
                                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${TYPE_DOT[d.type]}`} />
                                 {d.profilRH.gestionnaire.member.prenom} {d.profilRH.gestionnaire.member.nom}
@@ -491,7 +491,7 @@ export default function CongesPage() {
               </select>
               <input value={soldesDept} onChange={(e) => setSoldesDept(e.target.value)}
                 placeholder="Filtrer par département…"
-                className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-52" />
+                className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-52" />
               <button onClick={soldesRefetch} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
                 {soldesLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               </button>
@@ -649,10 +649,10 @@ function DemandeCard({ demande, onAction }: { demande: Demande; onAction: (actio
             <span className="font-mono text-xs text-slate-400">{demande.profilRH.matricule}</span>
           </div>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${TYPE_COLOR[demande.type] ?? "bg-gray-100 text-gray-600"}`}>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${TYPE_COLOR[demande.type] ?? "bg-slate-100 text-slate-600"}`}>
               {TYPE_LABEL[demande.type] ?? demande.type}
             </span>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUT_BADGE[demande.statut] ?? "bg-gray-100 text-gray-500"}`}>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUT_BADGE[demande.statut] ?? "bg-slate-100 text-slate-500"}`}>
               {STATUT_LABEL[demande.statut] ?? demande.statut}
             </span>
             <span className="flex items-center gap-1 text-xs text-slate-500">
@@ -788,7 +788,7 @@ function NouvelleDemandeModal({ onClose, onCreated }: { onClose: () => void; onC
               value={profilRHId}
               onChange={(e) => setProfilRHId(e.target.value)}
               required
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="">
                 — Sélectionner —
@@ -809,7 +809,7 @@ function NouvelleDemandeModal({ onClose, onCreated }: { onClose: () => void; onC
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               {Object.entries(TYPE_LABEL).map(([k, v]) => (
                 <option key={k} value={k}>
@@ -829,7 +829,7 @@ function NouvelleDemandeModal({ onClose, onCreated }: { onClose: () => void; onC
                 required
                 value={dateDebut}
                 onChange={(e) => setDateDebut(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -842,7 +842,7 @@ function NouvelleDemandeModal({ onClose, onCreated }: { onClose: () => void; onC
                 min={dateDebut}
                 value={dateFin}
                 onChange={(e) => setDateFin(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
@@ -854,7 +854,7 @@ function NouvelleDemandeModal({ onClose, onCreated }: { onClose: () => void; onC
             <select
               value={statut}
               onChange={(e) => setStatutD(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="EN_ATTENTE">
                 En attente (workflow normal)
@@ -874,7 +874,7 @@ function NouvelleDemandeModal({ onClose, onCreated }: { onClose: () => void; onC
               value={motif}
               onChange={(e) => setMotif(e.target.value)}
               placeholder="Raison du congé..."
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
         </form>
@@ -890,7 +890,7 @@ function NouvelleDemandeModal({ onClose, onCreated }: { onClose: () => void; onC
           <button
             onClick={handleSubmit}
             disabled={saving}
-            className="w-full sm:flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 transition"
+            className="w-full sm:flex-1 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 transition"
           >
             {saving ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -1051,12 +1051,12 @@ function AjusterSoldeModal({ profilRHId, type, nom, annee, currentSolde, onClose
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Droit annuel (j)</label>
             <input type="number" min="0" value={totalDroit} onChange={(e) => setTotalDroit(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Reportés (j)</label>
             <input type="number" min="0" value={reporte} onChange={(e) => setReporte(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
         </div>
         <div className="flex gap-2">
@@ -1064,7 +1064,7 @@ function AjusterSoldeModal({ profilRHId, type, nom, annee, currentSolde, onClose
             Annuler
           </button>
           <button onClick={handleSave} disabled={saving}
-            className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
+            className="flex-1 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
             {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Enregistrer
           </button>
@@ -1119,13 +1119,13 @@ function PolitiquesModal({ politiques, onClose }: { politiques: Politique[]; onC
                         <label className="block text-xs text-slate-500 mb-1">Jours / an</label>
                         <input type="number" min={0} value={form.joursParAn}
                           onChange={(e) => setForm((f) => ({ ...f, joursParAn: e.target.value }))}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
                       </div>
                       <div>
                         <label className="block text-xs text-slate-500 mb-1">Jours max reportables</label>
                         <input type="number" min={0} value={form.joursMaxReport}
                           onChange={(e) => setForm((f) => ({ ...f, joursMaxReport: e.target.value }))}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
                       </div>
                     </div>
                     <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
@@ -1134,11 +1134,11 @@ function PolitiquesModal({ politiques, onClose }: { politiques: Politique[]; onC
                     </label>
                     <input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                       placeholder="Description optionnelle"
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
                     <div className="flex gap-2 justify-end">
                       <button onClick={() => setEditing(null)} className="px-3 py-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg">Annuler</button>
                       <button onClick={handleSave} disabled={loading}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50">
                         {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                         Enregistrer
                       </button>

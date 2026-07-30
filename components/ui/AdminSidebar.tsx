@@ -103,8 +103,8 @@ export default function AdminSidebar({
   const navContent = (
     <>
       {sections.map((section) => (
-        <div key={section.title} className="p-3.5 border-b border-slate-100 last:border-b-0 dark:border-slate-700">
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1 dark:text-slate-500">
+        <div key={section.title} className="p-3.5 border-b border-brand-700/50 last:border-b-0">
+          <h3 className="text-xs font-semibold text-brand-200/70 uppercase tracking-wider mb-2 px-1">
             {section.title}
           </h3>
           <nav className="space-y-0.5">
@@ -117,8 +117,8 @@ export default function AdminSidebar({
                   onClick={onMobileClose}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                     active
-                      ? "bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
-                      : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
+                      ? "bg-white text-brand-800 shadow-sm"
+                      : "text-brand-50/90 hover:bg-brand-600/60 hover:text-white"
                   }`}
                 >
                   {item.icon}
@@ -144,7 +144,7 @@ export default function AdminSidebar({
     <>
       {/* Desktop/tablette — sidebar statique */}
       <aside className="w-64 shrink-0 hidden md:block">
-        <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-2xl bg-white border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+        <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-2xl bg-brand-700 border border-brand-800 shadow-sm">
           {navContent}
         </div>
       </aside>
@@ -153,7 +153,7 @@ export default function AdminSidebar({
       {mobileOpen && (
         <div className="fixed inset-0 z-[110] md:hidden">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onMobileClose} />
-          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-white dark:bg-slate-800 shadow-xl overflow-y-auto animate-[popIn_0.18s_ease-out]">
+          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-brand-700 shadow-xl overflow-y-auto animate-[popIn_0.18s_ease-out]">
             {navContent}
           </div>
         </div>

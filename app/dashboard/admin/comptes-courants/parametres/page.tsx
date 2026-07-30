@@ -168,7 +168,7 @@ function Money({ label, k, form, set, placeholder }: FieldProps) {
       <label className="text-sm text-slate-600">{label}</label>
       <div className="relative w-48">
         <input type="number" min={0} value={String(form[k] ?? "")} onChange={(e) => set(k, e.target.value)}
-          placeholder={placeholder} className="w-full pr-12 pl-3 py-2 border border-slate-200 rounded-lg text-sm text-right bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          placeholder={placeholder} className="w-full pr-12 pl-3 py-2 border border-slate-200 rounded-lg text-sm text-right bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">FCFA</span>
       </div>
     </div>
@@ -179,7 +179,7 @@ function NumField({ label, k, form, set, placeholder }: FieldProps) {
     <div className="flex items-center justify-between gap-4">
       <label className="text-sm text-slate-600">{label}</label>
       <input type="number" min={0} value={String(form[k] ?? "")} onChange={(e) => set(k, e.target.value)}
-        placeholder={placeholder} className="w-48 px-3 py-2 border border-slate-200 rounded-lg text-sm text-right bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        placeholder={placeholder} className="w-48 px-3 py-2 border border-slate-200 rounded-lg text-sm text-right bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
     </div>
   );
 }
@@ -188,7 +188,7 @@ function TextField({ label, k, form, set }: FieldProps) {
     <div className="flex items-center justify-between gap-4">
       <label className="text-sm text-slate-600">{label}</label>
       <input value={String(form[k] ?? "")} onChange={(e) => set(k, e.target.value)}
-        className="w-48 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        className="w-48 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
     </div>
   );
 }

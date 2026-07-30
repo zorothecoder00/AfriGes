@@ -2,14 +2,19 @@
 
 import { useState, useCallback } from "react";
 import {
-  Search, RefreshCw, Plus, X, Save,
+  Search, RefreshCw, Plus, Save,
   CheckCircle, Clock, XCircle, CreditCard,
-  DollarSign, ArrowLeft,
+  DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import Button from "@/components/ui/Button";
+import Badge, { type BadgeVariant } from "@/components/ui/Badge";
+import Input from "@/components/ui/Input";
+import Modal from "@/components/ui/Modal";
+import Pagination from "@/components/ui/Pagination";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -68,14 +73,15 @@ const TYPE_REMB: Record<string, string> = {
   COMMUNICATION:"Communication", MATERIEL:"Matériel", AUTRE:"Autre",
 };
 
-const STATUT_REMB: Record<string, { label: string; badge: string; icon: React.ReactNode }> = {
-  EN_ATTENTE: { label: "En attente", badge: "bg-amber-100 text-amber-700",    icon: <Clock       className="w-3.5 h-3.5" /> },
-  APPROUVE:   { label: "Approuvé",   badge: "bg-blue-100 text-blue-700",      icon: <CheckCircle className="w-3.5 h-3.5" /> },
-  REJETE:     { label: "Rejeté",     badge: "bg-red-100 text-red-600",        icon: <XCircle     className="w-3.5 h-3.5" /> },
-  PAYE:       { label: "Payé",       badge: "bg-emerald-100 text-emerald-700",icon: <CreditCard  className="w-3.5 h-3.5" /> },
+const STATUT_REMB: Record<string, { label: string; variant: BadgeVariant; icon: React.ReactNode }> = {
+  EN_ATTENTE: { label: "En attente", variant: "warning", icon: <Clock       className="w-3.5 h-3.5" /> },
+  APPROUVE:   { label: "Approuvé",   variant: "info",    icon: <CheckCircle className="w-3.5 h-3.5" /> },
+  REJETE:     { label: "Rejeté",     variant: "error",   icon: <XCircle     className="w-3.5 h-3.5" /> },
+  PAYE:       { label: "Payé",       variant: "success", icon: <CreditCard  className="w-3.5 h-3.5" /> },
 };
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+const selectCls = "w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500";
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
@@ -83,22 +89,18 @@ export default function AvantagesPage() {
   const [tab, setTab] = useState<"avantages" | "remboursements">("avantages");
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
         <div>
-          <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
-            <ArrowLeft size={15} /> Dashboard RH
-          </Link>
-          <h1 className="text-2xl font-bold text-slate-900">Avantages & Remboursements</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Avantages en nature et remboursements de frais</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Avantages & Remboursements</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Avantages en nature et remboursements de frais</p>
         </div>
         {/* Onglets */}
-        <div className="border-b border-slate-200">
+        <div className="border-b border-slate-200 dark:border-slate-700">
           <div className="flex gap-1">
             {(["avantages", "remboursements"] as const).map((t) => (
               <button key={t} onClick={() => setTab(t)}
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                  tab === t ? "border-emerald-500 text-emerald-600" : "border-transparent text-slate-500 hover:text-slate-700"
+                  tab === t ? "border-primary-500 text-primary-600 dark:text-primary-400" : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                 }`}>
                 {t === "avantages" ? <><DollarSign className="w-4 h-4" /> Avantages</> : <><CreditCard className="w-4 h-4" /> Remboursements</>}
               </button>
@@ -108,7 +110,6 @@ export default function AvantagesPage() {
 
         {tab === "avantages"       && <AvantagesTab />}
         {tab === "remboursements"  && <RemboursementsTab />}
-      </div>
     </div>
   );
 }
@@ -138,30 +139,28 @@ function AvantagesTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input value={search} onChange={(e) => handleSearch(e.target.value)}
+          <Input value={search} onChange={(e) => handleSearch(e.target.value)}
             placeholder="Rechercher…"
-            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            icon={<Search className="w-4 h-4" />} />
         </div>
         <div className="flex gap-2">
-          <button onClick={refetch} className="p-2 text-slate-500 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
-          <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700">
-            <Plus className="w-4 h-4" /> Nouvel avantage
-          </button>
+          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="border border-slate-200 dark:border-slate-700" title="Rafraîchir" />
+          <Button onClick={() => setShowCreate(true)} icon={<Plus className="w-4 h-4" />}>
+            Nouvel avantage
+          </Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…</div>
+        <div className="flex items-center justify-center py-20 text-slate-400 dark:text-slate-500"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…</div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-16 text-slate-400">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
           <DollarSign className="w-10 h-10 mb-2 opacity-30" />
           <p className="text-sm">Aucun avantage enregistré</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="divide-y divide-slate-100">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div className="divide-y divide-slate-100 dark:divide-slate-700">
             {filtered.map((a) => (
               <AvantageRow key={a.id} avantage={a} onRefetch={refetch} />
             ))}
@@ -186,28 +185,28 @@ function AvantageRow({ avantage: a, onRefetch }: { avantage: AvantageRH; onRefet
   };
 
   return (
-    <div className={`flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 group ${!a.actif ? "opacity-60" : ""}`}>
+    <div className={`flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-700/40 group ${!a.actif ? "opacity-60" : ""}`}>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <Link href={`/dashboard/admin/rh/collaborateurs/${a.profilRH.id}`}
-            className="text-sm font-semibold text-slate-800 hover:text-emerald-600">
+            className="text-sm font-semibold text-slate-800 dark:text-slate-100 hover:text-primary-600 dark:hover:text-primary-400">
             {m.prenom} {m.nom}
           </Link>
-          <span className="text-xs text-slate-400 font-mono">{a.profilRH.matricule}</span>
-          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">{TYPE_AVANTAGE[a.type] ?? a.type}</span>
-          {!a.actif && <span className="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-400">Inactif</span>}
+          <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">{a.profilRH.matricule}</span>
+          <Badge variant="neutral">{TYPE_AVANTAGE[a.type] ?? a.type}</Badge>
+          {!a.actif && <Badge variant="neutral">Inactif</Badge>}
         </div>
-        <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400">
+        <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400 dark:text-slate-500">
           <span>{a.libelle}</span>
-          <span className="font-semibold text-slate-700">{fmt(a.montantMensuel)} FCFA/mois</span>
+          <span className="font-semibold text-slate-700 dark:text-slate-300">{fmt(a.montantMensuel)} FCFA/mois</span>
           <span>Depuis {formatDate(a.dateDebut)}{a.dateFin ? ` → ${formatDate(a.dateFin)}` : ""}</span>
         </div>
       </div>
       <button onClick={toggle} disabled={loading}
         className={`flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg border disabled:opacity-50 opacity-0 group-hover:opacity-100 transition-opacity ${
           a.actif
-            ? "text-amber-600 bg-amber-50 border-amber-200 hover:bg-amber-100"
-            : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
+            ? "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+            : "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
         }`}>
         {a.actif ? "Désactiver" : "Réactiver"}
       </button>
@@ -240,54 +239,44 @@ function RemboursementsTab() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {Object.entries(STATUT_REMB).map(([key, cfg]) => (
           <button key={key} onClick={() => setStatut(statut === key ? "" : key)}
-            className={`p-4 rounded-xl border text-left transition-all ${statut === key ? "border-emerald-400 bg-emerald-50 ring-1 ring-emerald-400" : "bg-white border-slate-200 hover:border-slate-300"}`}>
-            <div className="flex items-center gap-2 mb-1"><span className={`p-1.5 rounded-lg ${cfg.badge}`}>{cfg.icon}</span></div>
-            <p className="text-2xl font-bold text-slate-900">{stats[key] ?? 0}</p>
-            <p className="text-xs text-slate-500">{cfg.label}</p>
+            className={`p-4 rounded-2xl border text-left transition-all ${statut === key ? "border-primary-400 dark:border-primary-600 bg-primary-50 dark:bg-primary-900/20 ring-1 ring-primary-400 dark:ring-primary-600" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"}`}>
+            <div className="mb-1"><Badge variant={cfg.variant} icon={cfg.icon}>{cfg.label}</Badge></div>
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-50">{stats[key] ?? 0}</p>
           </button>
         ))}
       </div>
 
       <div className="flex items-center justify-between gap-3">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input value={search} onChange={(e) => handleSearch(e.target.value)}
+          <Input value={search} onChange={(e) => handleSearch(e.target.value)}
             placeholder="Rechercher…"
-            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            icon={<Search className="w-4 h-4" />} />
         </div>
         <div className="flex gap-2">
-          <button onClick={refetch} className="p-2 text-slate-500 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
-          <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700">
-            <Plus className="w-4 h-4" /> Nouveau remboursement
-          </button>
+          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="border border-slate-200 dark:border-slate-700" title="Rafraîchir" />
+          <Button onClick={() => setShowCreate(true)} icon={<Plus className="w-4 h-4" />}>
+            Nouveau remboursement
+          </Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…</div>
+        <div className="flex items-center justify-center py-20 text-slate-400 dark:text-slate-500"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…</div>
       ) : rembs.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-16 text-slate-400">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
           <CreditCard className="w-10 h-10 mb-2 opacity-30" />
           <p className="text-sm">Aucun remboursement trouvé</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="divide-y divide-slate-100">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div className="divide-y divide-slate-100 dark:divide-slate-700">
             {rembs.map((r) => <RembRow key={r.id} remb={r} onRefetch={refetch} />)}
           </div>
         </div>
       )}
 
-      {meta && meta.totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-500">{meta.total} remboursements</p>
-          <div className="flex gap-2">
-            <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50">Précédent</button>
-            <span className="px-3 py-1.5 text-sm text-slate-600">{page} / {meta.totalPages}</span>
-            <button disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)} className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50">Suivant</button>
-          </div>
-        </div>
+      {meta && (
+        <Pagination page={page} totalPages={meta.totalPages} total={meta.total} onPageChange={setPage} itemLabel="remboursement(s)" />
       )}
 
       {showCreate && <CreateRembModal onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); refetch(); }} />}
@@ -306,44 +295,42 @@ function RembRow({ remb: r, onRefetch }: { remb: RemboursementFrais; onRefetch: 
   };
 
   return (
-    <div className="flex items-start gap-4 px-5 py-3.5 hover:bg-slate-50 group">
+    <div className="flex items-start gap-4 px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-700/40 group">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <Link href={`/dashboard/admin/rh/collaborateurs/${r.profilRH.id}`}
-            className="text-sm font-semibold text-slate-800 hover:text-emerald-600">{m.prenom} {m.nom}</Link>
-          <span className="text-xs text-slate-400 font-mono">{r.profilRH.matricule}</span>
-          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.badge}`}>{cfg.icon} {cfg.label}</span>
-          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">{TYPE_REMB[r.type] ?? r.type}</span>
+            className="text-sm font-semibold text-slate-800 dark:text-slate-100 hover:text-primary-600 dark:hover:text-primary-400">{m.prenom} {m.nom}</Link>
+          <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">{r.profilRH.matricule}</span>
+          <Badge variant={cfg.variant} icon={cfg.icon}>{cfg.label}</Badge>
+          <Badge variant="neutral">{TYPE_REMB[r.type] ?? r.type}</Badge>
         </div>
-        <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400">
+        <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400 dark:text-slate-500">
           <span>{r.libelle}</span>
-          <span className="font-semibold text-slate-700">{fmt(r.montant)} FCFA</span>
+          <span className="font-semibold text-slate-700 dark:text-slate-300">{fmt(r.montant)} FCFA</span>
           <span>{formatDate(r.dateFrais)}</span>
         </div>
-        {r.commentaire && <p className="text-xs text-red-500 mt-0.5">{r.commentaire}</p>}
+        {r.commentaire && <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">{r.commentaire}</p>}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
         {r.statut === "EN_ATTENTE" && (
           <>
-            <button onClick={() => doAction("APPROUVER")} disabled={loading}
-              className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50">
-              <CheckCircle className="w-3.5 h-3.5 inline mr-1" />Approuver
-            </button>
-            <button onClick={() => doAction("REJETER")} disabled={loading}
-              className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50">
-              <XCircle className="w-3.5 h-3.5 inline mr-1" />Rejeter
-            </button>
+            <Button size="sm" variant="secondary" onClick={() => doAction("APPROUVER")} disabled={loading} icon={<CheckCircle className="w-3.5 h-3.5" />}
+              className="!text-primary-700 dark:!text-primary-300">
+              Approuver
+            </Button>
+            <Button size="sm" variant="danger" onClick={() => doAction("REJETER")} disabled={loading} icon={<XCircle className="w-3.5 h-3.5" />}>
+              Rejeter
+            </Button>
           </>
         )}
         {r.statut === "APPROUVE" && (
-          <button onClick={() => doAction("MARQUER_PAYE")} disabled={loading}
-            className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 disabled:opacity-50">
-            <CreditCard className="w-3.5 h-3.5 inline mr-1" />Marquer payé
-          </button>
+          <Button size="sm" variant="success" onClick={() => doAction("MARQUER_PAYE")} disabled={loading} icon={<CreditCard className="w-3.5 h-3.5" />}>
+            Marquer payé
+          </Button>
         )}
         {r.justificatif && (
           <a href={r.justificatif} target="_blank" rel="noreferrer"
-            className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100">
+            className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-600">
             Justificatif
           </a>
         )}
@@ -368,16 +355,11 @@ function CreateAvantageModal({ onClose, onCreated }: { onClose: () => void; onCr
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="font-semibold text-slate-900">Nouvel avantage en nature</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
-        </div>
-        <div className="p-6 space-y-4">
+    <Modal open onClose={onClose} title="Nouvel avantage en nature" size="sm">
+        <div className="space-y-4">
           <AField label="Collaborateur *">
             <select value={form.profilRHId} onChange={(e) => set("profilRHId", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              className={selectCls}>
               <option value="">— Sélectionner —</option>
               {collabs.map((c) => <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>)}
             </select>
@@ -385,40 +367,24 @@ function CreateAvantageModal({ onClose, onCreated }: { onClose: () => void; onCr
           <div className="grid grid-cols-2 gap-3">
             <AField label="Type *">
               <select value={form.type} onChange={(e) => { set("type", e.target.value); if (!form.libelle) setForm((f) => ({ ...f, libelle: TYPE_AVANTAGE[e.target.value] ?? "" })); }}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                className={selectCls}>
                 <option value="">—</option>
                 {Object.entries(TYPE_AVANTAGE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </select>
             </AField>
-            <AField label="Montant mensuel">
-              <input type="number" value={form.montantMensuel} onChange={(e) => set("montantMensuel", e.target.value)} placeholder="0"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </AField>
+            <Input label="Montant mensuel" type="number" value={form.montantMensuel} onChange={(e) => set("montantMensuel", e.target.value)} placeholder="0" />
           </div>
-          <AField label="Libellé *">
-            <input value={form.libelle} onChange={(e) => set("libelle", e.target.value)} placeholder="Description de l'avantage"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-          </AField>
+          <Input label="Libellé *" value={form.libelle} onChange={(e) => set("libelle", e.target.value)} placeholder="Description de l'avantage" />
           <div className="grid grid-cols-2 gap-3">
-            <AField label="Date de début *">
-              <input type="date" value={form.dateDebut} onChange={(e) => set("dateDebut", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </AField>
-            <AField label="Date de fin">
-              <input type="date" value={form.dateFin} onChange={(e) => set("dateFin", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </AField>
+            <Input label="Date de début *" type="date" value={form.dateDebut} onChange={(e) => set("dateDebut", e.target.value)} />
+            <Input label="Date de fin" type="date" value={form.dateFin} onChange={(e) => set("dateFin", e.target.value)} />
           </div>
         </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
-          <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
-          </button>
+        <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-slate-100 dark:border-slate-700">
+          <Button variant="secondary" onClick={onClose}>Annuler</Button>
+          <Button onClick={handleSubmit} disabled={loading} loading={loading} icon={<Save className="w-4 h-4" />}>Créer</Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -436,16 +402,11 @@ function CreateRembModal({ onClose, onCreated }: { onClose: () => void; onCreate
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="font-semibold text-slate-900">Nouvelle demande de remboursement</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
-        </div>
-        <div className="p-6 space-y-4">
+    <Modal open onClose={onClose} title="Nouvelle demande de remboursement" size="sm">
+        <div className="space-y-4">
           <AField label="Collaborateur *">
             <select value={form.profilRHId} onChange={(e) => set("profilRHId", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              className={selectCls}>
               <option value="">— Sélectionner —</option>
               {collabs.map((c) => <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>)}
             </select>
@@ -453,45 +414,29 @@ function CreateRembModal({ onClose, onCreated }: { onClose: () => void; onCreate
           <div className="grid grid-cols-2 gap-3">
             <AField label="Type *">
               <select value={form.type} onChange={(e) => { set("type", e.target.value); if (!form.libelle) setForm((f) => ({ ...f, libelle: TYPE_REMB[e.target.value] ?? "" })); }}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                className={selectCls}>
                 <option value="">—</option>
                 {Object.entries(TYPE_REMB).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </select>
             </AField>
-            <AField label="Montant *">
-              <input type="number" value={form.montant} onChange={(e) => set("montant", e.target.value)} placeholder="0"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </AField>
+            <Input label="Montant *" type="number" value={form.montant} onChange={(e) => set("montant", e.target.value)} placeholder="0" />
           </div>
-          <AField label="Libellé *">
-            <input value={form.libelle} onChange={(e) => set("libelle", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-          </AField>
-          <AField label="Date des frais *">
-            <input type="date" value={form.dateFrais} onChange={(e) => set("dateFrais", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-          </AField>
-          <AField label="Justificatif (URL)">
-            <input value={form.justificatif} onChange={(e) => set("justificatif", e.target.value)} placeholder="https://…"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-          </AField>
+          <Input label="Libellé *" value={form.libelle} onChange={(e) => set("libelle", e.target.value)} />
+          <Input label="Date des frais *" type="date" value={form.dateFrais} onChange={(e) => set("dateFrais", e.target.value)} />
+          <Input label="Justificatif (URL)" value={form.justificatif} onChange={(e) => set("justificatif", e.target.value)} placeholder="https://…" />
         </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
-          <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
-          </button>
+        <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-slate-100 dark:border-slate-700">
+          <Button variant="secondary" onClick={onClose}>Annuler</Button>
+          <Button onClick={handleSubmit} disabled={loading} loading={loading} icon={<Save className="w-4 h-4" />}>Créer</Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
 function AField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">{label}</label>
       {children}
     </div>
   );

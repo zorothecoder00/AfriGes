@@ -105,7 +105,7 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.El
   ATTESTATION_FORMATION:    { label: "Attestation de formation",  color: "bg-teal-100 text-teal-700",   icon: FileCheck },
   CERTIFICAT_PARTICIPATION: { label: "Certificat de participation", color: "bg-cyan-100 text-cyan-700", icon: FileCheck },
   CONVOCATION_FORMATION:    { label: "Convocation à une formation", color: "bg-amber-100 text-amber-700", icon: Mail    },
-  AUTRE:                { label: "Autre",                   color: "bg-gray-100 text-gray-600",     icon: Mail        },
+  AUTRE:                { label: "Autre",                   color: "bg-slate-100 text-slate-600",     icon: Mail        },
 };
 
 type TabKey = "documents" | "generer" | "historique";
@@ -221,7 +221,7 @@ function DocumentsTab() {
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
             placeholder="Rechercher (titre, collaborateur…)"
-            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -229,7 +229,7 @@ function DocumentsTab() {
           <select
             value={type}
             onChange={(e) => handleType(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="">Tous les types</option>
             {Object.entries(TYPE_CONFIG).map(([k, c]) => (
@@ -529,7 +529,7 @@ function GenererTab({ onGenerated }: { onGenerated: () => void }) {
               Nouveau
             </button>
             <button onClick={onGenerated}
-              className="px-3 py-1.5 text-sm text-white bg-emerald-600 rounded-lg hover:bg-emerald-700">
+              className="px-3 py-1.5 text-sm text-white bg-primary-600 rounded-lg hover:bg-primary-700">
               Voir dans Documents
             </button>
           </div>
@@ -581,7 +581,7 @@ function GenererTab({ onGenerated }: { onGenerated: () => void }) {
           <label className="block text-xs font-semibold text-slate-600 mb-2">Type de document *</label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {types.map((t) => {
-              const c = TYPE_CONFIG[t.type] ?? { label: t.label, color: "bg-gray-100 text-gray-600", icon: FileText };
+              const c = TYPE_CONFIG[t.type] ?? { label: t.label, color: "bg-slate-100 text-slate-600", icon: FileText };
               const Icon = c.icon;
               return (
                 <button
@@ -606,7 +606,7 @@ function GenererTab({ onGenerated }: { onGenerated: () => void }) {
           <select
             value={profilRHId}
             onChange={(e) => setProfilRHId(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="">— Sélectionner —</option>
             {collabs.map((c) => (
@@ -627,7 +627,7 @@ function GenererTab({ onGenerated }: { onGenerated: () => void }) {
         {docType && currentFields.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {currentFields.map((f) => {
-              const inputCls = "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500";
+              const inputCls = "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500";
               const val = fieldValues[f.name] ?? "";
               return (
                 <div key={f.name} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
@@ -656,13 +656,13 @@ function GenererTab({ onGenerated }: { onGenerated: () => void }) {
         <GField label="Notes internes (optionnel)">
           <input value={notes} onChange={(e) => setNotes(e.target.value)}
             placeholder="Ex: Demandé par l'intéressé, dossier banque…"
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </GField>
 
         <button
           onClick={handleGenerate}
           disabled={loading || !profilRHId || !docType}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {loading
             ? <><RefreshCw className="w-4 h-4 animate-spin" /> Génération en cours…</>
@@ -703,7 +703,7 @@ function HistoriqueTab() {
           <select
             value={profilRHId}
             onChange={(e) => { setProfilRHId(e.target.value); setExpanded({}); }}
-            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="">— Sélectionner un collaborateur —</option>
             {collabs.map((c) => (
@@ -886,7 +886,7 @@ function CreateDocModal({ onClose, onCreated }: { onClose: () => void; onCreated
         <div className="p-6 space-y-4">
           <GField label="Collaborateur *">
             <select value={form.profilRHId} onChange={(e) => handleCollabChange(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
               <option value="">— Sélectionner —</option>
               {collabs.map((c) => (
                 <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>
@@ -895,19 +895,19 @@ function CreateDocModal({ onClose, onCreated }: { onClose: () => void; onCreated
           </GField>
           <GField label="Type *">
             <select value={form.type} onChange={(e) => handleTypeChange(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
               <option value="">— Sélectionner —</option>
               {Object.entries(TYPE_CONFIG).map(([k, c]) => <option key={k} value={k}>{c.label}</option>)}
             </select>
           </GField>
           <GField label="Titre *">
             <input value={form.titre} onChange={(e) => set("titre", e.target.value)} placeholder="Ex: Attestation de travail — Jean Dupont"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </GField>
           <GField label="URL du fichier PDF">
             <div className="relative">
               <input value={form.fileUrl} onChange={(e) => set("fileUrl", e.target.value)} placeholder="https://… (optionnel)"
-                className="w-full pl-3 pr-9 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full pl-3 pr-9 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
               {form.fileUrl && (
                 <a href={form.fileUrl} target="_blank" rel="noreferrer" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                   <ExternalLink className="w-4 h-4" />
@@ -917,13 +917,13 @@ function CreateDocModal({ onClose, onCreated }: { onClose: () => void; onCreated
           </GField>
           <GField label="Notes">
             <input value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Optionnel"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </GField>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
           <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
           </button>
         </div>
@@ -973,7 +973,7 @@ function EditDocModal({ doc, onClose, onUpdated }: { doc: DocRH; onClose: () => 
           <GField label="URL du fichier PDF">
             <div className="relative">
               <input value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://… (URL du PDF)"
-                className="w-full pl-3 pr-9 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full pl-3 pr-9 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
               {fileUrl && (
                 <a href={fileUrl} target="_blank" rel="noreferrer" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                   <ExternalLink className="w-4 h-4" />
@@ -984,14 +984,14 @@ function EditDocModal({ doc, onClose, onUpdated }: { doc: DocRH; onClose: () => 
           </GField>
           <GField label="Notes">
             <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optionnel"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </GField>
           <p className="text-xs text-slate-400">Créé le {formatDate(doc.createdAt)}</p>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
           <button onClick={handleSave} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Enregistrer
           </button>
         </div>

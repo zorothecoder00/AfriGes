@@ -107,7 +107,7 @@ function TagModal({
               value={nom}
               onChange={(e) => setNom(e.target.value)}
               placeholder="ex. VIP, Fidèle, Nouveau…"
-              className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
         </div>
@@ -143,7 +143,7 @@ function TagModal({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Optionnel"
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
 
@@ -153,7 +153,7 @@ function TagModal({
           <select
             value={segment}
             onChange={(e) => setSegment(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="">Tous les segments</option>
             <option value="ORDINAIRE">Clients ordinaires uniquement</option>
@@ -169,7 +169,7 @@ function TagModal({
           <label className="flex items-center gap-2 cursor-pointer">
             <div
               onClick={() => setActif((v) => !v)}
-              className={`relative w-10 h-5.5 rounded-full transition-colors ${actif ? "bg-indigo-500" : "bg-slate-200"}`}
+              className={`relative w-10 h-5.5 rounded-full transition-colors ${actif ? "bg-primary-500" : "bg-slate-200"}`}
             >
               <span className={`absolute top-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform ${actif ? "translate-x-5" : "translate-x-0.5"}`} />
             </div>
@@ -232,7 +232,7 @@ export default function TagsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/20 to-purple-50/10 font-['DM_Sans',sans-serif]">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary-50/20 to-purple-50/10 ">
       <ClienteleTabBar>
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
@@ -279,7 +279,7 @@ export default function TagsPage() {
         {/* Liste */}
         {loading ? (
           <div className="flex justify-center py-16">
-            <Loader2 className="w-7 h-7 animate-spin text-indigo-400" />
+            <Loader2 className="w-7 h-7 animate-spin text-primary-400" />
           </div>
         ) : tags.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-100">
@@ -339,7 +339,7 @@ export default function TagsPage() {
                   <button
                     onClick={() => tag._count.clients > 0 && tagModal?.openTag({ id: tag.id, nom: tag.nom, couleur: tag.couleur })}
                     disabled={tag._count.clients === 0}
-                    className={`flex items-center gap-1 text-xs transition-colors ${tag._count.clients > 0 ? "text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer" : "text-slate-400 cursor-default"}`}
+                    className={`flex items-center gap-1 text-xs transition-colors ${tag._count.clients > 0 ? "text-primary-600 hover:text-primary-800 hover:underline cursor-pointer" : "text-slate-400 cursor-default"}`}
                   >
                     <Users className="w-3.5 h-3.5" />
                     <span>{tag._count.clients} client{tag._count.clients !== 1 ? "s" : ""}</span>

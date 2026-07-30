@@ -71,12 +71,12 @@ function AddPortefeuilleModal({ profilRIAId, onClose, onSuccess }: {
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Nom du portefeuille</label>
             <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="ex: Portefeuille RIA 2026"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
           </div>
         </div>
         <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">

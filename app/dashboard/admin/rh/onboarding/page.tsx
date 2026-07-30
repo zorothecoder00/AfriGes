@@ -3,12 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, Search, RefreshCw, UserPlus, ClipboardList,
+  Search, RefreshCw, UserPlus, ClipboardList,
   CheckCircle2, Clock, PauseCircle, XCircle, ChevronRight,
   Briefcase, Mail, Hash, AlertTriangle, Filter,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import Badge, { type BadgeVariant } from "@/components/ui/Badge";
+import Input from "@/components/ui/Input";
+import KpiCard from "@/components/ui/KpiCard";
+import Pagination from "@/components/ui/Pagination";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 type StatutOnboarding = "EN_COURS" | "TERMINE" | "SUSPENDU" | "ANNULE";
@@ -47,17 +53,17 @@ interface ApiResponse {
 }
 
 /* ─── Helpers ────────────────────────────────────────────────── */
-const STATUT_CONFIG: Record<StatutOnboarding, { label: string; color: string; icon: React.ReactNode }> = {
-  EN_COURS:  { label: "En cours",  color: "bg-blue-100 text-blue-700",   icon: <Clock        className="w-3 h-3" /> },
-  TERMINE:   { label: "Terminé",   color: "bg-green-100 text-green-700", icon: <CheckCircle2 className="w-3 h-3" /> },
-  SUSPENDU:  { label: "Suspendu",  color: "bg-yellow-100 text-yellow-700", icon: <PauseCircle className="w-3 h-3" /> },
-  ANNULE:    { label: "Annulé",    color: "bg-red-100 text-red-700",     icon: <XCircle      className="w-3 h-3" /> },
+const STATUT_CONFIG: Record<StatutOnboarding, { label: string; variant: BadgeVariant; accent: "primary" | "success" | "warning" | "error"; icon: React.ReactNode }> = {
+  EN_COURS:  { label: "En cours",  variant: "info",    accent: "primary", icon: <Clock        className="w-3 h-3" /> },
+  TERMINE:   { label: "Terminé",   variant: "success", accent: "success", icon: <CheckCircle2 className="w-3 h-3" /> },
+  SUSPENDU:  { label: "Suspendu",  variant: "warning", accent: "warning", icon: <PauseCircle className="w-3 h-3" /> },
+  ANNULE:    { label: "Annulé",    variant: "error",   accent: "error",   icon: <XCircle      className="w-3 h-3" /> },
 };
 
 function ProgressBar({ value }: { value: number }) {
-  const color = value === 100 ? "bg-green-500" : value >= 50 ? "bg-blue-500" : "bg-orange-400";
+  const color = value === 100 ? "bg-emerald-500" : value >= 50 ? "bg-primary-500" : "bg-accent-500";
   return (
-    <div className="w-full bg-gray-100 rounded-full h-2">
+    <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
       <div className={`${color} h-2 rounded-full transition-all`} style={{ width: `${value}%` }} />
     </div>
   );
@@ -82,63 +88,51 @@ export default function OnboardingPage() {
   const stats       = res?.stats ?? {};
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center gap-3 mb-1">
-          <Link href="/dashboard/admin/rh" className="text-gray-400 hover:text-gray-600">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <ClipboardList className="w-6 h-6 text-indigo-600" />
-          <h1 className="text-xl font-bold text-gray-900">Onboarding</h1>
-        </div>
-        <p className="text-sm text-gray-500 ml-14">Suivi de l&apos;intégration des nouveaux collaborateurs</p>
-        <div className="ml-14 mt-2">
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
+
+        {/* Header */}
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <ClipboardList className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Onboarding</h1>
+          </div>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Suivi de l&apos;intégration des nouveaux collaborateurs</p>
           <Link
             href="/dashboard/admin/rh/onboarding/templates"
-            className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
+            className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 hover:underline"
           >
             Gérer les templates →
           </Link>
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {(["EN_COURS","TERMINE","SUSPENDU","ANNULE"] as StatutOnboarding[]).map((s) => {
             const cfg = STATUT_CONFIG[s];
             return (
-              <div key={s} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${cfg.color}`}>{cfg.icon}</div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats[s] ?? 0}</p>
-                  <p className="text-xs text-gray-500">{cfg.label}</p>
-                </div>
-              </div>
+              <KpiCard key={s} label={cfg.label} value={stats[s] ?? 0} icon={cfg.icon} accent={cfg.accent} />
             );
           })}
         </div>
 
         {/* Filtres */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
+        <Card>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1">
+            <Input
               type="text"
               placeholder="Rechercher un collaborateur…"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              icon={<Search className="w-4 h-4" />}
             />
           </div>
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
+            <Filter className="w-4 h-4 text-slate-400" />
             <select
               value={statut}
               onChange={(e) => { setStatut(e.target.value as StatutOnboarding | ""); setPage(1); }}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="text-sm border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500"
             >
               <option value="">Tous les statuts</option>
               {(Object.keys(STATUT_CONFIG) as StatutOnboarding[]).map((s) => (
@@ -146,27 +140,23 @@ export default function OnboardingPage() {
               ))}
             </select>
           </div>
-          <button
-            onClick={() => refetch()}
-            className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          </button>
+          <Button variant="ghost" size="sm" onClick={() => refetch()} loading={loading} className="border border-slate-200 dark:border-slate-700" title="Rafraîchir" />
         </div>
+        </Card>
 
         {/* Liste */}
         <div className="space-y-3">
           {loading && (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-slate-500 dark:text-slate-400">
               <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
               Chargement…
             </div>
           )}
 
           {!loading && onboardings.length === 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-              <UserPlus className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">Aucun onboarding trouvé</p>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-12 text-center">
+              <UserPlus className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-500 dark:text-slate-400">Aucun onboarding trouvé</p>
             </div>
           )}
 
@@ -179,24 +169,20 @@ export default function OnboardingPage() {
               <Link
                 key={ob.id}
                 href={`/dashboard/admin/rh/onboarding/${ob.id}`}
-                className="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-indigo-200 transition-all group"
+                className="block bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all group"
               >
                 <div className="flex items-start justify-between gap-4">
                   {/* Infos collaborateur */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <p className="font-semibold text-gray-900 truncate">{nom}</p>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>
-                        {cfg.icon}{cfg.label}
-                      </span>
+                      <p className="font-semibold text-slate-900 dark:text-slate-100 truncate">{nom}</p>
+                      <Badge variant={cfg.variant} icon={cfg.icon}>{cfg.label}</Badge>
                       {enRetard && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                          <AlertTriangle className="w-3 h-3" />En retard
-                        </span>
+                        <Badge variant="error" icon={<AlertTriangle className="w-3 h-3" />}>En retard</Badge>
                       )}
                     </div>
 
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mb-3">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mb-3">
                       {ob.profilRH.fonction && (
                         <span className="flex items-center gap-1">
                           <Briefcase className="w-3 h-3" />{ob.profilRH.fonction}
@@ -223,25 +209,25 @@ export default function OnboardingPage() {
                       <div className="flex-1">
                         <ProgressBar value={ob.progressionPct} />
                       </div>
-                      <span className="text-xs font-semibold text-gray-700 w-10 text-right">
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 w-10 text-right">
                         {ob.progressionPct}%
                       </span>
-                      <span className="text-xs text-gray-400">{ob._count.etapes} étapes</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">{ob._count.etapes} étapes</span>
                     </div>
                   </div>
 
                   {/* Dates + flèche */}
-                  <div className="text-right text-xs text-gray-400 shrink-0 flex flex-col items-end gap-1">
+                  <div className="text-right text-xs text-slate-400 dark:text-slate-500 shrink-0 flex flex-col items-end gap-1">
                     <span>Début {formatDate(ob.dateDebut)}</span>
                     {ob.dateFinPrevue && (
-                      <span className={enRetard ? "text-red-500 font-medium" : ""}>
+                      <span className={enRetard ? "text-red-500 dark:text-red-400 font-medium" : ""}>
                         Échéance {formatDate(ob.dateFinPrevue)}
                       </span>
                     )}
                     {ob.template && (
-                      <span className="text-indigo-500">{ob.template.nom}</span>
+                      <span className="text-primary-500 dark:text-primary-400">{ob.template.nom}</span>
                     )}
-                    <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-500 mt-1" />
+                    <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-primary-500 dark:group-hover:text-primary-400 mt-1" />
                   </div>
                 </div>
               </Link>
@@ -250,26 +236,15 @@ export default function OnboardingPage() {
         </div>
 
         {/* Pagination */}
-        {meta && meta.totalPages > 1 && (
-          <div className="flex justify-center items-center gap-2">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-            >
-              Précédent
-            </button>
-            <span className="text-sm text-gray-600">Page {page} / {meta.totalPages}</span>
-            <button
-              disabled={page >= meta.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-            >
-              Suivant
-            </button>
-          </div>
+        {meta && (
+          <Pagination
+            page={page}
+            totalPages={meta.totalPages}
+            total={meta.total}
+            onPageChange={setPage}
+            itemLabel="onboarding(s)"
+          />
         )}
-      </div>
     </div>
   );
 }

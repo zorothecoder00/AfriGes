@@ -60,11 +60,11 @@ const STATUT_STYLE: Record<string, string> = {
   EN_ATTENTE: "bg-amber-100 text-amber-700 border-amber-200",
   SUSPENDU: "bg-orange-100 text-orange-700 border-orange-200",
   MASQUE: "bg-slate-100 text-slate-500 border-slate-200",
-  ARCHIVE: "bg-gray-100 text-gray-400 border-gray-200",
+  ARCHIVE: "bg-slate-100 text-slate-400 border-slate-200",
 };
 const PROMO_STYLE: Record<string, string> = {
   EN_COURS: "bg-emerald-100 text-emerald-700", PROGRAMMEE: "bg-blue-100 text-blue-700",
-  EXPIREE: "bg-gray-100 text-gray-400", INACTIVE: "bg-slate-100 text-slate-500",
+  EXPIREE: "bg-slate-100 text-slate-400", INACTIVE: "bg-slate-100 text-slate-500",
 };
 const PORTEE_LABEL: Record<string, string> = { GLOBAL: "Global", AGENCE: "Agence", VILLE: "Ville", REGION: "Région" };
 
@@ -73,9 +73,9 @@ type Tab = "infos" | "prix" | "dispo" | "lots" | "substituts" | "promos" | "hist
 function Ligne({ label, value }: { label: string; value: React.ReactNode }) {
   if (value == null || value === "") return null;
   return (
-    <div className="flex justify-between gap-4 py-1.5 border-b border-gray-50 last:border-0">
-      <span className="text-xs text-gray-400">{label}</span>
-      <span className="text-sm text-gray-800 text-right">{value}</span>
+    <div className="flex justify-between gap-4 py-1.5 border-b border-slate-50 last:border-0">
+      <span className="text-xs text-slate-400">{label}</span>
+      <span className="text-sm text-slate-800 text-right">{value}</span>
     </div>
   );
 }
@@ -126,10 +126,10 @@ function FicheProduitInner() {
   }, []);
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>;
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>;
   }
   if (!fiche) {
-    return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">Produit introuvable.</div>;
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400">Produit introuvable.</div>;
   }
 
   const marge = fiche.prixAchat != null ? fiche.prixUnitaire - fiche.prixAchat : null;
@@ -152,14 +152,14 @@ function FicheProduitInner() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <div className="p-6 max-w-6xl mx-auto space-y-5">
-        <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour au catalogue
         </Link>
 
         {/* En-tête produit */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 flex items-start gap-5 flex-wrap">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-5 flex-wrap">
           <div className="w-24 h-24 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
             {fiche.imagePrincipaleUrl
               // eslint-disable-next-line @next/next/no-img-element
@@ -168,22 +168,22 @@ function FicheProduitInner() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-2xl font-bold text-gray-900">{fiche.nom}</h2>
+              <h2 className="text-2xl font-bold text-slate-900">{fiche.nom}</h2>
               <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${STATUT_STYLE[fiche.statut] ?? ""}`}>{fiche.statut}</span>
             </div>
-            {fiche.nomCommercial && <p className="text-sm text-gray-500">{fiche.nomCommercial}</p>}
-            <p className="text-[11px] text-gray-400 font-mono mt-1">{fiche.codeProduit ?? "—"}{fiche.reference ? ` · ${fiche.reference}` : ""}</p>
-            {classification && <p className="text-xs text-gray-500 mt-1">{classification}</p>}
+            {fiche.nomCommercial && <p className="text-sm text-slate-500">{fiche.nomCommercial}</p>}
+            <p className="text-[11px] text-slate-400 font-mono mt-1">{fiche.codeProduit ?? "—"}{fiche.reference ? ` · ${fiche.reference}` : ""}</p>
+            {classification && <p className="text-xs text-slate-500 mt-1">{classification}</p>}
           </div>
           <div className="flex flex-col items-end gap-2">
             <button onClick={() => setEditOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow-sm">
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold shadow-sm">
               <Pencil className="w-4 h-4" /> Modifier
             </button>
             <div className="text-right">
               <p className="text-2xl font-bold text-emerald-700">{formatCurrency(fiche.prixUnitaire)}</p>
               {fiche.prixAchat != null && (
-                <p className="text-xs text-gray-400">Achat {formatCurrency(fiche.prixAchat)}
+                <p className="text-xs text-slate-400">Achat {formatCurrency(fiche.prixAchat)}
                   {marge != null && <span className={marge >= 0 ? "text-emerald-600" : "text-rose-500"}> · marge {formatCurrency(marge)}{margeTaux != null ? ` (${Math.round(margeTaux)}%)` : ""}</span>}
                 </p>
               )}
@@ -213,8 +213,8 @@ function FicheProduitInner() {
         {/* Onglet Informations */}
         {tab === "infos" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-3"><Package className="w-4 h-4 text-blue-500" /> Identification & classification</h3>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5">
+              <h3 className="font-semibold text-slate-800 flex items-center gap-2 mb-3"><Package className="w-4 h-4 text-blue-500" /> Identification & classification</h3>
               <Ligne label="Nom commercial" value={fiche.nomCommercial} />
               <Ligne label="Description" value={fiche.description} />
               <Ligne label="Code produit" value={fiche.codeProduit} />
@@ -231,8 +231,8 @@ function FicheProduitInner() {
               <Ligne label="Créé le" value={formatDate(fiche.createdAt)} />
               <Ligne label="Dernière modification" value={formatDate(fiche.updatedAt)} />
             </div>
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-3"><Info className="w-4 h-4 text-blue-500" /> Caractéristiques</h3>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5">
+              <h3 className="font-semibold text-slate-800 flex items-center gap-2 mb-3"><Info className="w-4 h-4 text-blue-500" /> Caractéristiques</h3>
               <Ligne label="Unité de vente" value={fiche.uniteVente ? `${fiche.uniteVente.nom}${fiche.uniteVente.symbole ? ` (${fiche.uniteVente.symbole})` : ""}` : null} />
               <Ligne label="Unité d'achat" value={fiche.uniteAchat ? `${fiche.uniteAchat.nom}${fiche.uniteAchat.symbole ? ` (${fiche.uniteAchat.symbole})` : ""}` : null} />
               <Ligne label="Conditionnement" value={fiche.conditionnement} />
@@ -244,11 +244,11 @@ function FicheProduitInner() {
               <Ligne label="Seuil d'alerte global" value={fiche.alerteStock ? `${fiche.alerteStock}` : null} />
               {fiche.imagesSecondaires?.length > 0 && (
                 <div className="pt-3">
-                  <p className="text-xs text-gray-400 mb-2">Images secondaires</p>
+                  <p className="text-xs text-slate-400 mb-2">Images secondaires</p>
                   <div className="flex gap-2 flex-wrap">
                     {fiche.imagesSecondaires.map((url, i) => (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img key={i} src={url} alt="" className="w-14 h-14 rounded-lg object-cover border border-gray-100" />
+                      <img key={i} src={url} alt="" className="w-14 h-14 rounded-lg object-cover border border-slate-100" />
                     ))}
                   </div>
                 </div>
@@ -267,34 +267,34 @@ function FicheProduitInner() {
         {tab === "prix" && (
           <div className="space-y-4">
             {/* Tableau multi-agences (§11) */}
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              <div className="px-5 py-3 border-b border-gray-100">
-                <h3 className="font-semibold text-gray-800">Prix effectif par agence</h3>
-                <p className="text-xs text-gray-400">Prix résolu pour chaque agence (spécifique agence, sinon global).</p>
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="px-5 py-3 border-b border-slate-100">
+                <h3 className="font-semibold text-slate-800">Prix effectif par agence</h3>
+                <p className="text-xs text-slate-400">Prix résolu pour chaque agence (spécifique agence, sinon global).</p>
               </div>
               {!tableau || tableau.types.length === 0 ? (
-                <div className="py-10 text-center text-sm text-gray-400">Aucun prix paramétré.</div>
+                <div className="py-10 text-center text-sm text-slate-400">Aucun prix paramétré.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50 text-gray-400 text-xs uppercase">
+                    <thead className="bg-slate-50 text-slate-400 text-xs uppercase">
                       <tr>
-                        <th className="text-left px-4 py-2.5 font-semibold sticky left-0 bg-gray-50">Agence</th>
+                        <th className="text-left px-4 py-2.5 font-semibold sticky left-0 bg-slate-50">Agence</th>
                         {tableau.types.map((t) => <th key={t.type} className="text-right px-4 py-2.5 font-semibold whitespace-nowrap">{t.label}</th>)}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-slate-50">
                       <tr className="bg-blue-50/40 font-medium">
                         <td className="px-4 py-2.5 sticky left-0 bg-blue-50/40">Global (référence)</td>
                         {tableau.types.map((t) => <td key={t.type} className="px-4 py-2.5 text-right">{tableau.global[t.type] != null ? formatCurrency(tableau.global[t.type]!) : "—"}</td>)}
                       </tr>
                       {tableau.agences.map((a) => (
-                        <tr key={a.id} className="hover:bg-gray-50/60">
-                          <td className="px-4 py-2.5 sticky left-0 bg-white">{a.nom} {a.type === "DEPOT_CENTRAL" && <span className="text-[10px] text-gray-400">(dépôt)</span>}</td>
+                        <tr key={a.id} className="hover:bg-slate-50/60">
+                          <td className="px-4 py-2.5 sticky left-0 bg-white">{a.nom} {a.type === "DEPOT_CENTRAL" && <span className="text-[10px] text-slate-400">(dépôt)</span>}</td>
                           {tableau.types.map((t) => {
                             const v = a.prix[t.type]; const g = tableau.global[t.type];
                             const specifique = v != null && v !== g;
-                            return <td key={t.type} className={`px-4 py-2.5 text-right ${specifique ? "font-semibold text-blue-700" : "text-gray-600"}`}>{v != null ? formatCurrency(v) : "—"}</td>;
+                            return <td key={t.type} className={`px-4 py-2.5 text-right ${specifique ? "font-semibold text-blue-700" : "text-slate-600"}`}>{v != null ? formatCurrency(v) : "—"}</td>;
                           })}
                         </tr>
                       ))}
@@ -305,14 +305,14 @@ function FicheProduitInner() {
             </div>
 
             {/* Lignes de prix détaillées */}
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              <div className="px-5 py-3 border-b border-gray-100"><h3 className="font-semibold text-gray-800">Lignes de prix</h3></div>
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="px-5 py-3 border-b border-slate-100"><h3 className="font-semibold text-slate-800">Lignes de prix</h3></div>
               {prix.length === 0 ? (
-                <div className="py-10 text-center text-sm text-gray-400">Aucune ligne de prix.</div>
+                <div className="py-10 text-center text-sm text-slate-400">Aucune ligne de prix.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50 text-gray-400 text-xs uppercase">
+                    <thead className="bg-slate-50 text-slate-400 text-xs uppercase">
                       <tr>
                         <th className="text-left px-4 py-2.5 font-semibold">Type</th>
                         <th className="text-left px-4 py-2.5 font-semibold">Portée</th>
@@ -320,14 +320,14 @@ function FicheProduitInner() {
                         <th className="text-center px-4 py-2.5 font-semibold">État</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-slate-50">
                       {prix.map((p) => (
                         <tr key={p.id} className={p.actif ? "" : "opacity-50"}>
                           <td className="px-4 py-2.5">{TYPE_PRIX_LABEL[p.type as keyof typeof TYPE_PRIX_LABEL] ?? p.type} {p.auto && <span className="text-[9px] px-1 py-0.5 rounded bg-violet-100 text-violet-600 ml-1">AUTO</span>}</td>
-                          <td className="px-4 py-2.5 text-xs text-gray-500">{PORTEE_LABEL[p.portee] ?? p.portee}{p.pointDeVente ? ` · ${p.pointDeVente.nom}` : ""}{p.ville ? ` · ${p.ville}` : ""}{p.region ? ` · ${p.region}` : ""}</td>
+                          <td className="px-4 py-2.5 text-xs text-slate-500">{PORTEE_LABEL[p.portee] ?? p.portee}{p.pointDeVente ? ` · ${p.pointDeVente.nom}` : ""}{p.ville ? ` · ${p.ville}` : ""}{p.region ? ` · ${p.region}` : ""}</td>
                           <td className="px-4 py-2.5 text-right font-semibold">{formatCurrency(p.montant)}</td>
                           <td className="px-4 py-2.5 text-center">
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${p.actif ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-400"}`}>{p.actif ? "Actif" : "Inactif"}</span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${p.actif ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"}`}>{p.actif ? "Actif" : "Inactif"}</span>
                           </td>
                         </tr>
                       ))}
@@ -343,12 +343,12 @@ function FicheProduitInner() {
         {tab === "dispo" && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white rounded-2xl border border-gray-200 p-4">
-                <p className="text-xs text-gray-400 mb-1">Stock total (toutes agences)</p>
-                <p className="text-xl font-bold text-gray-900">{stockTotal}</p>
+              <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                <p className="text-xs text-slate-400 mb-1">Stock total (toutes agences)</p>
+                <p className="text-xl font-bold text-slate-900">{stockTotal}</p>
               </div>
-              <div className="bg-white rounded-2xl border border-gray-200 p-4">
-                <p className="text-xs text-gray-400 mb-1">Valeur du stock</p>
+              <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                <p className="text-xs text-slate-400 mb-1">Valeur du stock</p>
                 <p className="text-xl font-bold text-emerald-700">{formatCurrency(valeurStockTotal)}</p>
               </div>
             </div>
@@ -360,16 +360,16 @@ function FicheProduitInner() {
 
         {/* Onglet Promotions */}
         {tab === "promos" && (
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             {promos.length === 0 ? (
-              <div className="py-12 text-center text-sm text-gray-400"><Tag className="w-8 h-8 mx-auto mb-2 opacity-40" /> Aucune promotion ne couvre ce produit.</div>
+              <div className="py-12 text-center text-sm text-slate-400"><Tag className="w-8 h-8 mx-auto mb-2 opacity-40" /> Aucune promotion ne couvre ce produit.</div>
             ) : (
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-slate-50">
                 {promos.map((p) => (
                   <div key={p.id} className="flex items-center justify-between gap-3 px-5 py-3">
                     <div className="min-w-0">
-                      <p className="font-medium text-gray-800">{p.nom} <span className="text-[11px] text-gray-400 font-mono">{p.code}</span></p>
-                      <p className="text-xs text-gray-500">
+                      <p className="font-medium text-slate-800">{p.nom} <span className="text-[11px] text-slate-400 font-mono">{p.code}</span></p>
+                      <p className="text-xs text-slate-500">
                         {new Date(p.dateDebut).toLocaleDateString("fr-FR")} → {new Date(p.dateFin).toLocaleDateString("fr-FR")}
                         {p.pointDeVente ? ` · ${p.pointDeVente.nom}` : ""}
                         {p.segment ? ` · ${p.segment === "RIA" ? "Communauté RIA" : "Ordinaire"}` : ""}
@@ -384,7 +384,7 @@ function FicheProduitInner() {
                 ))}
               </div>
             )}
-            <div className="px-5 py-3 border-t border-gray-50 text-right">
+            <div className="px-5 py-3 border-t border-slate-50 text-right">
               <Link href="/dashboard/admin/catalogue/promotions" className="text-sm text-blue-600 hover:underline">Gérer les promotions →</Link>
             </div>
           </div>
@@ -417,7 +417,7 @@ function FicheProduitInner() {
 
 export default function FicheProduitPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>}>
       <FicheProduitInner />
     </Suspense>
   );

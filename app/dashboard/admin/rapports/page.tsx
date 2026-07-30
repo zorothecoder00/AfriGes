@@ -379,7 +379,7 @@ export default function RapportsPage() {
           <FileText className="w-4 h-4" /> PDF
         </button>
         <button onClick={exportCreancesXls}
-          className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 shadow-sm">
+          className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-primary-600 rounded-xl hover:bg-primary-700 shadow-sm">
           <FileSpreadsheet className="w-4 h-4" /> Excel
         </button>
       </div>
@@ -397,14 +397,14 @@ export default function RapportsPage() {
           <FileText className="w-4 h-4" /> PDF
         </button>
         <button onClick={exportClientsXls}
-          className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 shadow-sm">
+          className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-primary-600 rounded-xl hover:bg-primary-700 shadow-sm">
           <FileSpreadsheet className="w-4 h-4" /> Excel
         </button>
       </div>
     ),
     retards: (
       <button onClick={exportRetardsXls}
-        className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 shadow-sm">
+        className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-primary-600 rounded-xl hover:bg-primary-700 shadow-sm">
         <FileSpreadsheet className="w-4 h-4" /> Excel
       </button>
     ),
@@ -429,7 +429,7 @@ export default function RapportsPage() {
   void exportAgentsCsv; // evite le warning unused
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
 
       <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
@@ -437,29 +437,29 @@ export default function RapportsPage() {
         {/* En-tête */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{t('rapports_title')}</h2>
-            <p className="text-sm text-gray-500 mt-0.5">{t('rapports_subtitle_detail')}</p>
+            <h2 className="text-2xl font-bold text-slate-900">{t('rapports_title')}</h2>
+            <p className="text-sm text-slate-500 mt-0.5">{t('rapports_subtitle_detail')}</p>
           </div>
           <div className="flex items-center gap-2">
             {exportButtons[tab]}
             <button onClick={refetchCurrent}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm">
+              className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm">
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
         {/* Onglets + filtres + contenu */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
           {/* Onglets */}
-          <div className="flex border-b border-gray-200 px-4 pt-4 gap-1 overflow-x-auto">
+          <div className="flex border-b border-slate-200 px-4 pt-4 gap-1 overflow-x-auto">
             {TABS.map((t) => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors ${
                   tab === t.id
                     ? 'border-blue-600 text-blue-700 bg-blue-50/50'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                 }`}>
                 {t.icon}{t.label}
               </button>
@@ -468,18 +468,18 @@ export default function RapportsPage() {
 
           {/* Filtres date (sauf créances et retards — snapshots) */}
           {tab !== 'creances' && tab !== 'retards' && (
-            <div className="px-6 py-4 flex items-center gap-4 bg-gray-50 border-b border-gray-100 flex-wrap">
-              <span className="text-xs font-medium text-gray-500 flex items-center gap-1">
+            <div className="px-6 py-4 flex items-center gap-4 bg-slate-50 border-b border-slate-100 flex-wrap">
+              <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
                 <Calendar className="w-3 h-3" /> {t('rapports_period_label')}
               </span>
               <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)}
-                className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white" />
-              <span className="text-gray-400 text-sm">→</span>
+                className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white" />
+              <span className="text-slate-400 text-sm">→</span>
               <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)}
-                className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white" />
+                className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white" />
               {(dateDebut || dateFin) && (
                 <button onClick={() => { setDateDebut(''); setDateFin(''); }}
-                  className="text-xs text-gray-400 hover:text-gray-600 underline">
+                  className="text-xs text-slate-400 hover:text-slate-600 underline">
                   {t('btn_clear')}
                 </button>
               )}
@@ -488,7 +488,7 @@ export default function RapportsPage() {
 
           <div className="p-6">
             {isLoading ? (
-              <div className="flex items-center justify-center py-16 text-gray-400">
+              <div className="flex items-center justify-center py-16 text-slate-400">
                 <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('rapports_loading')}
               </div>
             ) : (
@@ -525,16 +525,16 @@ function TabRecouvrement({ data }: { data: RecouvrementData }) {
 
       {data.evolution.length > 0 && (
         <div>
-          <p className="text-sm font-semibold text-gray-700 mb-3">{t('rapports_evo_versements')}</p>
-          <div className="flex items-end gap-2 h-28 bg-gray-50 rounded-xl p-4">
+          <p className="text-sm font-semibold text-slate-700 mb-3">{t('rapports_evo_versements')}</p>
+          <div className="flex items-end gap-2 h-28 bg-slate-50 rounded-xl p-4">
             {data.evolution.map((e) => {
               const h = Math.max(4, Math.round((e.montant / maxEvo) * 100));
               return (
                 <div key={e.label} className="flex-1 flex flex-col items-center gap-1">
-                  <span className="text-[9px] text-gray-400">{e.montant > 0 ? `${Math.round(e.montant / 1000)}K` : ''}</span>
+                  <span className="text-[9px] text-slate-400">{e.montant > 0 ? `${Math.round(e.montant / 1000)}K` : ''}</span>
                   <div className="w-full rounded-t bg-blue-500 hover:bg-blue-600" style={{ height: `${h}%` }}
                     title={`${e.label} : ${formatCurrency(e.montant)}`} />
-                  <span className="text-[9px] text-gray-400">{e.label}</span>
+                  <span className="text-[9px] text-slate-400">{e.label}</span>
                 </div>
               );
             })}
@@ -548,11 +548,11 @@ function TabRecouvrement({ data }: { data: RecouvrementData }) {
           rows={data.parAgent.slice(0, 8)}
           cols={[
             { label: t('rapports_col_agent'), render: (r) => r.nom },
-            { label: t('rapports_col_nb'),    render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
+            { label: t('rapports_col_nb'),    render: (r) => String(r.nb), cls: 'text-right text-slate-600' },
             { label: t('rapports_col_verse'), render: (r) => formatCurrency(r.verse), cls: 'text-right text-emerald-600 font-semibold' },
             { label: t('rapports_col_taux'),  render: (r) => (
               <div className="flex items-center gap-2">
-                <div className="w-16 bg-gray-100 rounded-full h-1.5">
+                <div className="w-16 bg-slate-100 rounded-full h-1.5">
                   <div className={`h-1.5 rounded-full ${TAUX_BAR(r.taux)}`} style={{ width: `${r.taux}%` }} />
                 </div>
                 <span className="text-xs font-bold">{r.taux}%</span>
@@ -565,7 +565,7 @@ function TabRecouvrement({ data }: { data: RecouvrementData }) {
           rows={data.parTypePack}
           cols={[
             { label: t('rapports_col_type'),  render: (r) => r.type },
-            { label: t('rapports_col_nb'),    render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
+            { label: t('rapports_col_nb'),    render: (r) => String(r.nb), cls: 'text-right text-slate-600' },
             { label: t('rapports_col_verse'), render: (r) => formatCurrency(r.verse), cls: 'text-right text-emerald-600 font-semibold' },
             { label: t('rapports_col_taux'),  render: (r) => `${r.taux}%`, cls: 'text-right font-bold' },
           ]}
@@ -591,19 +591,19 @@ function TabCreances({ data }: { data: CreancesData }) {
       </div>
 
       <div>
-        <p className="text-sm font-semibold text-gray-700 mb-3">{t('rapports_par_anciennete')}</p>
+        <p className="text-sm font-semibold text-slate-700 mb-3">{t('rapports_par_anciennete')}</p>
         <div className="space-y-2">
           {data.parAnciennete.map((a) => {
             const pct = maxAnc > 0 ? Math.round((a.montant / maxAnc) * 100) : 0;
             return (
               <div key={a.label} className="flex items-center gap-3">
-                <span className="text-xs text-gray-600 w-28 shrink-0">{a.label}</span>
-                <div className="flex-1 bg-gray-100 rounded-full h-5 relative overflow-hidden">
+                <span className="text-xs text-slate-600 w-28 shrink-0">{a.label}</span>
+                <div className="flex-1 bg-slate-100 rounded-full h-5 relative overflow-hidden">
                   <div className={`h-5 rounded-full ${ANCIENNETE_COLOR[a.color]}`} style={{ width: `${pct}%` }} />
                   <span className="absolute inset-y-0 right-2 flex items-center text-xs font-semibold text-white"
                     style={{ opacity: pct > 15 ? 1 : 0 }}>{a.nb}</span>
                 </div>
-                <span className="text-xs font-semibold text-gray-700 w-28 text-right shrink-0">
+                <span className="text-xs font-semibold text-slate-700 w-28 text-right shrink-0">
                   {formatCurrency(a.montant)}
                 </span>
               </div>
@@ -618,7 +618,7 @@ function TabCreances({ data }: { data: CreancesData }) {
           rows={data.parAgent.slice(0, 8)}
           cols={[
             { label: t('rapports_col_agent'),    render: (r) => r.nom },
-            { label: t('rapports_col_creances'), render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
+            { label: t('rapports_col_creances'), render: (r) => String(r.nb), cls: 'text-right text-slate-600' },
             { label: t('rapports_col_montant'),  render: (r) => formatCurrency(r.montant), cls: 'text-right text-red-600 font-semibold' },
           ]}
         />
@@ -627,7 +627,7 @@ function TabCreances({ data }: { data: CreancesData }) {
           rows={data.parPdv.slice(0, 8)}
           cols={[
             { label: t('rapports_col_pdv'),      render: (r) => `${r.nom} (${r.code})` },
-            { label: t('rapports_col_creances'), render: (r) => String(r.nb), cls: 'text-right text-gray-600' },
+            { label: t('rapports_col_creances'), render: (r) => String(r.nb), cls: 'text-right text-slate-600' },
             { label: t('rapports_col_montant'),  render: (r) => formatCurrency(r.montant), cls: 'text-right text-red-600 font-semibold' },
           ]}
         />
@@ -643,47 +643,47 @@ function TabAgents({ data }: { data: AgentsData }) {
   const maxCa = Math.max(...data.data.map((a) => a.caTotal), 1);
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-slate-500">
         {data.data.length} {t('rapports_agents_classement')}
       </p>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-100">
+          <thead className="bg-slate-50 border-b border-slate-100">
             <tr>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">#</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_agent')}</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_clients')}</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_souscrip')}</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('rapports_col_total_packs')}</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('rapports_col_verse')}</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('rapports_col_restant')}</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_taux')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">#</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('rapports_col_agent')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-slate-600">{t('rapports_col_clients')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-slate-600">{t('rapports_col_souscrip')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-slate-600">{t('rapports_col_total_packs')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-slate-600">{t('rapports_col_verse')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-slate-600">{t('rapports_col_restant')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-slate-600">{t('rapports_col_taux')}</th>
               <th className="text-right px-4 py-3 font-semibold text-blue-700">{t('rapports_col_ca_reel')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-slate-100">
             {data.data.map((a, i) => (
-              <tr key={a.agentId} className="hover:bg-gray-50">
+              <tr key={a.agentId} className="hover:bg-slate-50">
                 <td className="px-4 py-3">
                   <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                     i === 0 ? 'bg-yellow-100 text-yellow-700'
-                    : i === 1 ? 'bg-gray-200 text-gray-600'
+                    : i === 1 ? 'bg-slate-200 text-slate-600'
                     : i === 2 ? 'bg-orange-100 text-orange-700'
                     : 'bg-slate-100 text-slate-500'
                   }`}>{i + 1}</span>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="font-medium text-gray-900">{a.nom}</div>
-                  {a.telephone && <div className="text-xs text-gray-400">{a.telephone}</div>}
+                  <div className="font-medium text-slate-900">{a.nom}</div>
+                  {a.telephone && <div className="text-xs text-slate-400">{a.telephone}</div>}
                 </td>
-                <td className="px-4 py-3 text-center text-gray-700">{a.nbClients}</td>
-                <td className="px-4 py-3 text-center text-gray-700">{a.nbSouscriptions}</td>
-                <td className="px-4 py-3 text-right text-gray-700">{formatCurrency(a.totalPacks)}</td>
+                <td className="px-4 py-3 text-center text-slate-700">{a.nbClients}</td>
+                <td className="px-4 py-3 text-center text-slate-700">{a.nbSouscriptions}</td>
+                <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(a.totalPacks)}</td>
                 <td className="px-4 py-3 text-right font-semibold text-emerald-700">{formatCurrency(a.totalVerse)}</td>
                 <td className="px-4 py-3 text-right text-red-600">{formatCurrency(a.totalRestant)}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2 justify-center">
-                    <div className="w-16 bg-gray-100 rounded-full h-1.5">
+                    <div className="w-16 bg-slate-100 rounded-full h-1.5">
                       <div className={`h-1.5 rounded-full ${TAUX_BAR(a.tauxRecouvrement)}`} style={{ width: `${a.tauxRecouvrement}%` }} />
                     </div>
                     <span className="text-xs font-bold">{a.tauxRecouvrement}%</span>
@@ -726,47 +726,47 @@ function TabClients({ data }: { data: ClientsData }) {
         <StatBox label={t('rapports_restant_du')}       value={formatCurrency(totaux.montantRestant)} icon={<TrendingDown className="w-5 h-5 text-orange-600" />} bg="bg-orange-50" />
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-gray-100">
+      <div className="overflow-x-auto rounded-xl border border-slate-100">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-100">
+          <thead className="bg-slate-50 border-b border-slate-100">
             <tr>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_code')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_clients')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_telephone')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_ville')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_statut')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_agent')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_pdv')}</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_souscrip')}</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('rapports_col_restant_du')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_inscrit_le')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('rapports_col_code')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('rapports_col_clients')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('rapports_col_telephone')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('rapports_col_ville')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('rapports_col_statut')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('rapports_col_agent')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('rapports_col_pdv')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-slate-600">{t('rapports_col_souscrip')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-slate-600">{t('rapports_col_restant_du')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('rapports_col_inscrit_le')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-slate-100">
             {data.data.slice(0, 100).map((c) => (
-              <tr key={c.id} className="hover:bg-gray-50">
-                <td className="px-4 py-2 font-mono text-xs text-gray-500">{c.codeClient}</td>
-                <td className="px-4 py-2 font-medium text-gray-900">{c.prenom} {c.nom}</td>
-                <td className="px-4 py-2 text-gray-600 text-xs">{c.telephone}</td>
-                <td className="px-4 py-2 text-gray-600 text-xs">{c.ville || '—'}</td>
+              <tr key={c.id} className="hover:bg-slate-50">
+                <td className="px-4 py-2 font-mono text-xs text-slate-500">{c.codeClient}</td>
+                <td className="px-4 py-2 font-medium text-slate-900">{c.prenom} {c.nom}</td>
+                <td className="px-4 py-2 text-slate-600 text-xs">{c.telephone}</td>
+                <td className="px-4 py-2 text-slate-600 text-xs">{c.ville || '—'}</td>
                 <td className="px-4 py-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    c.etat === 'ACTIF' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                    c.etat === 'ACTIF' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
                   }`}>{c.etat}</span>
                 </td>
-                <td className="px-4 py-2 text-xs text-gray-600">{c.agent}</td>
-                <td className="px-4 py-2 text-xs text-gray-600">{c.pdv}</td>
-                <td className="px-4 py-2 text-center text-gray-700">{c.totalSouscriptions + c.totalCredits}</td>
+                <td className="px-4 py-2 text-xs text-slate-600">{c.agent}</td>
+                <td className="px-4 py-2 text-xs text-slate-600">{c.pdv}</td>
+                <td className="px-4 py-2 text-center text-slate-700">{c.totalSouscriptions + c.totalCredits}</td>
                 <td className="px-4 py-2 text-right font-semibold text-orange-700">
                   {c.montantRestant > 0 ? formatCurrency(c.montantRestant) : '—'}
                 </td>
-                <td className="px-4 py-2 text-xs text-gray-500">{c.createdAt}</td>
+                <td className="px-4 py-2 text-xs text-slate-500">{c.createdAt}</td>
               </tr>
             ))}
           </tbody>
         </table>
         {data.data.length > 100 && (
-          <p className="text-xs text-gray-400 text-center py-3">
+          <p className="text-xs text-slate-400 text-center py-3">
             Affichage limité à 100 lignes — utilisez l&apos;export pour la liste complète ({data.data.length} clients)
           </p>
         )}
@@ -802,45 +802,45 @@ function TabRetards({ data }: { data: RetardsData }) {
         ))}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-gray-100">
+      <div className="overflow-x-auto rounded-xl border border-slate-100">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-100">
+          <thead className="bg-slate-50 border-b border-slate-100">
             <tr>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_reference')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_clients')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_telephone')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_agent')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('rapports_col_pdv')}</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('rapports_col_montant')}</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('rapports_col_solde')}</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_taux_remb')}</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_echeance')}</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_jours')}</th>
-              <th className="text-center px-4 py-3 font-semibold text-gray-600">{t('rapports_col_gravite')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('rapports_col_reference')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('rapports_col_clients')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('rapports_col_telephone')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('rapports_col_agent')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-600">{t('rapports_col_pdv')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-slate-600">{t('rapports_col_montant')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-slate-600">{t('rapports_col_solde')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-slate-600">{t('rapports_col_taux_remb')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-slate-600">{t('rapports_col_echeance')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-slate-600">{t('rapports_col_jours')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-slate-600">{t('rapports_col_gravite')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-slate-100">
             {data.data.map((r) => (
-              <tr key={r.reference} className="hover:bg-gray-50">
-                <td className="px-4 py-2 font-mono text-xs text-gray-700">{r.reference}</td>
-                <td className="px-4 py-2 font-medium text-gray-900">{r.clientNom}</td>
-                <td className="px-4 py-2 text-xs text-gray-500">{r.clientTel}</td>
-                <td className="px-4 py-2 text-xs text-gray-600">{r.agent}</td>
-                <td className="px-4 py-2 text-xs text-gray-600">{r.pdv}</td>
-                <td className="px-4 py-2 text-right text-gray-700">{formatCurrency(r.montantTotal)}</td>
+              <tr key={r.reference} className="hover:bg-slate-50">
+                <td className="px-4 py-2 font-mono text-xs text-slate-700">{r.reference}</td>
+                <td className="px-4 py-2 font-medium text-slate-900">{r.clientNom}</td>
+                <td className="px-4 py-2 text-xs text-slate-500">{r.clientTel}</td>
+                <td className="px-4 py-2 text-xs text-slate-600">{r.agent}</td>
+                <td className="px-4 py-2 text-xs text-slate-600">{r.pdv}</td>
+                <td className="px-4 py-2 text-right text-slate-700">{formatCurrency(r.montantTotal)}</td>
                 <td className="px-4 py-2 text-right font-semibold text-red-700">{formatCurrency(r.soldeRestant)}</td>
                 <td className="px-4 py-2 text-center">
                   <div className="flex items-center gap-1.5 justify-center">
-                    <div className="w-12 bg-gray-100 rounded-full h-1.5">
+                    <div className="w-12 bg-slate-100 rounded-full h-1.5">
                       <div className={`h-1.5 rounded-full ${TAUX_BAR(r.tauxRembourse)}`} style={{ width: `${r.tauxRembourse}%` }} />
                     </div>
                     <span className="text-xs font-bold">{r.tauxRembourse}%</span>
                   </div>
                 </td>
-                <td className="px-4 py-2 text-center text-xs text-gray-500">{r.premiereEcheanceRetard}</td>
-                <td className="px-4 py-2 text-center font-bold text-gray-800">{r.joursRetard}j</td>
+                <td className="px-4 py-2 text-center text-xs text-slate-500">{r.premiereEcheanceRetard}</td>
+                <td className="px-4 py-2 text-center font-bold text-slate-800">{r.joursRetard}j</td>
                 <td className="px-4 py-2 text-center">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${GRAVITE_CLS[r.gravite] ?? 'bg-gray-100 text-gray-600'}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${GRAVITE_CLS[r.gravite] ?? 'bg-slate-100 text-slate-600'}`}>
                     {r.gravite}
                   </span>
                 </td>
@@ -859,11 +859,11 @@ function StatBox({ label, value, icon, bg }: {
   label: string; value: string; icon: React.ReactNode; bg: string;
 }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3 shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3 shadow-sm">
       <div className={`${bg} p-2.5 rounded-xl shrink-0`}>{icon}</div>
       <div>
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="font-bold text-gray-900 text-lg">{value}</p>
+        <p className="text-xs text-slate-500">{label}</p>
+        <p className="font-bold text-slate-900 text-lg">{value}</p>
       </div>
     </div>
   );
@@ -879,18 +879,18 @@ function RankTable<T extends Record<string, any>>({ title, icon, rows, cols }: {
   const t = useT();
   return (
     <div>
-      <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">{icon}{title}</p>
+      <p className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">{icon}{title}</p>
       {rows.length === 0 ? (
-        <p className="text-sm text-gray-400 italic">{t('rapports_no_data')}</p>
+        <p className="text-sm text-slate-400 italic">{t('rapports_no_data')}</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-100">
+        <div className="overflow-x-auto rounded-xl border border-slate-100">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>{cols.map((c) => <th key={c.label} className="px-3 py-2 font-semibold text-gray-600 text-left">{c.label}</th>)}</tr>
+            <thead className="bg-slate-50 border-b border-slate-100">
+              <tr>{cols.map((c) => <th key={c.label} className="px-3 py-2 font-semibold text-slate-600 text-left">{c.label}</th>)}</tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-50">
               {rows.map((r, i) => (
-                <tr key={i} className="hover:bg-gray-50">
+                <tr key={i} className="hover:bg-slate-50">
                   {cols.map((c) => <td key={c.label} className={`px-3 py-2 ${c.cls ?? ''}`}>{c.render(r)}</td>)}
                 </tr>
               ))}

@@ -138,7 +138,7 @@ const WORKFLOW: Record<string, { action: string; label: string; cls: string }[]>
     { action: "DEMARRER", label: "Démarrer", cls: "bg-amber-600 text-white hover:bg-amber-700" },
     { action: "ANNULER",  label: "Annuler",  cls: "bg-white text-red-600 border border-red-200 hover:bg-red-50" },
   ],
-  EN_COURS:  [{ action: "TERMINER", label: "Terminer", cls: "bg-emerald-600 text-white hover:bg-emerald-700" }],
+  EN_COURS:  [{ action: "TERMINER", label: "Terminer", cls: "bg-primary-600 text-white hover:bg-primary-700" }],
   TERMINEE:  [],
   ANNULEE:   [],
 };
@@ -237,13 +237,13 @@ export default function FormationsPage() {
             </button>
             {activeTab === "catalogue" && (
               <button onClick={() => setShowCreate(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-xl hover:bg-emerald-700">
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700">
                 <Plus className="w-4 h-4" /> Nouvelle formation
               </button>
             )}
             {activeTab === "plan" && (
               <button onClick={() => setShowNewPlan(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-xl hover:bg-emerald-700">
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700">
                 <Plus className="w-4 h-4" /> Nouveau plan annuel
               </button>
             )}
@@ -287,7 +287,7 @@ export default function FormationsPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input value={search} onChange={(e) => handleSearch(e.target.value)}
                   placeholder="Rechercher (titre, formateur, lieu…)"
-                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </div>
               {/* Filtre type */}
               <div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-1">
@@ -303,7 +303,7 @@ export default function FormationsPage() {
                 ))}
               </div>
               <select value={annee} onChange={(e) => { setAnnee(e.target.value); setPage(1); }}
-                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 <option value="">Toutes années</option>
                 {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
@@ -414,7 +414,7 @@ export default function FormationsPage() {
           <>
             <div className="flex items-center gap-3">
               <select value={annee} onChange={(e) => setAnnee(e.target.value)}
-                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
@@ -503,7 +503,7 @@ export default function FormationsPage() {
           <>
             <div className="flex items-center gap-3">
               <select value={annee} onChange={(e) => setAnnee(e.target.value)}
-                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
@@ -775,25 +775,25 @@ function NewPlanFormationModal({ onClose, onCreated }: { onClose: () => void; on
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Année *</label>
             <input type="number" value={form.annee} onChange={(e) => set("annee", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Budget total (FCFA)</label>
             <input type="number" value={form.budgetTotal} onChange={(e) => set("budgetTotal", e.target.value)}
               placeholder="ex : 5000000"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Axes prioritaires</label>
             <textarea value={form.axesPrioritaires} onChange={(e) => set("axesPrioritaires", e.target.value)} rows={3}
               placeholder="ex : management, digitalisation, vente…"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
           </div>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
           <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
           </button>
         </div>
@@ -959,7 +959,7 @@ function CreateFormationModal({ onClose, onCreated }: { onClose: () => void; onC
           <FField label="Titre *">
             <input value={form.titre} onChange={(e) => set("titre", e.target.value)}
               placeholder="Ex: Formation Excel avancé"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </FField>
 
           <FField label="Type">
@@ -978,7 +978,7 @@ function CreateFormationModal({ onClose, onCreated }: { onClose: () => void; onC
           {plans.length > 0 && (
             <FField label="Plan de formation annuel (facultatif)">
               <select value={form.planFormationId} onChange={(e) => set("planFormationId", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 <option value="">— Aucun —</option>
                 {plans.map((p) => <option key={p.id} value={p.id}>{p.annee}</option>)}
               </select>
@@ -988,43 +988,43 @@ function CreateFormationModal({ onClose, onCreated }: { onClose: () => void; onC
           <div className="grid grid-cols-2 gap-3">
             <FField label="Date de début *">
               <input type="date" value={form.dateDebut} onChange={(e) => set("dateDebut", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </FField>
             <FField label="Date de fin">
               <input type="date" value={form.dateFin} onChange={(e) => set("dateFin", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </FField>
             <FField label="Lieu">
               <input value={form.lieu} onChange={(e) => set("lieu", e.target.value)} placeholder="Ville / salle"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </FField>
             <FField label="Formateur">
               <input value={form.formateur} onChange={(e) => set("formateur", e.target.value)} placeholder="Nom"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </FField>
             <FField label="Durée (heures)">
               <input type="number" value={form.dureeHeures} onChange={(e) => set("dureeHeures", e.target.value)} placeholder="0"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </FField>
             <FField label="Budget alloué (FCFA)">
               <input type="number" value={form.budgetAlloue} onChange={(e) => set("budgetAlloue", e.target.value)} placeholder="0"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </FField>
             <FField label="Coût réel (FCFA)">
               <input type="number" value={form.cout} onChange={(e) => set("cout", e.target.value)} placeholder="0"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </FField>
             <FField label="Certification délivrée">
               <input value={form.certificationNom} onChange={(e) => set("certificationNom", e.target.value)}
                 placeholder="Ex: PRINCE2, ITIL…"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </FField>
           </div>
 
           <FField label="Objectifs">
             <textarea value={form.objectifs} onChange={(e) => set("objectifs", e.target.value)} rows={2}
               placeholder="Objectifs pédagogiques de la formation…"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
           </FField>
 
           {/* Participants */}
@@ -1060,7 +1060,7 @@ function CreateFormationModal({ onClose, onCreated }: { onClose: () => void; onC
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
           <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
           </button>
         </div>
@@ -1203,7 +1203,7 @@ function FormationDetailModal({ formation, onClose, onUpdated }: { formation: Fo
             <div>
               <p className="text-xs font-semibold text-slate-700 uppercase mb-2">Ajouter un participant</p>
               <select onChange={(e) => { if (e.target.value) { addParticipant(Number(e.target.value)); e.target.value = ""; } }}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 <option value="">— Sélectionner un collaborateur —</option>
                 {collabs.filter((c) => !existingIds.has(c.id)).map((c) => (
                   <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>

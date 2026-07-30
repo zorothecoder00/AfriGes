@@ -172,7 +172,7 @@ export default function AgentsTerrainPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link href="/dashboard/admin/agents-terrain/qr-planche"
-              className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm">
+              className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm">
               <QrCode className="w-4 h-4" /> Imprimer tous les QR
             </Link>
             <Button variant="secondary" icon={<RefreshCw className={loading ? 'animate-spin' : ''} size={16} />} onClick={refetch}>
@@ -483,7 +483,7 @@ export default function AgentsTerrainPage() {
             <select
               value={transferTargetId}
               onChange={(e) => setTransferTargetId(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="">— Choisir un agent —</option>
               {agents

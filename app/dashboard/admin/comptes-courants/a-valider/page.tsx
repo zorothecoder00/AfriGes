@@ -169,7 +169,7 @@ export default function RetraitsAValiderPage() {
               <span className="text-xs font-semibold text-slate-500">Confirmez avec votre mot de passe</span>
               <input type="password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") submitValider(); }}
-                className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </label>
             <p className="text-[11px] text-slate-400">Le débit du compte et l&apos;écriture comptable sont produits à la validation.</p>
             <div className="flex gap-3 pt-2">

@@ -368,13 +368,13 @@ export default function DroitsAccesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-violet-600" /> Système de Droits d&apos;Accès
+            <Shield className="w-5 h-5 text-primary-600" /> Système de Droits d&apos;Accès
           </h1>
           <p className="text-sm text-slate-500">Contrôle des permissions par rôle et par utilisateur</p>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/dashboard/admin/permissions"
-            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">
             <ShieldCheck className="w-4 h-4" /> Permissions granulaires
           </Link>
           <button onClick={() => setRefresh(r => r + 1)}
@@ -409,7 +409,7 @@ export default function DroitsAccesPage() {
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="flex flex-col md:flex-row gap-4 md:gap-6 p-5">
           <SideTabs
-            accent="violet"
+            accent="blue"
             items={TABS.map(({ key, label, icon: Icon }) => ({
               key, label, icon: <Icon className="w-4 h-4" />,
               active: tab === key, onClick: () => setTab(key),
@@ -418,7 +418,7 @@ export default function DroitsAccesPage() {
           <div className="flex-1 min-w-0">
             {loading ? (
               <div className="flex items-center justify-center h-40">
-                <div className="w-7 h-7 border-4 border-violet-400 border-t-transparent rounded-full animate-spin" />
+                <div className="w-7 h-7 border-4 border-primary-400 border-t-transparent rounded-full animate-spin" />
               </div>
             ) : !data ? (
               <p className="text-center text-sm text-slate-400 py-12">Erreur de chargement</p>

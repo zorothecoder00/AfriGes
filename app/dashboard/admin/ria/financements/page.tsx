@@ -152,7 +152,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Portefeuille *</label>
             <select value={form.portefeuilleId} onChange={(e) => set("portefeuilleId", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500">
               <option value="">Sélectionner…</option>
               {pfs.map((pf) => (
                 <option key={pf.id} value={pf.id}>
@@ -168,10 +168,10 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Rechercher un client *</label>
             <input value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} placeholder="Nom, prénom, téléphone…"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 mb-1" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 mb-1" />
             {clients.length > 0 && (
               <select value={form.clientId} onChange={(e) => setForm((p) => ({ ...p, clientId: e.target.value, creditClientId: "" }))} size={3}
-                className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-emerald-500">
+                className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-500">
                 <option value="">— choisir —</option>
                 {clients.map((c) => (
                   <option key={c.id} value={c.id}>{c.prenom} {c.nom}{c.telephone ? ` · ${c.telephone}` : ""}</option>
@@ -236,7 +236,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               <label className="block text-xs font-medium text-slate-600 mb-1">Crédit client associé</label>
               <select value={form.creditClientId} onChange={(e) => set("creditClientId", e.target.value)}
                 disabled={!form.clientId}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50">
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 disabled:bg-slate-50">
                 <option value="">{form.clientId ? "— Aucun (optionnel) —" : "Choisissez d'abord un client"}</option>
                 {credits.map((cr) => (
                   <option key={cr.id} value={cr.id}>
@@ -251,21 +251,21 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Date d&apos;échéance</label>
               <input type="date" value={form.dateEcheance} onChange={(e) => set("dateEcheance", e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500" />
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
             <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500" />
           </div>
         </div>
         <div className="sticky bottom-0 bg-white border-t border-slate-200 px-4 sm:px-6 py-4 z-20">
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
             <button onClick={onClose} className="w-full sm:w-auto px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
             <button onClick={submit} disabled={loading}
-              className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg">
+              className="w-full sm:w-auto px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg">
               {loading ? "Création…" : "Créer le financement"}
             </button>
           </div>  
@@ -373,7 +373,7 @@ function FinancementRow({ fin, onRefetch }: { fin: FinancementItem; onRefetch: (
                     <div className="flex items-center gap-2 mt-2 w-full">
                       <input type="number" min={0} value={remb} onChange={(e) => setRemb(e.target.value)}
                         placeholder="Montant remboursement"
-                        className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm w-48 focus:ring-2 focus:ring-emerald-500" />
+                        className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm w-48 focus:ring-2 focus:ring-primary-500" />
                       <button onClick={addRemboursement} disabled={submitting}
                         className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 disabled:opacity-50">
                         <CheckCircle className="w-3 h-3" /> {submitting ? "…" : "Enregistrer remboursement"}

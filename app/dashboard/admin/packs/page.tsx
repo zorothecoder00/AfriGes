@@ -152,7 +152,7 @@ const PACK_LABELS: Record<TypePack, string> = {
 };
 
 const STATUT_CFG: Record<StatutSouscription, { label: string; cls: string; icon: React.ReactNode }> = {
-  EN_ATTENTE: { label: "En attente", cls: "bg-gray-100 text-gray-700",  icon: <Clock className="w-3 h-3" /> },
+  EN_ATTENTE: { label: "En attente", cls: "bg-slate-100 text-slate-700",  icon: <Clock className="w-3 h-3" /> },
   ACTIF:      { label: "Actif",      cls: "bg-blue-100 text-blue-700",  icon: <RefreshCw className="w-3 h-3" /> },
   SUSPENDU:   { label: "Suspendu",   cls: "bg-amber-100 text-amber-700",icon: <AlertTriangle className="w-3 h-3" /> },
   COMPLETE:   { label: "Complet",    cls: "bg-green-100 text-green-700",icon: <CheckCircle className="w-3 h-3" /> },
@@ -160,7 +160,7 @@ const STATUT_CFG: Record<StatutSouscription, { label: string; cls: string; icon:
 };
 
 const ECHEANCE_CFG: Record<StatutEcheance, string> = {
-  EN_ATTENTE: "bg-gray-100 text-gray-700",
+  EN_ATTENTE: "bg-slate-100 text-slate-700",
   PAYE:       "bg-green-100 text-green-700",
   EN_RETARD:  "bg-red-100 text-red-700",
   ANNULE:     "bg-slate-100 text-slate-500",
@@ -191,7 +191,7 @@ export default function PacksAdminPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-emerald-50/10 font-['DM_Sans',sans-serif] p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-emerald-50/10 p-8">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* Header */}
@@ -225,7 +225,7 @@ export default function PacksAdminPage() {
               onClick={() => setTab(t.id)}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 tab === t.id
-                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-200"
+                  ? "bg-primary-600 text-white shadow-md shadow-primary-200"
                   : "text-slate-600 hover:bg-slate-50"
               }`}
             >
@@ -361,18 +361,18 @@ function TabSouscriptions() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Nom, prénom, téléphone…"
-            className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+            className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
           />
         </div>
         <select value={filterStatut} onChange={(e) => setFilterStatut(e.target.value)}
-          className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+          className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
           <option value="">Tous statuts</option>
           {(["EN_ATTENTE","ACTIF","SUSPENDU","COMPLETE","ANNULE"] as StatutSouscription[]).map((s) => (
             <option key={s} value={s}>{STATUT_CFG[s].label}</option>
           ))}
         </select>
         <select value={filterType} onChange={(e) => setFilterType(e.target.value)}
-          className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+          className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
           <option value="">Tous types</option>
           {(Object.keys(PACK_LABELS) as TypePack[]).map((t) => (
             <option key={t} value={t}>{PACK_LABELS[t]}</option>
@@ -380,7 +380,7 @@ function TabSouscriptions() {
         </select>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-sm font-medium transition-all shadow-md shadow-emerald-200"
+          className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 text-sm font-medium transition-all shadow-md shadow-primary-200"
         >
           <Plus className="w-4 h-4" /> {t('packs_new_btn')}
         </button>
@@ -446,7 +446,7 @@ function TabSouscriptions() {
                 <div key={s.id} className="hover:bg-slate-50/50 transition-colors">
                   <div className="px-6 py-4 flex items-center gap-4">
                     {/* Avatar */}
-                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0">
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0">
                       {initials(s.client?.nom ?? s.user?.nom ?? "?", s.client?.prenom ?? s.user?.prenom ?? "")}
                     </div>
 
@@ -726,10 +726,10 @@ function TabEcheances() {
         <div className="flex-1 min-w-48 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher client…"
-            className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
+            className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" />
         </div>
         <select value={filterStatut} onChange={(e) => setFilterStatut(e.target.value)}
-          className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+          className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
           <option value="EN_ATTENTE,EN_RETARD">En attente + En retard</option>
           <option value="EN_RETARD">En retard seulement</option>
           <option value="EN_ATTENTE">En attente seulement</option>
@@ -783,7 +783,7 @@ function TabEcheances() {
                   <tr key={e.id} className={`hover:bg-slate-50 transition-colors ${e.statut === "EN_RETARD" ? "bg-red-50/30" : ""}`}>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0">
+                        <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0">
                           {clientNom.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
                         </div>
                         <div>
@@ -813,7 +813,7 @@ function TabEcheances() {
                       {(e.statut === "EN_ATTENTE" || e.statut === "EN_RETARD") && (
                         <button
                           onClick={() => setVersementTarget({ souscriptionId: s.id, echeanceId: e.id })}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 transition-colors"
+                          className="flex items-center gap-1 px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors"
                         >
                           <CreditCard className="w-3.5 h-3.5" /> Payer
                         </button>
@@ -1045,7 +1045,7 @@ function TabLivraisons() {
                   </div>
                   <button
                     onClick={() => setLivraisonTarget(s)}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-sm font-medium transition-all shadow-md shadow-emerald-200 shrink-0"
+                    className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 text-sm font-medium transition-all shadow-md shadow-primary-200 shrink-0"
                   >
                     <Truck className="w-4 h-4" /> Planifier livraison
                   </button>
@@ -1254,7 +1254,7 @@ function TabModeles() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-sm font-medium transition-all shadow-md shadow-emerald-200"
+          className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 text-sm font-medium transition-all shadow-md shadow-primary-200"
         >
           <Plus className="w-4 h-4" /> Créer un pack
         </button>
@@ -1530,12 +1530,12 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">Nom *</label>
-              <input required {...f("nom")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : Pack Alimentaire Mensuel" />
+              <input required {...f("nom")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Ex : Pack Alimentaire Mensuel" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Type *</label>
               <select required {...f("type")} disabled={isEdit}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white disabled:bg-slate-50">
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white disabled:bg-slate-50">
                 {(Object.keys(PACK_LABELS) as TypePack[]).map((t) => (
                   <option key={t} value={t}>{PACK_LABELS[t]}</option>
                 ))}
@@ -1567,7 +1567,7 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
                   </div>
                 ) : (
                   <select {...f("frequenceVersement")}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
                     <option value="QUOTIDIEN">Quotidien</option>
                     <option value="HEBDOMADAIRE">Hebdomadaire</option>
                     {(form.type !== "ALIMENTAIRE" || form.dureeJours === "30") && (
@@ -1584,7 +1584,7 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-            <textarea {...f("description")} rows={2} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+            <textarea {...f("description")} rows={2} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -1596,7 +1596,7 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
                 </div>
               ) : form.type === "ALIMENTAIRE" ? (
                 <select required {...f("dureeJours")}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
                   <option value="">— Choisir —</option>
                   <option value="15">15 jours</option>
                   <option value="30">30 jours</option>
@@ -1607,7 +1607,7 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
                 </div>
               ) : form.type === "URGENCE" ? (
                 <select required {...f("dureeJours")}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
                   <option value="">— Choisir (7 à 10 j) —</option>
                   <option value="7">7 jours</option>
                   <option value="8">8 jours</option>
@@ -1619,7 +1619,7 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
                   Sans durée (fidélité par points)
                 </div>
               ) : (
-                <input type="number" min="1" {...f("dureeJours")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 30" />
+                <input type="number" min="1" {...f("dureeJours")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Ex : 30" />
               )}
             </div>
             {/* Versement standard :
@@ -1632,7 +1632,7 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                   {form.type === "EPARGNE_PRODUIT" ? "Épargne périodique (FCFA)" : "Versement standard (FCFA)"}
                 </label>
-                <input type="number" min="0" {...f("montantVersement")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 5000" />
+                <input type="number" min="0" {...f("montantVersement")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Ex : 5000" />
                 {form.type === "EPARGNE_PRODUIT" && (
                   <p className="text-xs text-slate-400 mt-1">Montant que le client met de côté à chaque échéance</p>
                 )}
@@ -1756,7 +1756,7 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
           {form.type === "EPARGNE_PRODUIT" && (
             <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
               <label className="block text-sm font-medium text-slate-700 mb-1">Seuil d&apos;épargne (FCFA)</label>
-              <input type="number" min="0" {...f("montantSeuil")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 30000" />
+              <input type="number" min="0" {...f("montantSeuil")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Ex : 30000" />
             </div>
           )}
 
@@ -1780,7 +1780,7 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
             <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium transition-colors">
               Annuler
             </button>
-            <button type="submit" disabled={creating || updating} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 text-sm font-medium transition-colors">
+            <button type="submit" disabled={creating || updating} className="flex-1 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 text-sm font-medium transition-colors">
               {creating || updating ? "Enregistrement…" : isEdit ? "Sauvegarder" : "Créer le pack"}
             </button>
           </div>
@@ -1842,7 +1842,7 @@ function ModalEditSouscription({
           <select
             value={packId}
             onChange={(e) => setPackId(e.target.value)}
-            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             {(packs ?? []).filter((p) => p.actif).map((p) => (
               <option key={p.id} value={p.id}>{p.nom} ({PACK_LABELS[p.type]})</option>
@@ -1855,7 +1855,7 @@ function ModalEditSouscription({
           <select
             value={statut}
             onChange={(e) => setStatut(e.target.value as StatutSouscription)}
-            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             {(["EN_ATTENTE", "ACTIF", "SUSPENDU", "COMPLETE", "ANNULE"] as StatutSouscription[]).map((s) => (
               <option key={s} value={s}>{STATUT_CFG[s].label}</option>
@@ -1874,7 +1874,7 @@ function ModalEditSouscription({
               <select
                 value={formuleRevendeur}
                 onChange={(e) => setFormuleRevendeur(e.target.value)}
-                className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="FORMULE_1">Formule 1</option>
                 <option value="FORMULE_2">Formule 2</option>
@@ -1889,7 +1889,7 @@ function ModalEditSouscription({
             <select
               value={frequenceVersement}
               onChange={(e) => setFrequenceVersement(e.target.value)}
-              className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="HEBDOMADAIRE">Hebdomadaire</option>
               <option value="BIMENSUEL">Bimensuel</option>
@@ -1905,7 +1905,7 @@ function ModalEditSouscription({
             min={1}
             value={montantTotal}
             onChange={(e) => setMontantTotal(e.target.value)}
-            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
 
@@ -1915,7 +1915,7 @@ function ModalEditSouscription({
             type="date"
             value={dateDebut}
             onChange={(e) => setDateDebut(e.target.value)}
-            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
 
@@ -1925,7 +1925,7 @@ function ModalEditSouscription({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
-            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
 
@@ -1944,7 +1944,7 @@ function ModalEditSouscription({
               dateDebut,
               notes,
             })}
-            className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+            className="px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
           >
             {loading ? "Enregistrement..." : "Enregistrer"}
           </button>
@@ -2192,7 +2192,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
           {[{ n: 1, label: "Client" }, { n: 2, label: "Config" }, { n: 3, label: "Produits" }].map(({ n, label }) => (
             <React.Fragment key={n}>
               <div className={`flex items-center gap-1.5 ${step >= n ? "text-emerald-600" : "text-slate-400"}`}>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step > n ? "bg-emerald-600 text-white" : step === n ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-500"}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step > n ? "bg-primary-600 text-white" : step === n ? "bg-primary-600 text-white" : "bg-slate-200 text-slate-500"}`}>
                   {step > n ? <CheckCircle className="w-3.5 h-3.5" /> : n}
                 </div>
                 <span className="text-sm font-medium">{label}</span>
@@ -2212,7 +2212,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
                 value={clientSearch}
                 onChange={(e) => { setClientSearch(e.target.value); setSelectedClient(null); }}
                 placeholder="Nom, prénom ou téléphone…"
-                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50"
               />
             </div>
             {clients.length > 0 && (
@@ -2264,7 +2264,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Pack *</label>
               <select required value={packId} onChange={(e) => setPackId(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
                 <option value="">— Sélectionner —</option>
                 {(packs ?? []).filter((p) => p.actif).map((p) => (
                   <option key={p.id} value={p.id}>{p.nom} ({PACK_LABELS[p.type]})</option>
@@ -2365,7 +2365,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Montant total *</label>
                   <input type="number" min="1" required value={montantTotal} onChange={(e) => setMontantTotal(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="FCFA" />
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="FCFA" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -2373,7 +2373,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
                     {selectedPack?.acomptePercent && <span className="ml-1 text-xs text-slate-400">({selectedPack.acomptePercent}% min)</span>}
                   </label>
                   <input type="number" min="0" value={acompte} onChange={(e) => setAcompte(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="0" />
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="0" />
                 </div>
               </div>
             )}
@@ -2381,13 +2381,13 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Date de début</label>
               <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
               <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" placeholder="Observations…" />
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" placeholder="Observations…" />
             </div>
 
             <div className="flex gap-3 pt-1">
@@ -2396,7 +2396,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
                 Retour
               </button>
               <button type="submit" disabled={loading || !packId || !montantTotal}
-                className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                className="flex-1 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 text-sm font-medium transition-colors flex items-center justify-center gap-2">
                 {loading ? "Création…" : <><Package className="w-4 h-4" /> Créer &amp; choisir les produits</>}
               </button>
             </div>
@@ -2496,7 +2496,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
                 Passer
               </button>
               <button type="button" onClick={submitLignes} disabled={savingLignes}
-                className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 text-sm font-medium transition-colors">
+                className="flex-1 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 text-sm font-medium transition-colors">
                 {savingLignes ? "Enregistrement…" : `Enregistrer${checkedIds.size + newProds.filter(p => p.nom.trim()).length > 0 ? ` (${checkedIds.size + newProds.filter(p => p.nom.trim()).length})` : " & terminer"}`}
               </button>
             </div>
@@ -2544,12 +2544,12 @@ function ModalVersement({
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Montant (FCFA) *</label>
             <input type="number" min="1" required value={montant} onChange={(e) => setMontant(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex : 5 000" autoFocus />
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Ex : 5 000" autoFocus />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
             <select value={type} onChange={(e) => setType(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
               <option value="VERSEMENT_PERIODIQUE">Versement périodique</option>
               <option value="COTISATION_INITIALE">Acompte / Cotisation initiale</option>
               <option value="REMBOURSEMENT">Remboursement</option>
@@ -2559,11 +2559,11 @@ function ModalVersement({
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
           </div>
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium transition-colors">Annuler</button>
-            <button type="submit" disabled={loading || !montant} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 text-sm font-medium transition-colors">
+            <button type="submit" disabled={loading || !montant} className="flex-1 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 text-sm font-medium transition-colors">
               {loading ? "Enregistrement…" : "Valider"}
             </button>
           </div>
@@ -2756,7 +2756,7 @@ function ModalPlanifierLivraison({
               required
               value={selectedPdvId ?? ""}
               onChange={(e) => setSelectedPdvId(e.target.value ? Number(e.target.value) : null)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
             >
               <option value="">— Choisir le point de vente —</option>
               {clientPdvs.map((pdv) => (
@@ -2820,7 +2820,7 @@ function ModalPlanifierLivraison({
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Date prévue</label>
             <input type="date" value={datePrevisionnelle} onChange={(e) => setDatePrevisionnelle(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
 
           <div>
@@ -2850,7 +2850,7 @@ function ModalPlanifierLivraison({
                     <div className="flex gap-2 items-center">
                       <div className="flex-1">
                         <select value={l.produitId} onChange={(e) => updateLigne(i, "produitId", e.target.value)}
-                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
                           <option value="">— Choisir un produit —</option>
                           {produits.map((p) => {
                             const dispoReel = (p.totalStock ?? p.stock ?? 0) - (p.quantiteReservee ?? 0);
@@ -2870,13 +2870,13 @@ function ModalPlanifierLivraison({
                       <div className="w-20">
                         <input type="number" min="1" max={prod ? Math.max(0, (prod.totalStock ?? prod.stock ?? 0) - (prod.quantiteReservee ?? 0)) : undefined}
                           value={l.quantite} onChange={(e) => updateLigne(i, "quantite", e.target.value)}
-                          placeholder="Qté" className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          placeholder="Qté" className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary-500" />
                       </div>
                       <div className="w-28">
                         <input type="number" min="0" step="1" value={l.prixUnitaire}
                           onChange={(e) => updateLigne(i, "prixUnitaire", e.target.value)}
                           placeholder="0 FCFA"
-                          className="w-full border-2 border-emerald-300 rounded-xl px-3 py-2 text-sm text-center font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-emerald-50" />
+                          className="w-full border-2 border-emerald-300 rounded-xl px-3 py-2 text-sm text-center font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 bg-emerald-50" />
                         {prixRef != null && (
                           <p className="text-xs text-slate-400 text-center mt-0.5">réf. {formatCurrency(prixRef)}</p>
                         )}
@@ -2902,7 +2902,7 @@ function ModalPlanifierLivraison({
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -2910,7 +2910,7 @@ function ModalPlanifierLivraison({
             <button
               type="submit"
               disabled={saving || budgetDepasse || (clientPdvs.length > 0 && !selectedPdvId)}
-              className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60 text-sm font-medium transition-colors"
+              className="flex-1 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-60 text-sm font-medium transition-colors"
             >
               {saving ? "Enregistrement…" : "Planifier"}
             </button>

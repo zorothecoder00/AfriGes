@@ -61,13 +61,13 @@ export default function RIALayout({ children }: { children: ReactNode }) {
           <Home className="w-3 h-3" /> Admin
         </Link>
         <ChevronRight className="w-3 h-3" />
-        <span className="text-emerald-600 font-medium">RIA — Réseau des Investisseurs AfriSime</span>
+        <span className="text-primary-600 font-medium">RIA — Réseau des Investisseurs AfriSime</span>
       </div>
 
       <div className="flex flex-col md:flex-row">
         {/* ── Onglets ── */}
         <SideTabs
-          accent="emerald"
+          accent="brand"
           items={items}
           className="bg-white px-3 md:px-3 py-2 md:py-4 md:sticky md:top-0 md:h-[calc(100vh-49px)] md:overflow-y-auto"
         />

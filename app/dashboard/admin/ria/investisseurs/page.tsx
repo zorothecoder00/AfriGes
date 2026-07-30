@@ -213,7 +213,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                   <div key={k}>
                     <label className="block text-xs font-medium text-slate-600 mb-1">{l}</label>
                     <input value={form[k as keyof typeof form] as string} onChange={(e) => set(k, e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
                   </div>
                 ))}
               </div>
@@ -221,7 +221,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                 <div key={k}>
                   <label className="block text-xs font-medium text-slate-600 mb-1">{l}</label>
                   <input type={type} value={form[k as keyof typeof form] as string} onChange={(e) => set(k, e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
                 </div>
               ))}
               <div className="grid grid-cols-2 gap-3">
@@ -229,14 +229,14 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                   <div key={k}>
                     <label className="block text-xs font-medium text-slate-600 mb-1">{l}</label>
                     <input value={form[k as keyof typeof form] as string} onChange={(e) => set(k, e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
                   </div>
                 ))}
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
                 <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
               </div>
               <div className="pt-2 border-t border-slate-100">
                 <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
@@ -248,7 +248,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                   <div className="mt-2">
                     <label className="block text-xs font-medium text-slate-600 mb-1">Nom du portefeuille</label>
                     <input value={form.nomPortefeuille} onChange={(e) => set("nomPortefeuille", e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
                   </div>
                 )}
               </div>
@@ -268,7 +268,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                       value={eligSearch}
                       onChange={(e) => setEligSearch(e.target.value)}
                       placeholder="Nom, prénom, email…"
-                      className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     />
                   </div>
                   {eligSearch.length >= 2 && (
@@ -345,14 +345,14 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                   <div key={k}>
                     <label className="block text-xs font-medium text-slate-600 mb-1">{l}</label>
                     <input value={profilForm[k as keyof typeof profilForm] as string} onChange={(e) => setP(k, e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
                   </div>
                 ))}
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
                 <textarea value={profilForm.notes} onChange={(e) => setP("notes", e.target.value)} rows={2}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
               </div>
               <div className="pt-2 border-t border-slate-100">
                 <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
@@ -364,7 +364,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                   <div className="mt-2">
                     <label className="block text-xs font-medium text-slate-600 mb-1">Nom du portefeuille</label>
                     <input value={profilForm.nomPortefeuille} onChange={(e) => setP("nomPortefeuille", e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
                   </div>
                 )}
               </div>
@@ -427,7 +427,7 @@ export default function RIAInvestisseursPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Nom, prénom, email, téléphone…"
-          className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+          className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
         />
       </div>
 

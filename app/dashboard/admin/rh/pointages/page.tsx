@@ -157,7 +157,7 @@ export default function PointagesPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input value={search} onChange={(e) => handleSearch(e.target.value)}
                       placeholder="Rechercher…"
-                      className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500" />
                   </div>
                   <div className="bg-white rounded-xl border border-slate-200 overflow-hidden max-h-64 lg:max-h-[75vh] overflow-y-auto">
                     {loadingCollabs ? (
@@ -277,7 +277,7 @@ function RapportMensuel({ year, month, onPrev, onNext }: { year: number; month: 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filtrer par département…"
-              className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-52" />
+              className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 w-52" />
           </div>
           <button onClick={handleExport} disabled={rapport.length === 0}
             className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
@@ -678,12 +678,12 @@ function PointageDetailPanel({ dateStr, pointage, collab, onClose, onRefresh }: 
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Arrivée</label>
             <input type="time" value={heureArrivee} onChange={(e) => setHeureArrivee(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Départ</label>
             <input type="time" value={heureDepart} onChange={(e) => setHeureDepart(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
         </div>
 
@@ -716,7 +716,7 @@ function PointageDetailPanel({ dateStr, pointage, collab, onClose, onRefresh }: 
           <label className="block text-xs font-medium text-slate-600 mb-1">Justificatif</label>
           <input type="text" value={justificatif} onChange={(e) => setJustificatif(e.target.value)}
             placeholder="Médical, transport…"
-            className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </div>
 
         {/* Notes */}
@@ -724,14 +724,14 @@ function PointageDetailPanel({ dateStr, pointage, collab, onClose, onRefresh }: 
           <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
             rows={2} placeholder="Remarque…"
-            className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+            className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
         </div>
       </div>
 
       {/* Actions */}
       <div className="px-4 py-3 border-t border-slate-200 space-y-2">
         <button onClick={handleSave} disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50">
+          className="w-full flex items-center justify-center gap-2 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50">
           {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Edit2 className="w-4 h-4" />}
           {pointage ? "Mettre à jour" : "Créer le pointage"}
         </button>

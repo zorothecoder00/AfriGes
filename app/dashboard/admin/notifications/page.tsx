@@ -38,14 +38,14 @@ interface NotifResponse {
 const PRIORITE_STYLE: Record<Priorite, string> = {
   URGENT: 'bg-red-100 text-red-700 border-red-200',
   HAUTE:  'bg-orange-100 text-orange-700 border-orange-200',
-  NORMAL: 'bg-gray-100 text-gray-600 border-gray-200',
+  NORMAL: 'bg-slate-100 text-slate-600 border-slate-200',
   BASSE:  'bg-blue-100 text-blue-700 border-blue-200',
 };
 
 const PRIORITE_DOT: Record<Priorite, string> = {
   URGENT: 'bg-red-500',
   HAUTE:  'bg-orange-500',
-  NORMAL: 'bg-gray-400',
+  NORMAL: 'bg-slate-400',
   BASSE:  'bg-blue-400',
 };
 
@@ -105,9 +105,9 @@ export default function NotificationsClientelePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
+      <nav className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
@@ -116,8 +116,8 @@ export default function NotificationsClientelePage() {
                 <Bell size={16} className="text-white" />
               </div>
               <div>
-                <h1 className="text-base font-bold text-gray-900">Notifications</h1>
-                <p className="text-xs text-gray-500">Administration</p>
+                <h1 className="text-base font-bold text-slate-900">Notifications</h1>
+                <p className="text-xs text-slate-500">Administration</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -133,7 +133,7 @@ export default function NotificationsClientelePage() {
         {/* En-tête */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               <Bell className="w-6 h-6 text-blue-600" />
               Toutes les notifications
               {(res?.meta.nbNonLues ?? 0) > 0 && (
@@ -142,7 +142,7 @@ export default function NotificationsClientelePage() {
                 </span>
               )}
             </h2>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <p className="text-sm text-slate-500 mt-0.5">
               Notifications générales de votre espace administrateur
             </p>
           </div>
@@ -152,7 +152,7 @@ export default function NotificationsClientelePage() {
               <CheckCheck className="w-4 h-4" /> {t('notif_mark_all_read')}
             </button>
             <button onClick={refetch}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
+              className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
@@ -170,7 +170,7 @@ export default function NotificationsClientelePage() {
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                 filtre === key
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
               }`}>
               {label}
             </button>
@@ -180,11 +180,11 @@ export default function NotificationsClientelePage() {
         {/* Liste */}
         <div className="space-y-2">
           {loading && !res ? (
-            <div className="flex items-center justify-center py-16 text-gray-400">
+            <div className="flex items-center justify-center py-16 text-slate-400">
               <RefreshCw className="w-5 h-5 animate-spin mr-2" /> {t('notif_loading')}
             </div>
           ) : displayed.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
               <Bell className="w-10 h-10 mb-3" />
               <p className="text-sm">{t('notif_none_found')}</p>
             </div>
@@ -192,12 +192,12 @@ export default function NotificationsClientelePage() {
             displayed.map((n) => (
               <div key={n.id}
                 className={`bg-white rounded-xl border transition-colors ${
-                  !n.lue ? 'border-blue-200 shadow-sm' : 'border-gray-100'
+                  !n.lue ? 'border-blue-200 shadow-sm' : 'border-slate-100'
                 }`}>
                 <div className="p-4 flex items-start gap-3">
                   {/* icône */}
                   <div className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center ${
-                    !n.lue ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
+                    !n.lue ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'
                   }`}>
                     {actionIcon(n.actionUrl)}
                   </div>
@@ -207,7 +207,7 @@ export default function NotificationsClientelePage() {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className={`text-sm font-semibold ${!n.lue ? 'text-gray-900' : 'text-gray-700'}`}>
+                          <p className={`text-sm font-semibold ${!n.lue ? 'text-slate-900' : 'text-slate-700'}`}>
                             {n.titre}
                           </p>
                           <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${PRIORITE_STYLE[n.priorite]}`}>
@@ -217,8 +217,8 @@ export default function NotificationsClientelePage() {
                             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${PRIORITE_DOT[n.priorite]}`} />
                           )}
                         </div>
-                        <p className="text-sm text-gray-500 mt-0.5">{n.message}</p>
-                        <p className="text-xs text-gray-400 mt-1">{timeDiff(n.createdAt)} · {formatDateTime(n.createdAt)}</p>
+                        <p className="text-sm text-slate-500 mt-0.5">{n.message}</p>
+                        <p className="text-xs text-slate-400 mt-1">{timeDiff(n.createdAt)} · {formatDateTime(n.createdAt)}</p>
                       </div>
 
                       <div className="flex items-center gap-1 flex-shrink-0">
@@ -245,15 +245,15 @@ export default function NotificationsClientelePage() {
 
         {/* Pagination */}
         {res && res.meta.totalPages > 1 && (
-          <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex items-center justify-between text-sm text-slate-600">
             <span>{res.meta.total} notification(s) · Page {res.meta.page} / {res.meta.totalPages}</span>
             <div className="flex gap-2">
               <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
-                className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
+                className="px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50">
                 {t('btn_prev')}
               </button>
               <button disabled={page === res.meta.totalPages} onClick={() => setPage((p) => p + 1)}
-                className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">
+                className="px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50">
                 {t('btn_next')}
               </button>
             </div>

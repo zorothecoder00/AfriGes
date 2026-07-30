@@ -108,7 +108,7 @@ export default function VuesCataloguePage() {
   );
 
   const renderValeur = (key: string, val: unknown) => {
-    if (val == null || val === "") return <span className="text-gray-300">—</span>;
+    if (val == null || val === "") return <span className="text-slate-300">—</span>;
     if (key === "photo") return typeof val === "string"
       // eslint-disable-next-line @next/next/no-img-element
       ? <img src={val} alt="" className="w-10 h-10 rounded object-cover" /> : null;
@@ -118,28 +118,28 @@ export default function VuesCataloguePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <div className="p-6 max-w-6xl mx-auto space-y-5">
-        <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour au catalogue
         </Link>
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><Users className="w-6 h-6 text-blue-600" /> Vues personnalisées</h2>
-          <p className="text-sm text-gray-400">Configurez, par rôle, quels champs du catalogue sont visibles et comment le stock est affiché. (Distinct des permissions d&apos;action.)</p>
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><Users className="w-6 h-6 text-blue-600" /> Vues personnalisées</h2>
+          <p className="text-sm text-slate-400">Configurez, par rôle, quels champs du catalogue sont visibles et comment le stock est affiché. (Distinct des permissions d&apos;action.)</p>
         </div>
 
         {loadingList ? (
-          <div className="flex items-center justify-center py-24 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
+          <div className="flex items-center justify-center py-24 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-5">
             {/* Liste des rôles */}
             <div className="space-y-1.5">
               {vues.map((v) => (
                 <button key={v.cle} onClick={() => selectRole(v.cle)}
-                  className={`w-full text-left px-3 py-2.5 rounded-xl border text-sm ${selected === v.cle ? "border-blue-300 bg-blue-50 text-blue-800" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}>
+                  className={`w-full text-left px-3 py-2.5 rounded-xl border text-sm ${selected === v.cle ? "border-blue-300 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>
                   <span className="font-medium">{v.nom}</span>
                   {v.personnalise && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600">perso</span>}
-                  <span className="block text-[11px] text-gray-400">{v.champsVisibles.length} champ(s) · {MODES_STOCK.find((m) => m.cle === v.modeStock)?.label}</span>
+                  <span className="block text-[11px] text-slate-400">{v.champsVisibles.length} champ(s) · {MODES_STOCK.find((m) => m.cle === v.modeStock)?.label}</span>
                 </button>
               ))}
             </div>
@@ -147,18 +147,18 @@ export default function VuesCataloguePage() {
             {/* Éditeur + aperçu */}
             <div className="space-y-5">
               {loadingVue ? (
-                <div className="flex items-center justify-center py-24 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
+                <div className="flex items-center justify-center py-24 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
               ) : selectedVue ? (
                 <>
-                  <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
                     <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
                       <div>
-                        <h3 className="font-bold text-gray-800">{selectedVue.nom}</h3>
-                        <p className="text-xs text-gray-400">{selectedVue.description}</p>
+                        <h3 className="font-bold text-slate-800">{selectedVue.nom}</h3>
+                        <p className="text-xs text-slate-400">{selectedVue.description}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={reinitialiser} disabled={saving} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-50"><RotateCcw className="w-4 h-4" /> Réinitialiser</button>
-                        <button onClick={enregistrer} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold">
+                        <button onClick={reinitialiser} disabled={saving} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 rounded-lg hover:bg-slate-50 disabled:opacity-50"><RotateCcw className="w-4 h-4" /> Réinitialiser</button>
+                        <button onClick={enregistrer} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold">
                           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Enregistrer
                         </button>
                       </div>
@@ -170,7 +170,7 @@ export default function VuesCataloguePage() {
                       <div className="flex gap-2 mt-1">
                         {MODES_STOCK.map((m) => (
                           <button key={m.cle} onClick={() => { setModeStock(m.cle); setDirty(true); }}
-                            className={`px-3 py-1.5 rounded-lg text-sm border ${modeStock === m.cle ? "border-blue-300 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>{m.label}</button>
+                            className={`px-3 py-1.5 rounded-lg text-sm border ${modeStock === m.cle ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>{m.label}</button>
                         ))}
                       </div>
                     </div>
@@ -185,7 +185,7 @@ export default function VuesCataloguePage() {
                             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">{g}</p>
                             <div className="space-y-1">
                               {items.map((c) => (
-                                <label key={c.key} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                                <label key={c.key} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                                   <input type="checkbox" checked={champs.has(c.key)} onChange={() => toggle(c.key)} className="w-4 h-4 rounded" />
                                   {c.label}
                                   {estSensible(c.key) && <Lock className="w-3 h-3 text-amber-500" aria-label="confidentiel" />}
@@ -199,24 +199,24 @@ export default function VuesCataloguePage() {
                   </div>
 
                   {/* Aperçu live */}
-                  <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                    <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                    <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
                       <Eye className="w-4 h-4 text-blue-500" />
-                      <h3 className="font-semibold text-gray-800">Aperçu — ce que voit « {selectedVue.nom} »</h3>
+                      <h3 className="font-semibold text-slate-800">Aperçu — ce que voit « {selectedVue.nom} »</h3>
                     </div>
                     {projections.length === 0 ? (
-                      <div className="py-12 text-center text-sm text-gray-400">Aucun produit actif pour l&apos;aperçu.</div>
+                      <div className="py-12 text-center text-sm text-slate-400">Aucun produit actif pour l&apos;aperçu.</div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
                         {projections.map((p, i) => (
-                          <div key={i} className="border border-gray-100 rounded-xl p-3 bg-slate-50/40">
+                          <div key={i} className="border border-slate-100 rounded-xl p-3 bg-slate-50/40">
                             {CHAMPS_CATALOGUE.filter((c) => c.key in p).map((c) => (
                               <div key={c.key} className="flex items-start justify-between gap-2 py-0.5 text-xs">
-                                <span className="text-gray-400 shrink-0">{CHAMP_LABEL[c.key]}</span>
-                                <span className="text-gray-800 text-right break-words">{renderValeur(c.key, p[c.key])}</span>
+                                <span className="text-slate-400 shrink-0">{CHAMP_LABEL[c.key]}</span>
+                                <span className="text-slate-800 text-right break-words">{renderValeur(c.key, p[c.key])}</span>
                               </div>
                             ))}
-                            {Object.keys(p).length <= 1 && <p className="text-xs text-gray-300 italic flex items-center gap-1"><Boxes className="w-3.5 h-3.5" /> Aucun champ visible</p>}
+                            {Object.keys(p).length <= 1 && <p className="text-xs text-slate-300 italic flex items-center gap-1"><Boxes className="w-3.5 h-3.5" /> Aucun champ visible</p>}
                           </div>
                         ))}
                       </div>

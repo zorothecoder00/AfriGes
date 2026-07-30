@@ -318,7 +318,7 @@ export default function AdminApprovisionnementsPage() {
                             <div className="flex gap-2">
                               <button
                                 onClick={() => openApproModal(r)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-semibold transition-colors"
                               >
                                 <CheckCircle size={13} />Approuver
                               </button>
@@ -498,7 +498,7 @@ export default function AdminApprovisionnementsPage() {
                           value={lignesPrix[l.id] ?? ""}
                           onChange={e => setLignesPrix(prev => ({ ...prev, [l.id]: e.target.value }))}
                           placeholder="Ex: 25000"
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                         />
                       </div>
                       <div className="w-28 text-right">
@@ -538,7 +538,7 @@ export default function AdminApprovisionnementsPage() {
               <button
                 onClick={handleApprouver}
                 disabled={patching}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center gap-2"
               >
                 <CheckCircle size={16} />
                 {patching ? "Approbation…" : "Approuver la commande"}

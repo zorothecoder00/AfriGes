@@ -131,7 +131,7 @@ export default function CompetencesPage() {
           </div>
           {activeTab === "referentiel" && (
             <button onClick={() => setShowCreate(true)}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
               <Plus className="w-4 h-4" /> Nouvelle compétence
             </button>
           )}
@@ -181,7 +181,7 @@ export default function CompetencesPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)}
                   placeholder="Rechercher une compétence…"
-                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </div>
               <select value={filterType} onChange={(e) => setFilterType(e.target.value)}
                 className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none">
@@ -202,7 +202,7 @@ export default function CompetencesPage() {
                 <BookOpen className="w-10 h-10 mb-2 opacity-30" />
                 <p className="text-sm">Aucune compétence dans le référentiel</p>
                 <button onClick={() => setShowCreate(true)}
-                  className="mt-4 px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                  className="mt-4 px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">
                   Ajouter la première
                 </button>
               </div>
@@ -241,7 +241,7 @@ export default function CompetencesPage() {
             <div className="grid grid-cols-1 lg:grid-cols-[220px_220px_auto_1fr] gap-3 items-center">
               <input value={matriceDept} onChange={(e) => setMatriceDept(e.target.value)}
                 placeholder="Filtrer par département…"
-                className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-48" />
+                className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 w-48" />
               <select value={matriceType} onChange={(e) => setMatriceType(e.target.value)}
                 className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none">
                 <option value="">Tous les types</option>
@@ -328,7 +328,7 @@ export default function CompetencesPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input value={collabSearch} onChange={(e) => setCollabSearch(e.target.value)}
                   placeholder="Rechercher…"
-                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </div>
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden max-h-80 xl:max-h-[70vh] overflow-y-auto">
                 <div className="divide-y divide-slate-100">
@@ -574,7 +574,7 @@ function CollaborateurCompetences({ collab, referentiel }: { collab: ProfilRH; r
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
           </button>
           <button onClick={() => setShowAdd(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg">
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg">
             <Plus className="w-3.5 h-3.5" /> Ajouter
           </button>
         </div>
@@ -617,13 +617,13 @@ function CollaborateurCompetences({ collab, referentiel }: { collab: ProfilRH; r
                           <div className="w-full lg:w-auto flex flex-col sm:flex-row gap-2">
                             <select value={editComp.niveau}
                               onChange={(e) => setEditComp((prev) => prev ? { ...prev, niveau: e.target.value } : null)}
-                              className="w-full sm:w-auto px-2 py-1 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                              className="w-full sm:w-auto px-2 py-1 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500">
                               {NIVEAUX.map((n) => <option key={n.key} value={n.key}>{n.label}</option>)}
                             </select>
                             <input value={editComp.notes}
                               onChange={(e) => setEditComp((prev) => prev ? { ...prev, notes: e.target.value } : null)}
-                              placeholder="Notes…" className="w-full sm:w-40 px-2 py-1 border border-slate-200 rounded-lg text-xs w-28 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                            <button onClick={handleSaveEdit} className="flex items-center justify-center p-2 p-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                              placeholder="Notes…" className="w-full sm:w-40 px-2 py-1 border border-slate-200 rounded-lg text-xs w-28 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                            <button onClick={handleSaveEdit} className="flex items-center justify-center p-2 p-1 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
                               <Save className="w-3.5 h-3.5" />
                             </button>
                             <button onClick={() => setEditComp(null)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400">
@@ -735,7 +735,7 @@ function AddCompetenceModal({ profilRHId, referentiel, onClose, onAdded }: {
             <select
               value={competenceId}
               onChange={(e) => setCompetenceId(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="">— Sélectionner —</option>
               {(["HARD_SKILL", "SOFT_SKILL"] as const).map((type) => {
@@ -794,7 +794,7 @@ function AddCompetenceModal({ profilRHId, referentiel, onClose, onAdded }: {
               type="date"
               value={dateAcquisition}
               onChange={(e) => setDateAcquisition(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
           {/* Notes */}
@@ -806,7 +806,7 @@ function AddCompetenceModal({ profilRHId, referentiel, onClose, onAdded }: {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Contexte d'acquisition…"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
         </div>
@@ -820,7 +820,7 @@ function AddCompetenceModal({ profilRHId, referentiel, onClose, onAdded }: {
           <button
             onClick={handleSave}
             disabled={saving || !competenceId}
-            className="w-full sm:flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
+            className="w-full sm:flex-1 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
             {saving ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
             ) : (
@@ -917,7 +917,7 @@ function CompetenceModal({ initial, onClose, onSaved }: {
             <select
               value={categorie}
               onChange={(e) => setCategorie(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
               <option value="">— Sans catégorie —</option>
               {categories.map((c) => (
                 <option key={c} value={c}>
@@ -936,7 +936,7 @@ function CompetenceModal({ initial, onClose, onSaved }: {
               onChange={(e) => setNom(e.target.value)}
               required
               placeholder="Ex : Excel avancé, Prise de parole…"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"/>
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"/>
           </div>
           {/* Description */}
           <div>
@@ -948,7 +948,7 @@ function CompetenceModal({ initial, onClose, onSaved }: {
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="Ce que cette compétence implique…"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
         </form>
@@ -964,7 +964,7 @@ function CompetenceModal({ initial, onClose, onSaved }: {
             type="submit"
             onClick={handleSubmit}
             disabled={saving}
-            className="w-full sm:flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
+            className="w-full sm:flex-1 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
             {saving ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
             ) : (

@@ -514,7 +514,7 @@ export default function PortefeuilleDetailPage({ params }: { params: Promise<{ i
                     value={editNom}
                     onChange={(e) => setEditNom(e.target.value)}
                     placeholder="Nom du portefeuille"
-                    className="border border-slate-300 rounded-lg px-2 py-0.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="border border-slate-300 rounded-lg px-2 py-0.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     autoFocus
                   />
                   <button onClick={saveNom} disabled={saving}

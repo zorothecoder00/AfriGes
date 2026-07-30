@@ -122,7 +122,7 @@ export default function BeneficesPage() {
             Le calcul est <strong>idempotent</strong> : si une distribution existe déjà pour ce mois, elle est ignorée. Vous pouvez relancer sans risque.
           </div>
           <button onClick={handleCalculer} disabled={calcLoading}
-            className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50">
+            className="flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50">
             <Calculator className={`w-4 h-4 ${calcLoading ? "animate-spin" : ""}`} />
             Calculer les bénéfices — {new Date(annee, mois - 1).toLocaleString("fr-FR", { month: "long" })} {annee}
           </button>
@@ -198,7 +198,7 @@ export default function BeneficesPage() {
                           <td className="px-4 py-3 text-center">
                             {d.statut === "PLANIFIE" && (
                               <button onClick={() => handleDistribuer(d.id)} disabled={distribLoading}
-                                className="px-3 py-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-50">
+                                className="px-3 py-1 text-xs bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors disabled:opacity-50">
                                 Distribuer
                               </button>
                             )}

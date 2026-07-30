@@ -255,7 +255,7 @@ const STATUT_BADGE: Record<string, string> = {
   DEMISSIONNAIRE:    "bg-orange-100 text-orange-700",
   LICENCIE:          "bg-red-100 text-red-700",
   RETRAITE:          "bg-purple-100 text-purple-700",
-  INACTIF:           "bg-gray-100 text-gray-500",
+  INACTIF:           "bg-slate-100 text-slate-500",
 };
 
 const STATUT_LABEL: Record<string, string> = {
@@ -308,7 +308,7 @@ const DOC_TYPE_COLOR: Record<string, string> = {
   COORDONNEES_BANCAIRES: "bg-green-100 text-green-700",
   CONTACT_URGENCE:       "bg-orange-100 text-orange-700",
   CORRESPONDANCE:        "bg-slate-100 text-slate-700",
-  AUTRE:         "bg-gray-100 text-gray-600",
+  AUTRE:         "bg-slate-100 text-slate-600",
 };
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -371,7 +371,7 @@ export default function DossierCollaborateurPage({
                 </h1>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="font-mono text-xs text-slate-400">{profil.matricule}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUT_BADGE[profil.statut] ?? "bg-gray-100 text-gray-500"}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUT_BADGE[profil.statut] ?? "bg-slate-100 text-slate-500"}`}>
                     {STATUT_LABEL[profil.statut] ?? profil.statut}
                   </span>
                 </div>
@@ -511,18 +511,18 @@ function IdentiteTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => voi
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Date de naissance">
           <input type="date" value={form.dateNaissance} onChange={(e) => set("dateNaissance", e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </Field>
 
         <Field label="Lieu de naissance">
           <input value={form.lieuNaissance} onChange={(e) => set("lieuNaissance", e.target.value)}
             placeholder="Ville / pays"
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </Field>
 
         <Field label="Sexe">
           <select value={form.sexe} onChange={(e) => set("sexe", e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
             <option value="">— Sélectionner —</option>
             <option value="MASCULIN">Masculin</option>
             <option value="FEMININ">Féminin</option>
@@ -533,12 +533,12 @@ function IdentiteTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => voi
         <Field label="Nationalité">
           <input value={form.nationalite} onChange={(e) => set("nationalite", e.target.value)}
             placeholder="Ex: Ivoirienne"
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </Field>
 
         <Field label="Situation matrimoniale">
           <select value={form.situationMatrimoniale} onChange={(e) => set("situationMatrimoniale", e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
             <option value="">— Sélectionner —</option>
             {[["CELIBATAIRE","Célibataire"],["MARIE","Marié(e)"],["DIVORCE","Divorcé(e)"],["VEUF","Veuf/Veuve"],["UNION_LIBRE","Union libre"]].map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
@@ -548,25 +548,25 @@ function IdentiteTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => voi
 
         <Field label="Nombre d'enfants">
           <input type="number" min={0} value={form.nbEnfants} onChange={(e) => set("nbEnfants", e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </Field>
 
         <Field label="Téléphone secondaire">
           <input value={form.telephoneSecondaire} onChange={(e) => set("telephoneSecondaire", e.target.value)}
             placeholder="+225 XX XX XX XX"
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </Field>
       </div>
 
       <Field label="Notes internes">
         <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={3}
           placeholder="Notes RH confidentielles…"
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
       </Field>
 
       <div className="flex justify-end">
         <button onClick={handleSave} disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
           {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Enregistrer
         </button>
@@ -614,7 +614,7 @@ function ContratTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => void
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Statut RH">
           <select value={form.statut} onChange={(e) => set("statut", e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
             {Object.entries({ ACTIF:"Actif", EN_PERIODE_ESSAI:"Période d'essai", SUSPENDU:"Suspendu", DEMISSIONNAIRE:"Démissionnaire", LICENCIE:"Licencié", RETRAITE:"Retraité", INACTIF:"Inactif" }).map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
             ))}
@@ -623,7 +623,7 @@ function ContratTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => void
 
         <Field label="Type de contrat">
           <select value={form.typeContrat} onChange={(e) => set("typeContrat", e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
             <option value="">— Sélectionner —</option>
             {["CDI","CDD","STAGE","CONSULTANT","PRESTATAIRE","FREELANCE"].map((v) => (
               <option key={v} value={v}>{v}</option>
@@ -633,35 +633,35 @@ function ContratTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => void
 
         <Field label="Date d'embauche">
           <input type="date" value={form.dateEmbauche} onChange={(e) => set("dateEmbauche", e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </Field>
 
         <Field label="Date de fin (CDD)">
           <input type="date" value={form.dateFin} onChange={(e) => set("dateFin", e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </Field>
 
         <Field label="Fonction / Poste">
           <input value={form.fonction} onChange={(e) => set("fonction", e.target.value)}
             placeholder="Ex: Responsable commercial"
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </Field>
 
         <Field label="Service">
           <input value={form.service} onChange={(e) => set("service", e.target.value)}
             placeholder="Ex: Commercial"
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </Field>
 
         <Field label="Département">
           <input value={form.departement} onChange={(e) => set("departement", e.target.value)}
             placeholder="Ex: Direction commerciale"
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </Field>
 
         <Field label="Niveau hiérarchique">
           <select value={form.niveauHierarchique} onChange={(e) => set("niveauHierarchique", e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
             <option value="">— Sélectionner —</option>
             {[["DIRECTION","Direction"],["MANAGER","Manager"],["SUPERVISEUR","Superviseur"],["AGENT","Agent"],["STAGIAIRE","Stagiaire"]].map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
@@ -701,7 +701,7 @@ function ContratTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => void
 
       <div className="flex justify-end">
         <button onClick={handleSave} disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
           {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Enregistrer
         </button>
@@ -798,7 +798,7 @@ function DocumentsTab({
       {/* Bouton ajouter */}
       <div className="flex justify-end">
         <button onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700">
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">
           {showForm ? <X className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
           {showForm ? "Annuler" : "Ajouter un document"}
         </button>
@@ -811,7 +811,7 @@ function DocumentsTab({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Type de document">
               <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 <option value="">— Sélectionner —</option>
                 {Object.entries(DOC_TYPE_LABEL).map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
@@ -821,7 +821,7 @@ function DocumentsTab({
             <Field label="Notes">
               <input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                 placeholder="Optionnel"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </Field>
           </div>
           <div>
@@ -862,7 +862,7 @@ function DocumentsTab({
           {Object.entries(grouped).map(([type, docs]) => (
             <div key={type} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
               <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
-                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${DOC_TYPE_COLOR[type] ?? "bg-gray-100 text-gray-600"}`}>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${DOC_TYPE_COLOR[type] ?? "bg-slate-100 text-slate-600"}`}>
                   {DOC_TYPE_LABEL[type] ?? type}
                 </span>
                 <span className="text-xs text-slate-400">{docs.length} version{docs.length > 1 ? "s" : ""}</span>
@@ -1031,7 +1031,7 @@ function CongesTab({ profilId }: { profilId: number }) {
                     <span className="text-sm font-medium text-slate-800">
                       {TYPE_CONGE_LABEL[d.type] ?? d.type}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUT_CONGE_BADGE[d.statut] ?? "bg-gray-100 text-gray-500"}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUT_CONGE_BADGE[d.statut] ?? "bg-slate-100 text-slate-500"}`}>
                       {STATUT_CONGE_LABEL[d.statut] ?? d.statut}
                     </span>
                     <span className="flex items-center gap-1 text-xs text-slate-400">
@@ -1155,7 +1155,7 @@ const DOC_RH_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   CERTIFICAT_PRESENCE:  { label: "Certificat de présence",  color: "bg-teal-100 text-teal-700"     },
   DECISION_AFFECTATION: { label: "Décision d'affectation",  color: "bg-indigo-100 text-indigo-700" },
   LETTRE_MISSION:       { label: "Lettre de mission",       color: "bg-amber-100 text-amber-700"   },
-  AUTRE:                { label: "Autre",                   color: "bg-gray-100 text-gray-600"     },
+  AUTRE:                { label: "Autre",                   color: "bg-slate-100 text-slate-600"     },
 };
 
 function DocsRHTab({ profilId }: { profilId: number }) {
@@ -1214,7 +1214,7 @@ function DocsRHTab({ profilId }: { profilId: number }) {
         </a>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700"
         >
           {showForm ? <X className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
           {showForm ? "Annuler" : "Nouveau document"}
@@ -1228,7 +1228,7 @@ function DocsRHTab({ profilId }: { profilId: number }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Type de document">
               <select value={form.type} onChange={(e) => handleTypeChange(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 <option value="">— Sélectionner —</option>
                 {Object.entries(DOC_RH_TYPE_CONFIG).map(([k, c]) => (
                   <option key={k} value={k}>{c.label}</option>
@@ -1238,13 +1238,13 @@ function DocsRHTab({ profilId }: { profilId: number }) {
             <Field label="Titre">
               <input value={form.titre} onChange={(e) => setF("titre", e.target.value)}
                 placeholder="Ex: Attestation de travail — 2026"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </Field>
             <Field label="URL du fichier PDF" className="md:col-span-2">
               <div className="relative">
                 <input value={form.fileUrl} onChange={(e) => setF("fileUrl", e.target.value)}
                   placeholder="https://… (optionnel, peut être ajouté plus tard)"
-                  className="w-full pl-3 pr-9 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  className="w-full pl-3 pr-9 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
                 {form.fileUrl && (
                   <a href={form.fileUrl} target="_blank" rel="noreferrer"
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -1256,12 +1256,12 @@ function DocsRHTab({ profilId }: { profilId: number }) {
             <Field label="Notes" className="md:col-span-2">
               <input value={form.notes} onChange={(e) => setF("notes", e.target.value)}
                 placeholder="Optionnel"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </Field>
           </div>
           <div className="flex justify-end">
             <button onClick={handleCreate} disabled={creating}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
               {creating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Créer le document
             </button>
@@ -1337,7 +1337,7 @@ function DocsRHTab({ profilId }: { profilId: number }) {
 const MOIS_LABEL = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
 
 const PAIE_STATUT_BADGE: Record<string, string> = {
-  BROUILLON: "bg-gray-100 text-gray-600",
+  BROUILLON: "bg-slate-100 text-slate-600",
   VALIDE:    "bg-blue-100 text-blue-700",
   PAYE:      "bg-emerald-100 text-emerald-700",
 };
@@ -1376,7 +1376,7 @@ function PaieTab({ profilId }: { profilId: number }) {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-slate-800">{MOIS_LABEL[(f.mois ?? 1) - 1]} {f.annee}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PAIE_STATUT_BADGE[f.statut] ?? "bg-gray-100 text-gray-500"}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PAIE_STATUT_BADGE[f.statut] ?? "bg-slate-100 text-slate-500"}`}>
                       {PAIE_STATUT_LABEL[f.statut] ?? f.statut}
                     </span>
                   </div>
@@ -1432,7 +1432,7 @@ const FORMATION_STATUT_BADGE: Record<string, string> = {
   PLANIFIEE: "bg-blue-100 text-blue-700",
   EN_COURS:  "bg-yellow-100 text-yellow-700",
   TERMINEE:  "bg-emerald-100 text-emerald-700",
-  ANNULEE:   "bg-gray-100 text-gray-500",
+  ANNULEE:   "bg-slate-100 text-slate-500",
 };
 const FORMATION_STATUT_LABEL: Record<string, string> = {
   PLANIFIEE: "Planifiée", EN_COURS: "En cours", TERMINEE: "Terminée", ANNULEE: "Annulée",
@@ -1475,7 +1475,7 @@ function FormationsTab({ profilId }: { profilId: number }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium text-slate-800 truncate">{f.titre}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${FORMATION_STATUT_BADGE[f.statut] ?? "bg-gray-100 text-gray-500"}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${FORMATION_STATUT_BADGE[f.statut] ?? "bg-slate-100 text-slate-500"}`}>
                       {FORMATION_STATUT_LABEL[f.statut] ?? f.statut}
                     </span>
                   </div>
@@ -1488,7 +1488,7 @@ function FormationsTab({ profilId }: { profilId: number }) {
                 </div>
                 {participation && (
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PARTICIPATION_STATUT_BADGE[participation.statut] ?? "bg-gray-100 text-gray-500"}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PARTICIPATION_STATUT_BADGE[participation.statut] ?? "bg-slate-100 text-slate-500"}`}>
                       {PARTICIPATION_STATUT_LABEL[participation.statut] ?? participation.statut}
                     </span>
                     {participation.note != null && <StarDisplay value={participation.note} />}
@@ -1718,7 +1718,7 @@ function AvantagesTab({ profilId }: { profilId: number }) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-slate-800">{r.libelle}</span>
                       <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{REMB_TYPE_LABEL[r.type] ?? r.type}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${REMB_STATUT_BADGE[r.statut] ?? "bg-gray-100 text-gray-500"}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${REMB_STATUT_BADGE[r.statut] ?? "bg-slate-100 text-slate-500"}`}>
                         {REMB_STATUT_LABEL[r.statut] ?? r.statut}
                       </span>
                     </div>
@@ -1752,7 +1752,7 @@ const PERIODE_LABEL: Record<string, string> = {
 };
 
 const EVAL_STATUT_BADGE: Record<string, string> = {
-  BROUILLON: "bg-gray-100 text-gray-600",
+  BROUILLON: "bg-slate-100 text-slate-600",
   EN_COURS:  "bg-blue-100 text-blue-700",
   CLOTURE:   "bg-emerald-100 text-emerald-700",
 };
@@ -1767,7 +1767,7 @@ function StarDisplay({ value }: { value: number }) {
   return (
     <span className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((s) => (
-        <Star key={s} size={12} className={s <= value ? "text-yellow-400 fill-yellow-400" : "text-gray-200"} />
+        <Star key={s} size={12} className={s <= value ? "text-yellow-400 fill-yellow-400" : "text-slate-200"} />
       ))}
     </span>
   );
@@ -1817,7 +1817,7 @@ function EvaluationsTab({ profilId }: { profilId: number }) {
                       <span className="text-sm font-semibold text-slate-800">
                         {PERIODE_LABEL[ev.periode] ?? ev.periode} {ev.annee}
                       </span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${EVAL_STATUT_BADGE[ev.statut] ?? "bg-gray-100 text-gray-600"}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${EVAL_STATUT_BADGE[ev.statut] ?? "bg-slate-100 text-slate-600"}`}>
                         {EVAL_STATUT_LABEL[ev.statut] ?? ev.statut}
                       </span>
                     </div>
@@ -1879,14 +1879,14 @@ const TYPE_SANCTION_COLOR: Record<string, string> = {
   MISE_A_PIED:   "bg-red-100 text-red-700",
   RETROGRADATION:"bg-purple-100 text-purple-700",
   LICENCIEMENT:  "bg-red-200 text-red-800",
-  AUTRE:         "bg-gray-100 text-gray-600",
+  AUTRE:         "bg-slate-100 text-slate-600",
 };
 
 const PROC_STATUT_BADGE: Record<string, string> = {
   OUVERTE:        "bg-blue-100 text-blue-700",
   EN_INSTRUCTION: "bg-yellow-100 text-yellow-700",
   CLOTUREE:       "bg-emerald-100 text-emerald-700",
-  ANNULEE:        "bg-gray-100 text-gray-500",
+  ANNULEE:        "bg-slate-100 text-slate-500",
 };
 
 const PROC_STATUT_LABEL: Record<string, string> = {
@@ -1931,7 +1931,7 @@ function DisciplinaireTab({ profilId }: { profilId: number }) {
           {procs.map((p) => (
             <div key={p.id} className="flex items-start gap-4 px-5 py-4">
               <div className="flex-shrink-0 mt-0.5">
-                <span className={`px-2 py-0.5 rounded text-xs font-medium ${TYPE_SANCTION_COLOR[p.type] ?? "bg-gray-100 text-gray-600"}`}>
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${TYPE_SANCTION_COLOR[p.type] ?? "bg-slate-100 text-slate-600"}`}>
                   {TYPE_SANCTION_LABEL[p.type] ?? p.type}
                 </span>
               </div>
@@ -1949,7 +1949,7 @@ function DisciplinaireTab({ profilId }: { profilId: number }) {
                   <p className="text-xs text-slate-500 mt-1 italic">Décision : {p.decision}</p>
                 )}
               </div>
-              <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${PROC_STATUT_BADGE[p.statut] ?? "bg-gray-100 text-gray-500"}`}>
+              <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${PROC_STATUT_BADGE[p.statut] ?? "bg-slate-100 text-slate-500"}`}>
                 {PROC_STATUT_LABEL[p.statut] ?? p.statut}
               </span>
             </div>

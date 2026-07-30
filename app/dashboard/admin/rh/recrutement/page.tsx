@@ -93,7 +93,7 @@ const STATUT_POSTE_LABELS: Record<StatutPoste, string> = {
   BROUILLON: "Brouillon", OUVERT: "Ouvert", EN_COURS: "En cours", POURVU: "Pourvu", ANNULE: "Annulé",
 };
 const STATUT_POSTE_COLORS: Record<StatutPoste, string> = {
-  BROUILLON: "bg-gray-100 text-gray-700",
+  BROUILLON: "bg-slate-100 text-slate-700",
   OUVERT:    "bg-green-100 text-green-700",
   EN_COURS:  "bg-blue-100 text-blue-700",
   POURVU:    "bg-purple-100 text-purple-700",
@@ -118,7 +118,7 @@ const STATUT_CAND_LABELS: Record<StatutCandidature, string> = {
   REJETE:           "Rejeté",
 };
 const STATUT_CAND_COLORS: Record<StatutCandidature, string> = {
-  RECU:             "bg-gray-100 text-gray-600",
+  RECU:             "bg-slate-100 text-slate-600",
   PRE_QUALIFICATION:"bg-slate-100 text-slate-600",
   SHORTLISTE:       "bg-yellow-100 text-yellow-700",
   ENTRETIEN:        "bg-blue-100 text-blue-700",
@@ -160,7 +160,7 @@ function StarRating({ value, onChange }: { value: number; onChange?: (v: number)
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((s) => (
         <Star key={s} size={13}
-          className={`${s <= value ? "text-yellow-400 fill-yellow-400" : "text-gray-300"} ${onChange ? "cursor-pointer" : ""}`}
+          className={`${s <= value ? "text-yellow-400 fill-yellow-400" : "text-slate-300"} ${onChange ? "cursor-pointer" : ""}`}
           onClick={() => onChange?.(s)}
         />
       ))}
@@ -186,10 +186,10 @@ function TempPasswordModal({
             <KeyRound size={28} className="text-green-600" />
           </div>
           <div>
-            <h2 className="font-bold text-gray-900 text-lg">Collaborateur créé !</h2>
-            <p className="text-sm text-gray-500 mt-1">Communiquer ce mot de passe temporaire au nouvel employé :</p>
+            <h2 className="font-bold text-slate-900 text-lg">Collaborateur créé !</h2>
+            <p className="text-sm text-slate-500 mt-1">Communiquer ce mot de passe temporaire au nouvel employé :</p>
           </div>
-          <div className="bg-gray-900 text-green-400 font-mono text-lg px-5 py-3 rounded-xl tracking-wider select-all">
+          <div className="bg-slate-900 text-green-400 font-mono text-lg px-5 py-3 rounded-xl tracking-wider select-all">
             {tempPassword}
           </div>
           <div className="flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 text-left">
@@ -199,16 +199,16 @@ function TempPasswordModal({
           <div className="flex gap-3">
             <button onClick={copy}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border ${
-                copied ? "border-green-400 text-green-700 bg-green-50" : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                copied ? "border-green-400 text-green-700 bg-green-50" : "border-slate-200 text-slate-700 hover:bg-slate-50"
               }`}>
               {copied ? <CheckCircle2 size={14} /> : null} {copied ? "Copié !" : "Copier"}
             </button>
             <a href={`/dashboard/admin/rh/collaborateurs/${profilRHId}`}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">
               <ExternalLink size={14} /> Voir dossier
             </a>
           </div>
-          <button onClick={onClose} className="w-full text-sm text-gray-400 hover:text-gray-600 py-1">Fermer</button>
+          <button onClick={onClose} className="w-full text-sm text-slate-400 hover:text-slate-600 py-1">Fermer</button>
         </div>
       </div>
     </div>
@@ -295,7 +295,7 @@ function CandidatureModal({
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h3 className="font-semibold text-gray-800">{cand.prenomCandidat} {cand.nomCandidat}</h3>
+            <h3 className="font-semibold text-slate-800">{cand.prenomCandidat} {cand.nomCandidat}</h3>
             <div className="flex items-center gap-2 mt-1">
               <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUT_CAND_COLORS[cand.statut]}`}>
                 {STATUT_CAND_LABELS[cand.statut]}
@@ -303,13 +303,13 @@ function CandidatureModal({
               <ScoreBadge score={cand.scoreCandidat} />
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
         </div>
 
         {/* Contacts */}
         <div className="space-y-1 text-sm mb-4">
-          {cand.email     && <div className="flex items-center gap-2 text-gray-600"><Mail size={13}/>{cand.email}</div>}
-          {cand.telephone && <div className="flex items-center gap-2 text-gray-600"><Phone size={13}/>{cand.telephone}</div>}
+          {cand.email     && <div className="flex items-center gap-2 text-slate-600"><Mail size={13}/>{cand.email}</div>}
+          {cand.telephone && <div className="flex items-center gap-2 text-slate-600"><Phone size={13}/>{cand.telephone}</div>}
           {cand.cvUrl     && <a href={cand.cvUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-indigo-600 hover:underline text-xs"><FileText size={12}/> Voir CV</a>}
         </div>
 
@@ -317,13 +317,13 @@ function CandidatureModal({
         <div className="space-y-3 border-t pt-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500">Score global (/100)</label>
+              <label className="text-xs text-slate-500">Score global (/100)</label>
               <input type="number" min={0} max={100} value={form.scoreCandidat}
                 onChange={(e) => setForm((p) => ({ ...p, scoreCandidat: e.target.value }))}
                 className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm" />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Source</label>
+              <label className="text-xs text-slate-500">Source</label>
               <select value={form.sourceCandidat} onChange={(e) => setForm((p) => ({ ...p, sourceCandidat: e.target.value }))}
                 className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm">
                 <option value="">—</option>
@@ -334,11 +334,11 @@ function CandidatureModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500">Note entretien (/5)</label>
+              <label className="text-xs text-slate-500">Note entretien (/5)</label>
               <div className="mt-1.5"><StarRating value={Number(form.noteEntretien)} onChange={(v) => setForm((p) => ({ ...p, noteEntretien: v }))} /></div>
             </div>
             <div>
-              <label className="text-xs text-gray-500">Note test (/20)</label>
+              <label className="text-xs text-slate-500">Note test (/20)</label>
               <input type="number" min={0} max={20} value={form.noteTest}
                 onChange={(e) => setForm((p) => ({ ...p, noteTest: Number(e.target.value) }))}
                 className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm" />
@@ -347,31 +347,31 @@ function CandidatureModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500">Date entretien</label>
+              <label className="text-xs text-slate-500">Date entretien</label>
               <input type="date" value={form.dateEntretien} onChange={(e) => setForm((p) => ({ ...p, dateEntretien: e.target.value }))}
                 className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm" />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Date test</label>
+              <label className="text-xs text-slate-500">Date test</label>
               <input type="date" value={form.dateTest} onChange={(e) => setForm((p) => ({ ...p, dateTest: e.target.value }))}
                 className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm" />
             </div>
           </div>
 
           <div>
-            <label className="text-xs text-gray-500">Formation</label>
+            <label className="text-xs text-slate-500">Formation</label>
             <input value={form.formation} onChange={(e) => setForm((p) => ({ ...p, formation: e.target.value }))}
               placeholder="Ex: Bac+5 Informatique" className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500">Compétences (tags)</label>
+              <label className="text-xs text-slate-500">Compétences (tags)</label>
               <input value={form.competences} onChange={(e) => setForm((p) => ({ ...p, competences: e.target.value }))}
                 placeholder="React, TypeScript, SQL…" className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm" />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Expérience (années)</label>
+              <label className="text-xs text-slate-500">Expérience (années)</label>
               <input type="number" min={0} value={form.experienceAnnees}
                 onChange={(e) => setForm((p) => ({ ...p, experienceAnnees: e.target.value }))}
                 className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm" />
@@ -379,7 +379,7 @@ function CandidatureModal({
           </div>
 
           <div>
-            <label className="text-xs text-gray-500">Commentaire</label>
+            <label className="text-xs text-slate-500">Commentaire</label>
             <textarea value={form.commentaire} onChange={(e) => setForm((p) => ({ ...p, commentaire: e.target.value }))}
               className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm" rows={2} />
           </div>
@@ -416,9 +416,9 @@ function CandidatureModal({
         )}
 
         <div className="flex justify-end gap-2 mt-4">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg border text-sm text-gray-600">Annuler</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-lg border text-sm text-slate-600">Annuler</button>
           <button onClick={handleSave} disabled={loading}
-            className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">
+            className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium disabled:opacity-50">
             {loading ? <RefreshCw size={14} className="animate-spin inline" /> : "Enregistrer"}
           </button>
         </div>
@@ -462,14 +462,14 @@ function CandidaturePipeline({ candidatures, posteId, onRefresh }: {
           {PIPELINE.map((st) => {
             const group = candidatures.filter((c) => c.statut === st);
             return (
-              <div key={st} className="bg-gray-50 rounded-lg p-2 w-32 min-h-[80px] flex-shrink-0">
+              <div key={st} className="bg-slate-50 rounded-lg p-2 w-32 min-h-[80px] flex-shrink-0">
                 <div className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium mb-2 ${STATUT_CAND_COLORS[st]}`}>
                   {STATUT_CAND_LABELS[st]} ({group.length})
                 </div>
                 <div className="space-y-1">
                   {group.map((c) => (
                     <button key={c.id} onClick={() => setSelected(c)}
-                      className="w-full text-left bg-white rounded p-1.5 shadow-sm hover:shadow-md border border-gray-100 transition-shadow">
+                      className="w-full text-left bg-white rounded p-1.5 shadow-sm hover:shadow-md border border-slate-100 transition-shadow">
                       <div className="font-medium truncate">{c.prenomCandidat} {c.nomCandidat}</div>
                       <div className="flex items-center gap-1 mt-0.5">
                         {c.scoreCandidat !== null && <ScoreBadge score={c.scoreCandidat} />}
@@ -485,7 +485,7 @@ function CandidaturePipeline({ candidatures, posteId, onRefresh }: {
       </div>
 
       {/* Résumé acceptés/rejetés */}
-      <div className="flex gap-4 text-xs text-gray-500">
+      <div className="flex gap-4 text-xs text-slate-500">
         {accepted.length > 0 && <span className="text-green-600 font-medium">{accepted.length} accepté(s)</span>}
         {rejected.length > 0 && <span className="text-red-500">{rejected.length} rejeté(s)</span>}
       </div>
@@ -498,63 +498,63 @@ function CandidaturePipeline({ candidatures, posteId, onRefresh }: {
       {showAdd && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowAdd(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold text-gray-800 mb-4">Nouvelle candidature</h3>
+            <h3 className="font-semibold text-slate-800 mb-4">Nouvelle candidature</h3>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-gray-500">Prénom *</label>
+                  <label className="text-xs text-slate-500">Prénom *</label>
                   <input value={addForm.prenomCandidat} onChange={(e) => setAddForm((p) => ({ ...p, prenomCandidat: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-1.5 text-sm" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Nom *</label>
+                  <label className="text-xs text-slate-500">Nom *</label>
                   <input value={addForm.nomCandidat} onChange={(e) => setAddForm((p) => ({ ...p, nomCandidat: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-1.5 text-sm" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-gray-500">Email</label>
+                  <label className="text-xs text-slate-500">Email</label>
                   <input type="email" value={addForm.email} onChange={(e) => setAddForm((p) => ({ ...p, email: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-1.5 text-sm" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Téléphone</label>
+                  <label className="text-xs text-slate-500">Téléphone</label>
                   <input value={addForm.telephone} onChange={(e) => setAddForm((p) => ({ ...p, telephone: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-1.5 text-sm" />
                 </div>
               </div>
               <div>
-                <label className="text-xs text-gray-500">Formation</label>
+                <label className="text-xs text-slate-500">Formation</label>
                 <input value={addForm.formation} onChange={(e) => setAddForm((p) => ({ ...p, formation: e.target.value }))} placeholder="Ex: Bac+5 Informatique" className="mt-1 w-full border rounded-lg px-3 py-1.5 text-sm" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-gray-500">Compétences</label>
+                  <label className="text-xs text-slate-500">Compétences</label>
                   <input value={addForm.competences} onChange={(e) => setAddForm((p) => ({ ...p, competences: e.target.value }))} placeholder="React, SQL…" className="mt-1 w-full border rounded-lg px-3 py-1.5 text-sm" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Expérience (ans)</label>
+                  <label className="text-xs text-slate-500">Expérience (ans)</label>
                   <input type="number" min={0} value={addForm.experienceAnnees} onChange={(e) => setAddForm((p) => ({ ...p, experienceAnnees: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-1.5 text-sm" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-gray-500">Source</label>
+                  <label className="text-xs text-slate-500">Source</label>
                   <select value={addForm.sourceCandidat} onChange={(e) => setAddForm((p) => ({ ...p, sourceCandidat: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-1.5 text-sm">
                     <option value="">—</option>
                     {SOURCES.map((s) => <option key={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">URL CV</label>
+                  <label className="text-xs text-slate-500">URL CV</label>
                   <input value={addForm.cvUrl} onChange={(e) => setAddForm((p) => ({ ...p, cvUrl: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-1.5 text-sm" placeholder="https://…" />
                 </div>
               </div>
               <div>
-                <label className="text-xs text-gray-500">Notes</label>
+                <label className="text-xs text-slate-500">Notes</label>
                 <textarea value={addForm.notes} onChange={(e) => setAddForm((p) => ({ ...p, notes: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-1.5 text-sm" rows={2} />
               </div>
             </div>
             <div className="flex gap-2 mt-4 justify-end">
               <button onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-lg border text-sm">Annuler</button>
-              <button onClick={handleAdd} disabled={addLoading} className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm disabled:opacity-50">
+              <button onClick={handleAdd} disabled={addLoading} className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm disabled:opacity-50">
                 {addLoading ? "…" : "Ajouter"}
               </button>
             </div>
@@ -628,7 +628,7 @@ function DocGenModal({
     win.document.close(); win.print();
   }
 
-  const inputCls = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
+  const inputCls = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500";
 
   return (
     <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4" onClick={onClose}>
@@ -683,7 +683,7 @@ function DocGenModal({
                   <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} />
                 </div>
                 <button onClick={generate} disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50">
                   {loading ? <><RefreshCw size={14} className="animate-spin" /> Génération…</> : <>Générer le document</>}
                 </button>
               </div>
@@ -719,7 +719,7 @@ function DocGenModal({
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 shrink-0">
               <h3 className="text-sm font-semibold text-slate-700 truncate">{preview.titre}</h3>
               <div className="flex items-center gap-2">
-                <a href={`/api/admin/rh/recrutement/documents/${preview.id}/pdf`} target="_blank" rel="noreferrer" className="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">PDF</a>
+                <a href={`/api/admin/rh/recrutement/documents/${preview.id}/pdf`} target="_blank" rel="noreferrer" className="px-3 py-1.5 text-xs font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">PDF</a>
                 <button onClick={() => setPreview(null)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X size={16} className="text-slate-500" /></button>
               </div>
             </div>
@@ -746,26 +746,26 @@ function PosteCard({ poste, onRefresh }: { poste: PosteOuvert; onRefresh: () => 
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-mono text-gray-400">{poste.reference}</span>
+              <span className="text-xs font-mono text-slate-400">{poste.reference}</span>
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUT_POSTE_COLORS[poste.statut]}`}>
                 {STATUT_POSTE_LABELS[poste.statut]}
               </span>
               {poste.nbPostes > 1 && <span className="text-xs text-indigo-600">{poste.nbPostes} postes</span>}
             </div>
-            <h3 className="font-semibold text-gray-800 mt-1">{poste.titre}</h3>
-            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
+            <h3 className="font-semibold text-slate-800 mt-1">{poste.titre}</h3>
+            <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 flex-wrap">
               {poste.departement && <span>{poste.departement}</span>}
               {poste.lieu        && <span>{poste.lieu}</span>}
-              {poste.typeContrat && <span className="bg-gray-100 px-1.5 py-0.5 rounded">{poste.typeContrat}</span>}
+              {poste.typeContrat && <span className="bg-slate-100 px-1.5 py-0.5 rounded">{poste.typeContrat}</span>}
               {poste.dateLimite  && <span className="text-amber-600">Limite : {formatDate(poste.dateLimite)}</span>}
             </div>
             {/* Fourchette salariale + budget */}
-            <div className="flex items-center gap-3 mt-1 text-xs text-gray-400 flex-wrap">
+            <div className="flex items-center gap-3 mt-1 text-xs text-slate-400 flex-wrap">
               {(poste.salaireMini || poste.salaireMaxi) && (
                 <span className="flex items-center gap-1">
                   <Banknote size={11} />
@@ -779,14 +779,14 @@ function PosteCard({ poste, onRefresh }: { poste: PosteOuvert; onRefresh: () => 
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="flex items-center gap-1 text-sm text-gray-600">
+            <div className="flex items-center gap-1 text-sm text-slate-600">
               <Users size={14} />
               <span className="font-semibold">{poste._count.candidatures}</span>
             </div>
             {["OUVERT", "EN_COURS"].includes(poste.statut) && (
               <CopyLinkButton posteId={poste.id} />
             )}
-            <button onClick={() => setExpanded(!expanded)} className="p-1.5 rounded-lg hover:bg-gray-100">
+            <button onClick={() => setExpanded(!expanded)} className="p-1.5 rounded-lg hover:bg-slate-100">
               {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
           </div>
@@ -824,7 +824,7 @@ function PosteCard({ poste, onRefresh }: { poste: PosteOuvert; onRefresh: () => 
           )}
           {["POURVU","ANNULE"].includes(poste.statut) && (
             <button onClick={() => handleAction("ROUVRIR")} disabled={loading}
-              className="px-3 py-1.5 text-xs rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200">
+              className="px-3 py-1.5 text-xs rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200">
               Rouvrir
             </button>
           )}
@@ -837,8 +837,8 @@ function PosteCard({ poste, onRefresh }: { poste: PosteOuvert; onRefresh: () => 
 
       {expanded && (
         <div className="border-t px-4 pb-4">
-          {poste.description && <p className="text-xs text-gray-600 mt-3 mb-1">{poste.description}</p>}
-          {poste.exigences   && <p className="text-xs text-gray-500 italic mb-2">Exigences : {poste.exigences}</p>}
+          {poste.description && <p className="text-xs text-slate-600 mt-3 mb-1">{poste.description}</p>}
+          {poste.exigences   && <p className="text-xs text-slate-500 italic mb-2">Exigences : {poste.exigences}</p>}
           <CandidaturePipeline candidatures={poste.candidatures} posteId={poste.id} onRefresh={onRefresh} />
         </div>
       )}
@@ -866,17 +866,17 @@ function BaseCVTab() {
       {/* Stats ATS */}
       {data?.ats && (
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
-            <div className="text-2xl font-bold text-gray-800">{data.ats.totalCandidats}</div>
-            <div className="text-xs text-gray-500">Total candidats</div>
+          <div className="bg-white rounded-xl border border-slate-100 p-3 text-center">
+            <div className="text-2xl font-bold text-slate-800">{data.ats.totalCandidats}</div>
+            <div className="text-xs text-slate-500">Total candidats</div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
-            <div className="text-2xl font-bold text-gray-800">{Math.round(Number(data.ats.moyenneScore))}/100</div>
-            <div className="text-xs text-gray-500">Score moyen</div>
+          <div className="bg-white rounded-xl border border-slate-100 p-3 text-center">
+            <div className="text-2xl font-bold text-slate-800">{Math.round(Number(data.ats.moyenneScore))}/100</div>
+            <div className="text-xs text-slate-500">Score moyen</div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
+          <div className="bg-white rounded-xl border border-slate-100 p-3 text-center">
             <div className="text-2xl font-bold text-green-600">{data.ats.parStatut?.ACCEPTE ?? 0}</div>
-            <div className="text-xs text-gray-500">Recrutés</div>
+            <div className="text-xs text-slate-500">Recrutés</div>
           </div>
         </div>
       )}
@@ -884,43 +884,43 @@ function BaseCVTab() {
       {/* Filtres */}
       <div className="flex gap-2 flex-wrap">
         <div className="relative flex-1 min-w-40">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Nom, compétences, formation…"
-            className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-sm" />
+            className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-sm" />
         </div>
         <select value={statut} onChange={(e) => setStatut(e.target.value as StatutCandidature | "")}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm">
+          className="border border-slate-200 rounded-xl px-3 py-2 text-sm">
           <option value="">Tous statuts</option>
           {(Object.keys(STATUT_CAND_LABELS) as StatutCandidature[]).map((s) => (
             <option key={s} value={s}>{STATUT_CAND_LABELS[s]}</option>
           ))}
         </select>
         <select value={source} onChange={(e) => setSource(e.target.value)}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm">
+          className="border border-slate-200 rounded-xl px-3 py-2 text-sm">
           <option value="">Toutes sources</option>
           {SOURCES.map((s) => <option key={s}>{s}</option>)}
         </select>
         <div className="relative">
-          <Award size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Award size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input type="number" min={0} max={100} value={scoreMin} onChange={(e) => setScoreMin(e.target.value)}
-            placeholder="Score min" className="pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-sm w-32" />
+            placeholder="Score min" className="pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-sm w-32" />
         </div>
       </div>
 
       {/* Tableau */}
       {loading ? (
-        <div className="text-center py-12 text-gray-400">Chargement…</div>
+        <div className="text-center py-12 text-slate-400">Chargement…</div>
       ) : !data?.data?.length ? (
-        <div className="text-center py-12 text-gray-400">
+        <div className="text-center py-12 text-slate-400">
           <Database size={36} className="mx-auto mb-2 opacity-30" />
           <p>Aucun candidat trouvé</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 border-b text-xs text-gray-500">
+              <tr className="bg-slate-50 border-b text-xs text-slate-500">
                 <th className="text-left px-4 py-3">Candidat</th>
                 <th className="text-left px-4 py-3">Poste</th>
                 <th className="text-left px-4 py-3">Statut</th>
@@ -930,17 +930,17 @@ function BaseCVTab() {
                 <th className="text-left px-4 py-3">Candidature</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-50">
               {data.data.map((c) => (
-                <tr key={c.id} className="hover:bg-gray-50">
+                <tr key={c.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-gray-800">{c.prenomCandidat} {c.nomCandidat}</div>
-                    {c.email && <div className="text-xs text-gray-400">{c.email}</div>}
+                    <div className="font-medium text-slate-800">{c.prenomCandidat} {c.nomCandidat}</div>
+                    {c.email && <div className="text-xs text-slate-400">{c.email}</div>}
                     {c.formation && <div className="text-xs text-indigo-500">{c.formation}</div>}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-xs font-mono text-gray-400">{c.poste.reference}</div>
-                    <div className="text-xs text-gray-700">{c.poste.titre}</div>
+                    <div className="text-xs font-mono text-slate-400">{c.poste.reference}</div>
+                    <div className="text-xs text-slate-700">{c.poste.titre}</div>
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUT_CAND_COLORS[c.statut]}`}>
@@ -955,10 +955,10 @@ function BaseCVTab() {
                           <span key={t} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-xs">{t.trim()}</span>
                         ))}
                       </div>
-                    ) : <span className="text-gray-300">—</span>}
+                    ) : <span className="text-slate-300">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{c.sourceCandidat ?? "—"}</td>
-                  <td className="px-4 py-3 text-xs text-gray-400">{formatDate(c.dateCandidature)}</td>
+                  <td className="px-4 py-3 text-xs text-slate-500">{c.sourceCandidat ?? "—"}</td>
+                  <td className="px-4 py-3 text-xs text-slate-400">{formatDate(c.dateCandidature)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1002,50 +1002,50 @@ function CreatePosteModal({ onClose, onCreated }: { onClose: () => void; onCreat
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold text-gray-800 mb-5">Nouveau poste <span className="text-xs text-gray-400 font-normal ml-2">(créé en brouillon)</span></h2>
+        <h2 className="text-lg font-semibold text-slate-800 mb-5">Nouveau poste <span className="text-xs text-slate-400 font-normal ml-2">(créé en brouillon)</span></h2>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-gray-500">Titre du poste *</label>
+            <label className="text-xs text-slate-500">Titre du poste *</label>
             <input value={form.titre} onChange={set("titre")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" placeholder="Ex: Développeur Backend" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs text-gray-500">Département</label><input value={form.departement} onChange={set("departement")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
-            <div><label className="text-xs text-gray-500">Service</label><input value={form.service} onChange={set("service")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="text-xs text-slate-500">Département</label><input value={form.departement} onChange={set("departement")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="text-xs text-slate-500">Service</label><input value={form.service} onChange={set("service")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs text-gray-500">Lieu</label><input value={form.lieu} onChange={set("lieu")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="text-xs text-slate-500">Lieu</label><input value={form.lieu} onChange={set("lieu")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
             <div>
-              <label className="text-xs text-gray-500">Type contrat</label>
+              <label className="text-xs text-slate-500">Type contrat</label>
               <select value={form.typeContrat} onChange={set("typeContrat")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm">
                 {["CDI","CDD","STAGE","ALTERNANCE","FREELANCE","INTERIM","PRESTATAIRE"].map((t) => <option key={t}>{t}</option>)}
               </select>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <div><label className="text-xs text-gray-500">Nb postes</label><input type="number" min={1} value={form.nbPostes} onChange={set("nbPostes")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
-            <div><label className="text-xs text-gray-500">Expérience min (ans)</label><input type="number" min={0} value={form.experienceMin} onChange={set("experienceMin")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
-            <div><label className="text-xs text-gray-500">Date limite</label><input type="date" value={form.dateLimite} onChange={set("dateLimite")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="text-xs text-slate-500">Nb postes</label><input type="number" min={1} value={form.nbPostes} onChange={set("nbPostes")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="text-xs text-slate-500">Expérience min (ans)</label><input type="number" min={0} value={form.experienceMin} onChange={set("experienceMin")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="text-xs text-slate-500">Date limite</label><input type="date" value={form.dateLimite} onChange={set("dateLimite")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <div><label className="text-xs text-gray-500">Salaire mini (FCFA)</label><input type="number" value={form.salaireMini} onChange={set("salaireMini")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
-            <div><label className="text-xs text-gray-500">Salaire maxi (FCFA)</label><input type="number" value={form.salaireMaxi} onChange={set("salaireMaxi")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
-            <div><label className="text-xs text-gray-500">Budget recrutement</label><input type="number" value={form.budgetPoste} onChange={set("budgetPoste")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="text-xs text-slate-500">Salaire mini (FCFA)</label><input type="number" value={form.salaireMini} onChange={set("salaireMini")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="text-xs text-slate-500">Salaire maxi (FCFA)</label><input type="number" value={form.salaireMaxi} onChange={set("salaireMaxi")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="text-xs text-slate-500">Budget recrutement</label><input type="number" value={form.budgetPoste} onChange={set("budgetPoste")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
           </div>
           {plans.length > 0 && (
             <div>
-              <label className="text-xs text-gray-500">Plan de recrutement annuel (facultatif)</label>
+              <label className="text-xs text-slate-500">Plan de recrutement annuel (facultatif)</label>
               <select value={form.planRecrutementId} onChange={set("planRecrutementId")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-white">
                 <option value="">— Aucun —</option>
                 {plans.map((p) => <option key={p.id} value={p.id}>{p.annee}</option>)}
               </select>
             </div>
           )}
-          <div><label className="text-xs text-gray-500">Description</label><textarea value={form.description} onChange={set("description")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" rows={3} /></div>
-          <div><label className="text-xs text-gray-500">Profil requis / Exigences</label><textarea value={form.exigences} onChange={set("exigences")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" rows={2} /></div>
+          <div><label className="text-xs text-slate-500">Description</label><textarea value={form.description} onChange={set("description")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" rows={3} /></div>
+          <div><label className="text-xs text-slate-500">Profil requis / Exigences</label><textarea value={form.exigences} onChange={set("exigences")} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" rows={2} /></div>
         </div>
         <div className="flex gap-3 mt-6 justify-end">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg border text-sm text-gray-600">Annuler</button>
-          <button onClick={handleSubmit} disabled={loading} className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg border text-sm text-slate-600">Annuler</button>
+          <button onClick={handleSubmit} disabled={loading} className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium disabled:opacity-50">
             {loading ? "Création…" : "Créer le poste"}
           </button>
         </div>
@@ -1070,7 +1070,7 @@ export default function RecrutementPage() {
   const handleRefresh = useCallback(() => refetch(), [refetch]);
 
   const STATS: { key: StatutPoste; label: string; icon: React.ReactNode; color: string }[] = [
-    { key: "BROUILLON", label: "Brouillons", icon: <FileText size={18} />,     color: "text-gray-600 bg-gray-50" },
+    { key: "BROUILLON", label: "Brouillons", icon: <FileText size={18} />,     color: "text-slate-600 bg-slate-50" },
     { key: "OUVERT",    label: "Ouverts",    icon: <Briefcase size={18} />,    color: "text-green-600 bg-green-50" },
     { key: "EN_COURS",  label: "En cours",   icon: <Clock size={18} />,        color: "text-blue-600 bg-blue-50" },
     { key: "POURVU",    label: "Pourvus",    icon: <CheckCircle2 size={18} />, color: "text-purple-600 bg-purple-50" },
@@ -1078,7 +1078,7 @@ export default function RecrutementPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-6">
+    <div className="min-h-screen bg-slate-50/50 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -1086,11 +1086,11 @@ export default function RecrutementPage() {
             <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
               <ArrowLeft size={15} /> Dashboard RH
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Recrutement</h1>
-            <p className="text-sm text-gray-500 mt-1">Gestion des postes et ATS</p>
+            <h1 className="text-2xl font-bold text-slate-900">Recrutement</h1>
+            <p className="text-sm text-slate-500 mt-1">Gestion des postes et ATS</p>
           </div>
           <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 shadow-sm">
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700 shadow-sm">
             <Plus size={16} /> Nouveau poste
           </button>
         </div>
@@ -1099,10 +1099,10 @@ export default function RecrutementPage() {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {STATS.map(({ key, label, icon, color }) => (
             <button key={key} onClick={() => { setStatut(statut === key ? "" : key); setActiveTab("postes"); }}
-              className={`bg-white rounded-2xl p-3 shadow-sm border text-left transition-all ${statut === key ? "border-indigo-300 ring-2 ring-indigo-100" : "border-gray-100 hover:border-gray-200"}`}>
+              className={`bg-white rounded-2xl p-3 shadow-sm border text-left transition-all ${statut === key ? "border-indigo-300 ring-2 ring-indigo-100" : "border-slate-100 hover:border-slate-200"}`}>
               <div className={`p-2 rounded-lg w-fit ${color}`}>{icon}</div>
-              <div className="mt-2 text-xl font-bold text-gray-800">{data?.stats?.[key] ?? 0}</div>
-              <div className="text-xs text-gray-500">{label}</div>
+              <div className="mt-2 text-xl font-bold text-slate-800">{data?.stats?.[key] ?? 0}</div>
+              <div className="text-xs text-slate-500">{label}</div>
             </button>
           ))}
         </div>
@@ -1122,24 +1122,24 @@ export default function RecrutementPage() {
                 {/* Filtres */}
                 <div className="flex gap-3 flex-wrap">
                   <div className="relative flex-1 min-w-48">
-                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                       placeholder="Rechercher un poste…"
-                      className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm bg-white" />
+                      className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm bg-white" />
                   </div>
                   <button onClick={() => { setSearch(""); setStatut(""); }}
-                    className="flex items-center gap-1 px-3 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">
+                    className="flex items-center gap-1 px-3 py-2 text-sm text-slate-500 border border-slate-200 rounded-xl hover:bg-slate-50">
                     <Filter size={14} /> Réinitialiser
                   </button>
                 </div>
 
                 {/* Liste postes */}
                 {loading ? (
-                  <div className="text-center py-12 text-gray-400 flex items-center justify-center gap-2">
+                  <div className="text-center py-12 text-slate-400 flex items-center justify-center gap-2">
                     <RefreshCw size={16} className="animate-spin" /> Chargement…
                   </div>
                 ) : !data?.data?.length ? (
-                  <div className="text-center py-12 text-gray-400">
+                  <div className="text-center py-12 text-slate-400">
                     <Briefcase size={40} className="mx-auto mb-3 opacity-30" />
                     <p>Aucun poste trouvé</p>
                   </div>
@@ -1155,7 +1155,7 @@ export default function RecrutementPage() {
                 {data && data.meta.totalPages > 1 && (
                   <div className="flex items-center justify-center gap-2">
                     <button disabled={page === 1} onClick={() => setPage(page - 1)} className="px-3 py-1.5 text-sm border rounded-lg disabled:opacity-40">Précédent</button>
-                    <span className="text-sm text-gray-600">{page} / {data.meta.totalPages}</span>
+                    <span className="text-sm text-slate-600">{page} / {data.meta.totalPages}</span>
                     <button disabled={page === data.meta.totalPages} onClick={() => setPage(page + 1)} className="px-3 py-1.5 text-sm border rounded-lg disabled:opacity-40">Suivant</button>
                   </div>
                 )}
@@ -1196,17 +1196,17 @@ function PlanRecrutementTab() {
     <div className="space-y-4">
       <div className="flex justify-end">
         <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700">
           <Plus size={16} /> Nouveau plan annuel
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-400 flex items-center justify-center gap-2">
+        <div className="text-center py-12 text-slate-400 flex items-center justify-center gap-2">
           <RefreshCw size={16} className="animate-spin" /> Chargement…
         </div>
       ) : plans.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
+        <div className="text-center py-12 text-slate-400">
           <FileText size={40} className="mx-auto mb-3 opacity-30" />
           <p>Aucun plan de recrutement annuel</p>
         </div>
@@ -1215,28 +1215,28 @@ function PlanRecrutementTab() {
           {plans.map((p) => {
             const pct = p.budgetTotal ? Math.min(100, Math.round((p.budgetEngage / Number(p.budgetTotal)) * 100)) : null;
             return (
-              <div key={p.id} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+              <div key={p.id} className="bg-white rounded-2xl border border-slate-100 p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-lg font-bold text-gray-900">{p.annee}</span>
+                  <span className="text-lg font-bold text-slate-900">{p.annee}</span>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                    p.statut === "CLOTURE" ? "bg-gray-100 text-gray-500" : p.statut === "VALIDE" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                    p.statut === "CLOTURE" ? "bg-slate-100 text-slate-500" : p.statut === "VALIDE" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
                   }`}>{p.statut === "BROUILLON" ? "Brouillon" : p.statut === "VALIDE" ? "Validé" : "Clôturé"}</span>
                 </div>
                 {p.effectifCible != null && (
-                  <p className="text-xs text-gray-500">Effectif prévu : <strong className="text-gray-700">{p.effectifPrevu}</strong> / {p.effectifCible} poste(s)</p>
+                  <p className="text-xs text-slate-500">Effectif prévu : <strong className="text-slate-700">{p.effectifPrevu}</strong> / {p.effectifCible} poste(s)</p>
                 )}
                 {p.budgetTotal != null && (
                   <div>
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                    <div className="flex justify-between text-xs text-slate-500 mb-1">
                       <span>Budget engagé</span>
                       <span>{new Intl.NumberFormat("fr-FR").format(p.budgetEngage)} / {new Intl.NumberFormat("fr-FR").format(Number(p.budgetTotal))} FCFA</span>
                     </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                       <div className={`h-full rounded-full ${pct != null && pct > 100 ? "bg-red-500" : "bg-indigo-500"}`} style={{ width: `${Math.min(100, pct ?? 0)}%` }} />
                     </div>
                   </div>
                 )}
-                <p className="text-xs text-gray-400">{p.postes.length} poste{p.postes.length > 1 ? "s" : ""} rattaché{p.postes.length > 1 ? "s" : ""}</p>
+                <p className="text-xs text-slate-400">{p.postes.length} poste{p.postes.length > 1 ? "s" : ""} rattaché{p.postes.length > 1 ? "s" : ""}</p>
               </div>
             );
           })}
@@ -1267,33 +1267,33 @@ function NewPlanRecrutementModal({ onClose, onCreated }: { onClose: () => void; 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="font-semibold text-gray-900">Nouveau plan de recrutement annuel</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={16} /></button>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="font-semibold text-slate-900">Nouveau plan de recrutement annuel</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X size={16} /></button>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Année *</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Année *</label>
             <input type="number" value={form.annee} onChange={(e) => set("annee", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Budget total (FCFA)</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Budget total (FCFA)</label>
             <input type="number" value={form.budgetTotal} onChange={(e) => set("budgetTotal", e.target.value)}
               placeholder="ex : 10000000"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Effectif cible</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Effectif cible</label>
             <input type="number" value={form.effectifCible} onChange={(e) => set("effectifCible", e.target.value)}
               placeholder="ex : 15"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
         </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg border border-gray-200">Annuler</button>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
           <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Créer
           </button>
         </div>

@@ -44,31 +44,31 @@ export default function PrixAutoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <div className="p-6 max-w-2xl mx-auto space-y-6">
-        <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour au catalogue
         </Link>
-        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><Wand2 className="w-6 h-6 text-violet-600" /> Moteur de prix automatique</h2>
-        <p className="text-sm text-gray-400 -mt-3">Recalcule le prix de vente à partir du coût d&apos;achat : revient = achat + frais logistiques, vente = revient + marge cible.</p>
+        <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><Wand2 className="w-6 h-6 text-violet-600" /> Moteur de prix automatique</h2>
+        <p className="text-sm text-slate-400 -mt-3">Recalcule le prix de vente à partir du coût d&apos;achat : revient = achat + frais logistiques, vente = revient + marge cible.</p>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
+          <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-3">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
             <Toggle label="Moteur activé (le recalcul reste manuel par produit)" value={!!form.actif} onChange={(v) => set("actif", v)} color="violet" />
             <Num label="Marge cible (%)" k="margeCiblePct" form={form} set={set} placeholder="20" />
             <Num label="Frais logistiques (% du coût d'achat)" k="fraisLogistiquePct" form={form} set={set} placeholder="0" />
             <Num label="Arrondir le prix au multiple de (0 = aucun)" k="arrondi" form={form} set={set} placeholder="0" />
-            <div className="pt-2 border-t border-gray-100" />
+            <div className="pt-2 border-t border-slate-100" />
             <Toggle label="Recalculer aussi le prix crédit" value={!!form.appliquerSurCredit} onChange={(v) => set("appliquerSurCredit", v)} color="violet" />
             <Num label="Marge additionnelle crédit (%)" k="margeCreditPct" form={form} set={set} placeholder="0" disabled={!form.appliquerSurCredit} />
-            <div className="pt-2 border-t border-gray-100" />
+            <div className="pt-2 border-t border-slate-100" />
             <Toggle label="Validation obligatoire des changements de prix (§15)" value={!!form.validationPrixObligatoire} onChange={(v) => set("validationPrixObligatoire", v)} color="violet" />
-            <p className="text-[11px] text-gray-400">Si activé, tout changement de prix de vente/achat doit passer par une demande approuvée (Chef d&apos;agence, Admin ou Resp. Marketing) avec mot de passe.</p>
+            <p className="text-[11px] text-slate-400">Si activé, tout changement de prix de vente/achat doit passer par une demande approuvée (Chef d&apos;agence, Admin ou Resp. Marketing) avec mot de passe.</p>
             <div className="flex justify-end pt-2">
               <button onClick={save} disabled={saving}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold shadow-sm">
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold shadow-sm">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Enregistrer
               </button>
             </div>
@@ -83,17 +83,17 @@ function Num({ label, k, form, set, placeholder, disabled }:
   { label: string; k: string; form: Record<string, string | boolean>; set: (k: string, v: string) => void; placeholder?: string; disabled?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <label className="text-sm text-gray-600">{label}</label>
+      <label className="text-sm text-slate-600">{label}</label>
       <input type="number" min={0} step="0.1" disabled={disabled} value={String(form[k] ?? "")} onChange={(e) => set(k, e.target.value)}
-        placeholder={placeholder} className="w-40 px-3 py-2 border border-gray-200 rounded-lg text-sm text-right bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50" />
+        placeholder={placeholder} className="w-40 px-3 py-2 border border-slate-200 rounded-lg text-sm text-right bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50" />
     </div>
   );
 }
 function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void; color?: string }) {
   return (
     <div className="flex items-center justify-between py-1.5">
-      <span className="text-sm text-gray-600">{label}</span>
-      <button onClick={() => onChange(!value)} className={`relative w-11 h-6 rounded-full transition-colors ${value ? "bg-violet-500" : "bg-gray-300"}`}>
+      <span className="text-sm text-slate-600">{label}</span>
+      <button onClick={() => onChange(!value)} className={`relative w-11 h-6 rounded-full transition-colors ${value ? "bg-violet-500" : "bg-slate-300"}`}>
         <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${value ? "translate-x-5" : ""}`} />
       </button>
     </div>

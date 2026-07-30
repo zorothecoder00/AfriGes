@@ -79,7 +79,7 @@ function DepotModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Portefeuille *</label>
             <select value={form.portefeuilleId} onChange={(e) => set("portefeuilleId", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
               <option value="">Sélectionner…</option>
               {pfs.map((pf) => (
                 <option key={pf.id} value={pf.id}>
@@ -91,12 +91,12 @@ function DepotModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Montant (FCFA) *</label>
             <input type="number" min={0} value={form.montant} onChange={(e) => set("montant", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Mode de paiement</label>
             <select value={form.modePaiement} onChange={(e) => set("modePaiement", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
               <option value="">—</option>
               {["ESPECES", "VIREMENT", "MOBILE_MONEY", "CHEQUE"].map((m) => (
                 <option key={m} value={m}>{m.replace("_", " ")}</option>
@@ -106,7 +106,7 @@ function DepotModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
             <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
           </div>
         </div>
         <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
@@ -195,7 +195,7 @@ function RetraitModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Portefeuille *</label>
             <select value={form.portefeuilleId} onChange={(e) => set("portefeuilleId", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
               <option value="">Sélectionner…</option>
               {pfs.map((pf) => (
                 <option key={pf.id} value={pf.id}>
@@ -271,7 +271,7 @@ function EditDepotModal({ depot, onClose, onSuccess }: { depot: DepotItem; onClo
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Portefeuille (investisseur) *</label>
             <select value={form.portefeuilleId} onChange={(e) => set("portefeuilleId", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
               {pfs.map((pf) => (
                 <option key={pf.id} value={pf.id}>
                   {pf.profilRIA.gestionnaire.member.prenom} {pf.profilRIA.gestionnaire.member.nom} — {pf.nom ?? pf.reference}
@@ -282,12 +282,12 @@ function EditDepotModal({ depot, onClose, onSuccess }: { depot: DepotItem; onClo
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Montant (FCFA) *</label>
             <input type="number" min={0} value={form.montant} onChange={(e) => set("montant", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Mode de paiement</label>
             <select value={form.modePaiement} onChange={(e) => set("modePaiement", e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
               <option value="">—</option>
               {["ESPECES", "VIREMENT", "MOBILE_MONEY", "CHEQUE"].map((m) => (
                 <option key={m} value={m}>{m.replace("_", " ")}</option>
@@ -297,7 +297,7 @@ function EditDepotModal({ depot, onClose, onSuccess }: { depot: DepotItem; onClo
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
             <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
           </div>
           <p className="text-xs text-slate-400">Seuls les dépôts en attente sont modifiables (avant impact sur le capital).</p>
         </div>
@@ -647,7 +647,7 @@ function JournalTab() {
         <div className="relative max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Investisseur, référence, type…"
-            className="pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm w-full focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+            className="pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm w-full focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
         </div>
         <button onClick={refetch} className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg">
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />

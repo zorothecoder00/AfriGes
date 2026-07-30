@@ -132,8 +132,8 @@ const STATUT_STYLE: Record<string, string> = {
   VALIDE:    'bg-blue-100 text-blue-700 border border-blue-200',
   ACTIF:     'bg-emerald-100 text-emerald-700 border border-emerald-200',
   EN_RETARD: 'bg-red-100 text-red-700 border border-red-200',
-  SOLDE:     'bg-gray-100 text-gray-600 border border-gray-200',
-  ANNULE:    'bg-gray-50 text-gray-400 border border-gray-200',
+  SOLDE:     'bg-slate-100 text-slate-600 border border-slate-200',
+  ANNULE:    'bg-slate-50 text-slate-400 border border-slate-200',
   REJETE:    'bg-red-50 text-red-400 border border-red-100',
 };
 const STATUT_LABEL: Record<string, string> = {
@@ -157,7 +157,7 @@ const LIGNE_STATUT_STYLE: Record<string, string> = {
   LIVRE:        'bg-emerald-100 text-emerald-700',
   INDISPONIBLE: 'bg-orange-100 text-orange-700',
   SUBSTITUE:    'bg-blue-100 text-blue-700',
-  ANNULE:       'bg-gray-100 text-gray-500',
+  ANNULE:       'bg-slate-100 text-slate-500',
 };
 const LIGNE_STATUT_LABEL: Record<string, string> = {
   EN_ATTENTE:   'En attente',
@@ -816,7 +816,7 @@ export default function CreditsPage() {
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
 
       <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
@@ -824,8 +824,8 @@ export default function CreditsPage() {
         {/* ── En-tête ────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Crédits clients</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Ventes à crédit · validation · remboursements journaliers</p>
+            <h2 className="text-2xl font-bold text-slate-900">Crédits clients</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Ventes à crédit · validation · remboursements journaliers</p>
           </div>
           <div className="flex items-center gap-3">
             <a href="/dashboard/admin/credits/saisie-rapide"
@@ -841,7 +841,7 @@ export default function CreditsPage() {
               <Plus className="w-4 h-4" /> Nouvelle vente à crédit
             </button>
             <button onClick={refetch}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm">
+              className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               Actualiser
             </button>
@@ -860,7 +860,7 @@ export default function CreditsPage() {
               className={`${s.bg} border rounded-2xl p-5 flex items-center gap-4 hover:opacity-90 transition text-left`}>
               <div className={`p-2.5 rounded-xl bg-white/60`}>{s.icon}</div>
               <div>
-                <p className="text-xs text-gray-500 font-medium">{s.label}</p>
+                <p className="text-xs text-slate-500 font-medium">{s.label}</p>
                 <p className={`text-3xl font-bold ${s.text} mt-0.5`}>{s.value}</p>
               </div>
             </button>
@@ -868,13 +868,13 @@ export default function CreditsPage() {
         </div>
 
         {/* ── Activité des 12 derniers mois (tous les mois, zéros inclus) ──── */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
               <Calendar className="w-4 h-4 text-blue-500" /> Activité des 12 derniers mois
-              <span className="text-xs font-normal text-gray-400">· nb crédits · émis &amp; remboursé</span>
+              <span className="text-xs font-normal text-slate-400">· nb crédits · émis &amp; remboursé</span>
             </h3>
-            {(statut || search) && <span className="text-xs text-gray-400">selon le filtre actuel</span>}
+            {(statut || search) && <span className="text-xs text-slate-400">selon le filtre actuel</span>}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
             {derniers12Mois.map((m) => {
@@ -885,19 +885,19 @@ export default function CreditsPage() {
               const empty = count === 0;
               return (
                 <div key={m.key}
-                  className={`rounded-xl border p-2.5 text-center ${empty ? 'border-gray-100 bg-gray-50/60' : 'border-blue-100 bg-blue-50/50'}`}>
+                  className={`rounded-xl border p-2.5 text-center ${empty ? 'border-slate-100 bg-slate-50/60' : 'border-blue-100 bg-blue-50/50'}`}>
                   <div className="flex items-center justify-center gap-1.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">{m.short}</p>
-                    <span className={`text-[10px] font-bold ${empty ? 'text-gray-300' : 'text-blue-600'}`}>· {count}</span>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 whitespace-nowrap">{m.short}</p>
+                    <span className={`text-[10px] font-bold ${empty ? 'text-slate-300' : 'text-blue-600'}`}>· {count}</span>
                   </div>
                   <div className="mt-1.5 space-y-1">
                     <div className="flex items-center justify-between gap-1" title={`Montant émis · ${count} crédit(s)`}>
-                      <span className="text-[9px] uppercase tracking-wide text-gray-400">Émis</span>
-                      <span className={`text-xs font-semibold tabular-nums ${empty ? 'text-gray-300' : 'text-blue-700'}`}>{formatCurrency(total)}</span>
+                      <span className="text-[9px] uppercase tracking-wide text-slate-400">Émis</span>
+                      <span className={`text-xs font-semibold tabular-nums ${empty ? 'text-slate-300' : 'text-blue-700'}`}>{formatCurrency(total)}</span>
                     </div>
                     <div className="flex items-center justify-between gap-1" title="Total déjà remboursé sur les crédits émis ce mois-là">
-                      <span className="text-[9px] uppercase tracking-wide text-gray-400">Remb.</span>
-                      <span className={`text-xs font-semibold tabular-nums ${empty ? 'text-gray-300' : 'text-emerald-700'}`}>{formatCurrency(rembourse)}</span>
+                      <span className="text-[9px] uppercase tracking-wide text-slate-400">Remb.</span>
+                      <span className={`text-xs font-semibold tabular-nums ${empty ? 'text-slate-300' : 'text-emerald-700'}`}>{formatCurrency(rembourse)}</span>
                     </div>
                   </div>
                 </div>
@@ -907,17 +907,17 @@ export default function CreditsPage() {
         </div>
 
         {/* ── Filtres ────────────────────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap items-center gap-3">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-center gap-3">
           {/* Recherche */}
           <div className="flex items-center gap-2 flex-1 min-w-[220px]">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text" value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { setSearch(searchInput); setPage(1); } }}
                 placeholder="Référence, client, téléphone…"
-                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
               />
             </div>
             <button onClick={() => { setSearch(searchInput); setPage(1); }}
@@ -926,7 +926,7 @@ export default function CreditsPage() {
             </button>
             {search && (
               <button onClick={() => { setSearch(''); setSearchInput(''); setPage(1); }}
-                className="p-2 text-gray-400 hover:text-gray-600">
+                className="p-2 text-slate-400 hover:text-slate-600">
                 <X className="w-4 h-4" />
               </button>
             )}
@@ -934,7 +934,7 @@ export default function CreditsPage() {
 
           {/* Filtre statut */}
           <select value={statut} onChange={(e) => { setStatut(e.target.value); setPage(1); }}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px]">
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px]">
             <option value="">Tous les statuts</option>
             <option value="EN_ATTENTE_VALIDATION">En attente de validation</option>
             <option value="ACTIF">Actif</option>
@@ -946,41 +946,41 @@ export default function CreditsPage() {
 
           {(statut || search) && (
             <button onClick={() => { setStatut(''); setSearch(''); setSearchInput(''); setPage(1); }}
-              className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+              className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
               <X className="w-3.5 h-3.5" /> Réinitialiser
             </button>
           )}
         </div>
 
         {/* ── Table ──────────────────────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           {loading && !res ? (
-            <div className="flex items-center justify-center py-20 text-gray-400">
+            <div className="flex items-center justify-center py-20 text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin mr-3" /> Chargement des crédits…
             </div>
           ) : !credits.length ? (
             <div className="text-center py-20">
-              <CreditCard className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-              <p className="text-gray-400 font-medium">Aucun crédit trouvé</p>
-              <p className="text-gray-300 text-sm mt-1">Modifiez les filtres ou créez un premier crédit</p>
+              <CreditCard className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+              <p className="text-slate-400 font-medium">Aucun crédit trouvé</p>
+              <p className="text-slate-300 text-sm mt-1">Modifiez les filtres ou créez un premier crédit</p>
             </div>
           ) : (
             <>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-100">
+                  <thead className="bg-slate-50 border-b border-slate-100">
                     <tr>
-                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Référence</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Client</th>
-                      <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Montant</th>
-                      <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Remboursé</th>
-                      <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Solde restant</th>
-                      <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Durée / Fin</th>
-                      <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Statut</th>
-                      <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Référence</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Client</th>
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Montant</th>
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Remboursé</th>
+                      <th className="px-5 py-3.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Solde restant</th>
+                      <th className="px-5 py-3.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Durée / Fin</th>
+                      <th className="px-5 py-3.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Statut</th>
+                      <th className="px-5 py-3.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-slate-50">
                     {groupByMonth(credits, (c) => c.dateDebut, (c) => Number(c.montantTotal)).map((grp) => (
                       <React.Fragment key={grp.key}>
                         <MonthGroupHeaderRow
@@ -998,23 +998,23 @@ export default function CreditsPage() {
                       const canRembourser = credit.statut === 'ACTIF' || credit.statut === 'EN_RETARD';
 
                       return (
-                        <tr key={credit.id} className="hover:bg-gray-50/60 transition-colors">
+                        <tr key={credit.id} className="hover:bg-slate-50/60 transition-colors">
                           {/* Référence */}
                           <td className="px-5 py-4">
-                            <p className="font-mono text-xs font-semibold text-gray-700">{credit.reference}</p>
-                            <p className="text-xs text-gray-400 mt-0.5">{formatDate(credit.dateDebut)}</p>
+                            <p className="font-mono text-xs font-semibold text-slate-700">{credit.reference}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">{formatDate(credit.dateDebut)}</p>
                           </td>
 
                           {/* Client */}
                           <td className="px-5 py-4">
                             <Link href={`/dashboard/admin/clients/${credit.client.id}`}
-                              className="font-medium text-gray-800 hover:text-blue-600 transition-colors">
+                              className="font-medium text-slate-800 hover:text-blue-600 transition-colors">
                               {credit.client.prenom} {credit.client.nom}
                             </Link>
                             {credit.client.codeClient && (
-                              <p className="text-xs text-gray-400 font-mono">{credit.client.codeClient}</p>
+                              <p className="text-xs text-slate-400 font-mono">{credit.client.codeClient}</p>
                             )}
-                            <p className="text-xs text-gray-400">{credit.client.telephone}</p>
+                            <p className="text-xs text-slate-400">{credit.client.telephone}</p>
                             {(credit.client.tags ?? []).length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {(credit.client.tags ?? []).slice(0, 3).map(({ tag }) => (
@@ -1034,39 +1034,39 @@ export default function CreditsPage() {
 
                           {/* Montant total */}
                           <td className="px-5 py-4 text-right">
-                            <p className="font-semibold text-gray-800">{formatCurrency(Number(credit.montantTotal))}</p>
-                            <p className="text-xs text-gray-400">{credit._count.lignes} produit(s)</p>
+                            <p className="font-semibold text-slate-800">{formatCurrency(Number(credit.montantTotal))}</p>
+                            <p className="text-xs text-slate-400">{credit._count.lignes} produit(s)</p>
                           </td>
 
                           {/* Remboursé + barre */}
                           <td className="px-5 py-4 text-right">
                             <p className="font-medium text-emerald-700">{formatCurrency(Number(credit.montantRembourse))}</p>
                             <div className="w-20 ml-auto mt-1">
-                              <div className="w-full bg-gray-100 rounded-full h-1">
+                              <div className="w-full bg-slate-100 rounded-full h-1">
                                 <div className={`h-1 rounded-full ${pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-blue-500' : 'bg-amber-400'}`}
                                   style={{ width: `${pct}%` }} />
                               </div>
-                              <p className="text-xs text-gray-400 text-right mt-0.5">{pct}%</p>
+                              <p className="text-xs text-slate-400 text-right mt-0.5">{pct}%</p>
                             </div>
                           </td>
 
                           {/* Solde restant */}
                           <td className="px-5 py-4 text-right">
-                            <p className={`font-bold ${Number(credit.soldeRestant) > 0 && credit.statut !== 'SOLDE' ? 'text-red-600' : 'text-gray-500'}`}>
+                            <p className={`font-bold ${Number(credit.soldeRestant) > 0 && credit.statut !== 'SOLDE' ? 'text-red-600' : 'text-slate-500'}`}>
                               {formatCurrency(Number(credit.soldeRestant))}
                             </p>
-                            <p className="text-xs text-gray-400">{formatCurrency(Number(credit.montantJournalier))}/j</p>
+                            <p className="text-xs text-slate-400">{formatCurrency(Number(credit.montantJournalier))}/j</p>
                           </td>
 
                           {/* Durée / Fin */}
                           <td className="px-5 py-4 text-center">
-                            <p className="text-sm font-medium text-gray-700">{credit.dureeJours}j</p>
-                            <p className="text-xs text-gray-400">{formatDate(credit.dateEcheanceFin)}</p>
+                            <p className="text-sm font-medium text-slate-700">{credit.dureeJours}j</p>
+                            <p className="text-xs text-slate-400">{formatDate(credit.dateEcheanceFin)}</p>
                           </td>
 
                           {/* Statut */}
                           <td className="px-5 py-4 text-center">
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${STATUT_STYLE[credit.statut] ?? 'bg-gray-100 text-gray-600'}`}>
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${STATUT_STYLE[credit.statut] ?? 'bg-slate-100 text-slate-600'}`}>
                               {STATUT_LABEL[credit.statut] ?? credit.statut}
                             </span>
                           </td>
@@ -1152,15 +1152,15 @@ export default function CreditsPage() {
 
               {/* Pagination */}
               {meta && meta.totalPages > 1 && (
-                <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 text-sm text-gray-500">
+                <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100 text-sm text-slate-500">
                   <span>{meta.total} crédit(s) · page {meta.page}/{meta.totalPages}</span>
                   <div className="flex gap-2">
                     <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
-                      className="flex items-center gap-1 px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50 text-xs">
+                      className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 text-xs">
                       <ChevronLeft className="w-3.5 h-3.5" /> Préc.
                     </button>
                     <button disabled={page === meta.totalPages} onClick={() => setPage((p) => p + 1)}
-                      className="flex items-center gap-1 px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50 text-xs">
+                      className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50 text-xs">
                       Suiv. <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -1183,11 +1183,11 @@ export default function CreditsPage() {
           <div className="relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col overflow-hidden">
 
             {/* Header drawer */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center gap-3">
                 <CreditCard className="w-5 h-5 text-blue-600" />
                 <div>
-                  <h3 className="font-bold text-gray-900">{detailCredit?.reference ?? '…'}</h3>
+                  <h3 className="font-bold text-slate-900">{detailCredit?.reference ?? '…'}</h3>
                   {detailCredit && (
                     <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${STATUT_STYLE[detailCredit.statut] ?? ''}`}>
                       {STATUT_LABEL[detailCredit.statut] ?? detailCredit.statut}
@@ -1195,23 +1195,23 @@ export default function CreditsPage() {
                   )}
                 </div>
               </div>
-              <button onClick={() => setDetailCredit(null)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600">
+              <button onClick={() => setDetailCredit(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {detailLoading ? (
-              <div className="flex-1 flex items-center justify-center text-gray-400">
+              <div className="flex-1 flex items-center justify-center text-slate-400">
                 <Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…
               </div>
             ) : detailCredit ? (
               <>
                 {/* Actions rapides */}
-                <div className="flex items-center gap-2 px-6 py-3 bg-gray-50 border-b border-gray-100 flex-shrink-0 flex-wrap">
+                <div className="flex items-center gap-2 px-6 py-3 bg-slate-50 border-b border-slate-100 flex-shrink-0 flex-wrap">
                   {detailCredit.statut === 'EN_ATTENTE_VALIDATION' && (
                     <>
                       <button onClick={() => openAction('valider', detailCredit)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700">
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg text-xs font-medium hover:bg-primary-700">
                         <BadgeCheck className="w-3.5 h-3.5" /> Valider
                       </button>
                       <button onClick={() => openAction('rejeter', detailCredit)}
@@ -1262,9 +1262,9 @@ export default function CreditsPage() {
                       { label: 'Début',               value: formatDate(detailCredit.dateDebut),                   icon: <Calendar className="w-3.5 h-3.5" /> },
                       { label: 'Fin d\'échéance',     value: formatDate(detailCredit.dateEcheanceFin),              icon: <Calendar className="w-3.5 h-3.5" /> },
                     ].map((f) => (
-                      <div key={f.label} className="bg-gray-50 rounded-lg px-3 py-2.5">
-                        <p className="text-xs text-gray-400 flex items-center gap-1">{f.icon}{f.label}</p>
-                        <p className="text-sm font-semibold text-gray-800 mt-0.5">{f.value}</p>
+                      <div key={f.label} className="bg-slate-50 rounded-lg px-3 py-2.5">
+                        <p className="text-xs text-slate-400 flex items-center gap-1">{f.icon}{f.label}</p>
+                        <p className="text-sm font-semibold text-slate-800 mt-0.5">{f.value}</p>
                       </div>
                     ))}
                   </div>
@@ -1275,10 +1275,10 @@ export default function CreditsPage() {
                       ? Math.min(100, Math.round((Number(detailCredit.montantRembourse) / Number(detailCredit.montantTotal)) * 100)) : 0;
                     return (
                       <div>
-                        <div className="flex justify-between text-xs text-gray-400 mb-1">
+                        <div className="flex justify-between text-xs text-slate-400 mb-1">
                           <span>Progression du remboursement</span><span>{pct}%</span>
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div className="w-full bg-slate-100 rounded-full h-2">
                           <div className={`h-2 rounded-full transition-all ${pct >= 100 ? 'bg-emerald-500' : pct >= 60 ? 'bg-blue-500' : pct >= 30 ? 'bg-amber-400' : 'bg-red-400'}`}
                             style={{ width: `${pct}%` }} />
                         </div>
@@ -1287,15 +1287,15 @@ export default function CreditsPage() {
                   })()}
 
                   {/* Client */}
-                  <div className="border border-gray-100 rounded-xl p-4">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1"><User className="w-3.5 h-3.5" />Client</p>
+                  <div className="border border-slate-100 rounded-xl p-4">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1"><User className="w-3.5 h-3.5" />Client</p>
                     <Link href={`/dashboard/admin/clients/${detailCredit.client.id}`}
                       className="text-sm font-semibold text-blue-600 hover:underline">
                       {detailCredit.client.prenom} {detailCredit.client.nom}
                     </Link>
-                    <p className="text-xs text-gray-500 mt-0.5">{detailCredit.client.telephone}</p>
-                    {detailCredit.client.codeClient && <p className="text-xs text-gray-400 font-mono">{detailCredit.client.codeClient}</p>}
-                    <div className="mt-2 text-xs text-gray-400">
+                    <p className="text-xs text-slate-500 mt-0.5">{detailCredit.client.telephone}</p>
+                    {detailCredit.client.codeClient && <p className="text-xs text-slate-400 font-mono">{detailCredit.client.codeClient}</p>}
+                    <div className="mt-2 text-xs text-slate-400">
                       Créé par {detailCredit.creePar.prenom} {detailCredit.creePar.nom}
                       {detailCredit.validePar && <span> · Validé par {detailCredit.validePar.prenom} {detailCredit.validePar.nom}</span>}
                     </div>
@@ -1304,25 +1304,25 @@ export default function CreditsPage() {
                   {/* Produits / Lignes */}
                   {detailCredit.lignes.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
                         Produits ({detailCredit.lignes.length})
                       </p>
                       <div className="space-y-2">
                         {detailCredit.lignes.map((l) => (
-                          <div key={l.id} className="bg-gray-50 rounded-lg px-3 py-2.5 text-sm">
+                          <div key={l.id} className="bg-slate-50 rounded-lg px-3 py-2.5 text-sm">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0 flex-1">
-                                <span className="text-gray-700 font-medium">{l.produitNom}</span>
-                                <span className="text-gray-400 ml-1.5">× {l.quantite}</span>
+                                <span className="text-slate-700 font-medium">{l.produitNom}</span>
+                                <span className="text-slate-400 ml-1.5">× {l.quantite}</span>
                                 {l.estNouveauProduit && (
                                   <span className="ml-1.5 text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full font-medium">nouveau</span>
                                 )}
                               </div>
                               <div className="flex items-center gap-2 flex-shrink-0">
-                                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${LIGNE_STATUT_STYLE[l.statut] ?? 'bg-gray-100 text-gray-500'}`}>
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${LIGNE_STATUT_STYLE[l.statut] ?? 'bg-slate-100 text-slate-500'}`}>
                                   {LIGNE_STATUT_LABEL[l.statut] ?? l.statut}
                                 </span>
-                                <span className="font-medium text-gray-800 text-xs">{formatCurrency(Number(l.montantLigne))}</span>
+                                <span className="font-medium text-slate-800 text-xs">{formatCurrency(Number(l.montantLigne))}</span>
                               </div>
                             </div>
 
@@ -1333,13 +1333,13 @@ export default function CreditsPage() {
                               </div>
                             )}
                             {l.traitePar && (
-                              <div className="mt-1 text-xs text-gray-400">
+                              <div className="mt-1 text-xs text-slate-400">
                                 Traité par {l.traitePar.prenom} {l.traitePar.nom}
                                 {l.dateTraitement && <> · {formatDate(l.dateTraitement)}</>}
                               </div>
                             )}
                             {l.notes && (
-                              <div className="mt-1 text-xs text-gray-500 italic">{l.notes}</div>
+                              <div className="mt-1 text-xs text-slate-500 italic">{l.notes}</div>
                             )}
 
                             {/* Actions disponibles */}
@@ -1390,7 +1390,7 @@ export default function CreditsPage() {
                   {detailCredit.echeances.length > 0 && (
                     <div>
                       <button onClick={() => setShowEcheances((v) => !v)}
-                        className="w-full flex items-center justify-between text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 hover:text-gray-700">
+                        className="w-full flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 hover:text-slate-700">
                         <span>Échéancier ({detailCredit.echeances.length} jours)</span>
                         {showEcheances ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </button>
@@ -1400,14 +1400,14 @@ export default function CreditsPage() {
                             const now = new Date();
                             const retard = e.statut !== 'PAYE' && new Date(e.dateEcheance) < now;
                             return (
-                              <div key={e.id} className={`flex items-center gap-3 text-xs rounded-lg px-3 py-2 ${retard ? 'bg-red-50' : 'bg-gray-50'}`}>
-                                <span className="text-gray-400 w-8 text-right font-mono">#{e.numeroEcheance}</span>
-                                <span className={`flex-1 ${retard ? 'text-red-600' : 'text-gray-600'}`}>{formatDate(e.dateEcheance)}</span>
-                                <span className="font-medium text-gray-700">{formatCurrency(Number(e.montantDu))}</span>
+                              <div key={e.id} className={`flex items-center gap-3 text-xs rounded-lg px-3 py-2 ${retard ? 'bg-red-50' : 'bg-slate-50'}`}>
+                                <span className="text-slate-400 w-8 text-right font-mono">#{e.numeroEcheance}</span>
+                                <span className={`flex-1 ${retard ? 'text-red-600' : 'text-slate-600'}`}>{formatDate(e.dateEcheance)}</span>
+                                <span className="font-medium text-slate-700">{formatCurrency(Number(e.montantDu))}</span>
                                 {Number(e.montantPaye) > 0 && Number(e.montantPaye) < Number(e.montantDu) && (
                                   <span className="text-blue-500">(+{formatCurrency(Number(e.montantPaye))})</span>
                                 )}
-                                <span className={`px-1.5 py-0.5 rounded-full font-semibold ${ECHEANCE_STYLE[e.statut] ?? 'bg-gray-100 text-gray-500'}`}>
+                                <span className={`px-1.5 py-0.5 rounded-full font-semibold ${ECHEANCE_STYLE[e.statut] ?? 'bg-slate-100 text-slate-500'}`}>
                                   {e.statut === 'EN_ATTENTE' ? 'Att.' : e.statut === 'PAYE' ? 'Payé' : e.statut === 'PARTIEL' ? 'Part.' : 'Retard'}
                                 </span>
                               </div>
@@ -1421,7 +1421,7 @@ export default function CreditsPage() {
                   {/* Remboursements */}
                   {detailCredit.remboursements.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
                         Remboursements ({detailCredit.remboursements.length})
                       </p>
                       <div className="space-y-1.5">
@@ -1437,15 +1437,15 @@ export default function CreditsPage() {
                             </button>
                             {rembMonths.isOpen(grp.key) && grp.items.map((r) => (
                           <div key={r.id} className="flex items-center gap-3 bg-emerald-50 rounded-lg px-3 py-2 text-xs">
-                            <span className="text-gray-500">{formatDate(r.dateRemboursement)}</span>
-                            {r.numeroJour != null && <span className="text-gray-400">J{r.numeroJour}</span>}
-                            <span className="flex-1 text-gray-600 truncate">
+                            <span className="text-slate-500">{formatDate(r.dateRemboursement)}</span>
+                            {r.numeroJour != null && <span className="text-slate-400">J{r.numeroJour}</span>}
+                            <span className="flex-1 text-slate-600 truncate">
                               {r.agentCollecteur ? `${r.agentCollecteur.prenom} ${r.agentCollecteur.nom}` : '—'}
                             </span>
-                            <span className="text-gray-400">{r.modePaiement.replace('_', ' ')}</span>
+                            <span className="text-slate-400">{r.modePaiement.replace('_', ' ')}</span>
                             <span className="font-bold text-emerald-700">{formatCurrency(Number(r.montant))}</span>
                             <button type="button" onClick={() => openEditRemb(r)}
-                              className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded" title="Corriger ce remboursement">
+                              className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded" title="Corriger ce remboursement">
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -1468,38 +1468,38 @@ export default function CreditsPage() {
       {editRemb && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[170] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-amber-600" />
-                <h3 className="text-base font-bold text-gray-900">Corriger le remboursement</h3>
+                <h3 className="text-base font-bold text-slate-900">Corriger le remboursement</h3>
               </div>
-              <button onClick={() => setEditRemb(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <button onClick={() => setEditRemb(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="px-6 py-4 space-y-3">
               <div className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                 Corriger le montant recalcule automatiquement l&apos;échéancier, le solde du crédit et du client, ainsi que le recouvrement RIA des financements liés.
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Montant (FCFA)</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Montant (FCFA)</label>
                 <input type="number" min={1} value={editRembForm.montant}
                   onChange={(e) => setEditRembForm((f) => ({ ...f, montant: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Date de collecte</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Date de collecte</label>
                 <input type="date" value={editRembForm.dateCollecte}
                   onChange={(e) => setEditRembForm((f) => ({ ...f, dateCollecte: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Observation</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Observation</label>
                 <textarea rows={2} value={editRembForm.observation}
                   onChange={(e) => setEditRembForm((f) => ({ ...f, observation: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none" />
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none" />
               </div>
             </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
-              <button onClick={() => setEditRemb(null)} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Annuler</button>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">
+              <button onClick={() => setEditRemb(null)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
               <button onClick={saveEditRemb} disabled={editRembSaving}
                 className="flex items-center gap-2 px-5 py-2 text-sm text-white bg-amber-600 hover:bg-amber-700 rounded-lg font-medium disabled:opacity-50">
                 {editRembSaving ? <><Loader2 className="w-4 h-4 animate-spin" />Enregistrement…</> : <>Enregistrer</>}
@@ -1515,12 +1515,12 @@ export default function CreditsPage() {
       {modalRembOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[160] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-2">
                 <Banknote className="w-5 h-5 text-teal-600" />
-                <h3 className="text-base font-bold text-gray-900">Enregistrer un remboursement</h3>
+                <h3 className="text-base font-bold text-slate-900">Enregistrer un remboursement</h3>
               </div>
-              <button onClick={() => setModalRembOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <button onClick={() => setModalRembOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="px-6 py-5 space-y-4 flex-1 overflow-y-auto">
               {rembError && (
@@ -1541,14 +1541,14 @@ export default function CreditsPage() {
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Date de collecte</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Date de collecte</label>
                   <input type="date" value={rembDate} onChange={(e) => setRembDate(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50" />
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">N° de jour</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">N° de jour</label>
                   <select value={rembJour} onChange={(e) => onChangeJour(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
                     <option value="">—</option>
                     {Array.from({ length: rembCredit?.dureeJours ?? 0 }, (_, i) => i + 1).map((j) => (
                       <option key={j} value={j}>Jour {j}</option>
@@ -1557,9 +1557,9 @@ export default function CreditsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Agent collecteur</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Agent collecteur</label>
                 <select value={rembAgent} onChange={(e) => setRembAgent(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
                   <option value="">— Moi-même —</option>
                   {collecteurs.map((a) => (
                     <option key={a.id} value={a.id}>{a.prenom} {a.nom}</option>
@@ -1567,40 +1567,40 @@ export default function CreditsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Montant attendu</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Montant attendu</label>
                 <input type="text" readOnly value={montantAttenduPreview > 0 ? formatCurrency(montantAttenduPreview) : '—'}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-500" />
-                <p className="text-[11px] text-gray-400 mt-1">Montant journalier indicatif — l&apos;échéance exacte du jour est recalculée à l&apos;enregistrement.</p>
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-100 text-slate-500" />
+                <p className="text-[11px] text-slate-400 mt-1">Montant journalier indicatif — l&apos;échéance exacte du jour est recalculée à l&apos;enregistrement.</p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Montant encaissé <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Montant encaissé <span className="text-red-500">*</span></label>
                 <input type="number" min="0.01" step="0.01" value={rembMontant}
                   onChange={(e) => setRembMontant(e.target.value)}
                   placeholder="ex : 5000"
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50"
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50"
                   autoFocus
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Mode de paiement</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Mode de paiement</label>
                 <select value={rembMode} onChange={(e) => setRembMode(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
                   {MODE_PAIEMENT_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Observation (optionnel)</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Observation (optionnel)</label>
                 <textarea rows={2} value={rembNotes} onChange={(e) => setRembNotes(e.target.value)}
                   placeholder="Commentaire, référence reçu…"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
               <button onClick={() => setModalRembOpen(false)}
-                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
                 Annuler
               </button>
               <button onClick={handleRemboursement} disabled={rembLoading || !rembMontant}
@@ -1636,12 +1636,12 @@ export default function CreditsPage() {
                 return (
                   <React.Fragment key={step}>
                     <div className="flex flex-col items-center">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${done ? 'bg-blue-600 text-white' : active ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-400' : 'bg-gray-100 text-gray-400'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${done ? 'bg-blue-600 text-white' : active ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-400' : 'bg-slate-100 text-slate-400'}`}>
                         {done ? <CheckCircle2 className="w-4 h-4" /> : step}
                       </div>
-                      <span className={`text-xs mt-1 font-medium ${active ? 'text-blue-700' : done ? 'text-blue-500' : 'text-gray-400'}`}>{label}</span>
+                      <span className={`text-xs mt-1 font-medium ${active ? 'text-blue-700' : done ? 'text-blue-500' : 'text-slate-400'}`}>{label}</span>
                     </div>
-                    {i < 3 && <div className={`flex-1 h-px mx-2 mb-4 ${creditStep > step ? 'bg-blue-400' : 'bg-gray-200'}`} />}
+                    {i < 3 && <div className={`flex-1 h-px mx-2 mb-4 ${creditStep > step ? 'bg-blue-400' : 'bg-slate-200'}`} />}
                   </React.Fragment>
                 );
               })}
@@ -1662,7 +1662,7 @@ export default function CreditsPage() {
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Client <span className="text-red-500">*</span></label>
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input type="text" value={creditClientSearch}
                         onChange={(e) => { setCreditClientSearch(e.target.value); if (creditSelectedClient) { setCreditSelectedClient(null); setCreditClientId(null); setEligibilite(null); setShowSetLimite(false); } }}
                         placeholder="Nom, prénom, téléphone…"
@@ -1672,14 +1672,14 @@ export default function CreditsPage() {
                     {creditClientSearch.trim().length >= 2 && !creditSelectedClient && (
                       <div className="mt-2 border border-slate-200 rounded-lg divide-y max-h-48 overflow-y-auto shadow-sm">
                         {creditClientSearchLoading ? (
-                          <div className="flex items-center gap-2 px-3 py-3 text-sm text-gray-400"><Loader2 className="w-4 h-4 animate-spin" /> Recherche…</div>
+                          <div className="flex items-center gap-2 px-3 py-3 text-sm text-slate-400"><Loader2 className="w-4 h-4 animate-spin" /> Recherche…</div>
                         ) : creditClientResults.length === 0 ? (
-                          <p className="px-3 py-3 text-sm text-gray-400 italic">Aucun client trouvé</p>
+                          <p className="px-3 py-3 text-sm text-slate-400 italic">Aucun client trouvé</p>
                         ) : creditClientResults.map(c => (
                           <button key={c.id} type="button"
                             onClick={() => { setCreditClientId(c.id); setCreditClientSearch(`${c.prenom} ${c.nom}`); setCreditSelectedClient({ id: c.id, nom: c.nom, prenom: c.prenom, telephone: c.telephone }); checkEligibilite(c.id); }}
                             className="w-full text-left px-3 py-2.5 hover:bg-blue-50 text-sm transition-colors">
-                            <strong>{c.prenom} {c.nom}</strong> <span className="text-gray-400 text-xs">· {c.telephone}</span>
+                            <strong>{c.prenom} {c.nom}</strong> <span className="text-slate-400 text-xs">· {c.telephone}</span>
                           </button>
                         ))}
                       </div>
@@ -1700,7 +1700,7 @@ export default function CreditsPage() {
                   {creditClientId && (
                     <div>
                       {eligibiliteLoading ? (
-                        <div className="flex items-center gap-2 text-sm text-gray-400 py-2"><Loader2 className="w-4 h-4 animate-spin" /> Vérification de l&apos;éligibilité…</div>
+                        <div className="flex items-center gap-2 text-sm text-slate-400 py-2"><Loader2 className="w-4 h-4 animate-spin" /> Vérification de l&apos;éligibilité…</div>
                       ) : showSetLimite ? (
                         <div className="rounded-xl p-4 border bg-amber-50 border-amber-200">
                           <div className="flex items-center gap-2 mb-1">
@@ -1740,11 +1740,11 @@ export default function CreditsPage() {
                           )}
                           {eligibilite.tauxUtilisation != null && (
                             <div className="mt-3 ml-7">
-                              <div className="flex justify-between text-xs text-gray-500 mb-1"><span>Utilisation du crédit</span><span>{eligibilite.tauxUtilisation}%</span></div>
-                              <div className="w-full bg-gray-200 rounded-full h-1.5">
+                              <div className="flex justify-between text-xs text-slate-500 mb-1"><span>Utilisation du crédit</span><span>{eligibilite.tauxUtilisation}%</span></div>
+                              <div className="w-full bg-slate-200 rounded-full h-1.5">
                                 <div className={`h-1.5 rounded-full ${eligibilite.tauxUtilisation >= 100 ? 'bg-red-500' : eligibilite.tauxUtilisation >= 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, eligibilite.tauxUtilisation)}%` }} />
                               </div>
-                              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                              <div className="flex justify-between text-xs text-slate-400 mt-1">
                                 <span>Solde actuel : {formatCurrency(Number(eligibilite.client.soldeActuel ?? 0))}</span>
                                 <span>Limite : {formatCurrency(Number(eligibilite.client.limiteCredit ?? 0))}</span>
                               </div>
@@ -1752,9 +1752,9 @@ export default function CreditsPage() {
                           )}
                           {eligibilite.creditsActifs.length > 0 && (
                             <div className="mt-3 ml-7">
-                              <p className="text-xs font-medium text-gray-600 mb-1">Crédits en cours :</p>
+                              <p className="text-xs font-medium text-slate-600 mb-1">Crédits en cours :</p>
                               {eligibilite.creditsActifs.slice(0, 3).map(c => (
-                                <div key={c.id} className="text-xs text-gray-500 flex justify-between">
+                                <div key={c.id} className="text-xs text-slate-500 flex justify-between">
                                   <span className="font-mono">{c.reference}</span><span>{c.statut}</span>
                                   <span>{formatCurrency(Number(c.soldeRestant))} restant</span>
                                 </div>
@@ -1770,7 +1770,7 @@ export default function CreditsPage() {
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">
                         Point de vente source <span className="text-red-500">*</span>
-                        <span className="ml-1 text-gray-400 font-normal">(détermine le stock disponible)</span>
+                        <span className="ml-1 text-slate-400 font-normal">(détermine le stock disponible)</span>
                       </label>
                       <select value={creditPdvId}
                         onChange={(e) => { const v = e.target.value; setCreditPdvId(v); loadStockPdv(v); setCreditLignes([{ produitId: null, produitNom: '', quantite: 1, prixUnitaire: 0, remise: 0, stockDisponible: Infinity }]); }}
@@ -1789,7 +1789,7 @@ export default function CreditsPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Produits de la vente</p>
-                    {creditStockLoading && <span className="flex items-center gap-1 text-xs text-gray-400"><Loader2 className="w-3 h-3 animate-spin" /> Chargement stock…</span>}
+                    {creditStockLoading && <span className="flex items-center gap-1 text-xs text-slate-400"><Loader2 className="w-3 h-3 animate-spin" /> Chargement stock…</span>}
                   </div>
                   {!creditStockLoading && creditStockPdv.length === 0 && (
                     <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-3 text-amber-700 text-sm">
@@ -1820,7 +1820,7 @@ export default function CreditsPage() {
                               <input type="number" min={0.25} step={0.25} max={ligne.stockDisponible !== Infinity ? ligne.stockDisponible : undefined} value={ligne.quantite}
                                 onChange={e => setCreditLignes(prev => prev.map((l, j) => j !== i ? l : { ...l, quantite: Math.max(0.25, Number(e.target.value)) }))}
                                 className={`w-full px-2 py-2 border rounded-lg text-xs bg-white text-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${stockInsuffisant ? 'border-red-300 bg-red-50' : 'border-slate-200'}`} />
-                              {ligne.stockDisponible !== Infinity && <p className="text-xs text-gray-400 text-center mt-0.5">max {ligne.stockDisponible}</p>}
+                              {ligne.stockDisponible !== Infinity && <p className="text-xs text-slate-400 text-center mt-0.5">max {ligne.stockDisponible}</p>}
                             </div>
                             <div className="col-span-2">
                               {i === 0 && <label className="block text-xs font-medium text-slate-500 mb-1">Prix unit.</label>}
@@ -1913,10 +1913,10 @@ export default function CreditsPage() {
                             <input type="number" min={0} step={1} value={creditCcMontant}
                               onChange={e => setCreditCcMontant(e.target.value)}
                               placeholder="Montant à imputer sur le CC"
-                              className="flex-1 px-3 py-2 border border-emerald-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                              className="flex-1 px-3 py-2 border border-emerald-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500" />
                             <button type="button"
                               onClick={() => setCreditCcMontant(String(Math.min(creditCcInfo.solde, creditTotalARembourser)))}
-                              className="px-3 py-2 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 whitespace-nowrap">
+                              className="px-3 py-2 text-xs font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 whitespace-nowrap">
                               Max ({formatCurrency(Math.min(creditCcInfo.solde, creditTotalARembourser))})
                             </button>
                           </div>
@@ -2143,39 +2143,39 @@ export default function CreditsPage() {
       {modalActionOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[160] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 {actionType === 'valider'  && <BadgeCheck className="w-5 h-5 text-emerald-600" />}
                 {actionType === 'rejeter'  && <XCircle    className="w-5 h-5 text-orange-500" />}
                 {actionType === 'annuler'  && <Ban        className="w-5 h-5 text-red-500" />}
-                <h3 className="text-base font-bold text-gray-900">
+                <h3 className="text-base font-bold text-slate-900">
                   {actionType === 'valider' ? 'Valider le crédit' : actionType === 'rejeter' ? 'Rejeter le crédit' : 'Annuler le crédit'}
                 </h3>
               </div>
-              <button onClick={() => setModalActionOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <button onClick={() => setModalActionOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="px-6 py-5 space-y-4">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-slate-600">
                 {actionType === 'valider'
-                  ? <>Confirmer la validation de <strong className="text-gray-800">{actionRef}</strong> ? Les échéances journalières seront générées et le solde client mis à jour.</>
+                  ? <>Confirmer la validation de <strong className="text-slate-800">{actionRef}</strong> ? Les échéances journalières seront générées et le solde client mis à jour.</>
                   : actionType === 'rejeter'
-                  ? <>Rejeter <strong className="text-gray-800">{actionRef}</strong> ? Cette action est définitive.</>
-                  : <>Annuler <strong className="text-gray-800">{actionRef}</strong> ? Le solde client sera corrigé en conséquence.</>
+                  ? <>Rejeter <strong className="text-slate-800">{actionRef}</strong> ? Cette action est définitive.</>
+                  : <>Annuler <strong className="text-slate-800">{actionRef}</strong> ? Le solde client sera corrigé en conséquence.</>
                 }
               </p>
               {actionType !== 'valider' && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Motif (optionnel)</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Motif (optionnel)</label>
                   <textarea rows={2} value={actionMotif} onChange={(e) => setActionMotif(e.target.value)}
                     placeholder="Raison du rejet ou de l'annulation…"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
                   />
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">
               <button onClick={() => setModalActionOpen(false)}
-                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
                 Annuler
               </button>
               <button onClick={handleAction} disabled={actionLoading}
@@ -2201,20 +2201,20 @@ export default function CreditsPage() {
       {ligneActionOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 {ligneActionStatut === 'LIVRE'        && <PackageCheck className="w-5 h-5 text-emerald-600" />}
                 {ligneActionStatut === 'INDISPONIBLE' && <AlertCircle  className="w-5 h-5 text-orange-500" />}
                 {ligneActionStatut === 'SUBSTITUE'    && <ArrowLeftRight className="w-5 h-5 text-blue-600" />}
                 {ligneActionStatut === 'ANNULE'       && <XCircle      className="w-5 h-5 text-red-500" />}
-                <h3 className="text-base font-bold text-gray-900">
+                <h3 className="text-base font-bold text-slate-900">
                   {ligneActionStatut === 'LIVRE'        && 'Marquer comme livré'}
                   {ligneActionStatut === 'INDISPONIBLE' && 'Marquer comme indisponible'}
                   {ligneActionStatut === 'SUBSTITUE'    && 'Substituer le produit'}
                   {ligneActionStatut === 'ANNULE'       && 'Annuler cette ligne'}
                 </h3>
               </div>
-              <button onClick={() => setLigneActionOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <button onClick={() => setLigneActionOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
             </div>
 
             <div className="px-6 py-4 space-y-3">
@@ -2227,7 +2227,7 @@ export default function CreditsPage() {
               {/* Substitution : recherche produit */}
               {ligneActionStatut === 'SUBSTITUE' && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
                     Produit de remplacement <span className="text-red-500">*</span>
                   </label>
                   {ligneActionProduitId ? (
@@ -2240,24 +2240,24 @@ export default function CreditsPage() {
                     </div>
                   ) : (
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input type="text" value={ligneActionProdSearch}
                         onChange={(e) => setLigneActionProdSearch(e.target.value)}
                         placeholder="Rechercher un produit catalogue…"
-                        className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                        className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
                       />
                       {(ligneActionProdLoading || ligneActionProdResults.length > 0) && (
-                        <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        <div className="absolute z-10 top-full mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                           {ligneActionProdLoading ? (
-                            <div className="flex items-center gap-2 px-3 py-3 text-sm text-gray-400">
+                            <div className="flex items-center gap-2 px-3 py-3 text-sm text-slate-400">
                               <Loader2 className="w-4 h-4 animate-spin" /> Recherche…
                             </div>
                           ) : ligneActionProdResults.map(p => (
                             <button key={p.id} type="button"
                               onClick={() => { setLigneActionProduitId(String(p.id)); setLigneActionProdSearch(p.nom); setLigneActionProdResults([]); }}
-                              className="w-full text-left px-3 py-2.5 hover:bg-blue-50 text-sm border-b border-gray-50 last:border-0">
-                              <span className="font-medium text-gray-800">{p.nom}</span>
-                              {p.reference && <span className="ml-2 text-xs text-gray-400 font-mono">{p.reference}</span>}
+                              className="w-full text-left px-3 py-2.5 hover:bg-blue-50 text-sm border-b border-slate-50 last:border-0">
+                              <span className="font-medium text-slate-800">{p.nom}</span>
+                              {p.reference && <span className="ml-2 text-xs text-slate-400 font-mono">{p.reference}</span>}
                             </button>
                           ))}
                         </div>
@@ -2268,17 +2268,17 @@ export default function CreditsPage() {
               )}
 
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optionnel)</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Notes (optionnel)</label>
                 <textarea rows={2} value={ligneActionNotes} onChange={(e) => setLigneActionNotes(e.target.value)}
                   placeholder="Raison, remarques…"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">
               <button onClick={() => setLigneActionOpen(false)}
-                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
                 Annuler
               </button>
               <button onClick={handleLigneAction}
@@ -2305,12 +2305,12 @@ export default function CreditsPage() {
       {editCredit && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[170] p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl flex flex-col max-h-[92vh]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-indigo-600" />
-                <h3 className="text-base font-bold text-gray-900">Modifier le crédit {editCredit.reference}</h3>
+                <h3 className="text-base font-bold text-slate-900">Modifier le crédit {editCredit.reference}</h3>
               </div>
-              <button onClick={() => setEditCredit(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <button onClick={() => setEditCredit(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
               {editError && (
@@ -2334,54 +2334,54 @@ export default function CreditsPage() {
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Durée (jours) <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Durée (jours) <span className="text-red-500">*</span></label>
                   <input type="number" min={1} value={editForm.dureeJours}
                     onChange={(e) => setEditForm(f => ({ ...f, dureeJours: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-60 disabled:cursor-not-allowed" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-60 disabled:cursor-not-allowed" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Date de début <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Date de début <span className="text-red-500">*</span></label>
                   <input type="date" value={editForm.dateDebut}
                     onChange={(e) => setEditForm(f => ({ ...f, dateDebut: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-60 disabled:cursor-not-allowed" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-60 disabled:cursor-not-allowed" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Taux de pénalité (% / jour de retard)</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Taux de pénalité (% / jour de retard)</label>
                 <input type="number" min={0} step="0.1" value={editForm.tauxPenalite}
                   onChange={(e) => setEditForm(f => ({ ...f, tauxPenalite: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Garantie</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Garantie</label>
                 <input type="text" value={editForm.garantie}
                   onChange={(e) => setEditForm(f => ({ ...f, garantie: e.target.value }))}
                   placeholder="Caution, gage…"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400" />
               </div>
 
               {/* Frais & intérêts (recomposent le total à rembourser) */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Frais & intérêts (bordereau)</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Frais & intérêts (bordereau)</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   <input type="number" min={0} step={100} value={editForm.fraisDossier} disabled={editAvecRemboursements}
                     onChange={(e) => setEditForm(f => ({ ...f, fraisDossier: e.target.value }))} placeholder="Frais dossier"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50" />
                   <input type="number" min={0} step={100} value={editForm.assurance} disabled={editAvecRemboursements}
                     onChange={(e) => setEditForm(f => ({ ...f, assurance: e.target.value }))} placeholder="Assurance"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50" />
                   <input type="number" min={0} step={100} value={editForm.autresFrais} disabled={editAvecRemboursements}
                     onChange={(e) => setEditForm(f => ({ ...f, autresFrais: e.target.value }))} placeholder="Autres frais"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50" />
                   <input type="number" min={0} step={100} value={editForm.fraisLivraison} disabled={editAvecRemboursements}
                     onChange={(e) => setEditForm(f => ({ ...f, fraisLivraison: e.target.value }))} placeholder="Frais livraison"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50" />
                   <input type="number" min={0} step={0.1} value={editForm.tauxInteret} disabled={editAvecRemboursements}
                     onChange={(e) => setEditForm(f => ({ ...f, tauxInteret: e.target.value }))} placeholder="Taux intérêt %"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50" />
                   <input type="number" min={0} step={1} value={editForm.delaiGraceJours}
                     onChange={(e) => setEditForm(f => ({ ...f, delaiGraceJours: e.target.value }))} placeholder="Délai grâce (j)"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400" />
                 </div>
                 {editAvecRemboursements && (
                   <p className="text-xs text-amber-600 mt-1">Frais/intérêt verrouillés (crédit avec remboursements). Garant, délai de grâce et pénalité restent modifiables.</p>
@@ -2389,49 +2389,49 @@ export default function CreditsPage() {
               </div>
 
               {/* Garant (structuré — bordereau de remboursement) */}
-              <div className="border border-gray-100 rounded-lg p-3 bg-gray-50/60">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Garant</p>
+              <div className="border border-slate-100 rounded-lg p-3 bg-slate-50/60">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Garant</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   <input type="text" value={editForm.garantNom} onChange={(e) => setEditForm(f => ({ ...f, garantNom: e.target.value }))} placeholder="Nom du garant"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-400" />
                   <input type="text" value={editForm.garantTelephone} onChange={(e) => setEditForm(f => ({ ...f, garantTelephone: e.target.value }))} placeholder="Téléphone"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-400" />
                   <input type="text" value={editForm.garantAdresse} onChange={(e) => setEditForm(f => ({ ...f, garantAdresse: e.target.value }))} placeholder="Adresse"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-400" />
                   <input type="text" value={editForm.garantTypeGarantie} onChange={(e) => setEditForm(f => ({ ...f, garantTypeGarantie: e.target.value }))} placeholder="Type (caution, gage…)"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-400" />
                   <input type="number" min={0} step={1000} value={editForm.garantValeurEstimee} onChange={(e) => setEditForm(f => ({ ...f, garantValeurEstimee: e.target.value }))} placeholder="Valeur estimée"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-400" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Gestionnaire du crédit</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Gestionnaire du crédit</label>
                 <select value={editForm.gestionnaireCreditId}
                   onChange={(e) => setEditForm(f => ({ ...f, gestionnaireCreditId: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400">
                   <option value="">— RVC du point de vente (automatique) —</option>
                   {(gestionnairesRes?.data ?? []).map((u) => (
                     <option key={u.id} value={u.id}>{u.prenom} {u.nom}</option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-400 mt-1">Laissez sur « automatique » pour reprendre le RVC rattaché au point de vente du client.</p>
+                <p className="text-xs text-slate-400 mt-1">Laissez sur « automatique » pour reprendre le RVC rattaché au point de vente du client.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Observations</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Observations</label>
                 <textarea rows={2} value={editForm.observations}
                   onChange={(e) => setEditForm(f => ({ ...f, observations: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none" />
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 resize-none" />
               </div>
             </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100 flex-shrink-0">
               <button onClick={() => setEditCredit(null)}
-                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
                 Annuler
               </button>
               <button onClick={handleEdit} disabled={editLoading}
-                className="flex items-center gap-2 px-5 py-2 text-sm text-white rounded-lg font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
+                className="flex items-center gap-2 px-5 py-2 text-sm text-white rounded-lg font-medium bg-primary-600 hover:bg-primary-700 disabled:opacity-50">
                 {editLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Enregistrement…</> : <><Pencil className="w-4 h-4" />Enregistrer</>}
               </button>
             </div>
@@ -2445,16 +2445,16 @@ export default function CreditsPage() {
       {deleteCredit && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[180] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Trash className="w-5 h-5 text-red-600" />
-                <h3 className="text-base font-bold text-gray-900">Supprimer le crédit</h3>
+                <h3 className="text-base font-bold text-slate-900">Supprimer le crédit</h3>
               </div>
-              <button onClick={() => setDeleteCredit(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <button onClick={() => setDeleteCredit(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="px-6 py-5 space-y-3">
-              <p className="text-sm text-gray-600">
-                Supprimer définitivement <strong className="text-gray-800">{deleteCredit.reference}</strong>
+              <p className="text-sm text-slate-600">
+                Supprimer définitivement <strong className="text-slate-800">{deleteCredit.reference}</strong>
                 {' '}({deleteCredit.client.prenom} {deleteCredit.client.nom}) ?
               </p>
               <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 flex items-start gap-2">
@@ -2464,9 +2464,9 @@ export default function CreditsPage() {
                   : <span>Cette action est irréversible. Les lignes de produits et l&apos;échéancier éventuel seront supprimés.</span>}
               </div>
             </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">
               <button onClick={() => setDeleteCredit(null)}
-                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
                 Annuler
               </button>
               <button onClick={handleDelete} disabled={deleteLoading}

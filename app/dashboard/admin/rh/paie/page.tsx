@@ -255,17 +255,17 @@ function FichesTab() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input value={search} onChange={(e) => handleSearch(e.target.value)}
             placeholder="Rechercher…"
-            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </div>
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-slate-400" />
           <select value={annee} onChange={(e) => { setAnnee(e.target.value); setPage(1); }}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
             <option value="">Toutes années</option>
             {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
           <select value={mois} onChange={(e) => { setMois(e.target.value); setPage(1); }}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
             <option value="">Tous mois</option>
             {MOIS_LABELS.slice(1).map((l, i) => <option key={i+1} value={i+1}>{l}</option>)}
           </select>
@@ -274,7 +274,7 @@ function FichesTab() {
           <RefreshCw className="w-4 h-4" />
         </button>
         <button onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700">
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700">
           <Plus className="w-4 h-4" /> Nouvelle fiche
         </button>
       </div>
@@ -429,7 +429,7 @@ function CreateFicheModal({ onClose, onCreated }: { onClose: () => void; onCreat
         <div className="overflow-y-auto flex-1 p-6 space-y-4">
           <PField label="Collaborateur *">
             <select value={form.profilRHId} onChange={(e) => set("profilRHId", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
               <option value="">— Sélectionner —</option>
               {collabs.map((c) => <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>)}
             </select>
@@ -437,19 +437,19 @@ function CreateFicheModal({ onClose, onCreated }: { onClose: () => void; onCreat
           <div className="grid grid-cols-3 gap-3">
             <PField label="Mois *">
               <select value={form.mois} onChange={(e) => set("mois", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 {MOIS_LABELS.slice(1).map((l, i) => <option key={i+1} value={i+1}>{l}</option>)}
               </select>
             </PField>
             <PField label="Année *">
               <select value={form.annee} onChange={(e) => set("annee", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
             </PField>
             <PField label="Salaire de base">
               <input type="number" value={form.salaireBase} onChange={(e) => set("salaireBase", e.target.value)} placeholder="0"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </PField>
           </div>
 
@@ -488,7 +488,7 @@ function CreateFicheModal({ onClose, onCreated }: { onClose: () => void; onCreat
                   <input value={newComp.montant} onChange={(e) => setNewComp((n) => ({ ...n, montant: e.target.value }))}
                     type="number" placeholder="Montant"
                     className="w-28 px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none" />
-                  <button onClick={addComp} className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"><Plus className="w-3.5 h-3.5" /></button>
+                  <button onClick={addComp} className="px-3 py-1.5 text-xs font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700"><Plus className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
             )}
@@ -506,13 +506,13 @@ function CreateFicheModal({ onClose, onCreated }: { onClose: () => void; onCreat
 
           <PField label="Notes">
             <input value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Optionnel"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </PField>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
           <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
           </button>
         </div>
@@ -595,7 +595,7 @@ function FicheDetailModal({ fiche, onClose, onUpdated }: { fiche: FichePaie; onC
             <div>
               <p className="text-xs font-medium text-slate-600 mb-1">Mode de paiement</p>
               <select value={modePaiement} onChange={(e) => setModePaiement(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
                 <option value="VIREMENT">Virement bancaire</option>
                 <option value="MOBILE_MONEY">Mobile Money</option>
                 <option value="ESPECES">Espèces</option>
@@ -608,9 +608,9 @@ function FicheDetailModal({ fiche, onClose, onUpdated }: { fiche: FichePaie; onC
             <p className="text-xs font-medium text-slate-600 mb-1">Fichier PDF</p>
             <div className="flex gap-2">
               <input value={fichierUrl} onChange={(e) => setFichierUrl(e.target.value)} placeholder="https://…"
-                className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
               <button onClick={async () => { const r = await mutate({ fichierUrl: fichierUrl || null }); if (r) { toast.success("Fichier lié"); onUpdated(); } }} disabled={loading}
-                className="px-3 py-2 text-sm text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50"><Save className="w-4 h-4" /></button>
+                className="px-3 py-2 text-sm text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"><Save className="w-4 h-4" /></button>
             </div>
           </div>
 
@@ -673,7 +673,7 @@ function FicheDetailModal({ fiche, onClose, onUpdated }: { fiche: FichePaie; onC
             )}
             {fiche.statut === "EN_PAIEMENT" && (
               <button onClick={() => doAction("MARQUER_PAYE")} disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50">
                 {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />} Marquer payée
               </button>
             )}
@@ -720,7 +720,7 @@ function AvancesSubTab() {
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <select value={statutFilter} onChange={(e) => setStatutFilter(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
           <option value="">Tous statuts</option>
           <option value="EN_ATTENTE">En attente</option>
           <option value="APPROUVE">Approuvée</option>
@@ -759,7 +759,7 @@ function AvancesSubTab() {
           <Download className="w-4 h-4" /> Exporter
         </button>
         <button onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 ml-auto">
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 ml-auto">
           <Plus className="w-4 h-4" /> Nouvelle avance
         </button>
       </div>
@@ -863,7 +863,7 @@ function AvanceModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
         <div className="p-6 space-y-4">
           <PField label="Collaborateur *">
             <select value={form.profilRHId} onChange={(e) => set("profilRHId", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
               <option value="">— Sélectionner —</option>
               {collabs.map((c) => <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>)}
             </select>
@@ -871,22 +871,22 @@ function AvanceModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
           <div className="grid grid-cols-2 gap-3">
             <PField label="Montant *">
               <input type="number" value={form.montant} onChange={(e) => set("montant", e.target.value)} placeholder="0"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </PField>
             <PField label="Échéances (mois)">
               <input type="number" min="1" value={form.echeancesMois} onChange={(e) => set("echeancesMois", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </PField>
           </div>
           <PField label="Motif">
             <input value={form.motif} onChange={(e) => set("motif", e.target.value)} placeholder="Optionnel"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </PField>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
           <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
           </button>
         </div>
@@ -910,7 +910,7 @@ function PretsSubTab() {
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <select value={statutFilter} onChange={(e) => setStatutFilter(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
           <option value="">Tous statuts</option>
           <option value="EN_COURS">En cours</option>
           <option value="SOLDE">Soldé</option>
@@ -952,7 +952,7 @@ function PretsSubTab() {
           <Download className="w-4 h-4" /> Exporter
         </button>
         <button onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 ml-auto">
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 ml-auto">
           <Plus className="w-4 h-4" /> Nouveau prêt
         </button>
       </div>
@@ -1081,7 +1081,7 @@ function PretModal({ onClose, onCreated }: { onClose: () => void; onCreated: () 
         <div className="p-6 space-y-4">
           <PField label="Collaborateur *">
             <select value={form.profilRHId} onChange={(e) => set("profilRHId", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
               <option value="">— Sélectionner —</option>
               {collabs.map((c) => <option key={c.id} value={c.id}>{c.gestionnaire.member.prenom} {c.gestionnaire.member.nom} ({c.matricule})</option>)}
             </select>
@@ -1089,15 +1089,15 @@ function PretModal({ onClose, onCreated }: { onClose: () => void; onCreated: () 
           <div className="grid grid-cols-3 gap-3">
             <PField label="Montant *">
               <input type="number" value={form.montant} onChange={(e) => set("montant", e.target.value)} placeholder="0"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </PField>
             <PField label="Taux (%)">
               <input type="number" min="0" step="0.1" value={form.tauxInteret} onChange={(e) => set("tauxInteret", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </PField>
             <PField label="Durée (mois)">
               <input type="number" min="1" value={form.dureesMois} onChange={(e) => set("dureesMois", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </PField>
           </div>
           {capital > 0 && (
@@ -1108,13 +1108,13 @@ function PretModal({ onClose, onCreated }: { onClose: () => void; onCreated: () 
           )}
           <PField label="Notes">
             <input value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Optionnel"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </PField>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">Annuler</button>
           <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Créer
           </button>
         </div>
@@ -1193,11 +1193,11 @@ function OrdresPaiementTab() {
       {/* Filtres */}
       <div className="flex gap-3 flex-wrap items-center">
         <select value={mois} onChange={(e) => setMois(e.target.value)} disabled={allPeriods}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:bg-slate-50">
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:bg-slate-50">
           {MOIS_LABELS.slice(1).map((l, i) => <option key={i+1} value={i+1}>{l}</option>)}
         </select>
         <select value={annee} onChange={(e) => setAnnee(e.target.value)} disabled={allPeriods}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:bg-slate-50">
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:bg-slate-50">
           {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
         <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
@@ -1319,7 +1319,7 @@ function OrdresPaiementTab() {
                       <Download className="w-3.5 h-3.5" /> Liste PDF
                     </a>
                     <button onClick={() => g && payerListe(m.key, g.fiches)} disabled={working || (g?.count ?? 0) === 0}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40">
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-40">
                       <CreditCard className="w-3.5 h-3.5" /> Marquer payée
                     </button>
                   </div>
@@ -1401,19 +1401,19 @@ function HistoriqueTab() {
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un collaborateur…"
-            className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-64" />
+            className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 w-64" />
         </div>
         <select value={mois} onChange={(e) => setMois(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
           <option value="">Tous les mois</option>
           {MOIS_LABELS.slice(1).map((l, i) => <option key={i+1} value={i+1}>{l}</option>)}
         </select>
         <select value={annee} onChange={(e) => setAnnee(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
           {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
         <select value={statut} onChange={(e) => setStatut(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
           <option value="PAYE">Payées</option>
           <option value="EN_PAIEMENT">En paiement</option>
           <option value="TOUS">Tous statuts</option>
@@ -1512,12 +1512,12 @@ function RetenuesTab() {
       {/* Filtres */}
       <div className="flex gap-3 flex-wrap items-center">
         <select value={mois} onChange={(e) => setMois(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
           <option value="">Tous les mois</option>
           {MOIS_LABELS.slice(1).map((l, i) => <option key={i+1} value={i+1}>{l}</option>)}
         </select>
         <select value={annee} onChange={(e) => setAnnee(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
           {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
         <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
@@ -1628,12 +1628,12 @@ function CnssFiscalTab() {
       {/* Filtres */}
       <div className="flex gap-3 flex-wrap items-center">
         <select value={mois} onChange={(e) => setMois(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
           <option value="">Tous les mois</option>
           {MOIS_LABELS.slice(1).map((l, i) => <option key={i+1} value={i+1}>{l}</option>)}
         </select>
         <select value={annee} onChange={(e) => setAnnee(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
           {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
         <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>
@@ -1837,9 +1837,9 @@ function ArchiveRow({ fiche, onRefetch }: { fiche: ArchiveItem; onRefetch: () =>
                 ) : (
                   <div className="flex gap-2">
                     <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… URL du bulletin signé (scan)"
-                      className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500" />
                     <button onClick={attacher} disabled={saving}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
                       {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Paperclip className="w-3.5 h-3.5" />} Archiver
                     </button>
                   </div>
@@ -1970,16 +1970,16 @@ function GrillesSubTab() {
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
         <h3 className="text-sm font-semibold text-slate-700">{form.id ? "Modifier la grille" : "Nouvelle grille"}</h3>
         <div className="grid grid-cols-2 gap-3">
-          <PField label="Catégorie *"><input value={form.categorie} onChange={(e) => set("categorie", e.target.value)} placeholder="Ex: Cadre" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
-          <PField label="Niveau *"><input value={form.niveau} onChange={(e) => set("niveau", e.target.value)} placeholder="Ex: Senior" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
-          <PField label="Salaire min"><input type="number" value={form.salaireMin} onChange={(e) => set("salaireMin", e.target.value)} placeholder="0" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
-          <PField label="Salaire max"><input type="number" value={form.salaireMax} onChange={(e) => set("salaireMax", e.target.value)} placeholder="0" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
+          <PField label="Catégorie *"><input value={form.categorie} onChange={(e) => set("categorie", e.target.value)} placeholder="Ex: Cadre" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></PField>
+          <PField label="Niveau *"><input value={form.niveau} onChange={(e) => set("niveau", e.target.value)} placeholder="Ex: Senior" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></PField>
+          <PField label="Salaire min"><input type="number" value={form.salaireMin} onChange={(e) => set("salaireMin", e.target.value)} placeholder="0" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></PField>
+          <PField label="Salaire max"><input type="number" value={form.salaireMax} onChange={(e) => set("salaireMax", e.target.value)} placeholder="0" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></PField>
         </div>
-        <PField label="Description"><input value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Optionnel" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
+        <PField label="Description"><input value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Optionnel" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></PField>
         <div className="flex gap-2">
           {form.id && <button onClick={reset} className="px-3 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50"><X className="w-3.5 h-3.5" /></button>}
           <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 ml-auto">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 ml-auto">
             {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {form.id ? "Mettre à jour" : "Créer"}
           </button>
         </div>
@@ -2036,9 +2036,9 @@ function TypesSubTab() {
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
         <h3 className="text-sm font-semibold text-slate-700">{form.id ? "Modifier le type" : "Nouveau type"}</h3>
         <div className="grid grid-cols-2 gap-3">
-          <PField label="Code *"><input value={form.code} onChange={(e) => set("code", e.target.value)} disabled={!!form.id} placeholder="EX_CODE" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50 disabled:text-slate-400" /></PField>
+          <PField label="Code *"><input value={form.code} onChange={(e) => set("code", e.target.value)} disabled={!!form.id} placeholder="EX_CODE" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-slate-50 disabled:text-slate-400" /></PField>
           <PField label="Catégorie">
-            <select value={form.categorie} onChange={(e) => set("categorie", e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <select value={form.categorie} onChange={(e) => set("categorie", e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
               <option value="PRIME">Prime</option>
               <option value="COMMISSION">Commission</option>
               <option value="INDEMNITE">Indemnité</option>
@@ -2047,7 +2047,7 @@ function TypesSubTab() {
             </select>
           </PField>
         </div>
-        <PField label="Libellé *"><input value={form.libelle} onChange={(e) => set("libelle", e.target.value)} placeholder="Ex: Prime terrain" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
+        <PField label="Libellé *"><input value={form.libelle} onChange={(e) => set("libelle", e.target.value)} placeholder="Ex: Prime terrain" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></PField>
         <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
           <input type="checkbox" checked={form.isRetenue} onChange={(e) => set("isRetenue", e.target.checked)} className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
           Composant de retenue (déduit du salaire)
@@ -2055,7 +2055,7 @@ function TypesSubTab() {
         <div className="flex gap-2">
           {form.id && <button onClick={reset} className="px-3 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50"><X className="w-3.5 h-3.5" /></button>}
           <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 ml-auto">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 ml-auto">
             {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {form.id ? "Mettre à jour" : "Créer"}
           </button>
         </div>
@@ -2118,29 +2118,29 @@ function BaremesSubTab() {
 
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
         <h3 className="text-sm font-semibold text-slate-700">{form.id ? "Modifier le barème" : "Nouveau barème"}</h3>
-        <PField label="Libellé *"><input value={form.libelle} onChange={(e) => set("libelle", e.target.value)} placeholder="Ex: Commission vente standard" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
-        <PField label="Profil ciblé *"><input value={form.profilCible} onChange={(e) => set("profilCible", e.target.value)} placeholder="Ex: COMMERCIAL, AGENT_TERRAIN" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></PField>
+        <PField label="Libellé *"><input value={form.libelle} onChange={(e) => set("libelle", e.target.value)} placeholder="Ex: Commission vente standard" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></PField>
+        <PField label="Profil ciblé *"><input value={form.profilCible} onChange={(e) => set("profilCible", e.target.value)} placeholder="Ex: COMMERCIAL, AGENT_TERRAIN" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></PField>
         <div className="grid grid-cols-2 gap-3">
           <PField label="Type">
-            <select value={form.type} onChange={(e) => set("type", e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <select value={form.type} onChange={(e) => set("type", e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
               <option value="FIXE">Fixe</option>
               <option value="POURCENTAGE">Pourcentage</option>
               <option value="PALIER">Palier</option>
             </select>
           </PField>
           <PField label={form.type === "POURCENTAGE" ? "Taux (%)" : "Valeur (FCFA)"}>
-            <input type="number" value={form.valeur} onChange={(e) => set("valeur", e.target.value)} placeholder="0" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            <input type="number" value={form.valeur} onChange={(e) => set("valeur", e.target.value)} placeholder="0" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </PField>
         </div>
         {form.type === "PALIER" && (
           <PField label='Paliers (JSON) — ex: [{"min":0,"max":100000,"taux":5}]'>
-            <textarea value={form.paliers} onChange={(e) => set("paliers", e.target.value)} rows={3} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            <textarea value={form.paliers} onChange={(e) => set("paliers", e.target.value)} rows={3} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
           </PField>
         )}
         <div className="flex gap-2">
           {form.id && <button onClick={reset} className="px-3 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50"><X className="w-3.5 h-3.5" /></button>}
           <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 ml-auto">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 ml-auto">
             {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {form.id ? "Mettre à jour" : "Créer"}
           </button>
         </div>
@@ -2164,7 +2164,7 @@ function DashboardTab() {
     <div className="space-y-5">
       <div className="flex items-center gap-3">
         <select value={annee} onChange={(e) => setAnnee(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
           {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
         <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg"><RefreshCw className="w-4 h-4" /></button>

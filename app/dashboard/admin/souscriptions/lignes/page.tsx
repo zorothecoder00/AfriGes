@@ -280,7 +280,7 @@ function ModalSubstituer({ ligne, onClose, onDone }: { ligne: Ligne; onClose: ()
       <div className="flex gap-3 mt-5 justify-end">
         <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Annuler</button>
         <button onClick={submit} disabled={loading || !selected}
-          className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl disabled:opacity-50 rounded-xl transition-colors">
+          className="flex items-center gap-2 px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-xl disabled:opacity-50 rounded-xl transition-colors">
           {loading ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
           Substituer
         </button>
@@ -539,7 +539,7 @@ export default function AdminLignesPage() {
   const handleDone = () => { setModal(null); refetch(); };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-emerald-50/10 font-['DM_Sans',sans-serif] p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-emerald-50/10 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
 
         {/* Header */}

@@ -128,7 +128,7 @@ export default function ComptesCourantsPage() {
             )}
             {isAdmin && (
               <Link href="/dashboard/admin/comptes-courants/nouveau"
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200 text-sm font-medium">
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 shadow-lg shadow-primary-200 text-sm font-medium">
                 <Plus className="w-4 h-4" /> Nouveau compte
               </Link>
             )}
@@ -150,7 +150,7 @@ export default function ComptesCourantsPage() {
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { setSearch(searchInput); setPage(1); } }}
                 placeholder="N° compte, nom, téléphone, communauté, zone, quartier, code client, agent…"
-                className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+                className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50"
               />
             </div>
             <Button variant="primary" onClick={() => { setSearch(searchInput); setPage(1); }}>
@@ -166,12 +166,12 @@ export default function ComptesCourantsPage() {
             )}
           </div>
           <select value={statut} onChange={(e) => { setStatut(e.target.value); setPage(1); }}
-            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-w-[160px]">
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-[160px]">
             <option value="">Tous les statuts</option>
             {Object.keys(STATUT_CC_LABEL).map((s) => <option key={s} value={s}>{STATUT_CC_LABEL[s]}</option>)}
           </select>
           <select value={typeCompte} onChange={(e) => { setTypeCompte(e.target.value); setPage(1); }}
-            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-w-[150px]">
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-[150px]">
             <option value="">Tous les types</option>
             {Object.keys(TYPE_CC_LABEL).map((t) => <option key={t} value={t}>{TYPE_CC_LABEL[t]}</option>)}
           </select>

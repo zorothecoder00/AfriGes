@@ -50,9 +50,9 @@ const TYPE_COLOR: Record<TypeEtape, string> = {
   REMISE_MATERIEL:   "text-orange-600 bg-orange-50",
   FORMATION:         "text-blue-600 bg-blue-50",
   AFFECTATION:       "text-teal-600 bg-teal-50",
-  ACCES_SYSTEME:     "text-gray-600 bg-gray-100",
+  ACCES_SYSTEME:     "text-slate-600 bg-slate-100",
   PRESENTATION:      "text-pink-600 bg-pink-50",
-  AUTRE:             "text-gray-500 bg-gray-50",
+  AUTRE:             "text-slate-500 bg-slate-50",
 };
 
 const ETAPE_DEFAUT: EtapeTemplate = {
@@ -74,13 +74,13 @@ function EtapeRow({
   onMoveDown: () => void;
 }) {
   return (
-    <div className="flex gap-2 items-start p-3 bg-gray-50 rounded-xl border border-gray-200">
+    <div className="flex gap-2 items-start p-3 bg-slate-50 rounded-xl border border-slate-200">
       {/* Ordre + drag handle */}
       <div className="flex flex-col items-center gap-1 pt-1">
-        <span className="text-xs font-bold text-gray-400 w-5 text-center">{index + 1}</span>
-        <button onClick={onMoveUp}   disabled={index === 0}          className="p-0.5 text-gray-300 hover:text-gray-500 disabled:opacity-20"><ChevronUp   className="w-3.5 h-3.5" /></button>
-        <GripVertical className="w-3.5 h-3.5 text-gray-300" />
-        <button onClick={onMoveDown} disabled={index === total - 1}  className="p-0.5 text-gray-300 hover:text-gray-500 disabled:opacity-20"><ChevronDown className="w-3.5 h-3.5" /></button>
+        <span className="text-xs font-bold text-slate-400 w-5 text-center">{index + 1}</span>
+        <button onClick={onMoveUp}   disabled={index === 0}          className="p-0.5 text-slate-300 hover:text-slate-500 disabled:opacity-20"><ChevronUp   className="w-3.5 h-3.5" /></button>
+        <GripVertical className="w-3.5 h-3.5 text-slate-300" />
+        <button onClick={onMoveDown} disabled={index === total - 1}  className="p-0.5 text-slate-300 hover:text-slate-500 disabled:opacity-20"><ChevronDown className="w-3.5 h-3.5" /></button>
       </div>
 
       {/* Champs */}
@@ -90,12 +90,12 @@ function EtapeRow({
           placeholder="Titre de l'étape *"
           value={etape.titre}
           onChange={(e) => onChange({ ...etape, titre: e.target.value })}
-          className="col-span-2 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="col-span-2 text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
         <select
           value={etape.type}
           onChange={(e) => onChange({ ...etape, type: e.target.value as TypeEtape })}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           {TYPES_ETAPE.map((t) => (
             <option key={t.value} value={t.value}>{t.label}</option>
@@ -108,16 +108,16 @@ function EtapeRow({
             placeholder="Délai (jours)"
             value={etape.delaiJours}
             onChange={(e) => onChange({ ...etape, delaiJours: Number(e.target.value) })}
-            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
-          <span className="text-xs text-gray-400 whitespace-nowrap">j max</span>
+          <span className="text-xs text-slate-400 whitespace-nowrap">j max</span>
         </div>
         <input
           type="text"
           placeholder="Description (optionnel)"
           value={etape.description}
           onChange={(e) => onChange({ ...etape, description: e.target.value })}
-          className="col-span-2 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="col-span-2 text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -126,7 +126,7 @@ function EtapeRow({
             onChange={(e) => onChange({ ...etape, obligatoire: e.target.checked })}
             className="w-4 h-4 rounded text-indigo-600"
           />
-          <span className="text-xs text-gray-600">Obligatoire</span>
+          <span className="text-xs text-slate-600">Obligatoire</span>
         </label>
       </div>
 
@@ -208,11 +208,11 @@ function TemplateModal({
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* En-tête */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">
+        <div className="flex items-center justify-between p-5 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-slate-900">
             {isEdit ? "Modifier le template" : "Nouveau template"}
           </h2>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -221,30 +221,30 @@ function TemplateModal({
         <div className="overflow-y-auto flex-1 p-5 space-y-4">
           {/* Nom */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nom du template *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Nom du template *</label>
             <input
               type="text"
               placeholder="ex: Intégration Commercial, Onboarding Tech…"
               value={nom}
               onChange={(e) => setNom(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
             <input
               type="text"
               placeholder="Optionnel"
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
 
           {/* Étapes */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-slate-700">
                 Étapes ({etapes.length})
               </label>
               <button
@@ -272,14 +272,14 @@ function TemplateModal({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 p-5 border-t border-gray-100">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+        <div className="flex justify-end gap-3 p-5 border-t border-slate-100">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
             Annuler
           </button>
           <button
             onClick={handleSave}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {loading ? "Enregistrement…" : isEdit ? "Mettre à jour" : "Créer le template"}
@@ -328,7 +328,7 @@ function TemplateCard({
   }
 
   return (
-    <div className={`bg-white rounded-xl border transition-all ${template.actif ? "border-gray-200" : "border-gray-100 opacity-60"}`}>
+    <div className={`bg-white rounded-xl border transition-all ${template.actif ? "border-slate-200" : "border-slate-100 opacity-60"}`}>
       {/* En-tête */}
       <div className="flex items-start gap-3 p-4">
         <div className="p-2 rounded-lg bg-indigo-50">
@@ -336,15 +336,15 @@ function TemplateCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="font-semibold text-gray-900">{template.nom}</p>
+            <p className="font-semibold text-slate-900">{template.nom}</p>
             {!template.actif && (
-              <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">Inactif</span>
+              <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full">Inactif</span>
             )}
           </div>
           {template.description && (
-            <p className="text-sm text-gray-500 mt-0.5">{template.description}</p>
+            <p className="text-sm text-slate-500 mt-0.5">{template.description}</p>
           )}
-          <div className="flex gap-3 mt-1.5 text-xs text-gray-400">
+          <div className="flex gap-3 mt-1.5 text-xs text-slate-400">
             <span>{template.etapes.length} étape{template.etapes.length > 1 ? "s" : ""}</span>
             <span>{template._count.onboardings} onboarding{template._count.onboardings > 1 ? "s" : ""} utilisé{template._count.onboardings > 1 ? "s" : ""}</span>
           </div>
@@ -354,7 +354,7 @@ function TemplateCard({
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => setExpanded(!expanded)}
-            className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
           >
             {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
@@ -362,7 +362,7 @@ function TemplateCard({
             onClick={handleToggle}
             disabled={toggling}
             title={template.actif ? "Désactiver" : "Activer"}
-            className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 disabled:opacity-50"
           >
             {template.actif
               ? <ToggleRight className="w-4 h-4 text-indigo-500" />
@@ -370,13 +370,13 @@ function TemplateCard({
           </button>
           <button
             onClick={onEdit}
-            className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50"
+            className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50"
           >
             <Pencil className="w-4 h-4" />
           </button>
           <button
             onClick={() => setConfirmDelete(true)}
-            className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+            className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -385,25 +385,25 @@ function TemplateCard({
 
       {/* Étapes dépliées */}
       {expanded && (
-        <div className="border-t border-gray-100 px-4 pb-4 pt-3 space-y-2">
+        <div className="border-t border-slate-100 px-4 pb-4 pt-3 space-y-2">
           {template.etapes.map((e, i) => (
             <div key={i} className="flex items-start gap-3">
-              <span className="text-xs font-bold text-gray-400 w-5 text-right pt-0.5">{e.ordre}.</span>
+              <span className="text-xs font-bold text-slate-400 w-5 text-right pt-0.5">{e.ordre}.</span>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-gray-800">{e.titre}</p>
+                  <p className="text-sm font-medium text-slate-800">{e.titre}</p>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${TYPE_COLOR[e.type]}`}>
                     {TYPES_ETAPE.find((t) => t.value === e.type)?.label}
                   </span>
                   {!e.obligatoire && (
-                    <span className="text-xs text-gray-400 italic">optionnel</span>
+                    <span className="text-xs text-slate-400 italic">optionnel</span>
                   )}
                 </div>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-slate-400">
                   Délai max : {e.delaiJours === 0 ? "immédiat" : `${e.delaiJours} jour${e.delaiJours > 1 ? "s" : ""}`}
                 </p>
               </div>
-              <CheckCircle2 className="w-3.5 h-3.5 text-gray-200 mt-1 shrink-0" />
+              <CheckCircle2 className="w-3.5 h-3.5 text-slate-200 mt-1 shrink-0" />
             </div>
           ))}
         </div>
@@ -421,7 +421,7 @@ function TemplateCard({
           <div className="flex gap-2 shrink-0">
             <button
               onClick={() => setConfirmDelete(false)}
-              className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white hover:bg-gray-50"
+              className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white hover:bg-slate-50"
             >
               Annuler
             </button>
@@ -455,18 +455,18 @@ export default function TemplatesOnboardingPage() {
     : undefined;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-slate-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/dashboard/admin/rh/onboarding" className="text-gray-400 hover:text-gray-600">
+            <Link href="/dashboard/admin/rh/onboarding" className="text-slate-400 hover:text-slate-600">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <ClipboardList className="w-6 h-6 text-indigo-600" />
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Templates d&apos;onboarding</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className="text-xl font-bold text-slate-900">Templates d&apos;onboarding</h1>
+              <p className="text-sm text-slate-500">
                 {actifs} template{actifs > 1 ? "s" : ""} actif{actifs > 1 ? "s" : ""}
               </p>
             </div>
@@ -474,13 +474,13 @@ export default function TemplatesOnboardingPage() {
           <div className="flex gap-2">
             <button
               onClick={() => refetch()}
-              className="p-2 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50"
+              className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </button>
             <button
               onClick={() => setModal("create")}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700"
             >
               <Plus className="w-4 h-4" />
               Nouveau template
@@ -491,19 +491,19 @@ export default function TemplatesOnboardingPage() {
 
       <div className="max-w-3xl mx-auto px-6 py-6 space-y-4">
         {loading && (
-          <div className="text-center py-12 text-gray-400">
+          <div className="text-center py-12 text-slate-400">
             <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
             Chargement…
           </div>
         )}
 
         {!loading && templates.length === 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <ClipboardList className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 mb-4">Aucun template créé</p>
+          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+            <ClipboardList className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-500 mb-4">Aucun template créé</p>
             <button
               onClick={() => setModal("create")}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700"
             >
               <Plus className="w-4 h-4" />
               Créer le premier template

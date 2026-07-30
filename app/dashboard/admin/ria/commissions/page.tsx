@@ -203,7 +203,7 @@ export default function CommissionsPage() {
         <div className="ml-auto flex items-center gap-3">
           <p className="text-xs text-slate-400 italic">Le calcul écrase les commissions CALCULÉES existantes</p>
           <button onClick={handleCalculer} disabled={calcLoading}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-50">
+            className="flex items-center gap-1.5 px-4 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors disabled:opacity-50">
             <Calculator className={`w-4 h-4 ${calcLoading ? "animate-spin" : ""}`} />
             Calculer {MOIS_LABELS[mois - 1]} {annee}
           </button>
@@ -303,7 +303,7 @@ export default function CommissionsPage() {
                 </div>
                 <button
                   onClick={() => handleSaveConfig(roleType)}
-                  className="w-full py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium">
+                  className="w-full py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors font-medium">
                   Enregistrer
                 </button>
               </div>

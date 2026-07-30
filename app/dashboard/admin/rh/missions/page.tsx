@@ -5,12 +5,18 @@ import {
   Search, RefreshCw, Filter, Plus,
   MapPin, Calendar, CheckCircle, Clock,
   XCircle, PlayCircle, Flag, User,
-  ChevronRight, X, Save, FileText, ArrowLeft,
+  ChevronRight, Save, FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import Button from "@/components/ui/Button";
+import Badge, { type BadgeVariant } from "@/components/ui/Badge";
+import Input from "@/components/ui/Input";
+import KpiCard from "@/components/ui/KpiCard";
+import Modal from "@/components/ui/Modal";
+import Pagination from "@/components/ui/Pagination";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -53,23 +59,25 @@ interface CollabsResponse {
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
-const STATUT_CONFIG: Record<string, { label: string; badge: string; icon: React.ReactNode }> = {
-  CREE:     { label: "Créée",     badge: "bg-slate-100 text-slate-600",   icon: <Clock     className="w-3.5 h-3.5" /> },
-  VALIDE:   { label: "Validée",   badge: "bg-blue-100 text-blue-700",     icon: <CheckCircle className="w-3.5 h-3.5" /> },
-  EN_COURS: { label: "En cours",  badge: "bg-amber-100 text-amber-700",   icon: <PlayCircle  className="w-3.5 h-3.5" /> },
-  CLOTURE:  { label: "Clôturée",  badge: "bg-emerald-100 text-emerald-700", icon: <Flag      className="w-3.5 h-3.5" /> },
-  ANNULE:   { label: "Annulée",   badge: "bg-red-100 text-red-700",       icon: <XCircle    className="w-3.5 h-3.5" /> },
+const STATUT_CONFIG: Record<string, { label: string; variant: BadgeVariant; accent: "neutral" | "primary" | "warning" | "success" | "error"; icon: React.ReactNode }> = {
+  CREE:     { label: "Créée",     variant: "neutral", accent: "neutral", icon: <Clock     className="w-3.5 h-3.5" /> },
+  VALIDE:   { label: "Validée",   variant: "info",    accent: "primary", icon: <CheckCircle className="w-3.5 h-3.5" /> },
+  EN_COURS: { label: "En cours",  variant: "warning", accent: "warning", icon: <PlayCircle  className="w-3.5 h-3.5" /> },
+  CLOTURE:  { label: "Clôturée",  variant: "success", accent: "success", icon: <Flag      className="w-3.5 h-3.5" /> },
+  ANNULE:   { label: "Annulée",   variant: "error",   accent: "error",   icon: <XCircle    className="w-3.5 h-3.5" /> },
 };
 
-const WORKFLOW_ACTIONS: Record<string, { action: string; label: string; color: string }[]> = {
-  CREE:     [{ action: "VALIDER",  label: "Valider",  color: "bg-blue-600 text-white hover:bg-blue-700" },
-             { action: "ANNULER",  label: "Annuler",  color: "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200" }],
-  VALIDE:   [{ action: "DEMARRER", label: "Démarrer", color: "bg-amber-600 text-white hover:bg-amber-700" },
-             { action: "ANNULER",  label: "Annuler",  color: "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200" }],
-  EN_COURS: [{ action: "CLOTURER", label: "Clôturer", color: "bg-emerald-600 text-white hover:bg-emerald-700" }],
+const WORKFLOW_ACTIONS: Record<string, { action: string; label: string; variant: "primary" | "danger" | "success" }[]> = {
+  CREE:     [{ action: "VALIDER",  label: "Valider",  variant: "primary" },
+             { action: "ANNULER",  label: "Annuler",  variant: "danger" }],
+  VALIDE:   [{ action: "DEMARRER", label: "Démarrer", variant: "primary" },
+             { action: "ANNULER",  label: "Annuler",  variant: "danger" }],
+  EN_COURS: [{ action: "CLOTURER", label: "Clôturer", variant: "primary" }],
   CLOTURE:  [],
   ANNULE:   [],
 };
+
+const selectCls = "w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500";
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -99,61 +107,45 @@ export default function MissionsPage() {
   const handleStatut = useCallback((v: string) => { setStatut(v); setPage(1); }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="p-6 space-y-6 max-w-6xl mx-auto">
+    <div className="p-6 space-y-6 max-w-6xl mx-auto">
 
         {/* ── En-tête ── */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
-              <ArrowLeft size={15} /> Dashboard RH
-            </Link>
-            <h1 className="text-2xl font-bold text-slate-900">Missions & déplacements</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Gestion des missions des collaborateurs</p>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Missions & déplacements</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Gestion des missions des collaborateurs</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={refetch} className="p-2 text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg">
-              <RefreshCw className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700"
-            >
-              <Plus className="w-4 h-4" /> Nouvelle mission
-            </button>
+            <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="border border-slate-200 dark:border-slate-700" title="Rafraîchir" />
+            <Button onClick={() => setShowCreate(true)} icon={<Plus className="w-4 h-4" />}>
+              Nouvelle mission
+            </Button>
           </div>
         </div>
 
         {/* ── Stats ── */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {Object.entries(STATUT_CONFIG).map(([key, cfg]) => (
-            <button
-              key={key}
-              onClick={() => handleStatut(statut === key ? "" : key)}
-              className={`p-4 rounded-xl border text-left transition-all ${
-                statut === key
-                  ? "border-emerald-400 bg-emerald-50 ring-1 ring-emerald-400"
-                  : "bg-white border-slate-200 hover:border-slate-300"
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`p-1.5 rounded-lg ${cfg.badge}`}>{cfg.icon}</span>
-              </div>
-              <p className="text-2xl font-bold text-slate-900">{stats[key] ?? 0}</p>
-              <p className="text-xs text-slate-500">{cfg.label}</p>
+            <button key={key} onClick={() => handleStatut(statut === key ? "" : key)} className="text-left">
+              <KpiCard
+                label={cfg.label}
+                value={stats[key] ?? 0}
+                icon={cfg.icon}
+                accent={cfg.accent}
+                className={statut === key ? "border-primary-400 dark:border-primary-600 ring-1 ring-primary-400 dark:ring-primary-600" : ""}
+              />
             </button>
           ))}
         </div>
 
         {/* ── Filtres ── */}
         <div className="flex gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
+          <div className="flex-1 min-w-48">
+            <Input
               value={search}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder="Rechercher (titre, ref, collaborateur…)"
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              icon={<Search className="w-4 h-4" />}
             />
           </div>
           <div className="flex items-center gap-2">
@@ -161,7 +153,7 @@ export default function MissionsPage() {
             <select
               value={statut}
               onChange={(e) => handleStatut(e.target.value)}
-              className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500"
             >
               <option value="">Tous les statuts</option>
               {Object.entries(STATUT_CONFIG).map(([k, c]) => (
@@ -173,17 +165,17 @@ export default function MissionsPage() {
 
         {/* ── Liste ── */}
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-slate-400">
+          <div className="flex items-center justify-center py-20 text-slate-400 dark:text-slate-500">
             <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…
           </div>
         ) : missions.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-20 text-slate-400">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center py-20 text-slate-400 dark:text-slate-500">
             <MapPin className="w-10 h-10 mb-2 opacity-30" />
             <p className="text-sm">Aucune mission trouvée</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="divide-y divide-slate-100">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div className="divide-y divide-slate-100 dark:divide-slate-700">
               {missions.map((m) => (
                 <MissionRow
                   key={m.id}
@@ -201,24 +193,9 @@ export default function MissionsPage() {
         )}
 
         {/* ── Pagination ── */}
-        {meta && meta.totalPages > 1 && (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">{meta.total} missions</p>
-            <div className="flex gap-2">
-              <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
-                className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50">
-                Précédent
-              </button>
-              <span className="px-3 py-1.5 text-sm text-slate-600">{page} / {meta.totalPages}</span>
-              <button disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}
-                className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50">
-                Suivant
-              </button>
-            </div>
-          </div>
+        {meta && (
+          <Pagination page={page} totalPages={meta.totalPages} total={meta.total} onPageChange={setPage} itemLabel="mission(s)" />
         )}
-
-      </div>
 
       {/* ── Modals ── */}
       {showCreate && (
@@ -267,7 +244,7 @@ function MissionRow({
   };
 
   return (
-    <div className="flex items-start gap-4 px-5 py-4 hover:bg-slate-50 group">
+    <div className="flex items-start gap-4 px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-700/40 group">
       {/* Avatar */}
       <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5">
         {member.prenom[0]}{member.nom[0]}
@@ -280,52 +257,51 @@ function MissionRow({
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={onOpenDetail}
-                className="text-sm font-semibold text-slate-900 hover:text-emerald-600 text-left"
+                className="text-sm font-semibold text-slate-900 dark:text-slate-100 hover:text-primary-600 dark:hover:text-primary-400 text-left"
               >
                 {mission.titre}
               </button>
-              <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.badge}`}>
-                {cfg.icon} {cfg.label}
-              </span>
+              <Badge variant={cfg.variant} icon={cfg.icon}>{cfg.label}</Badge>
             </div>
             <div className="flex items-center gap-3 mt-1 flex-wrap">
               <Link
                 href={`/dashboard/admin/rh/collaborateurs/${mission.collaborateur.id}`}
-                className="flex items-center gap-1 text-xs text-slate-500 hover:text-emerald-600"
+                className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400"
               >
                 <User className="w-3 h-3" />
                 {member.prenom} {member.nom}
-                <span className="text-slate-400 font-mono">{mission.collaborateur.matricule}</span>
+                <span className="text-slate-400 dark:text-slate-500 font-mono">{mission.collaborateur.matricule}</span>
               </Link>
               {mission.destination && (
-                <span className="flex items-center gap-1 text-xs text-slate-400">
+                <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
                   <MapPin className="w-3 h-3" /> {mission.destination}
                 </span>
               )}
-              <span className="flex items-center gap-1 text-xs text-slate-400">
+              <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
                 <Calendar className="w-3 h-3" />
                 {formatDate(mission.dateDepart)}
                 {mission.dateRetour && ` → ${formatDate(mission.dateRetour)}`}
               </span>
-              <span className="text-xs font-mono text-slate-300">{mission.reference}</span>
+              <span className="text-xs font-mono text-slate-300 dark:text-slate-600">{mission.reference}</span>
             </div>
           </div>
 
           {/* Actions workflow */}
           <div className="flex items-center gap-2 flex-shrink-0">
             {actions.map((act) => (
-              <button
+              <Button
                 key={act.action}
+                size="sm"
+                variant={act.variant}
                 onClick={() => handleAction(act.action)}
                 disabled={loading}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-50 ${act.color}`}
               >
                 {act.label}
-              </button>
+              </Button>
             ))}
             <button
               onClick={onOpenDetail}
-              className="p-1.5 text-slate-400 hover:text-slate-600 opacity-0 group-hover:opacity-100"
+              className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 opacity-0 group-hover:opacity-100"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -375,17 +351,11 @@ function CreateMissionModal({ onClose, onCreated }: { onClose: () => void; onCre
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="font-semibold text-slate-900">Nouvelle mission</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
-        </div>
-
-        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+    <Modal open onClose={onClose} title="Nouvelle mission" size="md">
+        <div className="space-y-4">
           <MField label="Collaborateur *">
             <select value={form.collaborateurId} onChange={(e) => set("collaborateurId", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              className={selectCls}>
               <option value="">— Sélectionner —</option>
               {collabs.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -395,60 +365,37 @@ function CreateMissionModal({ onClose, onCreated }: { onClose: () => void; onCre
             </select>
           </MField>
 
-          <MField label="Titre *">
-            <input value={form.titre} onChange={(e) => set("titre", e.target.value)}
-              placeholder="Objet de la mission"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-          </MField>
+          <Input label="Titre *" value={form.titre} onChange={(e) => set("titre", e.target.value)} placeholder="Objet de la mission" />
 
           <div className="grid grid-cols-2 gap-3">
-            <MField label="Date de départ *">
-              <input type="date" value={form.dateDepart} onChange={(e) => set("dateDepart", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </MField>
-            <MField label="Date de retour prévue">
-              <input type="date" value={form.dateRetour} onChange={(e) => set("dateRetour", e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </MField>
+            <Input label="Date de départ *" type="date" value={form.dateDepart} onChange={(e) => set("dateDepart", e.target.value)} />
+            <Input label="Date de retour prévue" type="date" value={form.dateRetour} onChange={(e) => set("dateRetour", e.target.value)} />
           </div>
 
-          <MField label="Destination">
-            <input value={form.destination} onChange={(e) => set("destination", e.target.value)}
-              placeholder="Ville / pays"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-          </MField>
+          <Input label="Destination" value={form.destination} onChange={(e) => set("destination", e.target.value)} placeholder="Ville / pays" />
 
           <MField label="Objectifs">
             <textarea value={form.objectifs} onChange={(e) => set("objectifs", e.target.value)} rows={2}
               placeholder="Décrire les objectifs de la mission…"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              className={`${selectCls} resize-none`} />
           </MField>
 
           <MField label="Livrables attendus">
             <textarea value={form.livrables} onChange={(e) => set("livrables", e.target.value)} rows={2}
               placeholder="Rapports, comptes-rendus, résultats attendus…"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              className={`${selectCls} resize-none`} />
           </MField>
 
-          <MField label="Notes internes">
-            <input value={form.notes} onChange={(e) => set("notes", e.target.value)}
-              placeholder="Optionnel"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-          </MField>
+          <Input label="Notes internes" value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Optionnel" />
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">
-            Annuler
-          </button>
-          <button onClick={handleSubmit} disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+        <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-slate-100 dark:border-slate-700">
+          <Button variant="secondary" onClick={onClose}>Annuler</Button>
+          <Button onClick={handleSubmit} disabled={loading} loading={loading} icon={<Save className="w-4 h-4" />}>
             Créer la mission
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -489,73 +436,42 @@ function MissionDetailModal({
   const member = mission.collaborateur.gestionnaire.member;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-semibold text-slate-900 truncate">{mission.titre}</h2>
-              <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.badge}`}>
-                {cfg.icon} {cfg.label}
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 font-mono mt-0.5">{mission.reference}</p>
-          </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg flex-shrink-0">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+    <Modal open onClose={onClose} size="md" title={mission.titre}>
+        <p className="text-xs text-slate-400 dark:text-slate-500 font-mono -mt-3 mb-3">{mission.reference}</p>
+        <div className="mb-3"><Badge variant={cfg.variant} icon={cfg.icon}>{cfg.label}</Badge></div>
 
-        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+        <div className="space-y-4">
           {/* Collaborateur */}
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+          <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/40 rounded-xl">
             <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
               {member.prenom[0]}{member.nom[0]}
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-800">{member.prenom} {member.nom}</p>
-              <p className="text-xs text-slate-400 font-mono">{mission.collaborateur.matricule}</p>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{member.prenom} {member.nom}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-mono">{mission.collaborateur.matricule}</p>
             </div>
           </div>
 
           {editMode ? (
             <div className="space-y-3">
-              <MField label="Titre">
-                <input value={form.titre} onChange={(e) => set("titre", e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              </MField>
+              <Input label="Titre" value={form.titre} onChange={(e) => set("titre", e.target.value)} />
               <div className="grid grid-cols-2 gap-3">
-                <MField label="Date de départ">
-                  <input type="date" value={form.dateDepart} onChange={(e) => set("dateDepart", e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                </MField>
-                <MField label="Date de retour prévue">
-                  <input type="date" value={form.dateRetour} onChange={(e) => set("dateRetour", e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                </MField>
+                <Input label="Date de départ" type="date" value={form.dateDepart} onChange={(e) => set("dateDepart", e.target.value)} />
+                <Input label="Date de retour prévue" type="date" value={form.dateRetour} onChange={(e) => set("dateRetour", e.target.value)} />
               </div>
-              <MField label="Destination">
-                <input value={form.destination} onChange={(e) => set("destination", e.target.value)}
-                  placeholder="Ville / pays"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              </MField>
+              <Input label="Destination" value={form.destination} onChange={(e) => set("destination", e.target.value)} placeholder="Ville / pays" />
               <MField label="Objectifs">
-                <textarea value={form.objectifs} onChange={(e) => set("objectifs", e.target.value)} rows={2}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+                <textarea value={form.objectifs} onChange={(e) => set("objectifs", e.target.value)} rows={2} className={`${selectCls} resize-none`} />
               </MField>
               <MField label="Livrables">
-                <textarea value={form.livrables} onChange={(e) => set("livrables", e.target.value)} rows={2}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+                <textarea value={form.livrables} onChange={(e) => set("livrables", e.target.value)} rows={2} className={`${selectCls} resize-none`} />
               </MField>
               <MField label="Rapport / compte-rendu">
                 <textarea value={form.rapport} onChange={(e) => set("rapport", e.target.value)} rows={3}
                   placeholder="URL du fichier ou texte du rapport…"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+                  className={`${selectCls} resize-none`} />
               </MField>
-              <MField label="Notes">
-                <input value={form.notes} onChange={(e) => set("notes", e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              </MField>
+              <Input label="Notes" value={form.notes} onChange={(e) => set("notes", e.target.value)} />
             </div>
           ) : (
             <div className="space-y-3">
@@ -577,29 +493,20 @@ function MissionDetailModal({
           )}
         </div>
 
-        <div className="flex justify-between gap-3 px-6 py-4 border-t border-slate-200">
-          <button
-            onClick={() => setEditMode((v) => !v)}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200"
-          >
-            {editMode ? <X className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+        <div className="flex justify-between gap-3 pt-4 mt-4 border-t border-slate-100 dark:border-slate-700">
+          <Button variant="secondary" onClick={() => setEditMode((v) => !v)} icon={editMode ? undefined : <FileText className="w-4 h-4" />}>
             {editMode ? "Annuler" : "Modifier"}
-          </button>
+          </Button>
           {editMode && (
-            <button onClick={handleSave} disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <Button onClick={handleSave} disabled={loading} loading={loading} icon={<Save className="w-4 h-4" />}>
               Enregistrer
-            </button>
+            </Button>
           )}
           {!editMode && (
-            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">
-              Fermer
-            </button>
+            <Button variant="secondary" onClick={onClose}>Fermer</Button>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -618,38 +525,25 @@ function ClotureModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="font-semibold text-slate-900">Clôturer la mission</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
-        </div>
-        <div className="p-6 space-y-4">
-          <p className="text-sm text-slate-600">
+    <Modal open onClose={onClose} title="Clôturer la mission" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
             Mission : <span className="font-medium">{mission.titre}</span>
           </p>
-          <MField label="Date de retour réelle *">
-            <input type="date" value={dateRetourReel} onChange={(e) => setDateRetourReel(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-          </MField>
+          <Input label="Date de retour réelle *" type="date" value={dateRetourReel} onChange={(e) => setDateRetourReel(e.target.value)} />
           <MField label="Rapport / compte-rendu">
             <textarea value={rapport} onChange={(e) => setRapport(e.target.value)} rows={4}
               placeholder="Synthèse de la mission, résultats obtenus, URL du rapport complet…"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              className={`${selectCls} resize-none`} />
           </MField>
         </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200">
-            Annuler
-          </button>
-          <button onClick={handleCloture} disabled={loading || !dateRetourReel}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Flag className="w-4 h-4" />}
+        <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-slate-100 dark:border-slate-700">
+          <Button variant="secondary" onClick={onClose}>Annuler</Button>
+          <Button onClick={handleCloture} disabled={loading || !dateRetourReel} loading={loading} icon={<Flag className="w-4 h-4" />}>
             Clôturer
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -658,7 +552,7 @@ function ClotureModal({
 function MField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{label}</label>
       {children}
     </div>
   );
@@ -669,9 +563,9 @@ function DetailRow({ label, value, icon, multiline }: {
 }) {
   return (
     <div className="flex gap-2">
-      <span className="text-xs text-slate-400 w-36 flex-shrink-0 pt-0.5">{label}</span>
-      <div className={`flex items-start gap-1 text-sm text-slate-700 ${multiline ? "" : "truncate"}`}>
-        {icon && <span className="text-slate-400 mt-0.5 flex-shrink-0">{icon}</span>}
+      <span className="text-xs text-slate-400 dark:text-slate-500 w-36 flex-shrink-0 pt-0.5">{label}</span>
+      <div className={`flex items-start gap-1 text-sm text-slate-700 dark:text-slate-300 ${multiline ? "" : "truncate"}`}>
+        {icon && <span className="text-slate-400 dark:text-slate-500 mt-0.5 flex-shrink-0">{icon}</span>}
         <span className={multiline ? "whitespace-pre-wrap break-words" : ""}>{value}</span>
       </div>
     </div>
