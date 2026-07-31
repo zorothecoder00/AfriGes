@@ -67,9 +67,9 @@ export default function AlertesPage() {
       {/* Compteurs par sévérité */}
       <div className="grid grid-cols-3 gap-3">
         {(["URGENT", "HAUTE", "NORMAL"] as Severite[]).map((s) => (
-          <div key={s} className={`rounded-2xl p-4 border ${STYLE[s].bg} ${STYLE[s].border}`}>
+          <div key={s} className={`group rounded-2xl p-4 border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${STYLE[s].bg} ${STYLE[s].border}`}>
             <div className={`flex items-center gap-1.5 text-xs font-medium ${STYLE[s].text}`}>{STYLE[s].icon}{STYLE[s].label}</div>
-            <div className={`text-2xl font-bold mt-1 ${STYLE[s].text}`}>{compte(s)}</div>
+            <div className={`text-2xl font-bold mt-1 transition-transform duration-300 group-hover:scale-105 origin-left ${STYLE[s].text}`}>{compte(s)}</div>
           </div>
         ))}
       </div>

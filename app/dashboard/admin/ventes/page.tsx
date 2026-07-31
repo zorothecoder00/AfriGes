@@ -1368,19 +1368,20 @@ export default function VentesPage() {
             {/* Stats */}
             <div className="grid grid-cols-4 gap-5">
               {[
-                { label: t('ventes_total'),   value: String(ventesStats?.total ?? 0),               icon: ShoppingCart, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
-                { label: 'Confirmées',     value: String(ventesStats?.nbConfirmees ?? 0),         icon: CheckCircle,  color: 'bg-blue-500',    lightBg: 'bg-blue-50'    },
-                { label: 'Montant total',  value: formatCurrency(ventesStats?.montantTotal ?? 0), icon: DollarSign,   color: 'bg-violet-500',  lightBg: 'bg-violet-50'  },
-                { label: 'Panier moyen',   value: formatCurrency(ventesStats?.panierMoyen ?? 0),  icon: TrendingUp,   color: 'bg-amber-500',   lightBg: 'bg-amber-50'   },
+                { label: t('ventes_total'),   value: String(ventesStats?.total ?? 0),               icon: ShoppingCart, color: 'bg-emerald-500', lightBg: 'bg-emerald-100', from: 'from-emerald-50', border: 'border-emerald-100', text: 'text-emerald-700', hoverShadow: 'hover:shadow-emerald-200/60', hoverBorder: 'hover:border-emerald-300' },
+                { label: 'Confirmées',     value: String(ventesStats?.nbConfirmees ?? 0),         icon: CheckCircle,  color: 'bg-blue-500',    lightBg: 'bg-blue-100',    from: 'from-blue-50',    border: 'border-blue-100',    text: 'text-blue-700',    hoverShadow: 'hover:shadow-blue-200/60',    hoverBorder: 'hover:border-blue-300' },
+                { label: 'Montant total',  value: formatCurrency(ventesStats?.montantTotal ?? 0), icon: DollarSign,   color: 'bg-violet-500',  lightBg: 'bg-violet-100',  from: 'from-violet-50',  border: 'border-violet-100',  text: 'text-violet-700',  hoverShadow: 'hover:shadow-violet-200/60',  hoverBorder: 'hover:border-violet-300' },
+                { label: 'Panier moyen',   value: formatCurrency(ventesStats?.panierMoyen ?? 0),  icon: TrendingUp,   color: 'bg-amber-500',   lightBg: 'bg-amber-100',   from: 'from-amber-50',   border: 'border-amber-100',   text: 'text-amber-700',   hoverShadow: 'hover:shadow-amber-200/60',   hoverBorder: 'hover:border-amber-300' },
               ].map((stat, i) => {
                 const Icon = stat.icon;
                 return (
-                  <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
-                    <div className={`${stat.lightBg} p-3 rounded-xl inline-block mb-4 group-hover:scale-110 transition-transform`}>
+                  <div key={i} className={`group relative overflow-hidden bg-gradient-to-br ${stat.from} to-white rounded-2xl p-6 shadow-sm border ${stat.border} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${stat.hoverShadow} ${stat.hoverBorder}`}>
+                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${stat.color}`} />
+                    <div className={`${stat.lightBg} p-3 rounded-xl inline-block mb-4 transition-transform duration-300 ease-out group-hover:scale-110`}>
                       <Icon className={`${stat.color.replace('bg-', 'text-')} w-6 h-6`} />
                     </div>
-                    <h3 className="text-slate-600 text-sm font-medium mb-1">{stat.label}</h3>
-                    <p className="text-3xl font-bold text-slate-800">{stat.value}</p>
+                    <h3 className={`${stat.text}/80 text-sm font-semibold mb-1`}>{stat.label}</h3>
+                    <p className={`text-3xl font-bold ${stat.text} transition-transform duration-300 group-hover:scale-105 origin-left`}>{stat.value}</p>
                   </div>
                 );
               })}
@@ -1581,19 +1582,20 @@ export default function VentesPage() {
             {/* Stats packs */}
             <div className="grid grid-cols-4 gap-5">
               {[
-                { label: 'Livrées',        value: String(packsStats?.totalLivraisons ?? 0),       icon: CheckCircle, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
-                { label: 'En attente',     value: String(packsStats?.totalPlanifiees  ?? 0),       icon: Truck,       color: 'bg-orange-500',  lightBg: 'bg-orange-50'  },
-                { label: 'Montant total',  value: formatCurrency(packsStats?.montantTotal ?? 0),   icon: TrendingUp,  color: 'bg-blue-500',    lightBg: 'bg-blue-50'    },
-                { label: 'Clients servis', value: String(packsStats?.clientsActifs ?? 0),          icon: Users,       color: 'bg-amber-500',   lightBg: 'bg-amber-50'   },
+                { label: 'Livrées',        value: String(packsStats?.totalLivraisons ?? 0),       icon: CheckCircle, color: 'bg-emerald-500', lightBg: 'bg-emerald-100', from: 'from-emerald-50', border: 'border-emerald-100', text: 'text-emerald-700', hoverShadow: 'hover:shadow-emerald-200/60', hoverBorder: 'hover:border-emerald-300' },
+                { label: 'En attente',     value: String(packsStats?.totalPlanifiees  ?? 0),       icon: Truck,       color: 'bg-orange-500',  lightBg: 'bg-orange-100',  from: 'from-orange-50',  border: 'border-orange-100',  text: 'text-orange-700',  hoverShadow: 'hover:shadow-orange-200/60',  hoverBorder: 'hover:border-orange-300' },
+                { label: 'Montant total',  value: formatCurrency(packsStats?.montantTotal ?? 0),   icon: TrendingUp,  color: 'bg-blue-500',    lightBg: 'bg-blue-100',    from: 'from-blue-50',    border: 'border-blue-100',    text: 'text-blue-700',    hoverShadow: 'hover:shadow-blue-200/60',    hoverBorder: 'hover:border-blue-300' },
+                { label: 'Clients servis', value: String(packsStats?.clientsActifs ?? 0),          icon: Users,       color: 'bg-amber-500',   lightBg: 'bg-amber-100',   from: 'from-amber-50',   border: 'border-amber-100',   text: 'text-amber-700',   hoverShadow: 'hover:shadow-amber-200/60',   hoverBorder: 'hover:border-amber-300' },
               ].map((stat, i) => {
                 const Icon = stat.icon;
                 return (
-                  <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
-                    <div className={`${stat.lightBg} p-3 rounded-xl inline-block mb-4 group-hover:scale-110 transition-transform`}>
+                  <div key={i} className={`group relative overflow-hidden bg-gradient-to-br ${stat.from} to-white rounded-2xl p-6 shadow-sm border ${stat.border} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${stat.hoverShadow} ${stat.hoverBorder}`}>
+                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${stat.color}`} />
+                    <div className={`${stat.lightBg} p-3 rounded-xl inline-block mb-4 transition-transform duration-300 ease-out group-hover:scale-110`}>
                       <Icon className={`${stat.color.replace('bg-', 'text-')} w-6 h-6`} />
                     </div>
-                    <h3 className="text-slate-600 text-sm font-medium mb-1">{stat.label}</h3>
-                    <p className="text-3xl font-bold text-slate-800">{stat.value}</p>
+                    <h3 className={`${stat.text}/80 text-sm font-semibold mb-1`}>{stat.label}</h3>
+                    <p className={`text-3xl font-bold ${stat.text} transition-transform duration-300 group-hover:scale-105 origin-left`}>{stat.value}</p>
                   </div>
                 );
               })}

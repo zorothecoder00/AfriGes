@@ -338,17 +338,18 @@ function TabSouscriptions() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: t('dash_actives'), val: totalActifs, cls: "text-blue-600", icon: <RefreshCw className="w-5 h-5" /> },
-          { label: t('status_en_attente'), val: totalEnAtt, cls: "text-amber-600", icon: <Clock className="w-5 h-5" /> },
-          { label: t('dash_completes'), val: totalComplet, cls: "text-green-600", icon: <CheckCircle className="w-5 h-5" /> },
-          { label: t('packs_col_verse'), val: formatCurrency(totalVerse), cls: "text-emerald-700", icon: <TrendingUp className="w-5 h-5" /> },
+          { label: t('dash_actives'), val: totalActifs, cls: "text-blue-700", bar: "bg-blue-500", from: "from-blue-50", border: "border-blue-100", badge: "bg-blue-100", hoverShadow: "hover:shadow-blue-200/60", hoverBorder: "hover:border-blue-300", icon: <RefreshCw className="w-5 h-5" /> },
+          { label: t('status_en_attente'), val: totalEnAtt, cls: "text-amber-700", bar: "bg-amber-500", from: "from-amber-50", border: "border-amber-100", badge: "bg-amber-100", hoverShadow: "hover:shadow-amber-200/60", hoverBorder: "hover:border-amber-300", icon: <Clock className="w-5 h-5" /> },
+          { label: t('dash_completes'), val: totalComplet, cls: "text-green-700", bar: "bg-green-500", from: "from-green-50", border: "border-green-100", badge: "bg-green-100", hoverShadow: "hover:shadow-green-200/60", hoverBorder: "hover:border-green-300", icon: <CheckCircle className="w-5 h-5" /> },
+          { label: t('packs_col_verse'), val: formatCurrency(totalVerse), cls: "text-emerald-700", bar: "bg-emerald-500", from: "from-emerald-50", border: "border-emerald-100", badge: "bg-emerald-100", hoverShadow: "hover:shadow-emerald-200/60", hoverBorder: "hover:border-emerald-300", icon: <TrendingUp className="w-5 h-5" /> },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+          <div key={s.label} className={`group relative overflow-hidden bg-gradient-to-br ${s.from} to-white rounded-2xl p-5 shadow-sm border ${s.border} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${s.hoverShadow} ${s.hoverBorder}`}>
+            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${s.bar}`} />
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-slate-50 rounded-xl">{s.icon}</div>
-              <span className="text-sm text-slate-500">{s.label}</span>
+              <div className={`p-2 ${s.badge} rounded-xl ${s.cls} transition-transform duration-300 ease-out group-hover:scale-110`}>{s.icon}</div>
+              <span className={`text-sm font-semibold ${s.cls}/80`}>{s.label}</span>
             </div>
-            <p className={`text-2xl font-bold ${s.cls}`}>{s.val}</p>
+            <p className={`text-2xl font-bold ${s.cls} transition-transform duration-300 group-hover:scale-105 origin-left`}>{s.val}</p>
           </div>
         ))}
       </div>

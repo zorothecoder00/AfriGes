@@ -30,12 +30,28 @@ const STATUT_STYLE: Record<StatutStock, string> = {
   FAIBLE: "bg-amber-100 text-amber-700", OK: "bg-emerald-100 text-emerald-700", DORMANT: "bg-slate-100 text-slate-500",
 };
 
+// Classes écrites en toutes lettres (le JIT Tailwind ne détecte pas les
+// template strings interpolées type `from-${hue}-50`) — une entrée par teinte
+// utilisée dans les appels <Kpi tone="bg-X-50 ..."> ci-dessous.
+const KPI_HUES: Record<string, { wrap: string; bar: string; text: string }> = {
+  blue:    { wrap: "from-blue-50 border-blue-100 hover:shadow-blue-200/60 hover:border-blue-300",       bar: "bg-blue-500",    text: "text-blue-700" },
+  emerald: { wrap: "from-emerald-50 border-emerald-100 hover:shadow-emerald-200/60 hover:border-emerald-300", bar: "bg-emerald-500", text: "text-emerald-700" },
+  rose:    { wrap: "from-rose-50 border-rose-100 hover:shadow-rose-200/60 hover:border-rose-300",       bar: "bg-rose-500",    text: "text-rose-700" },
+  orange:  { wrap: "from-orange-50 border-orange-100 hover:shadow-orange-200/60 hover:border-orange-300", bar: "bg-orange-500", text: "text-orange-700" },
+  amber:   { wrap: "from-amber-50 border-amber-100 hover:shadow-amber-200/60 hover:border-amber-300",   bar: "bg-amber-500",   text: "text-amber-700" },
+  violet:  { wrap: "from-violet-50 border-violet-100 hover:shadow-violet-200/60 hover:border-violet-300", bar: "bg-violet-500", text: "text-violet-700" },
+  slate:   { wrap: "from-slate-50 border-slate-200 hover:shadow-slate-200/60 hover:border-slate-300",   bar: "bg-slate-400",   text: "text-slate-700" },
+};
+
 function Kpi({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone: string }) {
+  const hue = tone.match(/bg-([a-z]+)-\d+/)?.[1] ?? "slate";
+  const h = KPI_HUES[hue] ?? KPI_HUES.slate;
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-4">
-      <div className={`inline-flex items-center justify-center w-9 h-9 rounded-lg mb-2 ${tone}`}>{icon}</div>
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
-      <p className="text-xs text-slate-400">{label}</p>
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl border p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
+      <div className={`inline-flex items-center justify-center w-9 h-9 rounded-lg mb-2 transition-transform duration-300 ease-out group-hover:scale-110 ${tone}`}>{icon}</div>
+      <p className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
+      <p className={`text-xs ${h.text}/70`}>{label}</p>
     </div>
   );
 }

@@ -68,17 +68,34 @@ interface UserAccesResponse { success: boolean; role: string; data: UserSectionI
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// Classes Tailwind écrites en toutes lettres (le JIT ne détecte pas les
+// template strings interpolées type `from-${hue}-50`) — table statique par
+// teinte, couvrant les couleurs utilisées par les appels KpiCard ci-dessous.
+const HUE_CLASSES: Record<string, { wrap: string; bar: string; label: string; value: string }> = {
+  violet:  { wrap: "from-violet-50 border-violet-100 hover:shadow-violet-200/60 hover:border-violet-300",   bar: "bg-violet-500",  label: "text-violet-700/80",  value: "text-violet-700" },
+  emerald: { wrap: "from-emerald-50 border-emerald-100 hover:shadow-emerald-200/60 hover:border-emerald-300", bar: "bg-emerald-500", label: "text-emerald-700/80", value: "text-emerald-700" },
+  red:     { wrap: "from-red-50 border-red-100 hover:shadow-red-200/60 hover:border-red-300",               bar: "bg-red-500",     label: "text-red-700/80",     value: "text-red-700" },
+  blue:    { wrap: "from-blue-50 border-blue-100 hover:shadow-blue-200/60 hover:border-blue-300",           bar: "bg-blue-500",    label: "text-blue-700/80",    value: "text-blue-700" },
+  orange:  { wrap: "from-orange-50 border-orange-100 hover:shadow-orange-200/60 hover:border-orange-300",   bar: "bg-orange-500",  label: "text-orange-700/80",  value: "text-orange-700" },
+  teal:    { wrap: "from-teal-50 border-teal-100 hover:shadow-teal-200/60 hover:border-teal-300",           bar: "bg-teal-500",    label: "text-teal-700/80",    value: "text-teal-700" },
+  amber:   { wrap: "from-amber-50 border-amber-100 hover:shadow-amber-200/60 hover:border-amber-300",       bar: "bg-amber-500",   label: "text-amber-700/80",   value: "text-amber-700" },
+  slate:   { wrap: "from-slate-50 border-slate-200 hover:shadow-slate-200/60 hover:border-slate-300",       bar: "bg-slate-400",   label: "text-slate-600/90",   value: "text-slate-700" },
+};
+
 function KpiCard({ label, value, sub, icon: Icon, color, bg }: {
   label: string; value: string | number; sub?: string;
   icon: React.ElementType; color: string; bg: string;
 }) {
+  const hue = color.match(/text-([a-z]+)-\d+/)?.[1] ?? "slate";
+  const h = HUE_CLASSES[hue] ?? HUE_CLASSES.slate;
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-all">
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl p-5 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
       <div className="flex items-start justify-between mb-3">
-        <div className={`${bg} p-2.5 rounded-xl`}><Icon className={`${color} w-5 h-5`} /></div>
+        <div className={`${bg} p-2.5 rounded-xl transition-transform duration-300 ease-out group-hover:scale-110`}><Icon className={`${color} w-5 h-5`} /></div>
       </div>
-      <p className="text-xs text-slate-500 font-medium mb-0.5">{label}</p>
-      <p className="text-2xl font-bold text-slate-800">{value}</p>
+      <p className={`text-xs font-semibold mb-0.5 ${h.label}`}>{label}</p>
+      <p className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.value}`}>{value}</p>
       {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
     </div>
   );

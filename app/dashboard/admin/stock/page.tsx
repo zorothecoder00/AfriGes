@@ -496,27 +496,30 @@ export default function GestionStockPage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-5 gap-4">
           {[
-            { label: t('stock_valeur'), value: formatCurrency(stats?.valeurTotale ?? 0), icon: TrendingUp, color: 'bg-emerald-500', lightBg: 'bg-emerald-50', sub: null },
-            { label: t('stock_total_produits'), value: String(stats?.totalProduits ?? 0), icon: Package, color: 'bg-blue-500', lightBg: 'bg-blue-50', sub: null },
-            { label: t('stock_faible'), value: String(stats?.faibleCount ?? 0), icon: AlertTriangle, color: 'bg-amber-500', lightBg: 'bg-amber-50', sub: 'Seuil d\'alerte atteint' },
-            { label: 'Ruptures', value: String(stats?.enRuptureCount ?? 0), icon: Archive, color: 'bg-red-500', lightBg: 'bg-red-50', sub: 'Stock à 0' },
+            { label: t('stock_valeur'), value: formatCurrency(stats?.valeurTotale ?? 0), icon: TrendingUp, color: 'bg-emerald-500', lightBg: 'bg-emerald-100', from: 'from-emerald-50', border: 'border-emerald-100', text: 'text-emerald-700', sub: null, hoverShadow: 'hover:shadow-emerald-200/60', hoverBorder: 'hover:border-emerald-300' },
+            { label: t('stock_total_produits'), value: String(stats?.totalProduits ?? 0), icon: Package, color: 'bg-blue-500', lightBg: 'bg-blue-100', from: 'from-blue-50', border: 'border-blue-100', text: 'text-blue-700', sub: null, hoverShadow: 'hover:shadow-blue-200/60', hoverBorder: 'hover:border-blue-300' },
+            { label: t('stock_faible'), value: String(stats?.faibleCount ?? 0), icon: AlertTriangle, color: 'bg-amber-500', lightBg: 'bg-amber-100', from: 'from-amber-50', border: 'border-amber-100', text: 'text-amber-700', sub: 'Seuil d\'alerte atteint', hoverShadow: 'hover:shadow-amber-200/60', hoverBorder: 'hover:border-amber-300' },
+            { label: 'Ruptures', value: String(stats?.enRuptureCount ?? 0), icon: Archive, color: 'bg-red-500', lightBg: 'bg-red-100', from: 'from-red-50', border: 'border-red-100', text: 'text-red-700', sub: 'Stock à 0', hoverShadow: 'hover:shadow-red-200/60', hoverBorder: 'hover:border-red-300' },
             {
               label: 'Stock endommagé',
               value: String(stats?.totalEndommage ?? 0) + ' unités',
               icon: ShieldAlert,
               color: 'bg-rose-500',
-              lightBg: 'bg-rose-50',
+              lightBg: 'bg-rose-100',
+              from: 'from-rose-50', border: 'border-rose-100', text: 'text-rose-700',
               sub: stats?.pctEndommage ? `${stats.pctEndommage}% du stock brut` : null,
+              hoverShadow: 'hover:shadow-rose-200/60', hoverBorder: 'hover:border-rose-300',
             },
           ].map((stat, i) => {
             const Icon = stat.icon;
             return (
-              <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
-                <div className={`${stat.lightBg} p-3 rounded-xl inline-block mb-3 group-hover:scale-110 transition-transform`}>
+              <div key={i} className={`group relative overflow-hidden bg-gradient-to-br ${stat.from} to-white rounded-2xl p-5 shadow-sm border ${stat.border} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${stat.hoverShadow} ${stat.hoverBorder}`}>
+                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${stat.color}`} />
+                <div className={`${stat.lightBg} p-3 rounded-xl inline-block mb-3 transition-transform duration-300 ease-out group-hover:scale-110`}>
                   <Icon className={`${stat.color.replace('bg-', 'text-')} w-5 h-5`} />
                 </div>
-                <h3 className="text-slate-600 text-xs font-medium mb-1">{stat.label}</h3>
-                <p className="text-2xl font-bold text-slate-800">{stat.value}</p>
+                <h3 className={`${stat.text}/80 text-xs font-semibold mb-1`}>{stat.label}</h3>
+                <p className={`text-2xl font-bold ${stat.text} transition-transform duration-300 group-hover:scale-105 origin-left`}>{stat.value}</p>
                 {stat.sub && <p className="text-xs text-slate-400 mt-1">{stat.sub}</p>}
               </div>
             );

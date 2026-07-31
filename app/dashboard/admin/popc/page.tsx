@@ -412,10 +412,10 @@ export default function POPCPage() {
             {collectes && collectes.data.length > 0 ? (
               <>
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <Stat icon={<BookOpen className="w-4 h-4" />} label="16èmes prévus" value={fmt(collectes.meta.totaux.seiziemes)} />
-                  <Stat icon={<BookOpen className="w-4 h-4" />} label="31èmes prévus" value={fmt(collectes.meta.totaux.trentiemes)} />
-                  <Stat icon={<Wallet className="w-4 h-4" />} label="Valeur prévue" value={`${fmt(collectes.meta.totaux.valeurPrevue)}`} />
-                  <Stat icon={<CheckCircle2 className="w-4 h-4" />} label="Encaissé" value={`${fmt(collectes.meta.totaux.valeurEncaissee)}`} />
+                  <Stat icon={<BookOpen className="w-4 h-4" />} label="16èmes prévus" value={fmt(collectes.meta.totaux.seiziemes)} color="blue" />
+                  <Stat icon={<BookOpen className="w-4 h-4" />} label="31èmes prévus" value={fmt(collectes.meta.totaux.trentiemes)} color="violet" />
+                  <Stat icon={<Wallet className="w-4 h-4" />} label="Valeur prévue" value={`${fmt(collectes.meta.totaux.valeurPrevue)}`} color="teal" />
+                  <Stat icon={<CheckCircle2 className="w-4 h-4" />} label="Encaissé" value={`${fmt(collectes.meta.totaux.valeurEncaissee)}`} color="emerald" />
                 </div>
                 <div className="max-h-64 overflow-y-auto">
                   <table className="w-full text-xs">
@@ -494,11 +494,19 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   );
 }
 
-function Stat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+const STAT_HUES = {
+  blue:    { bg: "bg-blue-50 hover:bg-blue-100",       label: "text-blue-500",    value: "text-blue-700" },
+  violet:  { bg: "bg-violet-50 hover:bg-violet-100",   label: "text-violet-500",  value: "text-violet-700" },
+  teal:    { bg: "bg-teal-50 hover:bg-teal-100",       label: "text-teal-500",    value: "text-teal-700" },
+  emerald: { bg: "bg-emerald-50 hover:bg-emerald-100", label: "text-emerald-500", value: "text-emerald-700" },
+} as const;
+
+function Stat({ icon, label, value, color = "blue" }: { icon: ReactNode; label: string; value: string; color?: keyof typeof STAT_HUES }) {
+  const h = STAT_HUES[color];
   return (
-    <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
-      <div className="flex items-center gap-1.5 text-gray-400 text-xs">{icon}{label}</div>
-      <div className="text-base font-bold text-gray-800 mt-0.5">{value}</div>
+    <div className={`group px-3 py-2.5 rounded-xl transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md ${h.bg}`}>
+      <div className={`flex items-center gap-1.5 text-xs ${h.label}`}>{icon}{label}</div>
+      <div className={`text-base font-bold mt-0.5 transition-transform duration-300 group-hover:scale-105 origin-left ${h.value}`}>{value}</div>
     </div>
   );
 }

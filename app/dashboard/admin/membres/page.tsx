@@ -277,21 +277,25 @@ export default function MembresPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-5">
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
-            <span className="text-slate-600 text-sm font-medium">{t('membres_total')}</span>
-            <p className="text-3xl font-bold text-slate-800 mt-1">{meta?.total ?? '—'}</p>
+          <div className="group relative overflow-hidden bg-gradient-to-br from-primary-50 to-white rounded-2xl p-6 shadow-sm border border-primary-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-primary-200/60 hover:border-primary-300">
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary-500" />
+            <span className="text-primary-700/80 text-sm font-semibold">{t('membres_total')}</span>
+            <p className="text-3xl font-bold text-primary-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{meta?.total ?? '—'}</p>
           </div>
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
-            <span className="text-slate-600 text-sm font-medium">{t('membres_current_page')}</span>
-            <p className="text-3xl font-bold text-slate-800 mt-1">{meta?.page ?? '—'} / {meta?.totalPages ?? '—'}</p>
+          <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-6 shadow-sm border border-emerald-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-200/60 hover:border-emerald-300">
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500" />
+            <span className="text-emerald-700/80 text-sm font-semibold">{t('membres_current_page')}</span>
+            <p className="text-3xl font-bold text-emerald-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{meta?.page ?? '—'} / {meta?.totalPages ?? '—'}</p>
           </div>
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
-            <span className="text-slate-600 text-sm font-medium">{t('membres_display')}</span>
-            <p className="text-3xl font-bold text-slate-800 mt-1">{membres.length} {t('membres_title').toLowerCase()}</p>
+          <div className="group relative overflow-hidden bg-gradient-to-br from-amber-50 to-white rounded-2xl p-6 shadow-sm border border-amber-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-amber-200/60 hover:border-amber-300">
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500" />
+            <span className="text-amber-700/80 text-sm font-semibold">{t('membres_display')}</span>
+            <p className="text-3xl font-bold text-amber-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{membres.length} {t('membres_title').toLowerCase()}</p>
           </div>
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
-            <span className="text-slate-600 text-sm font-medium">{t('label_search')}</span>
-            <p className="text-3xl font-bold text-slate-800 mt-1">{debouncedSearch || t('membres_none')}</p>
+          <div className="group relative overflow-hidden bg-gradient-to-br from-brand-50 to-white rounded-2xl p-6 shadow-sm border border-brand-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-200/60 hover:border-brand-300">
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-500" />
+            <span className="text-brand-700/80 text-sm font-semibold">{t('label_search')}</span>
+            <p className="text-3xl font-bold text-brand-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{debouncedSearch || t('membres_none')}</p>
           </div>
         </div>
 

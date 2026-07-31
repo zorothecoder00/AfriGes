@@ -279,10 +279,10 @@ export default function GestionnairesPage() {
 
   const apiStats = response?.stats;
   const stats = [
-    { label: t('gest_total'), value: String(meta?.total ?? 0), icon: Users, color: 'bg-blue-500', lightBg: 'bg-blue-50' },
-    { label: t('text_actifs'), value: String(apiStats?.totalActifs ?? 0), icon: CheckCircle, color: 'bg-emerald-500', lightBg: 'bg-emerald-50' },
-    { label: t('text_inactifs'), value: String(apiStats?.totalInactifs ?? 0), icon: Clock, color: 'bg-amber-500', lightBg: 'bg-amber-50' },
-    { label: t('gest_roles_distincts'), value: String(apiStats?.totalRoles ?? 0), icon: Shield, color: 'bg-purple-500', lightBg: 'bg-purple-50' },
+    { label: t('gest_total'), value: String(meta?.total ?? 0), icon: Users, color: 'bg-blue-500', lightBg: 'bg-blue-100', from: 'from-blue-50', border: 'border-blue-100', text: 'text-blue-700', hoverShadow: 'hover:shadow-blue-200/60', hoverBorder: 'hover:border-blue-300' },
+    { label: t('text_actifs'), value: String(apiStats?.totalActifs ?? 0), icon: CheckCircle, color: 'bg-emerald-500', lightBg: 'bg-emerald-100', from: 'from-emerald-50', border: 'border-emerald-100', text: 'text-emerald-700', hoverShadow: 'hover:shadow-emerald-200/60', hoverBorder: 'hover:border-emerald-300' },
+    { label: t('text_inactifs'), value: String(apiStats?.totalInactifs ?? 0), icon: Clock, color: 'bg-amber-500', lightBg: 'bg-amber-100', from: 'from-amber-50', border: 'border-amber-100', text: 'text-amber-700', hoverShadow: 'hover:shadow-amber-200/60', hoverBorder: 'hover:border-amber-300' },
+    { label: t('gest_roles_distincts'), value: String(apiStats?.totalRoles ?? 0), icon: Shield, color: 'bg-purple-500', lightBg: 'bg-purple-100', from: 'from-purple-50', border: 'border-purple-100', text: 'text-purple-700', hoverShadow: 'hover:shadow-purple-200/60', hoverBorder: 'hover:border-purple-300' },
   ];
 
   const getInitials = (nom: string, prenom: string) => `${prenom?.[0] ?? ''}${nom?.[0] ?? ''}`.toUpperCase();
@@ -342,12 +342,13 @@ export default function GestionnairesPage() {
           {stats.map((stat, index) => {
             const Icon = stat.icon;
             return (
-              <div key={index} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
-                <div className={`${stat.lightBg} p-3 rounded-xl inline-block mb-4 group-hover:scale-110 transition-transform`}>
+              <div key={index} className={`group relative overflow-hidden bg-gradient-to-br ${stat.from} to-white rounded-2xl p-6 shadow-sm border ${stat.border} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${stat.hoverShadow} ${stat.hoverBorder}`}>
+                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${stat.color}`} />
+                <div className={`${stat.lightBg} p-3 rounded-xl inline-block mb-4 transition-transform duration-300 ease-out group-hover:scale-110`}>
                   <Icon className={`${stat.color.replace('bg-', 'text-')} w-6 h-6`} />
                 </div>
-                <h3 className="text-slate-600 text-sm font-medium mb-1">{stat.label}</h3>
-                <p className="text-3xl font-bold text-slate-800">{stat.value}</p>
+                <h3 className={`${stat.text}/80 text-sm font-semibold mb-1`}>{stat.label}</h3>
+                <p className={`text-3xl font-bold ${stat.text} transition-transform duration-300 group-hover:scale-105 origin-left`}>{stat.value}</p>
               </div>
             );
           })}

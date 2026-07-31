@@ -59,12 +59,23 @@ function KpiCard({ icon, label, value, sub, color = "slate", alert = false }: {
     rose:"bg-rose-50 text-rose-600",         slate:"bg-slate-100 text-slate-600",
     teal:"bg-teal-50 text-teal-600",
   };
+  const card: Record<string, { wrap: string; bar: string; text: string }> = {
+    emerald: { wrap: "from-emerald-50 border-emerald-100 hover:shadow-emerald-200/60 hover:border-emerald-300", bar: "bg-emerald-500", text: "text-emerald-700" },
+    blue:    { wrap: "from-blue-50 border-blue-100 hover:shadow-blue-200/60 hover:border-blue-300",             bar: "bg-blue-500",    text: "text-blue-700" },
+    violet:  { wrap: "from-violet-50 border-violet-100 hover:shadow-violet-200/60 hover:border-violet-300",     bar: "bg-violet-500",  text: "text-violet-700" },
+    amber:   { wrap: "from-amber-50 border-amber-100 hover:shadow-amber-200/60 hover:border-amber-300",         bar: "bg-amber-500",   text: "text-amber-700" },
+    rose:    { wrap: "from-rose-50 border-rose-100 hover:shadow-rose-200/60 hover:border-rose-300",             bar: "bg-rose-500",    text: "text-rose-700" },
+    slate:   { wrap: "from-slate-50 border-slate-200 hover:shadow-slate-200/60 hover:border-slate-300",         bar: "bg-slate-400",   text: "text-slate-700" },
+    teal:    { wrap: "from-teal-50 border-teal-100 hover:shadow-teal-200/60 hover:border-teal-300",             bar: "bg-teal-500",    text: "text-teal-700" },
+  };
+  const c = card[color];
   return (
-    <div className={`bg-white rounded-2xl border p-5 flex items-start gap-4 ${alert ? "border-red-200 bg-red-50/30" : "border-slate-200"}`}>
-      <div className={`p-3 rounded-xl flex-shrink-0 ${ring[color]}`}>{icon}</div>
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${c.wrap} to-white rounded-2xl border p-5 flex items-start gap-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${alert ? "!border-red-200 !from-red-50" : ""}`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${alert ? "bg-red-500" : c.bar}`} />
+      <div className={`p-3 rounded-xl flex-shrink-0 transition-transform duration-300 ease-out group-hover:scale-110 ${ring[color]}`}>{icon}</div>
       <div className="min-w-0">
         <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
-        <p className={`text-xl font-bold mt-0.5 truncate ${alert ? "text-red-700" : "text-slate-900"}`}>{value}</p>
+        <p className={`text-xl font-bold mt-0.5 truncate transition-transform duration-300 group-hover:scale-105 origin-left ${alert ? "text-red-700" : c.text}`}>{value}</p>
         {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
       </div>
     </div>

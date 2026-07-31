@@ -27,6 +27,18 @@ const ACCENT = {
 } as const;
 type AccentKey = keyof typeof ACCENT;
 
+/* ─── Habillage coloré des cartes (dégradé/bordure/barre/valeur), par accent ── */
+const ACCENT_CARD = {
+  primary: { wrap: "from-primary-50 border-primary-100 hover:shadow-primary-200/60 hover:border-primary-300", bar: "bg-primary-500", value: "text-primary-700" },
+  success: { wrap: "from-emerald-50 border-emerald-100 hover:shadow-emerald-200/60 hover:border-emerald-300", bar: "bg-emerald-500", value: "text-emerald-700" },
+  warning: { wrap: "from-amber-50 border-amber-100 hover:shadow-amber-200/60 hover:border-amber-300",       bar: "bg-amber-500",   value: "text-amber-700" },
+  error:   { wrap: "from-red-50 border-red-100 hover:shadow-red-200/60 hover:border-red-300",               bar: "bg-red-500",     value: "text-red-700" },
+  purple:  { wrap: "from-purple-50 border-purple-100 hover:shadow-purple-200/60 hover:border-purple-300",   bar: "bg-purple-500",  value: "text-purple-700" },
+  teal:    { wrap: "from-teal-50 border-teal-100 hover:shadow-teal-200/60 hover:border-teal-300",           bar: "bg-teal-500",    value: "text-teal-700" },
+  neutral: { wrap: "from-slate-50 border-slate-200 hover:shadow-slate-200/60 hover:border-slate-300",       bar: "bg-slate-400",   value: "text-slate-700" },
+  accent:  { wrap: "from-accent-50 border-accent-100 hover:shadow-accent-200/60 hover:border-accent-300",   bar: "bg-accent-500",  value: "text-accent-700" },
+} as const;
+
 /* ─── Types ─────────────────────────────────────────────── */
 interface RHStats {
   effectifs: {
@@ -95,15 +107,17 @@ function StatCard({
   accent: AccentKey;
   alert?: boolean;
 }) {
+  const c = ACCENT_CARD[accent];
   return (
     <Link
       href={href}
-      className={`group bg-white dark:bg-slate-800 rounded-2xl border shadow-sm p-5 flex items-start gap-4 hover:shadow-md transition-all ${alert ? "border-red-200 bg-red-50/30 dark:border-red-800 dark:bg-red-900/10" : "border-slate-100 hover:border-slate-200 dark:border-slate-700 dark:hover:border-slate-600"}`}
+      className={`group relative overflow-hidden bg-gradient-to-br ${c.wrap} to-white dark:from-slate-800 dark:to-slate-800 dark:border-slate-700 rounded-2xl border shadow-sm p-5 flex items-start gap-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${alert ? "!border-red-200 !from-red-50 dark:!border-red-800 dark:!from-red-900/10" : ""}`}
     >
-      <div className={`p-2.5 rounded-xl flex-shrink-0 ${ACCENT[accent]}`}>{icon}</div>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${alert ? "bg-red-500" : c.bar}`} />
+      <div className={`p-2.5 rounded-xl flex-shrink-0 transition-transform duration-300 ease-out group-hover:scale-110 ${ACCENT[accent]}`}>{icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{title}</p>
-        <p className={`text-2xl font-bold mt-0.5 ${alert ? "text-red-600 dark:text-red-400" : "text-slate-800 dark:text-slate-100"}`}>{value}</p>
+        <p className={`text-2xl font-bold mt-0.5 transition-transform duration-300 group-hover:scale-105 origin-left ${alert ? "text-red-600 dark:text-red-400" : c.value}`}>{value}</p>
         {sub && <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{sub}</p>}
       </div>
       <ArrowRight size={16} className="text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 flex-shrink-0 mt-1 transition-colors" />

@@ -161,15 +161,32 @@ function Pagination({ page, totalPages, onChange }: { page: number; totalPages: 
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
+// Classes écrites en toutes lettres (le JIT Tailwind ne détecte pas les
+// template strings interpolées type `from-${hue}-50`) — une entrée par teinte
+// utilisée dans les appels StatCard ci-dessous.
+const STATCARD_HUES: Record<string, { wrap: string; bar: string; text: string }> = {
+  red:     { wrap: "from-red-50 border-red-100 hover:shadow-red-200/60 hover:border-red-300",         bar: "bg-red-500",     text: "text-red-700" },
+  amber:   { wrap: "from-amber-50 border-amber-100 hover:shadow-amber-200/60 hover:border-amber-300", bar: "bg-amber-500",   text: "text-amber-700" },
+  blue:    { wrap: "from-blue-50 border-blue-100 hover:shadow-blue-200/60 hover:border-blue-300",     bar: "bg-blue-500",    text: "text-blue-700" },
+  violet:  { wrap: "from-violet-50 border-violet-100 hover:shadow-violet-200/60 hover:border-violet-300", bar: "bg-violet-500", text: "text-violet-700" },
+  orange:  { wrap: "from-orange-50 border-orange-100 hover:shadow-orange-200/60 hover:border-orange-300", bar: "bg-orange-500", text: "text-orange-700" },
+  sky:     { wrap: "from-sky-50 border-sky-100 hover:shadow-sky-200/60 hover:border-sky-300",         bar: "bg-sky-500",     text: "text-sky-700" },
+  emerald: { wrap: "from-emerald-50 border-emerald-100 hover:shadow-emerald-200/60 hover:border-emerald-300", bar: "bg-emerald-500", text: "text-emerald-700" },
+  slate:   { wrap: "from-slate-50 border-slate-200 hover:shadow-slate-200/60 hover:border-slate-300", bar: "bg-slate-400",   text: "text-slate-700" },
+};
+
 function StatCard({ icon, value, label, sub, color, urgent }: {
   icon: React.ReactNode; value: string | number; label: string;
   sub?: string; color: string; urgent?: boolean;
 }) {
+  const hue = color.match(/bg-([a-z]+)-\d+/)?.[1] ?? "slate";
+  const h = STATCARD_HUES[hue] ?? STATCARD_HUES.slate;
   return (
-    <div className={`bg-white rounded-2xl border shadow-sm p-5 flex items-center gap-4 ${urgent ? "border-red-200 ring-1 ring-red-100" : "border-slate-200"}`}>
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${color}`}>{icon}</div>
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl border shadow-sm p-5 flex items-center gap-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${urgent ? "ring-1 ring-red-200" : ""}`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${urgent ? "bg-red-500" : h.bar}`} />
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${color} transition-transform duration-300 ease-out group-hover:scale-110`}>{icon}</div>
       <div>
-        <p className={`text-2xl font-bold ${urgent ? "text-red-600" : "text-slate-800"}`}>{value}</p>
+        <p className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${urgent ? "text-red-600" : h.text}`}>{value}</p>
         <p className="text-sm text-slate-500">{label}</p>
         {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
       </div>
