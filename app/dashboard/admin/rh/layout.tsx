@@ -70,6 +70,7 @@ export default function RHLayout({ children }: { children: ReactNode }) {
         <SideTabs
           accent="brand"
           items={items}
+          expandedWidthClass="md:w-56"
           className="bg-white px-3 md:px-3 py-2 md:py-4 md:sticky md:top-0 md:h-[calc(100vh-49px)] md:overflow-y-auto dark:bg-slate-800 dark:border-slate-700"
         />
 

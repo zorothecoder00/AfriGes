@@ -130,7 +130,14 @@ export default function CatalogueProduitsPage() {
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="relative isolate min-h-screen bg-gradient-to-br from-cream-100 via-primary-50/50 to-brand-50/60 overflow-hidden">
+      {/* Aurora décorative — halos flous, aux couleurs du logo (cf. dashboard admin) */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
+        <div className="absolute -top-40 -left-24 w-[34rem] h-[34rem] bg-primary-300/35 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 -right-28 w-[30rem] h-[30rem] bg-brand-400/30 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 w-[26rem] h-[26rem] bg-brand-300/25 rounded-full blur-3xl" />
+      </div>
+
       <div className="px-3 py-4 sm:p-6 max-w-7xl mx-auto space-y-5">
         <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour
@@ -138,8 +145,13 @@ export default function CatalogueProduitsPage() {
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 flex items-center gap-2"><Package className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" /> Catalogue produits</h2>
-            <p className="text-sm text-slate-400">{total} produit(s) au catalogue.</p>
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 flex items-center gap-3">
+              <span className="inline-flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-primary-100 shrink-0">
+                <Package className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600" />
+              </span>
+              Catalogue produits
+            </h2>
+            <p className="text-sm text-slate-400 ml-12 sm:ml-14">{total} produit(s) au catalogue.</p>
           </div>
           <div className="flex flex-wrap gap-2 w-full lg:w-auto">
             <div className="relative">

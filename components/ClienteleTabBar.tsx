@@ -139,9 +139,9 @@ export default function ClienteleTabBar({ children }: { children?: ReactNode }) 
         <h1 className="text-xl font-bold text-slate-900">Gestion de la clientèle</h1>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 md:gap-6 px-6 py-4 print:block print:p-0">
+      <div className="flex flex-col md:flex-row gap-3 md:gap-4 px-6 py-4 print:block print:p-0">
         <div className="print:hidden">
-          <SideTabs accent="blue" items={items} />
+          <SideTabs accent="brand" items={items} />
         </div>
         {children && <div className="flex-1 min-w-0">{children}</div>}
       </div>

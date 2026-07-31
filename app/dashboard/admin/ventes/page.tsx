@@ -1349,8 +1349,8 @@ export default function VentesPage() {
           </div>
         )}
 
-        {/* ─── Onglets ─────────────────────────────────────────────────────── */}
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        {/* ─── Onglets (peu nombreux → pilules horizontales, empilées au-dessus du contenu) ─── */}
+        <div className="flex flex-col gap-4">
           <SideTabs
             accent="emerald"
             items={[

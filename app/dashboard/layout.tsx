@@ -7,9 +7,9 @@ import SessionGuard from '@/components/SessionGuard'
 import ViewAsBanner from '@/components/ViewAsBanner'
 import { ViewAsProvider } from '@/contexts/ViewAsContext'
 
-// Sections dashboard/user déjà dotées de leur propre sidebar (avec logo intégré
-// dans son en-tête) — le bandeau global ferait doublon et gaspille de l'espace.
-const USER_SIDEBAR_PREFIXES = [
+// Pages dotées de leur propre en-tête (sidebar ou logo intégré ailleurs dans
+// la page) — le bandeau global ferait doublon et gaspille de l'espace.
+const PAGES_AVEC_PROPRE_ENTETE = [
   "/dashboard/user/actionnaires",
   "/dashboard/user/agentsTerrain",
   "/dashboard/user/auditeursInterne",
@@ -25,6 +25,7 @@ const USER_SIDEBAR_PREFIXES = [
   "/dashboard/user/gouvernance",
   "/dashboard/user/responsablesRH",
   "/dashboard/user/responsablesRIA",
+  "/dashboard/gestionnaire/logistique",
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -33,7 +34,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   // AdminTopbar (logo + recherche + compte) — le bandeau global ferait doublon.
   const hasOwnHeader =
     pathname.startsWith("/dashboard/admin") ||
-    USER_SIDEBAR_PREFIXES.some((p) => pathname.startsWith(p));
+    PAGES_AVEC_PROPRE_ENTETE.some((p) => pathname.startsWith(p));
 
   return (
     <ViewAsProvider>

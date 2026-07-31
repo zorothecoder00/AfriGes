@@ -223,7 +223,13 @@ export default function PDVPage() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 p-8">
+    <div className="relative isolate min-h-screen bg-gradient-to-br from-cream-100 via-primary-50/40 to-brand-50/50 p-8 overflow-hidden">
+      {/* Aurora décorative — halos flous, aux couleurs du logo */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
+        <div className="absolute -top-40 -left-24 w-[34rem] h-[34rem] bg-primary-300/30 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 -right-28 w-[30rem] h-[30rem] bg-brand-400/30 rounded-full blur-3xl" />
+      </div>
+
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* ── Header ────────────────────────────────────────────────────── */}
@@ -232,6 +238,9 @@ export default function PDVPage() {
             <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors">
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
+            <span className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-brand-100 shrink-0">
+              <Store className="w-6 h-6 text-brand-700" />
+            </span>
             <div>
               <h1 className="text-4xl font-bold text-slate-800 mb-2">{t('pdv_page_title')}</h1>
               <p className="text-slate-500">{t('pdv_page_subtitle')}</p>

@@ -88,13 +88,23 @@ export default function AjustementsStockPage() {
   const diff = (d: Demande) => d.nouvelleQuantite - d.ancienneQuantite;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="relative isolate min-h-screen bg-gradient-to-br from-cream-100 via-primary-50/40 to-brand-50/50 p-6 space-y-6 overflow-hidden">
+      {/* Aurora décorative — halos flous, aux couleurs du logo */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
+        <div className="absolute -top-40 -left-24 w-[34rem] h-[34rem] bg-primary-300/30 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 -right-28 w-[30rem] h-[30rem] bg-brand-400/30 rounded-full blur-3xl" />
+      </div>
+
+      <div className="max-w-7xl mx-auto space-y-6">
 
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/admin" className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+        <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-xl transition-colors">
           <ArrowLeft size={20} className="text-slate-600" />
         </Link>
+        <span className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-brand-100 shrink-0">
+          <Package className="w-5 h-5 text-brand-700" />
+        </span>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-slate-800">Ajustements d&apos;inventaire</h1>
           <p className="text-sm text-slate-500">Approbation niveau 3 — pré-validées par le Resp. Approvisionnement</p>
@@ -348,6 +358,7 @@ export default function AjustementsStockPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

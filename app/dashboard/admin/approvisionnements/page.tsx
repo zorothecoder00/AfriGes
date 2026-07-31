@@ -148,7 +148,12 @@ export default function AdminApprovisionnementsPage() {
 
   // ─ Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-slate-50 p-6 space-y-6">
+    <div className="relative isolate min-h-screen bg-gradient-to-br from-cream-100 via-primary-50/40 to-brand-50/50 p-6 space-y-6 overflow-hidden">
+      {/* Aurora décorative — halos flous, aux couleurs du logo */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
+        <div className="absolute -top-40 -left-24 w-[34rem] h-[34rem] bg-primary-300/30 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 -right-28 w-[30rem] h-[30rem] bg-brand-400/30 rounded-full blur-3xl" />
+      </div>
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -156,8 +161,13 @@ export default function AdminApprovisionnementsPage() {
           <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-2 transition-colors">
             <ArrowLeft size={15} />Tableau de bord
           </Link>
-          <h1 className="text-2xl font-bold text-slate-800">Approvisionnements</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2.5">
+            <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-brand-100 shrink-0">
+              <Truck className="w-5 h-5 text-brand-700" />
+            </span>
+            Approvisionnements
+          </h1>
+          <p className="text-sm text-slate-500 mt-1 ml-12">
             Approuvez les commandes d&apos;achat du responsable approvisionnement · vérifiez les prix et fournisseurs
           </p>
         </div>

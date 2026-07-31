@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
+import AfriSimeLogo from "@/components/AfriSimeLogo";
 
 // ─── Types communs ────────────────────────────────────────────────────────────
 
@@ -729,8 +730,17 @@ export default function LogistiqueDashboardPage() {
   const pdvNom = stockStats?.pdvs?.find(p => p.id === stockStats.userPdvId)?.nom;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-emerald-50/10 font-['DM_Sans',sans-serif] p-6">
+    <div className="relative isolate min-h-screen bg-gradient-to-br from-cream-100 via-primary-50/40 to-brand-50/50 font-['DM_Sans',sans-serif] p-6 overflow-hidden">
+      {/* Aurora décorative — halos flous, aux couleurs du logo */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
+        <div className="absolute -top-40 -left-24 w-[34rem] h-[34rem] bg-primary-300/30 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 -right-28 w-[30rem] h-[30rem] bg-brand-400/30 rounded-full blur-3xl" />
+      </div>
+
       <div className="max-w-[1400px] mx-auto space-y-6">
+
+        {/* Logo — déplacé ici (plus de bandeau global sur cette page) */}
+        <AfriSimeLogo className="h-10 w-auto" priority />
 
         {/* Header */}
         <div className="flex items-start gap-4">
