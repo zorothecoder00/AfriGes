@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {Prisma, Role, RoleGestionnaire, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getAdminSession } from "@/lib/authAdmin";
 
 /**
  * ==========================
@@ -10,6 +11,9 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(req: Request) {
   try {
+    const session = await getAdminSession();
+    if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+
     const { searchParams } = new URL(req.url);
 
     // Pagination
@@ -114,6 +118,9 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   try {
+    const session = await getAdminSession();
+    if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+
     const body = await req.json();
     const { memberId, role } = body;
 

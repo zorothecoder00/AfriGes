@@ -136,7 +136,6 @@ Pour les connexion google , demander aussi un autre mot de passe pour empêcher 
 
 Ajouter personne à prévenir ( lien familial et numéro) et la photo dans dashboard/admin/rh/collaborateurs/id
 
-Pour les documents OGRH donner la main aux admins de signer( pas seulement les Gestion de Ressources Humaines)
 
 Permettre d'envoyer les documents OGRH ( et tous les autres d'ailleurs) sur les emails
 
@@ -156,32 +155,12 @@ Dans les crédits clients , on va essayer de faire des filtres par agent ( avec 
     
 
 Dans les dossiers des collaborateurs pour leurs informations, faut ajouter aussi personne à prévénir
-  
-    
-
-Retoucher le logo
 
 Pouvoir rajouter grossiste dans les types de fournisseur
 
 réussir les notifs par whatsapp 
 
-Rendre le design de l'application plus attrayant
 
-Limiter la messagerie juste pour les gestionnaires ( pas les autres user simpples )
-
-
-
-
-
-  
- bon , je te redonne plutôt le contexte pour que tu puisse continues làoù tiu
-  t'étais arrêté à cause de porpblème d'alimentation ; je te disais de modifier
-  mes dashboard/user/*** en s'inspirant du design des deux images que je vais
-  t'envoyer ( et je précisais de ne modifier aucune donnée , aucune image , aun
-  texte , aucun lien , aucun bouton , aucun onlget ; juste la disposition , le
-  design et ausii les couleurs peut être ) :
-  '/c/Users/EMMANUEL/Downloads/WhatsApp Image 2026-07-30 at 17.42.57.jpeg'
-  '/c/Users/EMMANUEL/Downloads/WhatsApp Image 2026-07-30 at 17.43.04.jpeg'
 
 
    
