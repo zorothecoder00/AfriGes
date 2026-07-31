@@ -5,6 +5,7 @@ import { useApi } from "@/hooks/useApi";
 import { useState } from "react";
 import { RefreshCw, TrendingUp, Wallet, Activity, BarChart3, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 interface DashData {
   capitalInvesti: number; capitalDisponible: number; capitalEngage: number;
@@ -17,13 +18,15 @@ interface DashData {
 function KpiCard({ label, value, sub, color = "text-slate-800", icon: Icon }: {
   label: string; value: string; sub?: string; color?: string; icon: React.ElementType;
 }) {
+  const h = getStatCardHue(color);
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4">
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white border rounded-xl p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
       <div className="flex items-start justify-between mb-2">
-        <p className="text-xs text-slate-500">{label}</p>
-        <Icon className="w-4 h-4 text-slate-300" />
+        <p className={`text-xs ${h.labelText}`}>{label}</p>
+        <Icon className="w-4 h-4 text-slate-300 transition-transform duration-300 group-hover:scale-110" />
       </div>
-      <p className={`text-xl font-bold ${color}`}>{value}</p>
+      <p className={`text-xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${color}`}>{value}</p>
       {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
     </div>
   );

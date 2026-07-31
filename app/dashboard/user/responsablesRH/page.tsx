@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { usePageAccess } from "@/hooks/usePageAccess";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -585,11 +586,13 @@ function SexeBar({ label, count, total, color }: { label: string; count: number;
 function KpiCard({ icon, label, value, color, href }: {
   icon: React.ReactNode; label: string; value: number; color: string; href: string;
 }) {
+  const h = getStatCardHue(color);
   return (
-    <Link href={href} className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-200 hover:border-slate-300 transition-all group">
-      <div className={`p-2.5 rounded-xl ${color} flex-shrink-0`}>{icon}</div>
+    <Link href={href} className={`group relative overflow-hidden flex items-center gap-3 p-4 bg-gradient-to-br ${h.wrap} to-white rounded-2xl border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
+      <div className={`p-2.5 rounded-xl ${color} flex-shrink-0 transition-transform duration-300 ease-out group-hover:scale-110`}>{icon}</div>
       <div className="flex-1 min-w-0">
-        <p className="text-2xl font-bold text-slate-900">{value}</p>
+        <p className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
         <p className="text-xs text-slate-500 mt-0.5 leading-snug">{label}</p>
       </div>
       <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 flex-shrink-0" />

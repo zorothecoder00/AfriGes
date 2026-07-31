@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 import { toast } from "sonner";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -803,15 +804,16 @@ function NewPlanFormationModal({ onClose, onCreated }: { onClose: () => void; on
 // ── KPI Card ───────────────────────────────────────────────────────────────────
 
 function KpiCard({ icon, label, value, sub, color, pct }: { icon: React.ReactNode; label: string; value: string; sub: string; color: string; pct?: number }) {
+  const h = getStatCardHue(color);
   return (
-    <div className={`rounded-xl border p-4 ${color}`}>
+    <div className={`group rounded-xl border p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${color}`}>
       <div className="flex items-center justify-between mb-2">
-        <div className="p-1.5 bg-white rounded-lg shadow-sm">{icon}</div>
+        <div className="p-1.5 bg-white rounded-lg shadow-sm transition-transform duration-300 ease-out group-hover:scale-110">{icon}</div>
         {pct !== undefined && (
           <span className={`text-xs font-bold ${pct >= 70 ? "text-emerald-700" : pct >= 50 ? "text-amber-700" : "text-red-600"}`}>{pct}%</span>
         )}
       </div>
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
+      <p className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
       <p className="text-xs text-slate-500 mt-0.5">{sub}</p>
       {pct !== undefined && (
         <div className="mt-2 h-1.5 bg-white/60 rounded-full overflow-hidden">

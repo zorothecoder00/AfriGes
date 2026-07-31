@@ -8,6 +8,7 @@ import {
   Shield, FileWarning, Ban, ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type TypeSanction = "AVERTISSEMENT" | "BLAME" | "MISE_A_PIED" | "RETROGRADATION" | "LICENCIEMENT" | "AUTRE";
@@ -473,17 +474,21 @@ export default function DisciplinairePage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {STATS.map(({ key, label, icon, color }) => (
-            <button
-              key={key}
-              onClick={() => setStatut(statut === key ? "" : key)}
-              className={`bg-white rounded-2xl p-4 shadow-sm border text-left transition-all ${statut === key ? "border-red-300 ring-2 ring-red-100" : "border-gray-100 hover:border-gray-200"}`}
-            >
-              <div className={`p-2 rounded-lg w-fit ${color}`}>{icon}</div>
-              <div className="mt-2 text-2xl font-bold text-gray-800">{data?.stats?.[key] ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-0.5">{label}</div>
-            </button>
-          ))}
+          {STATS.map(({ key, label, icon, color }) => {
+            const h = getStatCardHue(color);
+            return (
+              <button
+                key={key}
+                onClick={() => setStatut(statut === key ? "" : key)}
+                className={`group relative overflow-hidden text-left rounded-2xl p-4 shadow-sm border bg-gradient-to-br ${h.wrap} to-white transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${statut === key ? "ring-2 ring-red-200 !border-red-300" : ""}`}
+              >
+                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
+                <div className={`p-2 rounded-lg w-fit transition-transform duration-300 ease-out group-hover:scale-110 ${color}`}>{icon}</div>
+                <div className={`mt-2 text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{data?.stats?.[key] ?? 0}</div>
+                <div className={`text-xs mt-0.5 ${h.labelText}`}>{label}</div>
+              </button>
+            );
+          })}
         </div>
 
         {/* Search */}

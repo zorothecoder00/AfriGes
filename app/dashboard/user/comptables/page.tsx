@@ -19,6 +19,7 @@ import DashboardBackButton from "@/components/DashboardBackButton";
 import AfriSimeLogo from "@/components/AfriSimeLogo";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort, formatDateTime } from "@/lib/format";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 import { exportToXlsx } from "@/lib/exportXlsx";
 import { generateUploadButton } from "@uploadthing/react";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
@@ -282,22 +283,24 @@ function KpiCard({ label, value, sub, icon: Icon, color, bg, trend }: {
   label: string; value: string; sub?: string; icon: React.ElementType;
   color: string; bg: string; trend?: "up" | "down" | "neutral";
 }) {
+  const h = getStatCardHue(color, bg);
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl p-5 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
       <div className="flex items-start justify-between mb-3">
-        <div className={`${bg} p-2.5 rounded-xl group-hover:scale-110 transition-transform`}>
+        <div className={`${bg} p-2.5 rounded-xl group-hover:scale-110 transition-transform duration-300 ease-out`}>
           <Icon className={`${color} w-5 h-5`} />
         </div>
         {trend && (
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-            trend === "up" ? "bg-emerald-50 text-emerald-600" : trend === "down" ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-500"
+            trend === "up" ? "bg-emerald-100 text-emerald-600" : trend === "down" ? "bg-red-100 text-red-600" : "bg-slate-100 text-slate-500"
           }`}>
             {trend === "up" ? <ArrowUpRight className="inline w-3 h-3" /> : trend === "down" ? <ArrowDownRight className="inline w-3 h-3" /> : "—"}
           </span>
         )}
       </div>
-      <p className="text-slate-500 text-xs font-medium mb-1">{label}</p>
-      <p className="text-2xl font-bold text-slate-800 leading-tight">{value}</p>
+      <p className={`text-xs font-semibold mb-1 ${h.labelText}`}>{label}</p>
+      <p className={`text-2xl font-bold leading-tight transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
       {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
     </div>
   );

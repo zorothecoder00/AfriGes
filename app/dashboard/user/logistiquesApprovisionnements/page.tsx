@@ -21,6 +21,7 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useT } from "@/contexts/AppSettingsContext";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 import { usePageAccess } from "@/hooks/usePageAccess";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -206,16 +207,20 @@ const StatCard = ({
 }: {
   label: string; value: string; subtitle?: string;
   icon: LucideIcon; color: string; lightBg: string;
-}) => (
-  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
-    <div className={`${lightBg} w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-      <Icon className={`${color} w-6 h-6`} />
+}) => {
+  const h = getStatCardHue(color, lightBg);
+  return (
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl p-6 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
+      <div className={`${lightBg} w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 ease-out`}>
+        <Icon className={`${color} w-6 h-6`} />
+      </div>
+      <h3 className={`text-sm font-semibold mb-1 ${h.labelText}`}>{label}</h3>
+      <p className={`text-3xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
+      {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
     </div>
-    <h3 className="text-slate-500 text-sm font-medium mb-1">{label}</h3>
-    <p className="text-3xl font-bold text-slate-800">{value}</p>
-    {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
-  </div>
-);
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN PAGE

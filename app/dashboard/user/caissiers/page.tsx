@@ -22,6 +22,7 @@ import AfriSimeLogo from "@/components/AfriSimeLogo";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 import { useT } from "@/contexts/AppSettingsContext";
 import { usePageAccess } from "@/hooks/usePageAccess";
 import { groupByMonth } from "@/lib/groupByMonth";
@@ -441,15 +442,17 @@ function KpiCard({ label, value, sub, icon: Icon, color, bg }: {
   label: string; value: string; sub?: string;
   icon: React.ElementType; color: string; bg: string;
 }) {
+  const h = getStatCardHue(color, bg);
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-[0_14px_32px_-10px_rgba(15,23,42,0.18)] hover:-translate-y-1 transition-all duration-300 group animate-[fadeInUp_0.5s_ease-out_both]">
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl p-5 shadow-sm border transition-all duration-300 hover:shadow-[0_14px_32px_-10px_rgba(15,23,42,0.18)] hover:-translate-y-1 animate-[fadeInUp_0.5s_ease-out_both]`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
       <div className="flex items-start justify-between mb-3">
         <div className={`${bg} p-2.5 rounded-xl group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
           <Icon className={`${color} w-5 h-5`} />
         </div>
       </div>
-      <p className="text-slate-500 text-xs font-medium mb-1">{label}</p>
-      <p className="text-2xl font-bold text-slate-800 leading-tight tabular-nums">{value}</p>
+      <p className={`text-xs font-semibold mb-1 ${h.labelText}`}>{label}</p>
+      <p className={`text-2xl font-bold leading-tight tabular-nums transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
       {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
     </div>
   );

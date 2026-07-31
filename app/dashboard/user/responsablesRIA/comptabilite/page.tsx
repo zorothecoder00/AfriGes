@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronRight, Printer, FileSpreadsheet,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -148,15 +149,17 @@ export default function ComptabiliteRIAPage() {
 
 function KpiCard({ label, value, icon, color }: { label: string; value: string; icon: React.ReactNode; color: string }) {
   const bg: Record<string, string> = {
-    blue: "bg-blue-50 text-blue-600", emerald: "bg-emerald-50 text-emerald-600",
-    amber: "bg-amber-50 text-amber-600", green: "bg-green-50 text-green-600", red: "bg-red-50 text-red-600",
+    blue: "bg-blue-100 text-blue-600", emerald: "bg-emerald-100 text-emerald-600",
+    amber: "bg-amber-100 text-amber-600", green: "bg-green-100 text-green-600", red: "bg-red-100 text-red-600",
   };
+  const h = getStatCardHue(color);
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
-      <div className={`p-2.5 rounded-xl ${bg[color] ?? bg.blue}`}>{icon}</div>
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-xl border p-4 flex items-center gap-3 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
+      <div className={`p-2.5 rounded-xl transition-transform duration-300 ease-out group-hover:scale-110 ${bg[color] ?? bg.blue}`}>{icon}</div>
       <div>
-        <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">{label}</p>
-        <p className="text-lg font-bold text-slate-800 mt-0.5">{value}</p>
+        <p className={`text-xs font-medium uppercase tracking-wide ${h.labelText}`}>{label}</p>
+        <p className={`text-lg font-bold mt-0.5 transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
       </div>
     </div>
   );

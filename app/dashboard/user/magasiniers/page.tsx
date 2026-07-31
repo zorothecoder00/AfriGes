@@ -24,6 +24,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { usePageAccess } from '@/hooks/usePageAccess';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useT } from "@/contexts/AppSettingsContext";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 // ============================================================================
 // TYPES
@@ -167,18 +168,22 @@ const typeStyles: Record<string, { bg: string; text: string; icon: typeof ArrowU
 
 const StatCard = ({ label, value, icon: Icon, color, lightBg, sub }: {
   label: string; value: string; icon: LucideIcon; color: string; lightBg: string; sub?: string | null;
-}) => (
-  <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60 hover:shadow-md transition-all group">
-    <div className="flex items-start justify-between mb-3">
-      <div className={`${lightBg} p-2.5 rounded-xl group-hover:scale-110 transition-transform`}>
-        <Icon className={`${color} w-5 h-5`} />
+}) => {
+  const h = getStatCardHue(color, lightBg);
+  return (
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl p-4 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
+      <div className="flex items-start justify-between mb-3">
+        <div className={`${lightBg} p-2.5 rounded-xl group-hover:scale-110 transition-transform duration-300 ease-out`}>
+          <Icon className={`${color} w-5 h-5`} />
+        </div>
       </div>
+      <h3 className={`text-xs font-semibold mb-1 ${h.labelText}`}>{label}</h3>
+      <p className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
+      {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
     </div>
-    <h3 className="text-slate-600 text-xs font-medium mb-1">{label}</h3>
-    <p className="text-2xl font-bold text-slate-800">{value}</p>
-    {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
-  </div>
-);
+  );
+};
 
 // ============================================================================
 // MAIN PAGE

@@ -199,20 +199,20 @@ function StatCard({ label, value, sub, color = "blue", icon: Icon }: {
   icon?: React.ComponentType<{ className?: string }>;
 }) {
   const colors = {
-    blue:   "bg-blue-50 border-blue-200 text-blue-700",
-    green:  "bg-green-50 border-green-200 text-green-700",
-    red:    "bg-red-50 border-red-200 text-red-700",
-    orange: "bg-orange-50 border-orange-200 text-orange-700",
-    purple: "bg-purple-50 border-purple-200 text-purple-700",
-    indigo: "bg-indigo-50 border-indigo-200 text-indigo-700",
+    blue:   "bg-gradient-to-br from-blue-50 to-white border-blue-200 text-blue-700 hover:shadow-blue-200/60",
+    green:  "bg-gradient-to-br from-green-50 to-white border-green-200 text-green-700 hover:shadow-green-200/60",
+    red:    "bg-gradient-to-br from-red-50 to-white border-red-200 text-red-700 hover:shadow-red-200/60",
+    orange: "bg-gradient-to-br from-orange-50 to-white border-orange-200 text-orange-700 hover:shadow-orange-200/60",
+    purple: "bg-gradient-to-br from-purple-50 to-white border-purple-200 text-purple-700 hover:shadow-purple-200/60",
+    indigo: "bg-gradient-to-br from-indigo-50 to-white border-indigo-200 text-indigo-700 hover:shadow-indigo-200/60",
   };
   return (
-    <div className={`rounded-lg border p-4 ${colors[color]}`}>
+    <div className={`group rounded-lg border p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${colors[color]}`}>
       <div className="flex items-center justify-between mb-1">
         <p className="text-xs font-medium opacity-75">{label}</p>
-        {Icon && <Icon className="w-4 h-4 opacity-60" />}
+        {Icon && <Icon className="w-4 h-4 opacity-60 transition-transform duration-300 group-hover:scale-110" />}
       </div>
-      <p className="text-xl font-bold">{value}</p>
+      <p className="text-xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left">{value}</p>
       {sub && <p className="text-xs opacity-60 mt-0.5">{sub}</p>}
     </div>
   );

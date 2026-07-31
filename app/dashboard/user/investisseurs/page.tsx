@@ -12,6 +12,7 @@ import AccountMenuButton from "@/components/AccountMenuButton";
 import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import AfriSimeLogo from "@/components/AfriSimeLogo";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -72,17 +73,19 @@ function KpiCard({ icon, label, value, sub, color = "emerald" }: {
   icon: React.ReactNode; label: string; value: string; sub?: string; color?: string;
 }) {
   const ring: Record<string, string> = {
-    emerald: "bg-emerald-50 text-emerald-600",
-    blue:    "bg-blue-50 text-blue-600",
-    amber:   "bg-amber-50 text-amber-600",
-    violet:  "bg-violet-50 text-violet-600",
+    emerald: "bg-emerald-100 text-emerald-600",
+    blue:    "bg-blue-100 text-blue-600",
+    amber:   "bg-amber-100 text-amber-600",
+    violet:  "bg-violet-100 text-violet-600",
   };
+  const h = getStatCardHue(color);
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-4">
-      <div className={`p-3 rounded-xl ${ring[color] ?? ring.emerald}`}>{icon}</div>
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl border p-5 flex items-start gap-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
+      <div className={`p-3 rounded-xl transition-transform duration-300 ease-out group-hover:scale-110 ${ring[color] ?? ring.emerald}`}>{icon}</div>
       <div className="min-w-0">
         <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
-        <p className="text-xl font-bold text-slate-900 mt-0.5 truncate">{value}</p>
+        <p className={`text-xl font-bold mt-0.5 truncate transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
         {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
       </div>
     </div>

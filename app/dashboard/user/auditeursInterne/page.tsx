@@ -18,6 +18,7 @@ import DashboardBackButton from "@/components/DashboardBackButton";
 import AfriSimeLogo from "@/components/AfriSimeLogo";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 import { exportToXlsx } from "@/lib/exportXlsx";
 import { useT } from "@/contexts/AppSettingsContext";
 
@@ -387,19 +388,23 @@ const StatCard = ({
 }: {
   label: string; value: string; subtitle?: string; icon: LucideIcon;
   color: string; lightBg: string; alert?: boolean;
-}) => (
-  <div className={`bg-white rounded-2xl p-6 shadow-sm border transition-all group hover:shadow-md ${alert ? "border-red-200" : "border-slate-200/60"}`}>
-    <div className="flex items-start justify-between mb-4">
-      <div className={`${lightBg} p-3 rounded-xl group-hover:scale-110 transition-transform`}>
-        <Icon className={`${color} w-6 h-6`} />
+}) => {
+  const h = getStatCardHue(color, lightBg);
+  return (
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${alert ? "from-red-50 border-red-200" : `${h.wrap}`} to-white rounded-2xl p-6 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${alert ? "bg-red-500" : h.bar}`} />
+      <div className="flex items-start justify-between mb-4">
+        <div className={`${lightBg} p-3 rounded-xl group-hover:scale-110 transition-transform duration-300 ease-out`}>
+          <Icon className={`${color} w-6 h-6`} />
+        </div>
+        {alert && <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Alerte</span>}
       </div>
-      {alert && <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">Alerte</span>}
+      <h3 className={`text-sm font-semibold mb-1 ${alert ? "text-red-700/80" : h.labelText}`}>{label}</h3>
+      <p className={`text-3xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${alert ? "text-red-700" : h.text}`}>{value}</p>
+      {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
     </div>
-    <h3 className="text-slate-600 text-sm font-medium mb-1">{label}</h3>
-    <p className="text-3xl font-bold text-slate-800">{value}</p>
-    {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
-  </div>
-);
+  );
+};
 
 // ============================================================================
 // MAIN PAGE

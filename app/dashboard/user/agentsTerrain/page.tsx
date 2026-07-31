@@ -21,6 +21,7 @@ import ClientSegmentTags from "@/components/ClientSegmentTags";
 import { useApi, useMutation } from "@/hooks/useApi";
 import FactureModal from "@/components/FactureModal";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 import { groupByMonth } from "@/lib/groupByMonth";
 import { useCollapsedMonths } from "@/components/MonthGroupHeaderRow";
 import { CreditRappelInfo } from "@/components/CreditRappelInfo";
@@ -329,18 +330,22 @@ const PACK_COLORS: Record<TypePack, { badge: string; border: string }> = {
 
 const StatCard = ({ label, value, subtitle, icon: Icon, color, lightBg }: {
   label: string; value: string; subtitle?: string; icon: LucideIcon; color: string; lightBg: string;
-}) => (
-  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-[0_14px_32px_-10px_rgba(15,23,42,0.18)] hover:-translate-y-1 transition-all duration-300 group animate-[fadeInUp_0.5s_ease-out_both]">
-    <div className="flex items-start justify-between mb-4">
-      <div className={`${lightBg} p-3 rounded-xl group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
-        <Icon className={`${color} w-6 h-6`} />
+}) => {
+  const h = getStatCardHue(color, lightBg);
+  return (
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl p-6 shadow-sm border transition-all duration-300 hover:shadow-[0_14px_32px_-10px_rgba(15,23,42,0.18)] hover:-translate-y-1 animate-[fadeInUp_0.5s_ease-out_both]`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
+      <div className="flex items-start justify-between mb-4">
+        <div className={`${lightBg} p-3 rounded-xl group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
+          <Icon className={`${color} w-6 h-6`} />
+        </div>
       </div>
+      <h3 className={`text-sm font-semibold mb-1 ${h.labelText}`}>{label}</h3>
+      <p className={`text-3xl font-bold tabular-nums transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
+      {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
     </div>
-    <h3 className="text-slate-600 text-sm font-medium mb-1">{label}</h3>
-    <p className="text-3xl font-bold text-slate-800 tabular-nums">{value}</p>
-    {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
-  </div>
-);
+  );
+};
 
 // ─── Modal Collecte ───────────────────────────────────────────────────────────
 
