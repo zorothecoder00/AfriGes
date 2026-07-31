@@ -7,16 +7,18 @@ import {
   BarChart3, Boxes, LucideIcon, CheckCircle, X, Plus, ArrowRightLeft,
   ChevronDown, ChevronUp, Truck, FileText, Printer, ShieldAlert,
   Trash2, Gift, MinusCircle, Send, Clock, CheckSquare, XCircle, PackageCheck, ShoppingBag,
-  AlertCircle, FileCheck, History, Inbox, AlertOctagon,
+  AlertCircle, FileCheck, History, Inbox, AlertOctagon, Menu,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import HistoriquePrixProduit from '@/components/HistoriquePrixProduit';
 import Link from 'next/link';
 import NotificationBell from '@/components/NotificationBell';
+import AccountMenuButton from '@/components/AccountMenuButton';
 import CongesNavButton from '@/components/CongesNavButton';
 import MessagesLink from '@/components/MessagesLink';
 import UserPdvBadge from '@/components/UserPdvBadge';
 import DashboardBackButton from '@/components/DashboardBackButton';
+import AfriSimeLogo from '@/components/AfriSimeLogo';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { usePermissions } from '@/hooks/usePermissions';
 import { usePageAccess } from '@/hooks/usePageAccess';
@@ -199,6 +201,7 @@ export default function MagasinierPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState<'inventaire' | 'journal' | 'reception' | 'reappro' | 'livraisons' | 'alertes' | 'sorties' | 'anomalies'>('inventaire');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filterStatut, setFilterStatut] = useState<StatutStock | ''>('');
   const [filterType, setFilterType] = useState<'ENTREE' | 'SORTIE' | 'AJUSTEMENT' | ''>('');
   const [journalPage, setJournalPage] = useState(1);
@@ -804,35 +807,98 @@ export default function MagasinierPage() {
   const detailProduit = detailResponse?.data;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/20 font-['DM_Sans',sans-serif]">
-      {/* Navbar */}
-      <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <DashboardBackButton />
-              <h1 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
-                <span suppressHydrationWarning>{t("store_role")}</span>
-              </h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/20 font-['DM_Sans',sans-serif] lg:flex">
+
+      {/* Overlay sidebar (mobile) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-orange-800 to-amber-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto lg:flex-shrink-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between gap-3 px-5 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+              <AfriSimeLogo className="w-full h-full object-contain" />
             </div>
-            <div className="flex items-center gap-3">
-              <UserPdvBadge />
-              <MessagesLink />
-              <CongesNavButton />
-              <NotificationBell href="/dashboard/user/notifications" />
+            <DashboardBackButton />
+            <h1 className="text-base font-bold truncate">
+              <span suppressHydrationWarning>{t("store_role")}</span>
+            </h1>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-white/70 hover:text-white flex-shrink-0"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => { setActiveTab(tab.key); setPage(1); setJournalPage(1); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  activeTab === tab.key
+                    ? 'bg-white/15 text-white shadow-inner'
+                    : 'text-orange-100/80 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <Icon size={17} />
+                <span className="flex-1 text-left">{tab.label}</span>
+                {tab.badge !== undefined && tab.badge > 0 && (
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                    activeTab === tab.key ? 'bg-white/20 text-white' : 'bg-red-500/90 text-white'
+                  }`}>{tab.badge}</span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
+
+      {/* Colonne principale */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Topbar */}
+        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700"
+              >
+                <Menu size={22} />
+              </button>
+              <div className="hidden lg:block" />
+              <div className="flex items-center gap-3">
+                <UserPdvBadge />
+                <MessagesLink />
+                <CongesNavButton />
+                <NotificationBell href="/dashboard/user/notifications" />
+                <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
+              </div>
             </div>
           </div>
-        </div>
-      </nav>
+        </header>
 
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h2 className="text-3xl font-bold text-slate-800 mb-2" suppressHydrationWarning>{t("store_dash_title")}</h2>
             <p className="text-slate-500" suppressHydrationWarning>{t("store_subtitle")}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Link
               href="/dashboard/user/magasiniers/ventes-credit"
               className="px-4 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-semibold hover:bg-orange-600 transition-colors flex items-center gap-2 shadow-sm"
@@ -853,36 +919,12 @@ export default function MagasinierPage() {
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards (uniquement sur l'onglet par défaut, pour ne pas masquer les autres onglets) */}
+        {activeTab === 'inventaire' && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {statCards.map((stat, i) => <StatCard key={i} {...stat} />)}
         </div>
-
-        {/* Tabs */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-1.5 flex gap-1">
-          {tabs.map(tab => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.key}
-                onClick={() => { setActiveTab(tab.key); setPage(1); setJournalPage(1); }}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all ${
-                  activeTab === tab.key
-                    ? 'bg-orange-600 text-white shadow-lg shadow-orange-200'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <Icon size={18} />
-                {tab.label}
-                {tab.badge !== undefined && tab.badge > 0 && (
-                  <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-                    activeTab === tab.key ? 'bg-white/20 text-white' : 'bg-red-100 text-red-700'
-                  }`}>{tab.badge}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        )}
 
         {/* Search & Filters */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
@@ -2733,6 +2775,7 @@ export default function MagasinierPage() {
           </div>
         )}
       </main>
+      </div>
 
       {/* ================================================================ */}
       {/* MODAL: Historique des prix */}

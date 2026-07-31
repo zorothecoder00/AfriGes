@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Search, Package, Tag, ChevronLeft, ChevronRight, TrendingUp, History, X, BarChart3 } from "lucide-react";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import NotificationBell from "@/components/NotificationBell";
+import AccountMenuButton from "@/components/AccountMenuButton";
+import MessagesLink from "@/components/MessagesLink";
 import HistoriquePrixProduit from "@/components/HistoriquePrixProduit";
 import { formatCurrency } from "@/lib/format";
 
@@ -97,7 +99,7 @@ export default function DirecteurCommercialPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-blue-50/20 font-['DM_Sans',sans-serif]">
-      <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+      <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
@@ -106,10 +108,14 @@ export default function DirecteurCommercialPage() {
                 Directeur Commercial
               </h1>
             </div>
-            <NotificationBell href="/dashboard/user/notifications" />
+            <div className="flex items-center gap-3">
+              <MessagesLink />
+              <NotificationBell href="/dashboard/user/notifications" />
+              <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
+            </div>
           </div>
         </div>
-      </nav>
+      </header>
 
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>

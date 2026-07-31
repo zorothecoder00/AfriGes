@@ -9,13 +9,15 @@ import {
   Lock, Filter, Pencil, Trash2, CalendarDays, Boxes,
   MapPin, FileText, Info, Download, Printer,
   UserPlus, Star, Activity, ShoppingBag, Wrench, UserCircle, CreditCard, Receipt,
-  Inbox, Send,
+  Inbox, Send, Menu,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
+import AccountMenuButton from "@/components/AccountMenuButton";
 import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
+import AfriSimeLogo from "@/components/AfriSimeLogo";
 import ClientSegmentTags from "@/components/ClientSegmentTags";
 import FactureModal from "@/components/FactureModal";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -331,6 +333,7 @@ export default function ResponsablePDVPage() {
   const [factureReceptionId, setFactureReceptionId] = useState<number | null>(null);
   const [showProForma,       setShowProForma]       = useState(false);
   const [equipeSub,   setEquipeSub]   = useState<"membres" | "performances" | "presences">("membres");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Filtres
   const [searchProduit,  setSearchProduit]  = useState("");
@@ -915,7 +918,7 @@ export default function ResponsablePDVPage() {
   }, [allowedPages]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/20 font-['DM_Sans',sans-serif]">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/20 font-['DM_Sans',sans-serif] lg:flex">
 
       {/* ── Modals Facture ── */}
       {factureVenteId !== null && (
@@ -1839,72 +1842,128 @@ export default function ResponsablePDVPage() {
         </div>
       )}
 
-      {/* ── Navbar ── */}
-      <nav className="bg-white/85 backdrop-blur-md shadow-sm border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-3">
-              <DashboardBackButton />
-              <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center shadow-md shadow-indigo-200 transition-transform hover:scale-105 hover:rotate-3 duration-300">
-                <MapPin className="w-4 h-4 text-white" />
-              </div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                {t("role_rpv_title")}
-              </h1>
+      {/* Overlay sidebar (mobile) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-emerald-800 to-emerald-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto lg:flex-shrink-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between gap-3 px-5 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+              <AfriSimeLogo className="w-full h-full object-contain" />
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={refetchAll} className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg" title="Actualiser">
-                <RefreshCw size={18} />
+            <DashboardBackButton />
+            <div className="w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center shadow-inner flex-shrink-0">
+              <MapPin className="w-4 h-4 text-white" />
+            </div>
+            <h1 className="text-base font-bold truncate">
+              {t("role_rpv_title")}
+            </h1>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-white/70 hover:text-white flex-shrink-0"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {tabs.map(({ key, label, icon: Icon, badge }) => (
+            <button
+              key={key}
+              onClick={() => { setActiveTab(key); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                activeTab === key
+                  ? "bg-white/15 text-white shadow-inner"
+                  : "text-emerald-100/80 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <Icon size={17} />
+              <span className="flex-1 text-left">{label}</span>
+              {badge !== undefined && badge > 0 && (
+                <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-white/20 text-white">{badge}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      {/* Colonne principale */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Topbar */}
+        <header className="bg-white/85 backdrop-blur-md shadow-sm border-b border-slate-200 sticky top-0 z-30">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16 gap-2 flex-wrap py-2">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700"
+              >
+                <Menu size={22} />
               </button>
-              {activeTab === "stock" && stockSub === "inventaire" && (
-                <>
-                  <button onClick={() => openAnomalie()} className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 rounded-xl text-sm font-medium transition-colors">
-                    <Wrench size={15} />Signaler
-                  </button>
-                  <button onClick={openReappro} className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 rounded-xl text-sm font-medium transition-colors">
-                    <RefreshCw size={15} />Réappro
-                  </button>
-                  <button onClick={() => openMvt()} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-xl text-sm font-medium transition-colors">
-                    <ArrowRightLeft size={15} />Mouvement
-                  </button>
-                  <button onClick={openCreateProduit} className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors">
-                    <Plus size={15} />Nouveau produit
-                  </button>
-                </>
-              )}
-              {activeTab === "approvisionnement" && (
-                <button onClick={openCreateLiv} className="flex items-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors">
-                  <Plus size={15} />Planifier réception
+              <div className="flex items-center gap-2 flex-wrap justify-end ml-auto">
+                <button onClick={refetchAll} className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg" title="Actualiser">
+                  <RefreshCw size={18} />
                 </button>
-              )}
-              {activeTab === "livraisons" && (
-                <button onClick={handleExportRecPacks} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-xl text-sm font-medium transition-colors">
-                  <Download size={15} />Exporter CSV
-                </button>
-              )}
-              {activeTab === "clients" && (
-                <>
-                  <button onClick={handleExportClients} className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl text-sm font-medium transition-colors">
-                    <Download size={15} />Exporter
+                {activeTab === "stock" && stockSub === "inventaire" && (
+                  <>
+                    <button onClick={() => openAnomalie()} className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 rounded-xl text-sm font-medium transition-colors">
+                      <Wrench size={15} />Signaler
+                    </button>
+                    <button onClick={openReappro} className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 rounded-xl text-sm font-medium transition-colors">
+                      <RefreshCw size={15} />Réappro
+                    </button>
+                    <button onClick={() => openMvt()} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-xl text-sm font-medium transition-colors">
+                      <ArrowRightLeft size={15} />Mouvement
+                    </button>
+                    <button onClick={openCreateProduit} className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors">
+                      <Plus size={15} />Nouveau produit
+                    </button>
+                  </>
+                )}
+                {activeTab === "approvisionnement" && (
+                  <button onClick={openCreateLiv} className="flex items-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors">
+                    <Plus size={15} />Planifier réception
                   </button>
-                  <button onClick={openCreateClient} className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors">
-                    <UserPlus size={15} />Nouveau client
+                )}
+                {activeTab === "livraisons" && (
+                  <button onClick={handleExportRecPacks} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-xl text-sm font-medium transition-colors">
+                    <Download size={15} />Exporter CSV
                   </button>
-                </>
-              )}
-              <UserPdvBadge />
-              <MessagesLink />
-              <CongesNavButton />
-              <NotificationBell href="/dashboard/user/notifications" />
+                )}
+                {activeTab === "clients" && (
+                  <>
+                    <button onClick={handleExportClients} className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl text-sm font-medium transition-colors">
+                      <Download size={15} />Exporter
+                    </button>
+                    <button onClick={openCreateClient} className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors">
+                      <UserPlus size={15} />Nouveau client
+                    </button>
+                  </>
+                )}
+                <UserPdvBadge />
+                <MessagesLink />
+                <CongesNavButton />
+                <NotificationBell href="/dashboard/user/notifications" />
+                <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
+              </div>
             </div>
           </div>
-        </div>
-      </nav>
+        </header>
 
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+        <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-5">
 
-        {/* Alertes stock urgentes */}
-        {(dash?.stock.alertesProduits.filter((p) => p.stock === 0) ?? []).length > 0 && (
+        {/* Alertes stock urgentes (uniquement sur l'onglet par défaut, déjà reprises dans son contenu) */}
+        {activeTab === "synthese" && (dash?.stock.alertesProduits.filter((p) => p.stock === 0) ?? []).length > 0 && (
           <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-3">
             <Archive className="text-red-500 w-5 h-5 shrink-0" />
             <p className="text-red-700 text-sm font-medium">
@@ -1913,21 +1972,6 @@ export default function ResponsablePDVPage() {
             </p>
           </div>
         )}
-
-        {/* Tabs */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-1.5 flex gap-1 overflow-x-auto">
-          {tabs.map(({ key, label, icon: Icon, badge }) => (
-            <button key={key} onClick={() => setActiveTab(key)}
-              className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-300 whitespace-nowrap ${
-                activeTab === key ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-200 scale-[1.03]" : "text-slate-600 hover:bg-slate-100 hover:scale-[1.02]"
-              }`}>
-              <Icon size={15} />{label}
-              {badge !== undefined && badge > 0 && (
-                <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${activeTab === key ? "bg-white/20 text-white" : "bg-red-500 text-white"}`}>{badge}</span>
-              )}
-            </button>
-          ))}
-        </div>
 
         {/* =====================================================================
             TAB : SYNTHÈSE
@@ -3686,6 +3730,7 @@ export default function ResponsablePDVPage() {
         )}
 
       </main>
+      </div>
     </div>
   );
 }

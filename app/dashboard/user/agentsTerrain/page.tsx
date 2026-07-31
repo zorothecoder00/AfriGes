@@ -7,14 +7,16 @@ import {
   Banknote, Calendar, LucideIcon, Layers, Plus,
   Loader2, Truck, Package, ShoppingCart, X, Send, XCircle,
   ClipboardList, CreditCard, Navigation, PlayCircle, ChevronDown, ChevronUp,
-  Wallet, TrendingDown, UserPlus, Receipt, FileText, Pencil, Target, QrCode, BookOpen,
+  Wallet, TrendingDown, UserPlus, Receipt, FileText, Pencil, Target, QrCode, BookOpen, Menu,
 } from "lucide-react";
 import Link from "next/link";      
 import NotificationBell from "@/components/NotificationBell";
+import AccountMenuButton from "@/components/AccountMenuButton";
 import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
+import AfriSimeLogo from "@/components/AfriSimeLogo";
 import ClientSegmentTags from "@/components/ClientSegmentTags";
 import { useApi, useMutation } from "@/hooks/useApi";
 import FactureModal from "@/components/FactureModal";
@@ -1666,6 +1668,7 @@ export default function AgentTerrainPage() {
   const [searchQuery, setSearchQuery]   = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab]           = useState<TabKey>("packs");
+  const [sidebarOpen, setSidebarOpen]       = useState(false);
   const [factureVenteId, setFactureVenteId] = useState<number | null>(null);
   const [factureCreditId, setFactureCreditId] = useState<number | null>(null);
   const [showProForma, setShowProForma]     = useState(false);
@@ -1981,41 +1984,103 @@ export default function AgentTerrainPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50/30 to-emerald-50/20 font-['DM_Sans',sans-serif]">
-
-      {/* Navbar */}
-      <nav className="bg-white/85 backdrop-blur-md shadow-sm border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <DashboardBackButton />
-              <h1 className="text-xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">
-                {t('field_agent')}
-              </h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <UserPdvBadge />
-              <MessagesLink />
-              <CongesNavButton />
-              <NotificationBell href="/dashboard/user/notifications" />
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-slate-50 font-['DM_Sans',sans-serif] lg:flex">
 
       {factureVenteId  && <FactureModal venteDirecteId={factureVenteId}   onClose={() => setFactureVenteId(null)} />}
       {factureCreditId && <FactureModal creditClientId={factureCreditId} onClose={() => setFactureCreditId(null)} />}
       {showProForma    && <FactureModal proFormaMode onClose={() => setShowProForma(false)} />}
 
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {/* Overlay sidebar (mobile) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-emerald-800 to-emerald-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto lg:flex-shrink-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between gap-3 px-5 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+              <AfriSimeLogo className="w-full h-full object-contain" />
+            </div>
+            <DashboardBackButton />
+            <h1 className="text-base font-bold truncate">
+              {t('field_agent')}
+            </h1>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-white/70 hover:text-white flex-shrink-0"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => { setActiveTab(tab.key); setSearchQuery(""); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  activeTab === tab.key
+                    ? "bg-white/15 text-white shadow-inner"
+                    : "text-emerald-100/80 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <Icon size={17} />
+                <span className="flex-1 text-left">{tab.label}</span>
+                {tab.badge !== undefined && tab.badge > 0 && (
+                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? "bg-white/20 text-white" : "bg-amber-500 text-white"}`}>
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
+
+      {/* Colonne principale */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Topbar */}
+        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700"
+              >
+                <Menu size={22} />
+              </button>
+              <div className="hidden lg:block" />
+              <div className="flex items-center gap-3">
+                <UserPdvBadge />
+                <MessagesLink />
+                <CongesNavButton />
+                <NotificationBell href="/dashboard/user/notifications" />
+                <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h2 className="text-3xl font-bold text-slate-800 mb-1">{t("field_dash_title")}</h2>
             <p className="text-slate-500 text-sm">{t('field_dash_subtitle')}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Link
               href="/dashboard/user/agentsTerrain/tournee"
               className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
@@ -2046,30 +2111,12 @@ export default function AgentTerrainPage() {
           </div>
         </div>
 
-        {/* Stats */}
+        {/* Stats (uniquement sur l'onglet par défaut, pour ne pas masquer les autres onglets) */}
+        {activeTab === "packs" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
           {statCards.map((s, i) => <StatCard key={i} {...s} />)}
         </div>
-
-        {/* Tabs */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-1.5 flex gap-1">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button key={tab.key} onClick={() => { setActiveTab(tab.key); setSearchQuery(""); }}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 ${
-                  activeTab === tab.key ? "bg-gradient-to-r from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-200 scale-[1.02]" : "text-slate-600 hover:bg-slate-100 hover:scale-[1.01]"
-                }`}>
-                <Icon size={18} />{tab.label}
-                {tab.badge !== undefined && tab.badge > 0 && (
-                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? "bg-white/20 text-white" : "bg-amber-500 text-white"}`}>
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        )}
 
         {/* Search + filtres */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60">
@@ -3630,6 +3677,7 @@ export default function AgentTerrainPage() {
           onSuccess={() => { refetchCredits(); refetchClients(); setNouveauCreditClient(null); }}
         />
       )}
+      </div>
     </div>
   );
 }

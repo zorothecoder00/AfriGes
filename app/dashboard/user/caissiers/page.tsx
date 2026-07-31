@@ -8,15 +8,17 @@ import {
   Users, AlertTriangle, AlertCircle, Info, ChevronLeft, ChevronRight,
   Lock, Calendar, FileText, Filter, Layers, Eye, XCircle, Package,
   Wallet, Power, Pause, Play, ArrowDownCircle, ArrowUpCircle,
-  ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil, Loader2, FolderTree, Ban,
+  ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil, Loader2, FolderTree, Ban, Menu,
 } from "lucide-react";
 import Link from "next/link";
 import NotificationBell from "@/components/NotificationBell";
+import AccountMenuButton from "@/components/AccountMenuButton";
 import CongesNavButton from "@/components/CongesNavButton";
 import FactureModal from "@/components/FactureModal";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
+import AfriSimeLogo from "@/components/AfriSimeLogo";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
@@ -796,6 +798,7 @@ export default function CaissierPage() {
   const { isAllowed, allowedPages } = usePageAccess();
 
   const [activeTab, setActiveTab] = useState<TabKey>("synthese");
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
 
   // ── Recherche / filtres historique ───────────────────────────────────────
   const [searchQuery,      setSearchQuery]      = useState("");
@@ -1546,7 +1549,7 @@ export default function CaissierPage() {
   }, [allowedPages]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/30 to-indigo-50/20 font-['DM_Sans',sans-serif]">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/30 to-indigo-50/20 font-['DM_Sans',sans-serif] lg:flex">
 
       {/* ── Modals ── */}
       {recuModal      && recuData      && <TicketRecu          data={recuData}      onClose={() => setRecuModal(false)} />}
@@ -2019,56 +2022,128 @@ export default function CaissierPage() {
         </div>
       )}
 
-      {/* ── Navbar ── */}
-      <nav className="bg-white/85 backdrop-blur-md shadow-sm border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <DashboardBackButton />
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center shadow-md shadow-emerald-200 transition-transform hover:scale-105 hover:rotate-3 duration-300">
-                  <Banknote className="w-4 h-4 text-white" />
-                </div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                  Caisse
-                </h1>
-              </div>
+      {/* Overlay sidebar (mobile) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-emerald-800 to-emerald-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto lg:flex-shrink-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between gap-3 px-5 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+              <AfriSimeLogo className="w-full h-full object-contain" />
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={refetchAll}
-                className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                title="Actualiser"
-              >
-                <RefreshCw size={18} />
-              </button>
-              <button
-                onClick={() => setActiveTab("packs")}
-                className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all shadow-sm flex items-center gap-2"
-              >
-                <Plus size={16} />
-                Encaisser
-              </button>
-              <UserPdvBadge />
-              {isAllowed("comptes-courants") && (
-                <Link href="/dashboard/admin/comptes-courants"
-                  className="px-3 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold hover:bg-emerald-50 transition-all shadow-sm flex items-center gap-2">
-                  <Wallet size={16} />
-                  Comptes courants
-                </Link>
-              )}
-              <MessagesLink />
-              <CongesNavButton />
-              <NotificationBell href="/dashboard/user/notifications" />
+            <DashboardBackButton />
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Banknote className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-base font-bold truncate">Caisse</h1>
             </div>
           </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-white/70 hover:text-white flex-shrink-0"
+          >
+            <X size={20} />
+          </button>
         </div>
-      </nav>
 
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => { setActiveTab(tab.key); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  activeTab === tab.key
+                    ? "bg-white/15 text-white shadow-inner"
+                    : "text-emerald-100/80 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <Icon size={17} />
+                <span className="flex-1 text-left">{tab.label}</span>
+                {tab.badge != null && tab.badge > 0 && (
+                  <span className={`min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[11px] font-bold px-1 ${
+                    activeTab === tab.key ? "bg-white text-emerald-700" : "bg-amber-500 text-white"
+                  }`}>
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
 
-        {/* ── Alertes prioritaires ── */}
-        {(dashboard?.alertes ?? []).length > 0 && (
+      {/* Colonne principale */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Topbar */}
+        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700"
+              >
+                <Menu size={22} />
+              </button>
+              <div className="hidden lg:block" />
+              <div className="flex items-center gap-3">
+                <MessagesLink />
+                <CongesNavButton />
+                <NotificationBell href="/dashboard/user/notifications" />
+                <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        {/* ── Header page ── */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-slate-800 mb-1">Caisse</h2>
+            <p className="text-slate-500">Encaissements, décaissements et gestion de la session de caisse</p>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={refetchAll}
+              className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors bg-white border border-slate-200 shadow-sm"
+              title="Actualiser"
+            >
+              <RefreshCw size={18} />
+            </button>
+            <button
+              onClick={() => setActiveTab("packs")}
+              className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all shadow-sm flex items-center gap-2"
+            >
+              <Plus size={16} />
+              Encaisser
+            </button>
+            <UserPdvBadge />
+            {isAllowed("comptes-courants") && (
+              <Link href="/dashboard/admin/comptes-courants"
+                className="px-3 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold hover:bg-emerald-50 transition-all shadow-sm flex items-center gap-2">
+                <Wallet size={16} />
+                Comptes courants
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* ── Alertes prioritaires (uniquement sur l'onglet par défaut) ── */}
+        {activeTab === "synthese" && (dashboard?.alertes ?? []).length > 0 && (
           <div className="space-y-2">
             {dashboard!.alertes.map((a, i) => (
               <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border text-sm font-medium ${alertBg(a.type)}`}>
@@ -2078,31 +2153,6 @@ export default function CaissierPage() {
             ))}
           </div>
         )}
-
-        {/* ── Tabs ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-1.5 flex flex-wrap gap-1">
-          {tabs.map(({ key, label, icon: Icon, badge }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`relative flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-300 whitespace-nowrap ${
-                activeTab === key
-                  ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-200 scale-[1.03]"
-                  : "text-slate-600 hover:bg-slate-100 hover:scale-[1.02]"
-              }`}
-            >
-              <Icon size={16} />
-              {label}
-              {badge != null && badge > 0 && (
-                <span className={`ml-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[11px] font-bold px-1 ${
-                  activeTab === key ? "bg-white text-emerald-700" : "bg-amber-500 text-white"
-                }`}>
-                  {badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
 
         {/* ============================================================
             TAB : SYNTHÈSE
@@ -4571,6 +4621,7 @@ export default function CaissierPage() {
         )}
 
       </main>
+      </div>
     </div>
   );
 }

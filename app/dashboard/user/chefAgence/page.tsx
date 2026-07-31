@@ -5,11 +5,13 @@ import {
   LayoutDashboard, Store, TrendingUp, Package, Wallet, Users,
   UserCheck, ShoppingBag, FileText, RefreshCw, Download,
   AlertTriangle, CheckCircle, XCircle, Clock, Search,
-  ArrowRight, BarChart3, ArrowLeftRight, Plus, X,
+  ArrowRight, BarChart3, ArrowLeftRight, Plus, X, Menu,
   ChevronDown, ChevronUp, Eye, MapPin, Send,
 } from "lucide-react";
 import Link from "next/link";
+import AfriSimeLogo from "@/components/AfriSimeLogo";
 import NotificationBell from "@/components/NotificationBell";
+import AccountMenuButton from "@/components/AccountMenuButton";
 import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
@@ -266,6 +268,7 @@ export default function ChefAgenceDashboard() {
   const { isAllowed, allowedPages } = usePageAccess();
 
   const [activeTab, setActiveTab] = useState<Tab>("vue_generale");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ── Filtres Ventes ───────────────────────────────────────────────────────
   const [ventePeriod,  setVentePeriod]  = useState(30);
@@ -528,69 +531,110 @@ export default function ChefAgenceDashboard() {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="max-w-screen-2xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="text-gray-400 hover:text-gray-600">
+    <div className="min-h-screen bg-gray-50 lg:flex">
+
+      {/* Overlay sidebar (mobile) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-emerald-800 to-emerald-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto lg:flex-shrink-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between gap-3 px-5 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+              <AfriSimeLogo className="w-full h-full object-contain" />
+            </div>
+            <Link href="/dashboard" className="text-white/70 hover:text-white flex-shrink-0">
               <ArrowRight className="w-4 h-4 rotate-180" />
             </Link>
-            <div className="flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-indigo-600" />
-              <span className="font-semibold text-gray-900">Chef d&apos;Agence</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <MapPin size={18} className="flex-shrink-0" />
+              <h1 className="text-base font-bold truncate">Chef d&apos;Agence</h1>
             </div>
-            {dashData?.data?.zone && (
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                {dashData.data.zone.nbPdvs} PDV{dashData.data.zone.nbPdvs !== 1 ? "s" : ""} dans ma zone
-              </span>
-            )}
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={dashRefetch} className="p-1.5 text-gray-400 hover:text-gray-600">
-              <RefreshCw className="w-4 h-4" />
-            </button>
-            {isAllowed("comptes-courants") && (
-              <>
-                <Link href="/dashboard/admin/comptes-courants/a-valider"
-                  className="px-3 py-2 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 transition-all shadow-sm flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  Retraits à valider
-                </Link>
-                <Link href="/dashboard/admin/comptes-courants"
-                  className="px-3 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold hover:bg-emerald-50 transition-all shadow-sm flex items-center gap-2">
-                  <Wallet className="w-4 h-4" />
-                  Comptes courants
-                </Link>
-              </>
-            )}
-            <MessagesLink />
-            <CongesNavButton />
-              <NotificationBell href="/dashboard/user/notifications" />
-            <UserPdvBadge />
-          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-white/70 hover:text-white flex-shrink-0"
+          >
+            <X size={20} />
+          </button>
         </div>
 
-        {/* Tabs */}
-        <div className="max-w-screen-2xl mx-auto px-4 flex gap-1 overflow-x-auto pb-0">
+        {dashData?.data?.zone && (
+          <div className="px-5 py-2.5 border-b border-white/10 flex-shrink-0">
+            <span className="text-xs text-emerald-100/80 bg-white/10 px-2 py-1 rounded-full">
+              {dashData.data.zone.nbPdvs} PDV{dashData.data.zone.nbPdvs !== 1 ? "s" : ""} dans ma zone
+            </span>
+          </div>
+        )}
+
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
           {tabs.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
+              onClick={() => { setActiveTab(key); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                 activeTab === key
-                  ? "border-indigo-600 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "bg-white/15 text-white shadow-inner"
+                  : "text-emerald-100/80 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <Icon className="w-3.5 h-3.5" />
+              <Icon className="w-[17px] h-[17px]" />
               {label}
             </button>
           ))}
-        </div>
-      </header>
+        </nav>
+      </aside>
 
-      <main className="max-w-screen-2xl mx-auto px-4 py-6">
+      {/* Colonne principale */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Topbar */}
+        <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16 gap-3">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 -ml-2 text-gray-500 hover:text-gray-700 flex-shrink-0"
+              >
+                <Menu size={22} />
+              </button>
+              <div className="flex-1 flex items-center justify-end gap-2 sm:gap-3 flex-wrap">
+                <button onClick={dashRefetch} className="p-1.5 text-gray-400 hover:text-gray-600">
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+                {isAllowed("comptes-courants") && (
+                  <>
+                    <Link href="/dashboard/admin/comptes-courants/a-valider"
+                      className="px-3 py-2 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 transition-all shadow-sm flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      Retraits à valider
+                    </Link>
+                    <Link href="/dashboard/admin/comptes-courants"
+                      className="px-3 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold hover:bg-emerald-50 transition-all shadow-sm flex items-center gap-2">
+                      <Wallet className="w-4 h-4" />
+                      Comptes courants
+                    </Link>
+                  </>
+                )}
+                <MessagesLink />
+                <CongesNavButton />
+                <NotificationBell href="/dashboard/user/notifications" />
+                <UserPdvBadge />
+                <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 max-w-screen-2xl mx-auto w-full px-4 py-6">
 
         {/* ================================================================ */}
         {/* TAB: VUE GÉNÉRALE                                                 */}
@@ -1773,6 +1817,8 @@ export default function ChefAgenceDashboard() {
         )}
 
       </main>
+      </div>
+      {/* fin colonne principale */}
 
       {/* ================================================================== */}
       {/* MODAL AFFECTATION AGENT                                             */}

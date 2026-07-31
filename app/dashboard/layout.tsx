@@ -7,11 +7,33 @@ import SessionGuard from '@/components/SessionGuard'
 import ViewAsBanner from '@/components/ViewAsBanner'
 import { ViewAsProvider } from '@/contexts/ViewAsContext'
 
+// Sections dashboard/user déjà dotées de leur propre sidebar (avec logo intégré
+// dans son en-tête) — le bandeau global ferait doublon et gaspille de l'espace.
+const USER_SIDEBAR_PREFIXES = [
+  "/dashboard/user/actionnaires",
+  "/dashboard/user/agentsTerrain",
+  "/dashboard/user/auditeursInterne",
+  "/dashboard/user/caissiers",
+  "/dashboard/user/chefAgence",
+  "/dashboard/user/comptables",
+  "/dashboard/user/investisseurs",
+  "/dashboard/user/logistiquesApprovisionnements",
+  "/dashboard/user/magasiniers",
+  "/dashboard/user/responsablesPointDeVente",
+  "/dashboard/user/responsablesVenteCredit",
+  "/dashboard/user/revendeurs",
+  "/dashboard/user/gouvernance",
+  "/dashboard/user/responsablesRH",
+  "/dashboard/user/responsablesRIA",
+];
+
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   // Toutes les pages admin (racine + sous-pages) ont leur propre en-tête via
   // AdminTopbar (logo + recherche + compte) — le bandeau global ferait doublon.
-  const hasOwnHeader = pathname.startsWith("/dashboard/admin");
+  const hasOwnHeader =
+    pathname.startsWith("/dashboard/admin") ||
+    USER_SIDEBAR_PREFIXES.some((p) => pathname.startsWith(p));
 
   return (
     <ViewAsProvider>

@@ -4,12 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Wallet, TrendingUp, Activity, RefreshCw, ArrowDownCircle, ArrowUpCircle,
-  DollarSign, Network, ChevronRight, AlertCircle, FileText,
+  DollarSign, Network, ChevronRight, AlertCircle, FileText, Menu, X,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import NotificationBell from "@/components/NotificationBell";
+import AccountMenuButton from "@/components/AccountMenuButton";
 import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
+import AfriSimeLogo from "@/components/AfriSimeLogo";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -96,6 +98,7 @@ export default function InvestisseurDashboardPage() {
     useApi<{ data: Mouvement[] }>("/api/investisseurRIA/mouvements?limit=10");
 
   const [activeTab, setActiveTab] = useState<"portefeuilles" | "mouvements" | "rapports">("portefeuilles");
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
 
   const portefeuilles = pfRes?.data ?? [];
   const mouvements    = mvtRes?.data ?? [];
@@ -108,28 +111,106 @@ export default function InvestisseurDashboardPage() {
   const refetch = () => { pfRefetch(); mvtRefetch(); };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* ── Topbar ── */}
-      <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <DashboardBackButton />
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-emerald-600 rounded-xl flex items-center justify-center">
-              <Network className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-slate-900">Mon Espace RIA</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button onClick={refetch} className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg">
-            <RefreshCw className={`w-4 h-4 ${pfLoading || mvtLoading ? "animate-spin" : ""}`} />
-          </button>
-          <MessagesLink />
-          <NotificationBell href="/dashboard/user/notifications" />
-                  </div>
-      </header>
+    <div className="min-h-screen bg-slate-50 lg:flex">
 
-      <div className="p-6 space-y-6 max-w-6xl mx-auto">
+      {/* Overlay sidebar (mobile) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-emerald-800 to-emerald-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto lg:flex-shrink-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between gap-3 px-5 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+              <AfriSimeLogo className="w-full h-full object-contain" />
+            </div>
+            <DashboardBackButton />
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 bg-white/15 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Network className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-bold text-white truncate">Mon Espace RIA</span>
+            </div>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-white/70 hover:text-white flex-shrink-0"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          <button
+            onClick={() => { setActiveTab("portefeuilles"); setSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              activeTab === "portefeuilles"
+                ? "bg-white/15 text-white shadow-inner"
+                : "text-emerald-100/80 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            <Wallet size={17} />
+            Portefeuilles ({portefeuilles.length})
+          </button>
+          <button
+            onClick={() => { setActiveTab("mouvements"); setSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              activeTab === "mouvements"
+                ? "bg-white/15 text-white shadow-inner"
+                : "text-emerald-100/80 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            <Activity size={17} />
+            Mouvements récents
+          </button>
+          <button
+            onClick={() => { setActiveTab("rapports"); setSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              activeTab === "rapports"
+                ? "bg-white/15 text-white shadow-inner"
+                : "text-emerald-100/80 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            <FileText size={17} />
+            Rapports mensuels
+          </button>
+        </nav>
+      </aside>
+
+      {/* Colonne principale */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Topbar */}
+        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700"
+              >
+                <Menu size={22} />
+              </button>
+              <div className="hidden lg:block" />
+              <div className="flex items-center gap-3">
+                <button onClick={refetch} className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg">
+                  <RefreshCw className={`w-4 h-4 ${pfLoading || mvtLoading ? "animate-spin" : ""}`} />
+                </button>
+                <MessagesLink />
+                <NotificationBell href="/dashboard/user/notifications" />
+                <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
         {/* ── Header ── */}
         <div>
@@ -137,29 +218,15 @@ export default function InvestisseurDashboardPage() {
           <p className="text-sm text-slate-500 mt-0.5">Réseau des Investisseurs AfriSime — votre espace personnel</p>
         </div>
 
-        {/* ── KPIs ── */}
+        {/* ── KPIs (uniquement sur l'onglet par défaut, pour ne pas masquer les autres onglets) ── */}
+        {activeTab === "portefeuilles" && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard icon={<Wallet className="w-5 h-5" />}       label="Capital investi"    value={`${fmt(totalInvesti)} FCFA`}    color="emerald" />
           <KpiCard icon={<TrendingUp className="w-5 h-5" />}   label="Capital disponible" value={`${fmt(totalDisponible)} FCFA`} color="blue"    />
           <KpiCard icon={<Activity className="w-5 h-5" />}     label="Capital engagé"     value={`${fmt(totalEngage)} FCFA`}     color="amber"   />
           <KpiCard icon={<DollarSign className="w-5 h-5" />}   label="Bénéfices générés"  value={`${fmt(totalBenefices)} FCFA`}  color="violet"  />
         </div>
-
-        {/* ── Tabs ── */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-          <button onClick={() => setActiveTab("portefeuilles")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === "portefeuilles" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
-            Portefeuilles ({portefeuilles.length})
-          </button>
-          <button onClick={() => setActiveTab("mouvements")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === "mouvements" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
-            Mouvements récents
-          </button>
-          <button onClick={() => setActiveTab("rapports")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${activeTab === "rapports" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
-            <FileText className="w-4 h-4" /> Rapports mensuels
-          </button>
-        </div>
+        )}
 
         {/* ── Portefeuilles ── */}
         {activeTab === "portefeuilles" && (
@@ -282,6 +349,7 @@ export default function InvestisseurDashboardPage() {
             </table>
           </div>
         )}
+        </main>
       </div>
     </div>
   );

@@ -5,16 +5,18 @@ import Link from "next/link";
 import {
   Truck, Package, ArrowUpCircle, ArrowDownCircle, ArrowRightLeft, Search,
   RefreshCw, AlertTriangle, Archive, CheckCircle, ClipboardList,
-  Boxes, BarChart3, Plus, X, MapPin, ClipboardCheck, Filter,
+  Boxes, BarChart3, Plus, X, Menu, MapPin, ClipboardCheck, Filter,
   TrendingUp, LucideIcon, PlayCircle, ChevronDown, ChevronUp,
   ShieldAlert, Send, Clock, CheckSquare, XCircle, History, Inbox,
 } from "lucide-react";
 import HistoriquePrixProduit from "@/components/HistoriquePrixProduit";
 import NotificationBell from "@/components/NotificationBell";
+import AccountMenuButton from "@/components/AccountMenuButton";
 import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
+import AfriSimeLogo from "@/components/AfriSimeLogo";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
@@ -227,6 +229,7 @@ export default function LogistiqueApprovisionnementPage() {
   const { isAllowed, allowedPages } = usePageAccess();
 
   const [activeTab, setActiveTab] = useState<Tab>("reception");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ── Stock / produits ──────────────────────────────────────────────────────
   const [search, setSearch]                   = useState("");
@@ -748,34 +751,91 @@ export default function LogistiqueApprovisionnementPage() {
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50/30 to-blue-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50/30 to-blue-50/20 lg:flex">
 
-      {/* ── Navbar ── */}
-      <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <DashboardBackButton />
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                  <Truck className="w-4 h-4 text-white" />
-                </div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
-                  {t("role_logistique_title")}
-                </h1>
+      {/* Overlay sidebar (mobile) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-emerald-800 to-emerald-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto lg:flex-shrink-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between gap-3 px-5 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+              <AfriSimeLogo className="w-full h-full object-contain" />
+            </div>
+            <DashboardBackButton />
+            <h1 className="text-base font-bold truncate">
+              {t("role_logistique_title")}
+            </h1>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-white/70 hover:text-white flex-shrink-0"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => { setActiveTab(tab.key); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  activeTab === tab.key
+                    ? "bg-white/15 text-white shadow-inner"
+                    : "text-emerald-100/80 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <Icon size={17} />
+                {tab.label}
+                {tab.badge ? (
+                  <span className="ml-auto w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center flex-shrink-0">
+                    {tab.badge > 9 ? "9+" : tab.badge}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
+
+      {/* Colonne principale */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Topbar */}
+        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700"
+              >
+                <Menu size={22} />
+              </button>
+              <div className="hidden lg:block" />
+              <div className="flex items-center gap-3">
+                <UserPdvBadge />
+                <MessagesLink />
+                <CongesNavButton />
+                <NotificationBell href="/dashboard/user/notifications" />
+                <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <UserPdvBadge />
-              <MessagesLink />
-              <CongesNavButton />
-              <NotificationBell href="/dashboard/user/notifications" />
-            </div>
           </div>
-        </div>
-      </nav>
+        </header>
 
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -785,7 +845,7 @@ export default function LogistiqueApprovisionnementPage() {
               Réceptionnez les produits, affectez-les aux points de vente et suivez tous les mouvements.
             </p>
           </div>
-          <div className="flex items-center gap-2 self-start">
+          <div className="flex items-center gap-2 flex-wrap">
             <Link
               href="/dashboard/user/logistiquesApprovisionnements/fournisseurs"
               className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium"
@@ -838,7 +898,8 @@ export default function LogistiqueApprovisionnementPage() {
           </div>
         </div>
 
-        {/* ── Stats ── */}
+        {/* ── Stats (uniquement sur l'onglet Stock & Réception, pour ne pas masquer les autres onglets) ── */}
+        {activeTab === "reception" && (<>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
           <StatCard
             label="Produits en stock"
@@ -901,29 +962,7 @@ export default function LogistiqueApprovisionnementPage() {
             )}
           </div>
         )}
-
-        {/* ── Tabs ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-1.5 flex flex-wrap gap-1">
-          {tabs.map(({ key, label, icon: Icon, badge }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`relative flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all flex-1 min-w-[110px] ${
-                activeTab === key
-                  ? "bg-cyan-600 text-white shadow-lg shadow-cyan-200"
-                  : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <Icon size={17} />
-              <span className="hidden sm:inline">{label}</span>
-              {badge ? (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                  {badge > 9 ? "9+" : badge}
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
+        </>)}
 
         {/* ══════════════════════════════════════════════════════════════════ */}
         {/* TAB 1 – STOCK & RÉCEPTION                                        */}
@@ -2993,6 +3032,7 @@ export default function LogistiqueApprovisionnementPage() {
           onValidated={() => { setValiderTransfert(null); refetchTransfertsDemande(); }}
         />
       )}
+      </div>
     </div>
   );
 }

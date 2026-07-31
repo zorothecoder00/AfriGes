@@ -4,11 +4,13 @@ import React, { useState, useCallback } from "react";
 import {
   PackageCheck, RefreshCw, AlertCircle, Loader2, Package,
   Truck, ChevronDown, ChevronUp, CreditCard,
-  User, AlertTriangle, Banknote,
+  User, AlertTriangle, Banknote, Menu, X,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
+import AccountMenuButton from "@/components/AccountMenuButton";
 import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
+import AfriSimeLogo from "@/components/AfriSimeLogo";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
@@ -166,6 +168,7 @@ function CreditLivraisonCard({
 export default function MagasinierVentesCreditPage() {
   const [refreshKey,   setRefreshKey]   = useState(0);
   const [loadingLigne, setLoadingLigne] = useState<number | null>(null);
+  const [sidebarOpen,  setSidebarOpen]  = useState(false);
 
   const url = `/api/magasinier/credits?_k=${refreshKey}`;
   const { data, loading, error } = useApi<ApiResponse>(url);
@@ -196,37 +199,73 @@ export default function MagasinierVentesCreditPage() {
   }, [handleRefresh]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <DashboardBackButton />
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                <Truck size={16} className="text-white" />
-              </div>
-              <div className="flex items-center gap-2">
-                <div>
-                  <h1 className="text-base font-bold text-gray-900">Livraisons Crédit</h1>
-                  <p className="text-xs text-gray-500">Magasinier</p>
-                </div>
-                {totalALivrer > 0 && (
-                  <span className="ml-1 px-2 py-0.5 rounded-full bg-orange-500 text-white text-xs font-bold">
-                    {totalALivrer}
-                  </span>
-                )}
+    <div className="min-h-screen bg-gray-50 lg:flex">
+
+      {/* Overlay sidebar (mobile) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-emerald-800 to-emerald-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto lg:flex-shrink-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between gap-3 px-5 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+              <AfriSimeLogo className="w-full h-full object-contain" />
+            </div>
+            <DashboardBackButton />
+            <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
+              <Truck size={16} className="text-white" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-sm font-bold truncate">Livraisons Crédit</h1>
+              <p className="text-xs text-emerald-100/70 truncate">Magasinier</p>
+            </div>
+            {totalALivrer > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-orange-500 text-white text-xs font-bold flex-shrink-0">
+                {totalALivrer}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-white/70 hover:text-white flex-shrink-0"
+          >
+            <X size={20} />
+          </button>
+        </div>
+      </aside>
+
+      {/* Colonne principale */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Topbar */}
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 -ml-2 text-gray-500 hover:text-gray-700"
+              >
+                <Menu size={22} />
+              </button>
+              <div className="hidden lg:block" />
+              <div className="flex items-center gap-3">
+                <MessagesLink />
+                <NotificationBell href="/dashboard/user/notifications" />
+                <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <MessagesLink />
-              <NotificationBell href="/dashboard/user/notifications" />
-                          </div>
           </div>
-        </div>
-      </nav>
+        </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* En-tête avec refresh */}
         <div className="flex items-center justify-between">
           <div>
@@ -282,6 +321,7 @@ export default function MagasinierVentesCreditPage() {
             ))}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

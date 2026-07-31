@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import NotificationBell from "@/components/NotificationBell";
+import AccountMenuButton from "@/components/AccountMenuButton";
 import MessagesLink from "@/components/MessagesLink";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -103,6 +104,7 @@ export default function PortefeuilleDetailPage({ params }: { params: Promise<{ i
           </button>
           <MessagesLink />
           <NotificationBell href="/dashboard/user/notifications" />
+          <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
                   </div>
       </header>
 

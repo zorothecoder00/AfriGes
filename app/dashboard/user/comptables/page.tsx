@@ -8,13 +8,15 @@ import {
   AlertCircle, CheckCircle, Filter, X, Users, Lock, LockOpen, Plus,
   Paperclip, Trash2, ExternalLink, Upload,
   BookMarked, Percent, Building2, PlusCircle, Edit2, Save, ShoppingBag,
-  ToggleLeft, ToggleRight, ListChecks, BadgeCheck, ChevronsUpDown,
+  ToggleLeft, ToggleRight, ListChecks, BadgeCheck, ChevronsUpDown, Menu,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
+import AccountMenuButton from "@/components/AccountMenuButton";
 import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
+import AfriSimeLogo from "@/components/AfriSimeLogo";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort, formatDateTime } from "@/lib/format";
 import { exportToXlsx } from "@/lib/exportXlsx";
@@ -368,6 +370,7 @@ export default function ComptablePage() {
 
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("30");
   const [activeTab, setActiveTab]           = useState<Tab>("synthese");
+  const [sidebarOpen, setSidebarOpen]       = useState(false);
 
   // Journal state
   const [journalPage, setJournalPage]           = useState(1);
@@ -907,64 +910,123 @@ export default function ComptablePage() {
   const snap = sd?.snapshot;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-violet-50/30 to-indigo-50/20">
+    <div className="min-h-screen bg-slate-50 font-['DM_Sans',sans-serif] lg:flex">
 
-      {/* ── Navbar ── */}
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <DashboardBackButton />
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
-                <Calculator className="w-4 h-4 text-white" />
-              </div>
-              <h1 className="text-lg font-bold text-slate-800">{t("role_comptable_title")}</h1>
+      {/* Overlay sidebar (mobile) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-emerald-800 to-emerald-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto lg:flex-shrink-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between gap-3 px-5 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+              <AfriSimeLogo className="w-full h-full object-contain" />
             </div>
+            <DashboardBackButton />
+            <h1 className="text-base font-bold truncate">
+              {t("role_comptable_title")}
+            </h1>
           </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-white/70 hover:text-white flex-shrink-0"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-          {/* Period selector */}
-          <div className="flex items-center bg-slate-100 rounded-xl p-1 gap-1">
-            {(["7", "30", "90", "365"] as Period[]).map((p) => (
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
               <button
-                key={p}
-                onClick={() => setSelectedPeriod(p)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  selectedPeriod === p
-                    ? "bg-violet-600 text-white shadow-sm"
-                    : "text-slate-600 hover:text-slate-800"
+                key={tab.key}
+                onClick={() => { setActiveTab(tab.key); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  activeTab === tab.key
+                    ? "bg-white/15 text-white shadow-inner"
+                    : "text-emerald-100/80 hover:bg-white/10 hover:text-white"
                 }`}
               >
-                {p === "365" ? "1 an" : `${p}j`}
+                <Icon size={17} />
+                {tab.label}
               </button>
-            ))}
-          </div>
+            );
+          })}
+        </nav>
+      </aside>
 
-          <div className="flex items-center gap-2">
-            <button onClick={refetchSynth} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
+      {/* Colonne principale */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Topbar */}
+        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700"
+              >
+                <Menu size={22} />
+              </button>
+              <div className="hidden lg:block" />
+              <div className="flex items-center gap-3">
+                <UserPdvBadge />
+                <MessagesLink />
+                <CongesNavButton />
+                <NotificationBell href="/dashboard/user/notifications" />
+                <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-slate-800">{t("role_comptable_title")} Générale</h2>
+            <p className="text-slate-500 text-sm mt-0.5">
+              Période : {sd ? formatDateShort(sd.periode.debut) : "…"} → {sd ? formatDateShort(sd.periode.fin) : "…"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Period selector */}
+            <div className="flex items-center bg-slate-100 rounded-xl p-1 gap-1">
+              {(["7", "30", "90", "365"] as Period[]).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setSelectedPeriod(p)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                    selectedPeriod === p
+                      ? "bg-violet-600 text-white shadow-sm"
+                      : "text-slate-600 hover:text-slate-800"
+                  }`}
+                >
+                  {p === "365" ? "1 an" : `${p}j`}
+                </button>
+              ))}
+            </div>
+            <button onClick={refetchSynth} className="p-2 bg-white border border-slate-200 shadow-sm text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
               <RefreshCw size={18} />
             </button>
             <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm text-sm font-medium">
               <Download size={16} />Exporter
             </button>
-            <UserPdvBadge />
-            <MessagesLink />
-            <CongesNavButton />
-              <NotificationBell href="/dashboard/user/notifications" />
           </div>
         </div>
-      </nav>
 
-      <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-5">
-
-        {/* ── Header ── */}
-        <div>
-          <h2 className="text-3xl font-bold text-slate-800">{t("role_comptable_title")} Générale</h2> 
-          <p className="text-slate-500 text-sm mt-0.5">
-            Période : {sd ? formatDateShort(sd.periode.debut) : "…"} → {sd ? formatDateShort(sd.periode.fin) : "…"}
-          </p>
-        </div>
-
-        {/* ── KPI cards ── */}
+        {/* ── KPI cards (uniquement sur l'onglet par défaut, pour ne pas masquer les autres onglets) ── */}
+        {activeTab === "synthese" && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
             label="Total Encaissements"
@@ -994,26 +1056,7 @@ export default function ComptablePage() {
             icon={Package} color="text-blue-600" bg="bg-blue-50"
           />
         </div>
-
-        {/* ── Tabs ── */}
-        <div className="bg-white rounded-2xl p-1.5 flex gap-1 shadow-sm border border-slate-200/60 overflow-x-auto">
-          {tabs.map((t) => {
-            const Icon = t.icon;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setActiveTab(t.key)}
-                className={`flex-shrink-0 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all ${
-                  activeTab === t.key
-                    ? "bg-violet-600 text-white shadow-md shadow-violet-200"
-                    : "text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                <Icon size={16} />{t.label}
-              </button>
-            );
-          })}
-        </div>
+        )}
 
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* TAB 1 : SYNTHÈSE                                               */}
@@ -3174,6 +3217,7 @@ export default function ComptablePage() {
           </div>
         )}
 
+        </main>
       </div>
     </div>
   );

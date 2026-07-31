@@ -8,6 +8,7 @@ import {
   PackageCheck, Banknote, FolderTree,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
+import AccountMenuButton from "@/components/AccountMenuButton";
 import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import FactureModal from "@/components/FactureModal";
@@ -746,6 +747,7 @@ export default function AgentTerrainCreditsPage() {
               </button>
               <MessagesLink />
               <NotificationBell href="/dashboard/user/notifications" />
+              <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
                           </div>
           </div>
         </div>

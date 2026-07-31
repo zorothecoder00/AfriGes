@@ -5,11 +5,13 @@ import {
   CreditCard, Search, RefreshCw, Loader2, Plus, X, Eye, Pencil,
   CheckCircle2, AlertCircle, TrendingDown, Calendar, Banknote,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, User,
-  PackageCheck, ArrowLeftRight, XCircle, Receipt, Edit3, Trash2, FolderTree, FileText, Ban,
+  PackageCheck, ArrowLeftRight, XCircle, Receipt, Edit3, Trash2, FolderTree, FileText, Ban, Menu,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
+import AccountMenuButton from "@/components/AccountMenuButton";
 import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
+import AfriSimeLogo from "@/components/AfriSimeLogo";
 import FactureModal from "@/components/FactureModal";
 import { useApi } from "@/hooks/useApi";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -561,6 +563,7 @@ export default function RVCCreditsPage() {
   const LIMIT = 20;
 
   const [showNouveauCredit, setShowNouveauCredit] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [detailCredit,    setDetailCredit]    = useState<CreditDetail | null>(null);
   const [detailLoading,   setDetailLoading]   = useState(false);
@@ -1020,30 +1023,86 @@ export default function RVCCreditsPage() {
   }, [ligneEditProdSearch, ligneEditType]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <DashboardBackButton />
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                <CreditCard size={16} className="text-white" />
-              </div>
-              <div>
-                <h1 className="text-base font-bold text-gray-900">Crédits clients</h1>
-                <p className="text-xs text-gray-500">Suivi des lignes de crédit</p>
+    <div className="min-h-screen bg-gray-50 lg:flex">
+      {/* Overlay sidebar (mobile) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-emerald-800 to-emerald-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto lg:flex-shrink-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 flex items-center gap-3 px-5 border-b border-white/10 flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+            <AfriSimeLogo className="w-full h-full object-contain" />
+          </div>
+          <DashboardBackButton />
+          <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
+            <CreditCard size={16} className="text-white" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-bold truncate">Crédits clients</h1>
+            <p className="text-xs text-emerald-100/70 truncate">Suivi des lignes de crédit</p>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-white/70 hover:text-white flex-shrink-0"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          <span className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold bg-white/15 text-white shadow-inner">
+            <CreditCard size={17} />
+            Crédits clients
+          </span>
+          <a
+            href="/dashboard/user/responsablesVenteCredit/credits/saisie-rapide"
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-emerald-100/80 hover:bg-white/10 hover:text-white transition-all"
+          >
+            <Banknote size={17} />
+            Saisie rapide
+          </a>
+          <a
+            href="/dashboard/user/responsablesVenteCredit/archivage"
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-emerald-100/80 hover:bg-white/10 hover:text-white transition-all"
+          >
+            <FolderTree size={17} />
+            Archivage
+          </a>
+        </nav>
+      </aside>
+
+      {/* Colonne principale */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Topbar */}
+        <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 -ml-2 text-gray-500 hover:text-gray-700"
+              >
+                <Menu size={22} />
+              </button>
+              <div className="hidden lg:block" />
+              <div className="flex items-center gap-3">
+                <MessagesLink />
+                <NotificationBell href="/dashboard/user/notifications" />
+                <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <MessagesLink />
-              <NotificationBell href="/dashboard/user/notifications" />
-                          </div>
           </div>
-        </div>
-      </nav>
+        </header>
 
-      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+      <main className="max-w-screen-xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-5">
 
         {/* Toolbar */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1068,14 +1127,6 @@ export default function RVCCreditsPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <a href="/dashboard/user/responsablesVenteCredit/credits/saisie-rapide"
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-50 text-sm font-medium">
-              <Banknote className="w-4 h-4" /> Saisie rapide
-            </a>
-            <a href="/dashboard/user/responsablesVenteCredit/archivage"
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium">
-              <FolderTree className="w-4 h-4" /> Archivage
-            </a>
             <select value={statut} onChange={(e) => { setStatut(e.target.value); setPage(1); }}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <option value="">Tous les statuts</option>
@@ -1229,6 +1280,7 @@ export default function RVCCreditsPage() {
             </>
           )}
         </div>
+      </main>
       </div>
 
       {/* ── Drawer détail ─────────────────────────────────────────────────────── */}

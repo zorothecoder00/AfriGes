@@ -7,11 +7,13 @@ import {
   BarChart3, LucideIcon, FileText, Star, Target, CheckCircle,
   ThumbsUp, ThumbsDown, Minus, ChevronDown, ChevronUp, AlertCircle,
   Loader2, User, Shield, BookOpen, Download, ArrowUpRight, ArrowDownRight,
-  Repeat, Settings2, ExternalLink, TrendingDown, Info, Lock, Globe,
+  Repeat, Settings2, ExternalLink, TrendingDown, Info, Lock, Globe, Menu, X,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
+import AccountMenuButton from "@/components/AccountMenuButton";
 import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
+import AfriSimeLogo from "@/components/AfriSimeLogo";
 import { useApi } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -179,6 +181,7 @@ export default function ActionnairePage() {
   const [procurationNotes, setProcurationNotes] = useState("");
   const [procurationMandataireId, setProcurationMandataireId] = useState("");
   const [docTypeFilter, setDocTypeFilter] = useState<string>("TOUS");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ── Données ──────────────────────────────────────────────────────────────
   const { data: statsResponse, loading: statsLoading, refetch: refetchStats } =
@@ -494,7 +497,7 @@ export default function ActionnairePage() {
 
   // ── Render principal ──────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-blue-50/20 font-['DM_Sans',sans-serif]">
+    <div className="min-h-screen bg-slate-50 font-['DM_Sans',sans-serif] lg:flex">
 
       {/* Modal Procuration */}
       {showProcurationModal !== null && (
@@ -544,30 +547,84 @@ export default function ActionnairePage() {
         </div>
       )}
 
-      {/* Navbar */}
-      <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <DashboardBackButton />
-              <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
-                {t("role_actionnaire_title")}
-              </h1>
+      {/* Overlay sidebar (mobile) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-emerald-800 to-emerald-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto lg:flex-shrink-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between gap-3 px-5 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+              <AfriSimeLogo className="w-full h-full object-contain" />
             </div>
-            <div className="flex items-center gap-3">
-              <MessagesLink />
-              <NotificationBell href="/dashboard/user/notifications" />
-              <div className="w-9 h-9 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 flex items-center justify-center text-white font-bold text-sm">
-                {userInfo?.prenom?.[0] ?? "A"}
+            <DashboardBackButton />
+            <h1 className="text-base font-bold truncate">
+              {t("role_actionnaire_title")}
+            </h1>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-white/70 hover:text-white flex-shrink-0"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => { setActiveTab(tab.key); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  activeTab === tab.key
+                    ? "bg-white/15 text-white shadow-inner"
+                    : "text-emerald-100/80 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <Icon size={17} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
+
+      {/* Colonne principale */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Topbar */}
+        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700"
+              >
+                <Menu size={22} />
+              </button>
+              <div className="hidden lg:block" />
+              <div className="flex items-center gap-3">
+                <MessagesLink />
+                <NotificationBell href="/dashboard/user/notifications" />
+                <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
               </div>
             </div>
           </div>
-        </div>
-      </nav>
+        </header>
 
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h2 className="text-3xl font-bold text-slate-800 mb-1">
               Bonjour, {userInfo?.prenom ?? ""} {userInfo?.nom ?? "Actionnaire"}
@@ -589,30 +646,12 @@ export default function ActionnairePage() {
           </button>
         </div>
 
-        {/* Stats */}
+        {/* Stats (uniquement sur l'onglet par défaut, pour ne pas masquer les autres onglets) */}
+        {activeTab === "profil" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {statCards.map((stat, i) => <StatCard key={i} {...stat} />)}
         </div>
-
-        {/* Tabs */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-1.5 flex gap-1 flex-wrap">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 min-w-[110px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold transition-all ${
-                  activeTab === tab.key
-                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}>
-                <Icon size={16} />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+        )}
 
         {/* ================================================================ */}
         {/* TAB: Mon Profil                                                   */}
@@ -1311,7 +1350,8 @@ export default function ActionnairePage() {
             </div>
           </div>
         )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
