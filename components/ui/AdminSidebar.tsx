@@ -1,14 +1,18 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   TrendingUp, Users, MessageSquare, Layers, ShoppingCart, Package, Store, Truck,
   ClipboardCheck, BarChart2, UserCog, Network, Target, Shield, Lock,
+  ChevronsLeft, ChevronsRight,
 } from "lucide-react";
 import { useT } from "@/contexts/AppSettingsContext";
 import { useApi } from "@/hooks/useApi";
+
+const COLLAPSE_STORAGE_KEY = "admin-sidebar-collapsed";
 
 type NavItem = {
   href: string;
@@ -33,6 +37,19 @@ export default function AdminSidebar({
   const t = useT();
   const { data: session } = useSession();
   const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
+
+  // Repli/dépli de la sidebar desktop — préférence mémorisée localement.
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    if (localStorage.getItem(COLLAPSE_STORAGE_KEY) === "1") setCollapsed(true);
+  }, []);
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(COLLAPSE_STORAGE_KEY, next ? "1" : "0");
+      return next;
+    });
+  };
 
   const { data: messagesNonLusRes } = useApi<{ nonLus: number }>(
     "/api/messages/unread-count", undefined, { refreshInterval: 30_000 }
@@ -100,13 +117,15 @@ export default function AdminSidebar({
     },
   ];
 
-  const navContent = (
+  const renderNav = (collapsedMode: boolean) => (
     <>
       {sections.map((section) => (
         <div key={section.title} className="p-3.5 border-b border-brand-700/50 last:border-b-0">
-          <h3 className="text-xs font-semibold text-brand-200/70 uppercase tracking-wider mb-2 px-1">
-            {section.title}
-          </h3>
+          {!collapsedMode && (
+            <h3 className="text-xs font-semibold text-brand-200/70 uppercase tracking-wider mb-2 px-1">
+              {section.title}
+            </h3>
+          )}
           <nav className="space-y-0.5">
             {section.items.map((item) => {
               const active = isActive(pathname, item.href, item.exact);
@@ -115,15 +134,23 @@ export default function AdminSidebar({
                   key={item.href}
                   href={item.href}
                   onClick={onMobileClose}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  title={collapsedMode ? item.label : undefined}
+                  className={`flex items-center rounded-xl text-sm font-medium transition-colors ${
+                    collapsedMode ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2.5"
+                  } ${
                     active
                       ? "bg-white text-brand-800 shadow-sm"
                       : "text-brand-50/90 hover:bg-brand-600/60 hover:text-white"
                   }`}
                 >
-                  {item.icon}
-                  <span className="flex-1">{item.label}</span>
-                  {!!item.badge && (
+                  <span className="relative shrink-0">
+                    {item.icon}
+                    {collapsedMode && !!item.badge && (
+                      <span className="absolute -top-1.5 -right-1.5 w-2 h-2 rounded-full bg-emerald-400" />
+                    )}
+                  </span>
+                  {!collapsedMode && <span className="flex-1">{item.label}</span>}
+                  {!collapsedMode && !!item.badge && (
                     <span className="relative flex items-center justify-center">
                       <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
                       <span className="relative min-w-[18px] h-[18px] px-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -142,19 +169,28 @@ export default function AdminSidebar({
 
   return (
     <>
-      {/* Desktop/tablette — sidebar statique */}
-      <aside className="w-64 shrink-0 hidden md:block">
-        <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-2xl bg-brand-700 border border-brand-800 shadow-sm">
-          {navContent}
+      {/* Desktop/tablette — sidebar statique, repliable */}
+      <aside className={`shrink-0 hidden md:block transition-[width] duration-200 ${collapsed ? "w-[68px]" : "w-64"}`}>
+        <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto overflow-x-hidden rounded-2xl bg-brand-700 border border-brand-800 shadow-sm">
+          <div className={`flex items-center border-b border-brand-700/50 p-2 ${collapsed ? "justify-center" : "justify-end"}`}>
+            <button
+              onClick={toggleCollapsed}
+              title={collapsed ? "Déplier la sidebar" : "Replier la sidebar"}
+              className="p-1.5 rounded-lg text-brand-100/80 hover:bg-brand-600/60 hover:text-white transition-colors"
+            >
+              {collapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+            </button>
+          </div>
+          {renderNav(collapsed)}
         </div>
       </aside>
 
-      {/* Mobile — tiroir coulissant */}
+      {/* Mobile — tiroir coulissant (toujours déplié) */}
       {mobileOpen && (
         <div className="fixed inset-0 z-[110] md:hidden">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onMobileClose} />
           <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-brand-700 shadow-xl overflow-y-auto animate-[popIn_0.18s_ease-out]">
-            {navContent}
+            {renderNav(false)}
           </div>
         </div>
       )}
