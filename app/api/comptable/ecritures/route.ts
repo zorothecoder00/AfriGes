@@ -91,7 +91,7 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { date, libelle, journal, notes, lignes } = body;
+    const { date, libelle, journal, notes, lignes, devise, tauxChange } = body;
 
     // Validations de base
     if (!date || !libelle || !journal) {
@@ -132,6 +132,8 @@ export async function POST(req: Request) {
         notes:   notes || null,
         statut:  "BROUILLON" as import("@prisma/client").StatutEcriture,
         userId:  Number(session.user.id),
+        devise:  devise || "XOF",
+        tauxChange: tauxChange != null ? Number(tauxChange) : 1,
         lignes: {
           create: lignes.map((l: {
             compteId: number;

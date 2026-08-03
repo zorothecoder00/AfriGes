@@ -316,6 +316,16 @@ interface ConfigurationInitialeData {
   etapes: EtapeConfigEntry[];
 }
 
+interface SocieteEntry {
+  id: number; nom: string; pays: string; deviseFonctionnelleCode: string;
+  referentielComptable: string; typeEntite: string; estPrincipale: boolean; actif: boolean;
+}
+
+interface DeviseEntry {
+  code: string; nom: string; symbole: string; tauxVersFonctionnelle: number | string;
+  dateTauxMaj: string; actif: boolean;
+}
+
 interface RapportsGestionData {
   caParPdv: { pdvId: number; pdvNom: string; caTotal: number }[];
   margeParProduit: { produitId: number; nom: string; quantiteVendue: number; ca: number; marge: number | null; margePct: number | null; coutConnu: boolean }[];
@@ -1291,6 +1301,54 @@ export default function ComptablePage() {
   async function handleEnregistrerConfig() {
     const res = await enregistrerConfig(configForm);
     if (res) refetchConfigInitiale();
+  }
+
+  // ── Sociétés & Devises API (CDC §49-50) ─────────────────────────────────
+  const { data: societesData, refetch: refetchSocietes } = useApi<{ data: SocieteEntry[] }>(
+    activeTab === "configInitiale" ? "/api/comptable/societes" : null
+  );
+  const { data: devisesData, refetch: refetchDevises } = useApi<{ data: DeviseEntry[] }>(
+    activeTab === "configInitiale" ? "/api/comptable/devises" : null
+  );
+  const [nouvelleSociete, setNouvelleSociete] = useState({ nom: "", pays: "Togo", deviseFonctionnelleCode: "XOF", referentielComptable: "SYSCOHADA révisé" });
+  const [nouvelleDevise, setNouvelleDevise] = useState({ code: "", nom: "", symbole: "", tauxVersFonctionnelle: "1" });
+  const { mutate: creerSociete } = useMutation<unknown, object>("/api/comptable/societes", "POST", { successMessage: "Société créée" });
+  const { mutate: creerDevise } = useMutation<unknown, object>("/api/comptable/devises", "POST", { successMessage: "Devise créée" });
+  const societeActionIdRef = useRef<number | null>(null);
+  const { mutate: patchSociete } = useMutation<unknown, object>(
+    () => `/api/comptable/societes/${societeActionIdRef.current}`, "PATCH"
+  );
+  const deviseActionCodeRef = useRef<string | null>(null);
+  const { mutate: patchDevise } = useMutation<unknown, object>(
+    () => `/api/comptable/devises/${deviseActionCodeRef.current}`, "PATCH"
+  );
+
+  async function handleCreerSociete() {
+    if (!nouvelleSociete.nom.trim()) return;
+    const res = await creerSociete(nouvelleSociete);
+    if (res) { refetchSocietes(); setNouvelleSociete({ nom: "", pays: "Togo", deviseFonctionnelleCode: "XOF", referentielComptable: "SYSCOHADA révisé" }); }
+  }
+  async function handleCreerDevise() {
+    if (!nouvelleDevise.code.trim() || !nouvelleDevise.nom.trim() || !nouvelleDevise.symbole.trim()) return;
+    const res = await creerDevise({ ...nouvelleDevise, tauxVersFonctionnelle: Number(nouvelleDevise.tauxVersFonctionnelle) || 1 });
+    if (res) { refetchDevises(); setNouvelleDevise({ code: "", nom: "", symbole: "", tauxVersFonctionnelle: "1" }); }
+  }
+  async function handleToggleSociete(s: SocieteEntry) {
+    societeActionIdRef.current = s.id;
+    const res = await patchSociete({ actif: !s.actif });
+    if (res) refetchSocietes();
+  }
+  async function handleToggleDevise(d: DeviseEntry) {
+    deviseActionCodeRef.current = d.code;
+    const res = await patchDevise({ actif: !d.actif });
+    if (res) refetchDevises();
+  }
+  async function handleTauxDevise(d: DeviseEntry, taux: string) {
+    const n = Number(taux);
+    if (!Number.isFinite(n) || n <= 0) return;
+    deviseActionCodeRef.current = d.code;
+    const res = await patchDevise({ tauxVersFonctionnelle: n });
+    if (res) refetchDevises();
   }
 
   // ── Rapports de gestion API ──────────────────────────────────────────────
@@ -5064,6 +5122,76 @@ export default function ComptablePage() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Sociétés (CDC §50) */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <h4 className="font-semibold text-slate-800 mb-1">Sociétés</h4>
+              <p className="text-xs text-slate-500 mb-4">
+                Architecture prévue pour plusieurs sociétés (CDC §50). AfriSime SARL est aujourd&apos;hui l&apos;unique société active.
+              </p>
+              <div className="space-y-2 mb-4">
+                {(societesData?.data ?? []).map((s) => (
+                  <div key={s.id} className={`flex items-center justify-between p-3 rounded-xl border ${s.estPrincipale ? "border-violet-200 bg-violet-50/30" : "border-slate-200"}`}>
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">
+                        {s.nom} {s.estPrincipale && <span className="text-xs text-violet-600 font-semibold ml-1">(principale)</span>}
+                      </p>
+                      <p className="text-xs text-slate-400">{s.pays} · {s.deviseFonctionnelleCode} · {s.referentielComptable}</p>
+                    </div>
+                    {!s.estPrincipale && (
+                      <button onClick={() => handleToggleSociete(s)} className={s.actif ? "text-emerald-500 hover:bg-emerald-50" : "text-slate-400 hover:bg-slate-50"} title={s.actif ? "Désactiver" : "Activer"}>
+                        {s.actif ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <input value={nouvelleSociete.nom} onChange={(e) => setNouvelleSociete(p => ({ ...p, nom: e.target.value }))} placeholder="Nom de la société" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <input value={nouvelleSociete.pays} onChange={(e) => setNouvelleSociete(p => ({ ...p, pays: e.target.value }))} placeholder="Pays" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <input value={nouvelleSociete.deviseFonctionnelleCode} onChange={(e) => setNouvelleSociete(p => ({ ...p, deviseFonctionnelleCode: e.target.value.toUpperCase() }))} placeholder="Devise (XOF)" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <button onClick={handleCreerSociete} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700">
+                  <PlusCircle size={15} /> Ajouter
+                </button>
+              </div>
+            </div>
+
+            {/* Devises (CDC §49) */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <h4 className="font-semibold text-slate-800 mb-1">Devises</h4>
+              <p className="text-xs text-slate-500 mb-4">
+                Taux paramétrables (CDC §49) — jamais codés en dur. Les montants des écritures restent en devise fonctionnelle (XOF) ; le taux ci-dessous n&apos;est que la référence de conversion.
+              </p>
+              <div className="space-y-2 mb-4">
+                {(devisesData?.data ?? []).map((d) => (
+                  <div key={d.code} className="flex items-center justify-between p-3 rounded-xl border border-slate-200 gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-800">{d.code} — {d.nom} ({d.symbole})</p>
+                      <p className="text-xs text-slate-400">Maj le {formatDateShort(d.dateTauxMaj)}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <input
+                        type="number" step="0.0001" defaultValue={Number(d.tauxVersFonctionnelle)}
+                        onBlur={(e) => { if (Number(e.target.value) !== Number(d.tauxVersFonctionnelle)) handleTauxDevise(d, e.target.value); }}
+                        className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-violet-500"
+                      />
+                      <button onClick={() => handleToggleDevise(d)} className={d.actif ? "text-emerald-500 hover:bg-emerald-50" : "text-slate-400 hover:bg-slate-50"} title={d.actif ? "Désactiver" : "Activer"}>
+                        {d.actif ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <input value={nouvelleDevise.code} onChange={(e) => setNouvelleDevise(p => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="Code (EUR)" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <input value={nouvelleDevise.nom} onChange={(e) => setNouvelleDevise(p => ({ ...p, nom: e.target.value }))} placeholder="Nom" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <input value={nouvelleDevise.symbole} onChange={(e) => setNouvelleDevise(p => ({ ...p, symbole: e.target.value }))} placeholder="Symbole (€)" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <input value={nouvelleDevise.tauxVersFonctionnelle} onChange={(e) => setNouvelleDevise(p => ({ ...p, tauxVersFonctionnelle: e.target.value }))} placeholder="Taux vers XOF" type="number" step="0.0001" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+              </div>
+              <button onClick={handleCreerDevise} className="mt-2 flex items-center gap-1.5 px-3 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700">
+                <PlusCircle size={15} /> Ajouter la devise
+              </button>
             </div>
           </div>
         )}

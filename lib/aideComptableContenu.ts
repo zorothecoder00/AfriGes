@@ -16,10 +16,10 @@ export const AIDE_COMPTABLE: Record<string, AideComptableContenu> = {
   },
   configInitiale: {
     titre: "Configuration initiale",
-    fonction: "Assistant qui vérifie que les prérequis du module (plan comptable, journaux, exercice ouvert, comptes essentiels) sont bien en place avant utilisation normale.",
-    regle: "Chaque étape est calculée en direct depuis les données réelles (nombre de comptes créés, exercice ouvert, etc.) — jamais une simple case à cocher manuellement.",
-    referentiel: "CDC §60 — Assistant de configuration initiale.",
-    exemple: "Si « Exercice ouvert » reste rouge, ouvrez l'exercice en cours depuis l'onglet Exercices avant de saisir des écritures.",
+    fonction: "Assistant qui vérifie que les prérequis du module (plan comptable, journaux, exercice ouvert, comptes essentiels) sont bien en place avant utilisation normale ; gère aussi les Sociétés et Devises paramétrables.",
+    regle: "Chaque étape est calculée en direct depuis les données réelles (nombre de comptes créés, exercice ouvert, etc.) — jamais une simple case à cocher manuellement. Une seule société est active aujourd'hui (AfriSime SARL) ; le plan comptable reste partagé (non scopé par société) tant qu'une 2e société n'est pas réellement créée.",
+    referentiel: "CDC §49 (devises), §50 (multi-sociétés), §60 (assistant de configuration initiale).",
+    exemple: "Si « Exercice ouvert » reste rouge, ouvrez l'exercice en cours depuis l'onglet Exercices avant de saisir des écritures. Ajouter une devise EUR avec son taux ne change rien aux écritures existantes (toujours en XOF).",
   },
   plan: {
     titre: "Plan comptable",

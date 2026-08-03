@@ -45,6 +45,15 @@ export interface CreerEcritureOpts {
    * avec prudence et seulement pour des générateurs déjà validés par ailleurs.
    */
   statut?: "BROUILLON" | "VALIDE";
+  /** Multi-société (CDC §50) : omis = société principale implicite (zéro régression). */
+  societeId?: number | null;
+  /**
+   * Multi-devise (CDC §49) : devise de la transaction d'origine, purement
+   * informative — les montants de `lignes` sont toujours en devise
+   * fonctionnelle. Omis = "XOF"/1 (comportement historique inchangé).
+   */
+  devise?: string;
+  tauxChange?: number;
 }
 
 /** Journaux toujours disponibles, câblés dans le code (utilisés partout dans AfriGes). */
@@ -132,6 +141,9 @@ export async function creerEcriture(tx: TxClient, opts: CreerEcritureOpts): Prom
       journal: opts.journal,
       statut: opts.statut ?? "BROUILLON",
       userId: opts.userId ?? null,
+      societeId: opts.societeId ?? null,
+      devise: opts.devise ?? "XOF",
+      tauxChange: new Prisma.Decimal(opts.tauxChange ?? 1),
       lignes: {
         create: opts.lignes.map((l) => ({
           compteId: map.get(l.numero)!,
@@ -347,6 +359,9 @@ export async function contrepasserEcriture(tx: TxClient, ecritureId: number, use
       journal: original.journal,
       statut: "VALIDE",
       userId,
+      societeId: original.societeId,
+      devise: original.devise,
+      tauxChange: original.tauxChange,
       lignes: {
         create: original.lignes.map((l) => ({
           compteId: l.compteId,

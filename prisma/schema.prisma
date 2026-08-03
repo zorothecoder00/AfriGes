@@ -498,8 +498,14 @@ model JournalComptable {
   prefixe String // 2 caractères pour la numérotation des pièces (CDC §15)
   actif   Boolean @default(true)
 
+  // Multi-société (CDC §50) : null = société principale.
+  societeId Int?
+  societe   Societe? @relation(fields: [societeId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([societeId])
 }
 
 enum StatutEcriture {
@@ -3551,12 +3557,24 @@ model EcritureComptable {
   user      User?                @relation(fields: [userId], references: [id])
   lignes    LigneEcriture[]
 
+  // Multi-société (CDC §50) : null = société principale (résolu par le moteur).
+  societeId Int?
+  societe   Societe? @relation(fields: [societeId], references: [id])
+
+  // Multi-devise (CDC §49) : montants des lignes toujours exprimés en devise
+  // fonctionnelle ; devise/tauxChange ne font ici que tracer la devise de la
+  // transaction d'origine (pas de conversion automatique ni de calcul d'écart
+  // de change — hors scope de cette étape, voir Devise).
+  devise     String  @default("XOF")
+  tauxChange Decimal @default(1)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([journal])
   @@index([statut])
   @@index([date])
+  @@index([societeId])
 }
 
 model LigneEcriture {
@@ -3973,8 +3991,15 @@ model ExerciceComptable {
   ecritureClotureId        Int?
   ecritureReportANouveauId Int?
 
+  // Multi-société (CDC §50) : null = société principale. `annee` reste unique
+  // globalement (pas encore (societeId, annee)) tant qu'une seule société existe.
+  societeId Int?
+  societe   Societe? @relation(fields: [societeId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([societeId])
 }
 
 /// Configuration comptable initiale (CDC §60 — assistant de première installation).
@@ -3993,6 +4018,52 @@ model ConfigurationComptableInitiale {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Devise paramétrable (CDC §49) : jamais de taux de change codé en dur. La
+/// devise fonctionnelle (celle dans laquelle le grand livre est tenu) a
+/// tauxVersFonctionnelle=1 par convention ; les autres devises portent un taux
+/// mis à jour manuellement par un comptable habilité (pas de flux temps réel).
+model Devise {
+  code                  String   @id // "XOF", "EUR", "USD"...
+  nom                   String
+  symbole               String
+  tauxVersFonctionnelle Decimal  @default(1)
+  dateTauxMaj           DateTime @default(now())
+  actif                 Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Société (CDC §50 — "architecture prévue pour multi-sociétés"). AfriSime
+/// SARL est aujourd'hui l'unique société active (estPrincipale=true), mais
+/// EcritureComptable/ExerciceComptable/JournalComptable portent déjà un
+/// societeId optionnel pour ne jamais bloquer l'ajout d'une 2e entité.
+/// Le plan comptable (CompteComptable.numero) reste volontairement partagé/non
+/// scopé par société dans cette première étape — le scoper impliquerait de
+/// changer son unicité globale en (societeId, numero) et de retoucher chaque
+/// résolution par numéro dans le moteur (~20 points d'appel) pour un besoin qui
+/// n'existe pas encore concrètement ; à faire le jour où une 2e société réelle
+/// est créée.
+model Societe {
+  id                      Int     @id @default(autoincrement())
+  nom                     String
+  pays                    String  @default("Togo")
+  deviseFonctionnelleCode String  @default("XOF")
+  referentielComptable    String  @default("SYSCOHADA révisé")
+  typeEntite              String  @default("Société commerciale")
+  estPrincipale           Boolean @default(false)
+  actif                   Boolean @default(true)
+
+  exercices ExerciceComptable[]
+  journaux  JournalComptable[]
+  ecritures EcritureComptable[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([estPrincipale])
 }
 
 // ============================================================

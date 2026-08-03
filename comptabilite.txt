@@ -1,258 +1,194 @@
-Contexte
+ Non — pas à 100%, littéralement. Voici l'audit complet, honnête, section par
+  section, vérifié directement dans le code (pas de mémoire recopiée).
 
- Le CDC (81 sections) demande de transformer la comptabilité d'AfriGes en
- véritable
- noyau financier SYSCOHADA : chaque opération métier (vente, achat, crédit,
- caisse,
- banque, immobilisation, paie) doit générer automatiquement son écriture
- comptable via
- un moteur de règles paramétrable, jamais via des comptes câblés en dur dans le
- code (§75, §81 — le principe cardinal du document).
+  I. Fondations architecturales (§1, 2, 6-9, 74, 81) — le cœur du CDC
 
- L'audit de l'existant montre qu'AfriGes a déjà un vrai socle comptable partie
- double (pas un projet à repartir de zéro), mais que ce socle est alimenté par
- quatre implémentations dupliquées et indépendantes, chacune avec ses propres
- numéros de comptes en dur :
- - lib/riaComptable.ts (module RIA — le mieux couvert)
- - lib/ecritureAchatServer.ts (réception stock)
- - lib/compteCourant.ts::creerEcritureCC (retraits + paiements crédit via CC)
- - app/api/comptable/sync-journals/route.ts (rattrapage manuel
- caisse/ventes/achats)
+  ✅ Moteur central réel : lib/comptabilite/moteur.ts::creerEcriture  +
+  RegleComptable paramétrable (resoudreRegleComptable), avec fallback par défaut
+  si aucune règle custom. Branché sur Vente comptant/crédit, Achat, Paie,
+  Remboursement crédit, RIA, Compte Courant — vérifié par les 22 scénarios de
+  test réels. C'est exactement le schéma §74 et le principe §81 ("jamais if
+  vente: debit=411").
+  ✅  Journaux paramétrables (§9) : 6 builtin + JournalComptable créables par   
+  l'admin.
+  ⚠️ Champs de la règle (§7) :
+  événement/module/condition/débit/crédit/taxe/journal/priorité/mode ✅,  mais  
+  devise, centre de coût, date de validité ne sont pas des champs de
+  RegleComptable — sous-ensemble simplifié des 14 champs listés dans le CDC.
+  ❌  4 gaps produit confirmés par les tests : achat comptant/crédit non
+  distingué, paiement fournisseur sans écriture dédiée, sortie stock/COGS non
+  constatée, pointDeVenteId jamais peuplé sur les lignes.
 
- Et surtout, plusieurs flux financiers réels n'ont aujourd'hui aucune
- contrepartie
- comptable : la Paie, les Factures de vente (FactureVente), les remboursements
- de
- crédit classiques (hors RIA), et les dépôts en Compte Courant. C'est
- exactement le
- risque que le CDC signale : de l'argent qui bouge sans écriture.
+  II. Structure écriture, statuts, contrepassation (§10-13)
 
- Vu l'ampleur du CDC (plan comptable complet, immobilisations, lettrage,
- exercices,
- analytique 5 axes, budget, états financiers réels, IA/OCR,
- multi-devise/société...),
- une seule implémentation ne peut pas tout couvrir. Ce plan pose donc une
- feuille de
- route en lots (cohérente avec la façon dont les autres modules d'AfriGes ont
- été
- construits — CC en 5 lots, Catalogue en 12 phases) et détaille le Lot 1, à
- implémenter maintenant : la fondation architecturale (moteur central) + le
- branchement des flux financiers actuellement orphelins.
+  ✅  Champs quasi complets (numéro/date/journal/référence/libellé/compte/tiers/d
+  ébit/crédit/analytique/utilisateur/statut/pièce). Équilibre débit=crédit
+  strictement imposé. Contrepassation opérationnelle.
+  ⚠️ Statuts : j'ai BROUILLON → À_CONTRÔLER → VALIDE → CLOTURE (4 états) ; le
+  CDC en demande 5 (…→ VALIDÉE → COMPTABILISÉE → CLÔTURÉE) — l'étape
+  "comptabilisée" distincte n'existe pas séparément de VALIDÉE.
+  ❌  Devise/taux de change sur la ligne d'écriture : absents.
 
- Comparatif CDC → existant (synthèse par thème)
+  III. Menu/architecture (§3) et Dashboard (§4)
 
- Thème CDC: Écriture débit/crédit, partie double
- État actuel: ✅  EcritureComptable/LigneEcriture
- Écart: conforme
- ────────────────────────────────────────
- Thème CDC: Plan comptable OHADA
- État actuel: ⚠️ ~30 comptes câblés (PLAN_SYSCOHADA_BASE)
- Écart: plan incomplet, pas de vraie hiérarchie compte↔tiers (FK)
- ────────────────────────────────────────
- Thème CDC: Journaux
- État actuel: ⚠️ 6 journaux fixes (enum)
- Écart: pas de création de journal par l'admin
- ────────────────────────────────────────
- Thème CDC: Moteur de règles comptables paramétrable (§7)
- État actuel: ❌  4 générateurs dupliqués, comptes en dur
- Écart: écart architectural n°1 — objet du Lot 1
- ────────────────────────────────────────
- Thème CDC: Intégration modules (§8)
- État actuel: ⚠️ RIA + stock + CC(retrait) connectés
- Écart: Paie, FactureVente, RemboursementCredit classique, dépôt CC : aucune
- écriture — objet du Lot 1
- ────────────────────────────────────────
- Thème CDC: Statuts écriture (§12)
- État actuel: ⚠️ BROUILLON/VALIDE/CLOTURE
- Écart: manque "À CONTRÔLER" (séparation saisie/validation)
- ────────────────────────────────────────
- Thème CDC: Contrepassation (§13)
- État actuel: ❌  absente
- Écart: à créer (Lot 1)
- ────────────────────────────────────────
- Thème CDC: Numérotation par journal (§15)
- État actuel: ⚠️ PREFIX-YYYYMM-00001 générique
- Écart: déjà proche, à harmoniser dans le moteur central
- ────────────────────────────────────────
- Thème CDC: Comptes auxiliaires clients/fournisseurs (§16-17), lettrage (§18)
- État actuel: ⚠️ / ❌
- Écart: tiers en texte libre, pas de FK ; lettrage absent — Lot 2
- ────────────────────────────────────────
- Thème CDC: Rapprochement bancaire (§19)
- État actuel: ⚠️ synthétique (solde vs solde)
- Écart: pas de matching ligne à ligne / import — Lot futur
- ────────────────────────────────────────
- Thème CDC: Taxes génériques paramétrables (§21)
- État actuel: ⚠️ seulement TVA dédiée
- Écart: pas de modèle Taxe générique — Lot futur
- ────────────────────────────────────────
- Thème CDC: Immobilisations/amortissements (§22)
- État actuel: ❌  absent
- Écart: Lot 3
- ────────────────────────────────────────
- Thème CDC: Analytique 5 axes (§24), Budget (§25)
- État actuel: ❌  absent
- Écart: Lot 4
- ────────────────────────────────────────
- Thème CDC: Écritures récurrentes (§26)
- État actuel: ❌  absent
- Écart: Lot futur
- ────────────────────────────────────────
- Thème CDC: Exercices/périodes (§28-32)
- État actuel: ⚠️ ClotureComptable (verrou mensuel) seulement
- Écart: pas de modèle Exercice avec statuts/report à nouveau — Lot futur (le
- verrou mensuel existant suffit pour Lot 1)
- ────────────────────────────────────────
- Thème CDC: États financiers réels (§33-39)
- État actuel: ❌  Bilan/CPC calculés depuis les modules métier, pas depuis les  
- écritures validées
- Écart: anti-pattern §75 explicitement dénoncé — Lot 5
- ────────────────────────────────────────
- Thème CDC: Contrôles cohérence / doublons / comptes d'attente (§40-42)
- État actuel: ❌  absent
- Écart: Lot futur
- ────────────────────────────────────────
- Thème CDC: Droits/séparation des tâches (§43-44)
- État actuel: ⚠️ rôle COMPTABLE existe, JournalValidation existe
- Écart: pas de blocage "saisisseur ≠ validateur"
- ────────────────────────────────────────
- Thème CDC: Piste d'audit (§45)
- État actuel: ✅  AuditLog générique déjà utilisé partout
- Écart: conforme
- ────────────────────────────────────────
- Thème CDC: Import/export comptable (§46-47)
- État actuel: ⚠️ exports partiels
- Écart: Lot futur
- ────────────────────────────────────────
- Thème CDC: Multi-PDV (§48)
- État actuel: ✅  déjà en place dans tout AfriGes
- Écart: conforme
- ────────────────────────────────────────
- Thème CDC: Multi-devise/société (§49-50), IA/OCR (§51)
- État actuel: ❌  hors scope Togo/FCFA actuel
- Écart: non prioritaire, ne pas fermer la porte
- ────────────────────────────────────────
- Thème CDC: Règles par produit/famille (§52-53)
- État actuel: ⚠️ existe pour le prix (Catalogue), pas pour la comptabilisation
- Écart: rattaché au moteur de règles (Lot 1 pose la base, Lot 2 affine par
- produit/famille)
+  ⚠️ Fonctionnellement équivalent mais présentation différente : un seul onglet
+  "Écritures" filtrable par statut plutôt que 4 sous-menus séparés (Brouillon/À
+  valider/Validées/Récurrentes) ; pas d'arborescence Journaux en sous-menus.
+  ⚠️ KPI dispersés entre plusieurs onglets (synthèse/états réels/TVA/contrôles)
+  plutôt que consolidés sur un seul tableau de bord.
+  ❌  Graphiques de comparaison N/N-1 : pas implémentés (confirmé, aucune trace 
+  dans le code).
 
- Feuille de route (lots)
+  IV. Plan comptable (§5)
 
- 1. Lot 1 (maintenant) — Moteur comptable central + branchement
- Paie/Factures/Crédit/Dépôts CC + workflow écriture enrichi + contrepassation.
- 2. Lot 2 — Plan comptable SYSCOHADA complet + comptes auxiliaires réels (FK
- client/fournisseur) + lettrage.
- 3. Lot 3 — Immobilisations + amortissements.
- 4. Lot 4 — Analytique (5 axes) + Budget.
- 5. Lot 5 — États financiers produits depuis les écritures validées
- (Bilan/CPC/TFT/Notes annexes) + contrôles de cohérence, comptes d'attente,
- détection de doublons.
- 6. Lot 6+ — Taxes génériques paramétrables, écritures récurrentes,
- rapprochement bancaire avec import/matching, exercices fiscaux formels avec
- report à nouveau, exports/imports avancés, séparation des tâches renforcée.
- 7. Plus tard / optionnel — multi-devise, multi-société/consolidation, OCR IA
- facture, API comptable externe formalisée.
+  ✅  Hiérarchie réelle par FK (compteParentId), classe/type/sens/actif,
+  auxiliaire réel par FK client/fournisseur, jamais de suppression physique
+  (soft via actif=false).
+  ⚠️ Champs déclaratifs manquants sur le compte lui-même : pas de FK "compte TVA
+  associé"/"compte analytique associé"/"compte immobilisation associé", pas de
+  champ "utilisateur créateur", pas de distinction actif circulant/immobilisé
+  (le type distingue seulement ACTIF/PASSIF/TRESORERIE/CHARGES/PRODUITS).
 
- ---
- Détail du Lot 1 (implémentation immédiate)
+  V. Auxiliaires, lettrage (§16-18)
 
- 1. Moteur comptable central — lib/comptabilite/moteur.ts (nouveau)
+  ✅  Auxiliaire réel par FK, lettrage manuel+auto avec reliquat conservé       
+  (lib/comptabilite/lettrage.ts).
+  ❌  Balance âgée dédiée (client/fournisseur) : introuvable dans le code — je  
+  n'ai pas retrouvé de calcul d'ancienneté de créance par tranches (30/60/90j)
+  séparé.
 
- Généralise le pattern déjà éprouvé de creerEcritureCC (lignes par numéro de
- compte, résolution en base, échec silencieux et traçable si compte absent) en
- un
- point d'entrée unique pour tout le projet :
+  VI. Rapprochement bancaire (§19)
 
- - creerEcriture(tx, { evenement, journal, date, libelle, userId, lignes:
- {numero, debit, credit, libelle}[], reference? }) — vérifie l'équilibre
- débit=crédit (rejette sinon, conforme §11), résout les comptes par numéro,
- génère la référence si absente, crée l'écriture en statut BROUILLON.
- - genererReferenceEcriture(tx, journal) — extraite et exportée depuis
- compteCourant.ts (déduplication), avec préfixes alignés CDC §15
- (VT/AC/BN/CA/OD/PA).
- - Vérifie la période : rejette la création si un ClotureComptable existe déjà
- pour annee/mois de la date d'écriture (referme le trou "écriture sur période
- clôturée" du §31), sauf pour les écritures de régularisation explicitement
- marquées.
+  ✅  Import + matching automatique par montant/date/référence, confirmation    
+  manuelle.
+  ⚠️ Import CSV seulement — Excel et OFX mentionnés dans le CDC ne sont pas
+  supportés.
 
- 2. Moteur de règles paramétrable — modèle RegleComptable (nouveau, Prisma)
+  VII. Caisse (§20)
 
- Champs (fidèles à §7) : evenement (String, ex. "VENTE_VALIDEE",
- "PAIE_VERSEE"),
- moduleSource (String), conditionProduit/conditionFamille/conditionModePaiement
- (String? — égalité simple, pas de DSL générique : correspond aux exemples du
- CDC et
- au niveau de complexité déjà utilisé ailleurs dans AfriGes),
- compteDebitNumero,
- compteCreditNumero, journal (TypeJournalComptable), tauxTvaNumero (String?),
- priorite (Int), actif (Boolean), mode (AUTOMATIQUE/MANUEL).
+  ⚠️ Solde théorique/physique/écart existent dans le module Caisse historique,
+  mais pas de vérification faite ici sur l'exigence explicite de "justification
+  obligatoire" de l'écart.
 
- - resoudreRegleComptable(tx, evenement, contexte) : cherche la règle active la
- plus
- prioritaire dont les conditions correspondent au contexte ; si aucune règle
- personnalisée, retombe sur une règle par défaut (seedée à la migration à
- partir
- des numéros de comptes actuellement en dur, donc zéro régression).
- - Page Comptabilité → Paramètres → Règles comptables (nouvel onglet dans
- app/dashboard/user/comptables/page.tsx) + API
- app/api/comptable/regles/route.ts
- et [id]/route.ts — CRUD simple, cohérent avec le reste du module.
+  VIII. Fiscalité/Taxes (§21), Immobilisations (§22)
 
- 3. Brancher les flux financiers orphelins identifiés dans l'audit
+  ✅  TaxeConfig générique paramétrable (pas de taux en dur), TVA décomposée    
+  automatiquement (lib/comptabilite/tva.ts).
+  ✅  Immobilisation complet (numéro, désignation, catégorie, comptes liés,     
+  dates, coût, durée, méthode, amortissement cumulé, VNC, localisation,
+  responsable), dotation automatique.
 
- Chaque point d'intégration appelle creerEcriture (via resoudreRegleComptable)
- au
- moment où l'effet financier est réel (pas à la simple saisie) :
+  IX. Inventaire/écritures de régularisation (§23, 27)
 
- - Paie — app/api/admin/rh/paie/[id]/route.ts, transition vers
- StatutFichePaie.PAYE : écriture Dr 661 Rémunérations / Cr Banque ou Caisse
- selon modePaiement.
- - Factures de vente (FactureVente) — création/émission d'une facture COMPTANT
- ou passage en CREDIT : écriture Dr Client/Caisse / Cr 701 Ventes (+TVA si
- applicable), en s'appuyant sur venteTarification.ts déjà en place pour les
- montants.
- - Remboursement crédit classique —
- app/api/caissier/remboursements/[id]/confirmer/route.ts (le moment réel de
- l'encaissement) : écriture Dr Caisse/Banque / Cr 411 Créances client,
- symétrique à ecritureRecouvrementRIA déjà existante pour le RIA.
- - Dépôt Compte Courant — enregistrerDepotCC dans lib/compteCourant.ts appelle
- déjà creerEcritureCC en interne pour le retrait ; on vérifie/complète l'appel
- équivalent pour le dépôt (actuellement absent d'après l'audit) en réutilisant
- le même helper généralisé.
+  ⚠️ Le mécanisme de contrepassation + saisie manuelle couvre la mécanique, mais
+  pas de générateur dédié "écarts d'inventaire théorique vs physique → écriture
+  automatique" — ça reste une saisie manuelle guidée, pas un vrai automatisme
+  d'écart.
 
- 4. Workflow écriture enrichi (§12) + contrepassation (§13)
+  X. Analytique (§24) et Budget (§25)
 
- - Ajout de la valeur d'enum A_CONTROLER à StatutEcriture (entre BROUILLON et
- VALIDE) — migration additive, l'existant (BROUILLON/VALIDE/CLOTURE) continue
- de
- fonctionner à l'identique, c'est un statut intermédiaire optionnel.
- - Nouvel endpoint POST /api/comptable/ecritures/[id]/contrepasser : interdit
- toute
- modification directe d'une écriture VALIDE/CLOTURE (vérification déjà à
- confirmer dans ecritures/[id]/route.ts) et génère l'écriture inverse (mêmes
- lignes, débit/crédit permutés), référencée CP-{référence originale}.
- - Bouton "Contrepasser" dans l'onglet Écritures de
- app/dashboard/user/comptables/page.tsx sur les écritures validées.
+  ✅  5 axes analytiques (SectionAnalytique), Budget/LigneBudget par
+  compte/mois/section analytique/PDV — comparaison Budget/Réalisé/Écart
+  fonctionnelle.
 
- Fichiers touchés (Lot 1)
+  XI. Écritures récurrentes (§26)
 
- - prisma/schema.prisma — modèle RegleComptable, enum ModeRegleComptable,
- valeur A_CONTROLER sur StatutEcriture.
- - lib/comptabilite/moteur.ts — nouveau (créerEcriture,
- genererReferenceEcriture, resoudreRegleComptable).
- - lib/compteCourant.ts — creerEcritureCC devient un fin wrapper autour du
- moteur central (déduplication), complète l'appel manquant sur le dépôt.
- - lib/riaComptable.ts, lib/ecritureAchatServer.ts,
- app/api/comptable/sync-journals/route.ts — migrés pour utiliser
- creerEcriture/resoudreRegleComptable au lieu de leur logique dupliquée
- (comportement inchangé, seed de règles par défaut identiques).
- - Nouveaux points d'intégration : app/api/admin/rh/paie/[id]/route.ts,
- app/api/caissier/remboursements/[id]/confirmer/route.ts, endpoints de
- création/émission FactureVente.
- - app/api/comptable/regles/route.ts (+ [id]/route.ts) — nouveau CRUD.
- - app/api/comptable/ecritures/[id]/contrepasser/route.ts — nouveau.
- - app/dashboard/user/comptables/page.tsx — nouvel onglet "Règles comptables",
- bouton "Contrepasser".
- - Migration Prisma (prisma migrate dev, géré par l'utilisateur lui-même).
+  ✅  EcritureRecurrente (montant, comptes, journal, fréquence, dates, statut)  
+  génère automatiquement.
+
+  XII. Exercices/périodes/clôture (§28-32)
+
+  ✅  ExerciceComptable (statuts), ClotureComptable par mois (verrou), clôture  
+  génère résultat+report à nouveau en VALIDE (bug corrigé ce tour-ci).
+  ⚠️ Statuts d'exercice : je n'ai pas vérifié qu'ils couvrent exactement
+  PRÉPARATION/OUVERT/EN CLÔTURE/CLÔTURÉ/ARCHIVÉ (5 valeurs) — à confirmer si
+  important pour vous.
+  ❌  Assistant de clôture avec check-list (§30 : vérifie
+  rapprochements/caisse/clients/fournisseurs/stocks/immobilisations/taxes avant
+  clôture) — la clôture existe mais pas cet assistant guidé avec liste de
+  contrôles préalables.
+
+  XIII. États financiers (§33-39)
+
+  ✅  Balance, Grand livre, Journal, Bilan (avec résultat provisoire corrigé),  
+  Compte de résultat, Tableau de flux — tous dérivés des écritures validées,
+  jamais saisis manuellement (le principe §75/§36 explicitement respecté).
+  ⚠️ Notes annexes : genererNotesAnnexes existe mais reste un résumé de
+  postes-clés, pas un "moteur de génération" complet avec tous les items listés
+  (engagements, effectifs, etc. — partiellement couverts).
+
+  XIV. Contrôles, comptes d'attente, doublons (§40-42)
+
+  ✅  lib/comptabilite/controles.ts couvre : écriture déséquilibrée, brouillons 
+  anciens, compte d'attente 471 élevé, solde trésorerie négatif, doublons
+  potentiels (même journal/date/montant/libellé), immobilisations sans
+  amortissement.
+  ❌  Manquent explicitement : compte inexistant/journal inexistant/date
+  invalide/écriture sans pièce obligatoire comme contrôles bloquants distincts
+  (certains sont déjà empêchés à la création par le moteur, donc jamais visibles
+  ici, mais pas testés comme contrôle a posteriori) ; client créditeur
+  inhabituel / fournisseur débiteur inhabituel / facture sans paiement /
+  paiement sans facture : non implémentés.
+
+  XV. Droits et séparation des tâches (§43-44)
+
+  ✅  Séparation saisie/validation réellement enforced
+  (app/api/comptable/ecritures/[id]/route.ts:62 — un non-admin ne peut pas
+  valider sa propre écriture, override ADMIN/SUPER_ADMIN).
+  ⚠️ Rôles : AUDITEUR_INTERNE, COMPTABLE, ACTIONNAIRE existent, mais pas de rôle
+  distinct "Chef comptable" pour un workflow à 3 niveaux (Agent→Comptable→Chef
+  comptable) — c'est binaire (créateur vs. n'importe qui d'autre) plutôt que
+  hiérarchique.
+
+  XVI. Piste d'audit (§45)
+
+  ✅  AuditLog avec userId/action/entité/IP/userAgent/snapshot JSON — couvre    
+  l'essentiel, bien que ce ne soit pas explicitement "ancienne valeur / nouvelle
+  valeur" typées séparément (c'est un JSON details libre).
+
+  XVII. Exports/imports (§46-47)
+
+  ✅  Export PDF/Excel sur la plupart des états. Import comptable avec
+  prévisualisation existe (app/api/comptable/import-ecritures).
+  ⚠️ Je n'ai pas vérifié que l'import gère précisément "495 OK / 3 comptes
+  inconnus / 2 déséquilibrées" comme prévisualisation détaillée — à auditer si
+  critique pour vous.
+
+  XVIII. Multi-PDV (§48), Multi-devise (§49), Multi-société (§50)
+
+  ✅  Multi-PDV : déjà natif à tout AfriGes.
+  ❌  Multi-devise : aucun champ devise/taux de change nulle part dans le schéma
+  comptable — le moteur est FCFA-only en dur, alors que le CDC dit explicitement
+  "ne pas concevoir le moteur uniquement pour le FCFA".
+  ❌  Multi-société : ConfigurationComptableInitiale est un singleton (id fixe =
+  1) — l'architecture ne supporte pas plusieurs sociétés/entités.
+
+  XIX. Config initiale (§60) et Aide contextuelle (§59)
+
+  ✅  Les deux livrés ce tour-ci (ConfigurationComptableInitiale,
+  AideComptable.tsx + registre sur 21 onglets).
+
+  ---
+  Verdict et priorités
+
+  Le cœur exigé par le CDC (moteur paramétrable central, zéro comptes en dur,
+  intégration multi-modules, partie double stricte, statuts/contrepassation,
+  plan comptable hiérarchique + auxiliaires + lettrage, immobilisations,
+  analytique/budget, exercices/clôture, états financiers dérivés des écritures,
+  contrôles de cohérence, séparation des tâches, piste d'audit) est réellement
+  là et vérifié par des tests d'intégration réels, pas juste déclaré.
+
+  Les vrais trous, par ordre d'impact probable pour vous :
+  1. Multi-devise / multi-société — absent structurellement (le plus gros écart
+  architectural restant).
+  2. Achat comptant/crédit + paiement fournisseur + sortie stock (COGS) — 3 flux
+  métier encore sans écriture automatique.
+  3. Balance âgée dédiée clients/fournisseurs.
+  4. Assistant de clôture avec check-list préalable.
+  5. Import rapprochement limité au CSV (pas Excel/OFX).
+  6. Quelques contrôles de cohérence additionnels (facture sans paiement, etc.).
+
+  Dites-moi lesquels traiter en priorité — je ne recommande pas de tout attaquer
+  d'un coup vu l'ampleur (multi-devise notamment est un chantier transverse,
+  pas un simple ajout).
 
