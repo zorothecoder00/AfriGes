@@ -6,7 +6,7 @@
 //  - chargement du paramétrage (singleton)
 
 import { prisma } from "@/lib/prisma";
-import { Prisma, PrioriteNotification, TypePaiement, type NatureMouvementCC, type TypeJournalComptable } from "@prisma/client";
+import { Prisma, PrioriteNotification, TypePaiement, type NatureMouvementCC } from "@prisma/client";
 import { notifyAdmins } from "@/lib/notifications";
 import { enregistrerRemboursementCredit } from "@/lib/remboursementCredit";
 import { attribuerPointsDepot } from "@/lib/fidelite";
@@ -91,7 +91,7 @@ export interface LigneEcritureCC { numero: string; debit?: number; credit?: numb
  */
 export async function creerEcritureCC(
   tx: TxClient,
-  opts: { journal: TypeJournalComptable; date: Date; libelle: string; userId: number; lignes: LigneEcritureCC[] },
+  opts: { journal: string; date: Date; libelle: string; userId: number; lignes: LigneEcritureCC[] },
 ): Promise<number | null> {
   return creerEcritureMoteur(tx, opts);
 }

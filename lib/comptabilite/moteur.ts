@@ -12,8 +12,9 @@
 // valeurs par défaut (REGLES_PAR_DEFAUT ci-dessous) que si aucune règle
 // personnalisée n'existe — donc zéro régression et entièrement reconfigurable
 // sans redéploiement.
-import { Prisma, type TypeJournalComptable } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { compteAuxiliaireOuDefaut } from "@/lib/comptabilite/auxiliaire";
+import { resoudreTvaVente, decomposerTTC } from "@/lib/comptabilite/tva";
 
 export type TxClient = Prisma.TransactionClient;
 
@@ -28,7 +29,8 @@ export interface LigneMoteur {
 }
 
 export interface CreerEcritureOpts {
-  journal: TypeJournalComptable;
+  /** Code d'un journal builtin (voir JOURNAUX_BUILTIN) ou JournalComptable.code (CDC §9). */
+  journal: string;
   date: Date;
   libelle: string;
   userId?: number | null;
@@ -36,9 +38,20 @@ export interface CreerEcritureOpts {
   reference?: string;
   /** Ignore le verrou de clôture mensuelle (réservé aux écritures de régularisation). */
   ignorerCloture?: boolean;
+  /**
+   * Statut initial — BROUILLON par défaut (le comptable valide après contrôle).
+   * Réservé aux flux où l'opération est déjà entièrement exécutée et certaine
+   * (ex. mouvements RIA) : passer "VALIDE" saute le contrôle manuel, à utiliser
+   * avec prudence et seulement pour des générateurs déjà validés par ailleurs.
+   */
+  statut?: "BROUILLON" | "VALIDE";
 }
 
-const PREFIXES_JOURNAL: Record<TypeJournalComptable, string> = {
+/** Journaux toujours disponibles, câblés dans le code (utilisés partout dans AfriGes). */
+export const JOURNAUX_BUILTIN = ["CAISSE", "BANQUE", "VENTES", "ACHATS", "OD", "PAIE"] as const;
+const BUILTIN_SET = new Set<string>(JOURNAUX_BUILTIN);
+
+const PREFIXES_JOURNAL: Record<string, string> = {
   CAISSE: "CA",
   BANQUE: "BN",
   VENTES: "VT",
@@ -47,9 +60,23 @@ const PREFIXES_JOURNAL: Record<TypeJournalComptable, string> = {
   PAIE: "PA",
 };
 
-/** Référence par journal, ex. "VT-202607-00001" (CDC §15). */
-export async function genererReferenceEcriture(tx: TxClient, journal: TypeJournalComptable): Promise<string> {
-  const prefix = PREFIXES_JOURNAL[journal] ?? journal.slice(0, 2).toUpperCase();
+/**
+ * Un journal est valide s'il est builtin, ou s'il correspond à un
+ * JournalComptable actif créé par l'administrateur (CDC §9/§40 — "journal inexistant").
+ */
+export async function journalValide(tx: TxClient, journal: string): Promise<boolean> {
+  if (BUILTIN_SET.has(journal)) return true;
+  const j = await tx.journalComptable.findUnique({ where: { code: journal }, select: { actif: true } });
+  return !!j?.actif;
+}
+
+/** Référence par journal, ex. "VT-202607-00001" (CDC §15) — préfixe du journal personnalisé si non-builtin. */
+export async function genererReferenceEcriture(tx: TxClient, journal: string): Promise<string> {
+  let prefix = PREFIXES_JOURNAL[journal];
+  if (!prefix) {
+    const j = await tx.journalComptable.findUnique({ where: { code: journal }, select: { prefixe: true } });
+    prefix = j?.prefixe ?? journal.slice(0, 2).toUpperCase();
+  }
   const now = new Date();
   const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
   const count = await tx.ecritureComptable.count();
@@ -79,6 +106,9 @@ export async function creerEcriture(tx: TxClient, opts: CreerEcritureOpts): Prom
   if (Math.abs(totalDebit - totalCredit) > 0.01) {
     throw new Error(`Écriture non équilibrée : débit ${totalDebit.toFixed(2)} ≠ crédit ${totalCredit.toFixed(2)}`);
   }
+  if (!(await journalValide(tx, opts.journal))) {
+    throw new Error(`Journal "${opts.journal}" inexistant ou inactif`);
+  }
 
   if (!opts.ignorerCloture && (await periodeClôturée(tx, opts.date))) return null;
 
@@ -100,7 +130,7 @@ export async function creerEcriture(tx: TxClient, opts: CreerEcritureOpts): Prom
       date: opts.date,
       libelle: opts.libelle,
       journal: opts.journal,
-      statut: "BROUILLON",
+      statut: opts.statut ?? "BROUILLON",
       userId: opts.userId ?? null,
       lignes: {
         create: opts.lignes.map((l) => ({
@@ -130,12 +160,12 @@ export interface ContexteEvenement {
 }
 
 export interface ComptesRegle {
-  journal: TypeJournalComptable;
+  journal: string;
   compteDebitNumero: string;
   compteCreditNumero: string;
 }
 
-function compteTresorerie(modePaiement?: string | null): { numero: string; journal: TypeJournalComptable } {
+function compteTresorerie(modePaiement?: string | null): { numero: string; journal: string } {
   const m = (modePaiement ?? "").toUpperCase();
   if (["VIREMENT", "CHEQUE", "MOBILE_MONEY"].includes(m)) return { numero: "521", journal: "BANQUE" };
   return { numero: "571", journal: "CAISSE" };
@@ -196,16 +226,32 @@ export async function ecritureVenteCreditValidee(
   const regle = await resoudreRegleComptable(tx, "VENTE_CREDIT_VALIDEE");
   if (!regle) return null;
   const compteDebit = await compteAuxiliaireOuDefaut(tx, regle.compteDebitNumero, { clientId: params.clientId });
+
+  // TVA (CDC §21) : si une taxe TVA est active et applicable aux ventes, le
+  // montant (TTC) est décomposé HT/TVA ; sinon comportement inchangé (montant
+  // total en Ventes, pas de TVA — cas par défaut tant qu'aucune taxe n'est configurée).
+  const tva = await resoudreTvaVente(tx);
+  const lignes = tva
+    ? (() => {
+        const { montantHT, montantTVA } = decomposerTTC(params.montant, tva.taux);
+        return [
+          { numero: compteDebit, debit: params.montant, libelle: `Créance ${params.clientNom}` },
+          { numero: regle.compteCreditNumero, credit: montantHT, libelle: `Vente crédit ${params.reference}` },
+          { numero: tva.compteCollecteNumero, credit: montantTVA, libelle: `TVA collectée ${params.reference}`, isTva: true, tauxTva: tva.taux, montantTva: montantTVA },
+        ];
+      })()
+    : [
+        { numero: compteDebit, debit: params.montant, libelle: `Créance ${params.clientNom}` },
+        { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Vente crédit ${params.reference}` },
+      ];
+
   return creerEcriture(tx, {
     journal: regle.journal,
     date: params.date ?? new Date(),
     libelle: `Vente à crédit — ${params.clientNom} — ${params.reference}`,
     userId: params.userId,
     reference: `SYNC-CRD-${params.reference}`,
-    lignes: [
-      { numero: compteDebit, debit: params.montant, libelle: `Créance ${params.clientNom}` },
-      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Vente crédit ${params.reference}` },
-    ],
+    lignes,
   });
 }
 

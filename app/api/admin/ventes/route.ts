@@ -8,6 +8,7 @@ import { chargerParametrageCC, getCompteCourantParClient, preleverCompteCourant,
 import { tariferLigne } from "@/lib/venteTarification";
 import { consommerFEFOBestEffort } from "@/lib/lotsFefo";
 import { substitutsDisponibles } from "@/lib/substitutsServer";
+import { creerEcritureVenteDepuisVenteDirecte } from "@/lib/ecritureVenteServer";
 
 async function getAdminSession() {
   const s = await getAuthSession();
@@ -217,6 +218,9 @@ export async function POST(req: Request) {
         },
         include: { lignes: true },
       });
+
+      // Écriture comptable automatique (CDC §8/§54) — moteur central.
+      await creerEcritureVenteDepuisVenteDirecte(tx, v.id, userId);
 
       for (const ligne of v.lignes) {
         if (!ligne.produitId) continue;

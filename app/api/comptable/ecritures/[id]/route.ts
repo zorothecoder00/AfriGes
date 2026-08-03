@@ -53,6 +53,19 @@ export async function PUT(req: Request, { params }: Ctx) {
       );
     }
 
+    // Séparation des tâches (CDC §43-44) : celui qui a saisi une écriture ne peut
+    // pas la valider lui-même — un autre comptable, ou l'admin/superadmin (rôle
+    // de supervision transverse déjà reconnu ailleurs dans AfriGes, ex. Paie
+    // "Validation Direction"), doit le faire.
+    const estValidation = statut === "VALIDE" || statut === "A_CONTROLER";
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    if (estValidation && !isAdmin && existing.userId === Number(session.user.id)) {
+      return NextResponse.json(
+        { error: "Vous ne pouvez pas valider une écriture que vous avez vous-même saisie — faites-la valider par un autre comptable ou un administrateur" },
+        { status: 403 },
+      );
+    }
+
     // Si on fournit des lignes, valider l'équilibre
     if (lignes && Array.isArray(lignes)) {
       let totalDebit  = 0;

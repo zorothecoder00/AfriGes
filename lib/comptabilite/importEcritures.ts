@@ -5,9 +5,9 @@
 // écritures déséquilibrées"), puis import effectif limité aux groupes valides.
 // Format attendu (en-tête) : Date,Journal,Compte,Libelle,Debit,Credit,Reference,Tiers
 // — les lignes partageant la même Reference forment une seule écriture.
-import type { Prisma, TypeJournalComptable } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { parserCsv, parserNombreCsv, parserDateCsv } from "@/lib/csvParser";
-import { creerEcriture } from "@/lib/comptabilite/moteur";
+import { creerEcriture, journalValide } from "@/lib/comptabilite/moteur";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -22,8 +22,6 @@ export interface LigneImportBrute {
   reference: string;
   tiers: string | null;
 }
-
-const JOURNAUX_VALIDES: TypeJournalComptable[] = ["CAISSE", "BANQUE", "VENTES", "ACHATS", "OD", "PAIE"];
 
 export function parserImportCsv(contenu: string): LigneImportBrute[] {
   const rows = parserCsv(contenu);
@@ -84,19 +82,19 @@ export async function previsualiserImport(tx: TxClient, lignes: LigneImportBrute
     const totalCredit = groupe.reduce((s, l) => s + l.credit, 0);
     const equilibre = Math.abs(totalDebit - totalCredit) < 0.01;
     const journal = groupe[0].journal;
-    const journalValide = JOURNAUX_VALIDES.includes(journal as TypeJournalComptable);
+    const journalEstValide = await journalValide(tx, journal);
     const comptesInconnus = [...new Set(groupe.map((l) => l.compteNumero).filter((n) => n && !numerosExistants.has(n)))];
     const dateInvalide = groupe.some((l) => !l.date);
 
     const erreurs: string[] = [];
     if (!equilibre) erreurs.push(`Déséquilibrée : débit ${totalDebit.toFixed(2)} ≠ crédit ${totalCredit.toFixed(2)}`);
-    if (!journalValide) erreurs.push(`Journal "${journal}" invalide`);
+    if (!journalEstValide) erreurs.push(`Journal "${journal}" invalide`);
     if (comptesInconnus.length > 0) erreurs.push(`Compte(s) inconnu(s) : ${comptesInconnus.join(", ")}`);
     if (dateInvalide) erreurs.push("Date invalide sur au moins une ligne");
 
     groupes.push({
       reference, nbLignes: groupe.length, totalDebit, totalCredit, equilibre,
-      journal, journalValide, comptesInconnus, dateInvalide, erreurs,
+      journal, journalValide: journalEstValide, comptesInconnus, dateInvalide, erreurs,
     });
   }
 
@@ -137,7 +135,7 @@ export async function confirmerImport(
     const groupe = parReference.get(g.reference)!;
 
     const id = await creerEcriture(tx, {
-      journal: groupe[0].journal as TypeJournalComptable,
+      journal: groupe[0].journal,
       date: groupe[0].date!,
       libelle: groupe[0].libelle || `Import — ${g.reference}`,
       userId,

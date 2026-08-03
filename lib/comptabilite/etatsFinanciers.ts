@@ -50,11 +50,24 @@ async function soldesParCompte(tx: TxClient, dateDebut: Date | null, dateFin: Da
  * Bilan (Actif/Passif) au `dateFin`, entièrement dérivé des soldes de comptes
  * (CDC §36 — "jamais rempli manuellement"). Un compte dont le solde est de signe
  * inverse à sa nature bascule automatiquement de l'autre côté du bilan.
+ *
+ * Comptes de charges/produits (CDC §4 — "résultat provisoire") : ceux d'un
+ * exercice déjà clôturé sont absorbés dans 131/132 par l'écriture de clôture
+ * (lib/comptabilite/exercice.ts) et n'apparaissent donc jamais ici directement.
+ * Mais tant qu'un exercice n'est PAS clôturé, ses charges/produits restent "en
+ * l'air" — sans ce résultat provisoire, le bilan ne s'équilibrerait que si TOUS
+ * les exercices passés avaient déjà été clôturés, ce qui n'est jamais vrai en
+ * pratique (l'exercice en cours ne l'est jamais). On calcule donc le résultat
+ * net de tous les mouvements CHARGES/PRODUITS non encore absorbés et on l'ajoute
+ * comme une ligne "Résultat provisoire (non clôturé)", exactement comme le
+ * ferait un vrai résultat de clôture — le bilan s'équilibre alors toujours,
+ * par construction de la partie double.
  */
 export async function genererBilan(tx: TxClient, dateFin: Date) {
   const soldes = await soldesParCompte(tx, null, dateFin);
   const actif: LigneEtatFinancier[] = [];
   const passif: LigneEtatFinancier[] = [];
+  let resultatProvisoire = 0;
 
   for (const c of soldes.values()) {
     if (Math.abs(c.solde) < 0.01) continue;
@@ -64,7 +77,16 @@ export async function genererBilan(tx: TxClient, dateFin: Date) {
     } else if (c.type === "PASSIF") {
       if (c.solde > 0) passif.push({ compteNumero: c.numero, libelle: c.libelle, montant: c.solde });
       else actif.push({ compteNumero: c.numero, libelle: c.libelle, montant: -c.solde });
+    } else if (c.type === "PRODUITS") {
+      resultatProvisoire += c.solde; // sens CREDITEUR : solde positif = produit
+    } else if (c.type === "CHARGES") {
+      resultatProvisoire -= c.solde; // sens DEBITEUR : solde positif = charge
     }
+  }
+
+  if (Math.abs(resultatProvisoire) >= 0.01) {
+    if (resultatProvisoire > 0) passif.push({ compteNumero: "RP", libelle: "Résultat provisoire (non clôturé)", montant: resultatProvisoire });
+    else actif.push({ compteNumero: "RP", libelle: "Résultat provisoire (perte, non clôturé)", montant: -resultatProvisoire });
   }
 
   const totalActif = actif.reduce((s, l) => s + l.montant, 0);

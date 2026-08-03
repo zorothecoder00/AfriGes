@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
 import { resolveViewAs } from "@/lib/viewAs";
+import { creerEcriture } from "@/lib/comptabilite/moteur";
 
 /**
  * POST /api/comptable/sync-journals
@@ -57,7 +58,6 @@ async function referenceExiste(reference: string): Promise<boolean> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function syncCaisse(
-  map: ComptesMap,
   userId: number,
   dateMin: Date,
   dateMax: Date,
@@ -80,24 +80,15 @@ async function syncCaisse(
 
     if (op.type === "ENCAISSEMENT") {
       // Débit 571 Caisse / Crédit 411 Clients
-      if (!map[N.CAISSE] || !map[N.CLIENTS]) { skipped++; continue; }
-      await prisma.ecritureComptable.create({
-        data: {
-          reference: ref,
-          date:      op.createdAt,
-          libelle:   `Encaissement caisse — ${op.motif}`,
-          journal:   "CAISSE",
-          statut:    "BROUILLON",
-          userId,
-          lignes: {
-            create: [
-              { compteId: map[N.CAISSE],   libelle: op.motif, debit: montant, credit: 0 },
-              { compteId: map[N.CLIENTS],  libelle: op.motif, debit: 0, credit: montant },
-            ],
-          },
-        },
+      const id = await creerEcriture(prisma, {
+        journal: "CAISSE", date: op.createdAt, libelle: `Encaissement caisse — ${op.motif}`,
+        userId, reference: ref,
+        lignes: [
+          { numero: N.CAISSE, debit: montant, libelle: op.motif },
+          { numero: N.CLIENTS, credit: montant, libelle: op.motif },
+        ],
       });
-      created++;
+      id ? created++ : skipped++;
     } else {
       // DECAISSEMENT : compte de charge selon catégorie
       const compteChargeNum =
@@ -106,31 +97,21 @@ async function syncCaisse(
         op.categorie === "FOURNISSEUR" ? N.FOURNISSEURS :
         N.ACHATS_AUTRES;
 
-      if (!map[compteChargeNum] || !map[N.CAISSE]) { skipped++; continue; }
-
       const libelleCat =
         op.categorie === "SALAIRE"     ? "Salaires" :
         op.categorie === "AVANCE"      ? "Avance au personnel" :
         op.categorie === "FOURNISSEUR" ? "Paiement fournisseur" :
         "Décaissement caisse";
 
-      await prisma.ecritureComptable.create({
-        data: {
-          reference: ref,
-          date:      op.createdAt,
-          libelle:   `${libelleCat} — ${op.motif}`,
-          journal:   "CAISSE",
-          statut:    "BROUILLON",
-          userId,
-          lignes: {
-            create: [
-              { compteId: map[compteChargeNum], libelle: op.motif, debit: montant, credit: 0 },
-              { compteId: map[N.CAISSE],         libelle: op.motif, debit: 0, credit: montant },
-            ],
-          },
-        },
+      const id = await creerEcriture(prisma, {
+        journal: "CAISSE", date: op.createdAt, libelle: `${libelleCat} — ${op.motif}`,
+        userId, reference: ref,
+        lignes: [
+          { numero: compteChargeNum, debit: montant, libelle: op.motif },
+          { numero: N.CAISSE, credit: montant, libelle: op.motif },
+        ],
       });
-      created++;
+      id ? created++ : skipped++;
     }
   }
 
@@ -138,7 +119,6 @@ async function syncCaisse(
 }
 
 async function syncVentes(
-  map: ComptesMap,
   userId: number,
   dateMin: Date,
   dateMax: Date,
@@ -177,59 +157,40 @@ async function syncVentes(
     const nomClient = person ? `${person.prenom} ${person.nom}` : "Client";
     const packLabel = `${v.souscription.pack.nom}`;
 
+    let id: number | null;
     if (v.type === "REMBOURSEMENT") {
       // Remboursement : Débit 411 Clients / Crédit 571 Caisse
-      if (!map[N.CLIENTS] || !map[N.CAISSE]) { skipped++; continue; }
-      await prisma.ecritureComptable.create({
-        data: {
-          reference: ref,
-          date:      v.datePaiement,
-          libelle:   `Remboursement ${packLabel} — ${nomClient}`,
-          journal:   "VENTES",
-          statut:    "BROUILLON",
-          userId,
-          lignes: {
-            create: [
-              { compteId: map[N.CLIENTS], libelle: `Remboursement ${nomClient}`, debit: montant, credit: 0 },
-              { compteId: map[N.CAISSE],  libelle: `Remboursement ${nomClient}`, debit: 0, credit: montant },
-            ],
-          },
-        },
+      id = await creerEcriture(prisma, {
+        journal: "VENTES", date: v.datePaiement, libelle: `Remboursement ${packLabel} — ${nomClient}`,
+        userId, reference: ref,
+        lignes: [
+          { numero: N.CLIENTS, debit: montant, libelle: `Remboursement ${nomClient}` },
+          { numero: N.CAISSE, credit: montant, libelle: `Remboursement ${nomClient}` },
+        ],
       });
     } else {
       // Vente (cotisation, versement périodique) : Débit 571 Caisse / Crédit 701 Ventes
-      if (!map[N.CAISSE] || !map[N.VENTES]) { skipped++; continue; }
-
       const typeLabel =
         v.type === "COTISATION_INITIALE"  ? "Acompte initial" :
         v.type === "VERSEMENT_PERIODIQUE" ? "Versement périodique" :
         v.type === "BONUS"                ? "Bonus" : "Versement";
 
-      await prisma.ecritureComptable.create({
-        data: {
-          reference: ref,
-          date:      v.datePaiement,
-          libelle:   `${typeLabel} — ${packLabel} — ${nomClient}`,
-          journal:   "VENTES",
-          statut:    "BROUILLON",
-          userId,
-          lignes: {
-            create: [
-              { compteId: map[N.CAISSE],  libelle: `${typeLabel} ${nomClient}`, debit: montant, credit: 0 },
-              { compteId: map[N.VENTES],  libelle: `${typeLabel} ${nomClient}`, debit: 0, credit: montant },
-            ],
-          },
-        },
+      id = await creerEcriture(prisma, {
+        journal: "VENTES", date: v.datePaiement, libelle: `${typeLabel} — ${packLabel} — ${nomClient}`,
+        userId, reference: ref,
+        lignes: [
+          { numero: N.CAISSE, debit: montant, libelle: `${typeLabel} ${nomClient}` },
+          { numero: N.VENTES, credit: montant, libelle: `${typeLabel} ${nomClient}` },
+        ],
       });
     }
-    created++;
+    id ? created++ : skipped++;
   }
 
   return { created, skipped };
 }
 
 async function syncVentesDirectes(
-  map: ComptesMap,
   userId: number,
   dateMin: Date,
   dateMax: Date,
@@ -241,6 +202,9 @@ async function syncVentesDirectes(
 
   // Les VenteDirecte avec modePaiement=CREDIT sont des créances (aucun cash reçu) —
   // elles sont traitées via le module CreditClient/RemboursementCredit, pas ici.
+  // Les ventes comptant récentes ont déjà leur écriture générée à la création
+  // (lib/ecritureVenteServer.ts) ; cette synchronisation ne fait plus que du
+  // rattrapage sur d'éventuelles ventes antérieures — idempotente par référence.
   const ventes = await prisma.venteDirecte.findMany({
     where: {
       statut:       { notIn: ["BROUILLON", "ANNULEE"] },
@@ -255,35 +219,25 @@ async function syncVentesDirectes(
   for (const v of ventes) {
     const ref = `SYNC-VD-${v.id}`;
     if (await referenceExiste(ref)) { skipped++; continue; }
-    if (!map[N.CAISSE] || !map[N.VENTES]) { skipped++; continue; }
 
     const montant = Number(v.montantPaye);
     const client  = v.clientNom ?? "Client comptoir";
 
-    await prisma.ecritureComptable.create({
-      data: {
-        reference: ref,
-        date:      v.createdAt,
-        libelle:   `Vente directe — ${v.reference} — ${client}`,
-        journal:   "VENTES",
-        statut:    "BROUILLON",
-        userId,
-        lignes: {
-          create: [
-            { compteId: map[N.CAISSE],  libelle: `VD ${v.reference}`, debit: montant, credit: 0 },
-            { compteId: map[N.VENTES],  libelle: `VD ${v.reference}`, debit: 0, credit: montant },
-          ],
-        },
-      },
+    const id = await creerEcriture(prisma, {
+      journal: "VENTES", date: v.createdAt, libelle: `Vente directe — ${v.reference} — ${client}`,
+      userId, reference: ref,
+      lignes: [
+        { numero: N.CAISSE, debit: montant, libelle: `VD ${v.reference}` },
+        { numero: N.VENTES, credit: montant, libelle: `VD ${v.reference}` },
+      ],
     });
-    created++;
+    id ? created++ : skipped++;
   }
 
   return { created, skipped };
 }
 
 async function syncAchats(
-  map: ComptesMap,
   userId: number,
   dateMin: Date,
   dateMax: Date,
@@ -308,27 +262,18 @@ async function syncAchats(
     const ref = `SYNC-MST-${m.id}`;
     if (await referenceExiste(ref)) { skipped++; continue; }
 
-    if (!map[N.MARCHANDISES] || !map[N.FOURNISSEURS]) { skipped++; continue; }
-
     const montant = m.quantite * Number(m.produit.prixUnitaire);
 
-    await prisma.ecritureComptable.create({
-      data: {
-        reference: ref,
-        date:      m.dateMouvement,
-        libelle:   `Approvisionnement ${m.produit.nom} ×${m.quantite}${m.motif ? ` — ${m.motif}` : ""}`,
-        journal:   "ACHATS",
-        statut:    "BROUILLON",
-        userId,
-        lignes: {
-          create: [
-            { compteId: map[N.MARCHANDISES], libelle: m.produit.nom, debit: montant, credit: 0 },
-            { compteId: map[N.FOURNISSEURS], libelle: m.produit.nom, debit: 0, credit: montant },
-          ],
-        },
-      },
+    const id = await creerEcriture(prisma, {
+      journal: "ACHATS", date: m.dateMouvement,
+      libelle: `Approvisionnement ${m.produit.nom} ×${m.quantite}${m.motif ? ` — ${m.motif}` : ""}`,
+      userId, reference: ref,
+      lignes: [
+        { numero: N.MARCHANDISES, debit: montant, libelle: m.produit.nom },
+        { numero: N.FOURNISSEURS, credit: montant, libelle: m.produit.nom },
+      ],
     });
-    created++;
+    id ? created++ : skipped++;
   }
 
   return { created, skipped };
@@ -337,7 +282,6 @@ async function syncAchats(
 // ── RIA : remboursements de financement ───────────────────────────────────────
 // SYNC-RIA-REMB-{id} : OD — Débit 471 (obligation investisseur allégée) / Crédit 411 (créance client allégée)
 async function syncRIARemboursements(
-  map: ComptesMap,
   userId: number,
   dateMin: Date,
   dateMax: Date
@@ -360,7 +304,6 @@ async function syncRIARemboursements(
   for (const r of remboursements) {
     const ref = `SYNC-RIA-REMB-${r.id}`;
     if (await referenceExiste(ref)) { skipped++; continue; }
-    if (!map[N.AVANCES] || !map[N.CLIENTS]) { skipped++; continue; }
 
     const montant  = Number(r.montant);
     const clientNom = r.financement?.client
@@ -368,23 +311,15 @@ async function syncRIARemboursements(
       : "Client RIA";
     const finRef   = r.financement?.reference ?? `FIN-${r.financementId}`;
 
-    await prisma.ecritureComptable.create({
-      data: {
-        reference: ref,
-        date:      r.createdAt,
-        libelle:   `Remboursement RIA — ${finRef} — ${clientNom}`,
-        journal:   "OD",
-        statut:    "BROUILLON",
-        userId,
-        lignes: {
-          create: [
-            { compteId: map[N.AVANCES], libelle: `Rbt RIA ${finRef}`, debit: montant, credit: 0 },
-            { compteId: map[N.CLIENTS], libelle: `Rbt RIA ${finRef}`, debit: 0,       credit: montant },
-          ],
-        },
-      },
+    const id = await creerEcriture(prisma, {
+      journal: "OD", date: r.createdAt, libelle: `Remboursement RIA — ${finRef} — ${clientNom}`,
+      userId, reference: ref,
+      lignes: [
+        { numero: N.AVANCES, debit: montant, libelle: `Rbt RIA ${finRef}` },
+        { numero: N.CLIENTS, credit: montant, libelle: `Rbt RIA ${finRef}` },
+      ],
     });
-    created++;
+    id ? created++ : skipped++;
   }
 
   return { created, skipped };
@@ -412,8 +347,10 @@ export async function POST(req: NextRequest) {
     const fin   = dateMax ? new Date(dateMax + "T23:59:59") : new Date();
     const debut = dateMin ? new Date(dateMin) : new Date(fin.getFullYear() - 1, fin.getMonth(), fin.getDate());
 
-    // Charger les comptes nécessaires
-    const { map, manquants } = await chargerComptes();
+    // Vérification préalable (UX) : le moteur central résout chaque compte par
+    // lui-même, mais ce contrôle amont donne un message clair avant de lancer
+    // le traitement plutôt que des lignes silencieusement ignorées une à une.
+    const { manquants } = await chargerComptes();
 
     if (manquants.length > 0) {
       return NextResponse.json({
@@ -425,17 +362,17 @@ export async function POST(req: NextRequest) {
     const resultats: Record<string, { created: number; skipped: number }> = {};
 
     if (action === "caisse" || action === "all") {
-      resultats.caisse = await syncCaisse(map, userId, debut, fin, pdvId);
+      resultats.caisse = await syncCaisse(userId, debut, fin, pdvId);
     }
     if (action === "ventes" || action === "all") {
-      resultats.ventes          = await syncVentes(map, userId, debut, fin, pdvId);
-      resultats.ventes_directes = await syncVentesDirectes(map, userId, debut, fin, pdvId);
+      resultats.ventes          = await syncVentes(userId, debut, fin, pdvId);
+      resultats.ventes_directes = await syncVentesDirectes(userId, debut, fin, pdvId);
     }
     if (action === "achats" || action === "all") {
-      resultats.achats = await syncAchats(map, userId, debut, fin, pdvId);
+      resultats.achats = await syncAchats(userId, debut, fin, pdvId);
     }
     if (action === "ria" || action === "all") {
-      resultats.ria_remboursements = await syncRIARemboursements(map, userId, debut, fin);
+      resultats.ria_remboursements = await syncRIARemboursements(userId, debut, fin);
     }
 
     const totalCreated = Object.values(resultats).reduce((s, r) => s + r.created, 0);

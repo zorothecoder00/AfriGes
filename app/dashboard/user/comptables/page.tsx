@@ -25,6 +25,8 @@ import { generateUploadButton } from "@uploadthing/react";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
 import { useT } from "@/contexts/AppSettingsContext";
 import { usePageAccess } from "@/hooks/usePageAccess";
+import AideComptable from "@/components/AideComptable";
+import { AIDE_COMPTABLE } from "@/lib/aideComptableContenu";
 
 const UploadButton = generateUploadButton<OurFileRouter>();
 
@@ -306,9 +308,31 @@ interface ApercuImportEntry {
   totalLignes: number; totalGroupes: number; groupesValides: number; groupesEnErreur: number; groupes: GroupeImportEntry[];
 }
 
+interface EtapeConfigEntry {
+  cle: string; label: string; complete: boolean; optionnelle: boolean; detail: string; onglet: string;
+}
+interface ConfigurationInitialeData {
+  config: { pays: string; devise: string; referentiel: string; typeEntite: string };
+  etapes: EtapeConfigEntry[];
+}
+
+interface RapportsGestionData {
+  caParPdv: { pdvId: number; pdvNom: string; caTotal: number }[];
+  margeParProduit: { produitId: number; nom: string; quantiteVendue: number; ca: number; marge: number | null; margePct: number | null; coutConnu: boolean }[];
+  margeParFamille: { familleId: number | null; nom: string; ca: number; marge: number | null; margePct: number | null }[];
+  rentabiliteParAgence: { pdvId: number; pdvNom: string; ca: number; marge: number | null; margePct: number | null }[];
+  rotationStock: { produitId: number; nom: string; quantiteVendue: number; stockActuel: number; rotation: number | null; valeurStock: number }[];
+  dso: { encoursMoyen: number; caCreditPeriode: number; joursPeriode: number; dsoJours: number | null };
+  dpoFournisseursProxy: { fournisseurId: number; nom: string; resteAPayer: number }[];
+}
+
 interface ConstatControleEntry {
   code: string; gravite: "BLOQUANT" | "ANOMALIE"; message: string;
   entiteType?: string; entiteId?: number; montant?: number; date?: string;
+}
+
+interface JournalComptableEntry {
+  id: number | null; code: string; libelle: string; prefixe: string | null; actif: boolean; builtin: boolean;
 }
 
 interface TaxeConfigEntry {
@@ -498,7 +522,7 @@ const CAT_META: Record<string, { label: string; color: string; bg: string; icon:
 type Period = "7" | "30" | "90" | "365";
 type Tab    = "synthese" | "journal" | "tresorerie" | "balance" | "grandlivre" | "etats" | "pieces"
             | "plan" | "saisie" | "tva" | "rapprochement" | "regles" | "auxiliaire" | "immobilisations" | "analytique"
-            | "etatsReels" | "controles" | "exercices" | "importEcritures";
+            | "etatsReels" | "controles" | "exercices" | "importEcritures" | "rapportsGestion" | "configInitiale";
 
 export default function ComptablePage() {
   const t = useT();
@@ -641,6 +665,16 @@ export default function ComptablePage() {
 
   // ── État États Financiers réels & Contrôles ─────────────────────────────
   const [etatsReelsAnnee, setEtatsReelsAnnee] = useState(() => String(new Date().getFullYear()));
+
+  // ── État Configuration initiale ──────────────────────────────────────────
+  const [configForm, setConfigForm] = useState({ pays: "", devise: "", referentiel: "", typeEntite: "" });
+  const [configFormInit, setConfigFormInit] = useState(false);
+
+  // ── État Rapports de gestion ─────────────────────────────────────────────
+  const [rapportsDateFin, setRapportsDateFin] = useState(() => new Date().toISOString().slice(0, 10));
+  const [rapportsDateDebut, setRapportsDateDebut] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 10);
+  });
 
   // ── État Exercices, Taxes & Récurrentes ─────────────────────────────────
   const TAXE_VIDE = { code: "", nom: "", taux: "", nature: "TVA", compteCollecteNumero: "", compteDeductibleNumero: "" };
@@ -1159,6 +1193,32 @@ export default function ComptablePage() {
     if (res) refetchImmo();
   }
 
+  // ── Journaux (builtins + personnalisés, CDC §9) ───────────────────────
+  const JOURNAUX_TABS = ["regles", "exercices", "saisie", "journal"];
+  const { data: journauxData, refetch: refetchJournaux } = useApi<{ data: JournalComptableEntry[] }>(
+    JOURNAUX_TABS.includes(activeTab) ? "/api/comptable/journaux" : null
+  );
+  const { mutate: creerJournal, loading: creatingJournal } = useMutation<unknown, object>(
+    "/api/comptable/journaux", "POST", { successMessage: "Journal créé" }
+  );
+  const journalActionIdRef = useRef<number | null>(null);
+  const { mutate: toggleJournalApi } = useMutation<unknown, object>(
+    () => `/api/comptable/journaux/${journalActionIdRef.current}`, "PATCH",
+  );
+  const [showAddJournal, setShowAddJournal] = useState(false);
+  const JOURNAL_VIDE = { code: "", libelle: "", prefixe: "" };
+  const [newJournal, setNewJournal] = useState(JOURNAL_VIDE);
+  async function handleCreerJournal() {
+    const res = await creerJournal(newJournal);
+    if (res) { refetchJournaux(); setShowAddJournal(false); setNewJournal(JOURNAL_VIDE); }
+  }
+  async function handleToggleJournal(j: JournalComptableEntry) {
+    if (j.builtin || j.id == null) return;
+    journalActionIdRef.current = j.id;
+    const res = await toggleJournalApi({ actif: !j.actif });
+    if (res) refetchJournaux();
+  }
+
   // ── Analytique & Budget API ────────────────────────────────────────────
   const { data: sectionsData, refetch: refetchSections } =
     useApi<{ data: SectionAnalytiqueEntry[] }>(activeTab === "analytique" ? "/api/comptable/analytique/sections" : null);
@@ -1213,6 +1273,29 @@ export default function ComptablePage() {
   // ── États Financiers réels API ──────────────────────────────────────────
   const { data: etatsReelsData, loading: etatsReelsLoading } = useApi<EtatFinancierReelResponse>(
     activeTab === "etatsReels" ? `/api/comptable/etats-financiers-reels?annee=${etatsReelsAnnee}` : null
+  );
+
+  // ── Configuration initiale API ───────────────────────────────────────────
+  const { data: configInitialeData, refetch: refetchConfigInitiale } = useApi<{ data: ConfigurationInitialeData }>(
+    activeTab === "configInitiale" ? "/api/comptable/configuration-initiale" : null
+  );
+  const { mutate: enregistrerConfig, loading: enregistrantConfig } = useMutation<unknown, object>(
+    "/api/comptable/configuration-initiale", "PATCH", { successMessage: "Configuration enregistrée" }
+  );
+  useEffect(() => {
+    if (configInitialeData?.data.config && !configFormInit) {
+      setConfigForm(configInitialeData.data.config);
+      setConfigFormInit(true);
+    }
+  }, [configInitialeData, configFormInit]);
+  async function handleEnregistrerConfig() {
+    const res = await enregistrerConfig(configForm);
+    if (res) refetchConfigInitiale();
+  }
+
+  // ── Rapports de gestion API ──────────────────────────────────────────────
+  const { data: rapportsGestionData, loading: rapportsGestionLoading } = useApi<{ data: RapportsGestionData }>(
+    activeTab === "rapportsGestion" ? `/api/comptable/rapports-gestion?dateDebut=${rapportsDateDebut}&dateFin=${rapportsDateFin}` : null
   );
 
   // ── Contrôles comptables API ────────────────────────────────────────────
@@ -1377,6 +1460,7 @@ export default function ComptablePage() {
 
   const allTabs: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: "synthese",       label: "Synthèse",              icon: BarChart3    },
+    { key: "configInitiale", label: "Configuration initiale", icon: ListChecks  },
     { key: "plan",           label: "Plan Comptable",        icon: BookMarked   },
     { key: "saisie",         label: "Écritures",             icon: Edit2        },
     { key: "journal",        label: "Journal",               icon: BookOpen     },
@@ -1395,6 +1479,7 @@ export default function ComptablePage() {
     { key: "controles",      label: "Contrôles",             icon: CheckCircle  },
     { key: "exercices",      label: "Exercices, Taxes & Récurrentes", icon: Lock },
     { key: "importEcritures", label: "Import comptable",     icon: Upload       },
+    { key: "rapportsGestion", label: "Rapports de gestion",  icon: TrendingUp   },
   ];
   const tabs = allTabs.filter((t) => isAllowed(t.key));
 
@@ -1536,6 +1621,7 @@ export default function ComptablePage() {
             <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm text-sm font-medium">
               <Download size={16} />Exporter
             </button>
+            {AIDE_COMPTABLE[activeTab] && <AideComptable contenu={AIDE_COMPTABLE[activeTab]} />}
           </div>
         </div>
 
@@ -1874,7 +1960,7 @@ export default function ComptablePage() {
                     <label className="text-xs font-medium text-slate-600 mb-1 block">Journal *</label>
                     <select value={journalODForm.journal} onChange={(e) => setJournalODForm(p => ({ ...p, journal: e.target.value }))}
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
-                      {Object.entries(JOURNAL_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      {(journauxData?.data ?? []).filter(j => j.actif).map(j => <option key={j.code} value={j.code}>{j.libelle}</option>)}
                     </select>
                   </div>
                 </div>
@@ -3216,7 +3302,7 @@ export default function ComptablePage() {
                     <label className="text-xs font-medium text-slate-600 mb-1 block">Journal *</label>
                     <select value={saisieForm.journal} onChange={(e) => setSaisieForm(p => ({ ...p, journal: e.target.value }))}
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
-                      {Object.entries(JOURNAL_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+                      {(journauxData?.data ?? []).filter(j => j.actif).map(j => <option key={j.code} value={j.code}>{j.libelle}</option>)}
                     </select>
                   </div>
                 </div>
@@ -3807,7 +3893,7 @@ export default function ComptablePage() {
                     <label className="text-xs font-medium text-slate-600 mb-1 block">Journal *</label>
                     <select value={newRegle.journal} onChange={(e) => setNewRegle(p => ({ ...p, journal: e.target.value }))}
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
-                      {["CAISSE","BANQUE","VENTES","ACHATS","OD","PAIE"].map(j => <option key={j} value={j}>{JOURNAL_LABELS[j] ?? j}</option>)}
+                      {(journauxData?.data ?? []).filter(j => j.actif).map(j => <option key={j.code} value={j.code}>{j.libelle}</option>)}
                     </select>
                   </div>
                   <div>
@@ -4512,6 +4598,43 @@ export default function ComptablePage() {
         {/* ════════════════════════════════════════════════════════════════ */}
         {activeTab === "exercices" && (
           <div className="space-y-4">
+            {/* Journaux comptables (CDC §9) */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><BookOpen className="text-violet-600" size={20} /> Journaux</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Les 6 journaux de base sont toujours disponibles ; créez-en d&apos;autres si besoin.</p>
+                </div>
+                <button onClick={() => setShowAddJournal(!showAddJournal)} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700">
+                  <PlusCircle size={15} /> Nouveau journal
+                </button>
+              </div>
+              {showAddJournal && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <input value={newJournal.code} onChange={(e) => setNewJournal(p => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="Code (ex: PROJET)" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  <input value={newJournal.libelle} onChange={(e) => setNewJournal(p => ({ ...p, libelle: e.target.value }))} placeholder="Libellé" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  <input value={newJournal.prefixe} onChange={(e) => setNewJournal(p => ({ ...p, prefixe: e.target.value.toUpperCase().slice(0, 2) }))} placeholder="Préfixe (2 car.)" maxLength={2} className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  <button onClick={handleCreerJournal} disabled={creatingJournal || !newJournal.code || !newJournal.libelle || !newJournal.prefixe}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
+                    <Save size={14} /> Créer
+                  </button>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {(journauxData?.data ?? []).map((j) => (
+                  <span key={j.code} className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${j.actif ? "border-slate-200 text-slate-700" : "border-slate-100 text-slate-400 opacity-50"}`}>
+                    <span className="font-mono">{j.code}</span> {j.libelle}
+                    {j.builtin && <span className="text-slate-400">(base)</span>}
+                    {!j.builtin && (
+                      <button onClick={() => handleToggleJournal(j)} className={j.actif ? "text-amber-500" : "text-emerald-500"}>
+                        {j.actif ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+
             {/* Exercices comptables */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
               <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
@@ -4603,7 +4726,7 @@ export default function ComptablePage() {
                   <input value={newRecurrente.compteDebitNumero} onChange={(e) => setNewRecurrente(p => ({ ...p, compteDebitNumero: e.target.value }))} placeholder="Compte débit" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
                   <input value={newRecurrente.compteCreditNumero} onChange={(e) => setNewRecurrente(p => ({ ...p, compteCreditNumero: e.target.value }))} placeholder="Compte crédit" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
                   <select value={newRecurrente.journal} onChange={(e) => setNewRecurrente(p => ({ ...p, journal: e.target.value }))} className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
-                    {["CAISSE","BANQUE","VENTES","ACHATS","OD","PAIE"].map(j => <option key={j} value={j}>{JOURNAL_LABELS[j] ?? j}</option>)}
+                    {(journauxData?.data ?? []).filter(j => j.actif).map(j => <option key={j.code} value={j.code}>{j.libelle}</option>)}
                   </select>
                   <input type="date" value={newRecurrente.dateDebut} onChange={(e) => setNewRecurrente(p => ({ ...p, dateDebut: e.target.value }))} className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
                   <button onClick={handleCreerRecurrente}
@@ -4700,6 +4823,247 @@ export default function ComptablePage() {
                   </table>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB : RAPPORTS DE GESTION                                     */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === "rapportsGestion" && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <TrendingUp className="text-violet-600" size={20} /> Rapports de gestion
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">CA et marge par point de vente/produit/famille, rotation de stock, DSO clients (CDC §71-72).</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="date" value={rapportsDateDebut} onChange={(e) => setRapportsDateDebut(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <span className="text-slate-400 text-sm">→</span>
+                <input type="date" value={rapportsDateFin} onChange={(e) => setRapportsDateFin(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+              </div>
+            </div>
+
+            {rapportsGestionLoading ? (
+              <div className="flex items-center justify-center p-12"><div className="w-8 h-8 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin" /></div>
+            ) : rapportsGestionData && (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white rounded-2xl p-4 border border-slate-200/60">
+                    <p className="text-xs text-slate-400">CA période</p>
+                    <p className="text-xl font-bold text-slate-800">{formatCurrency(rapportsGestionData.data.caParPdv.reduce((s, p) => s + p.caTotal, 0))}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 border border-slate-200/60">
+                    <p className="text-xs text-slate-400">DSO clients (délai moyen de recouvrement)</p>
+                    <p className="text-xl font-bold text-slate-800">{rapportsGestionData.data.dso.dsoJours != null ? `${rapportsGestionData.data.dso.dsoJours} j` : "—"}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 border border-slate-200/60">
+                    <p className="text-xs text-slate-400">Encours clients</p>
+                    <p className="text-xl font-bold text-blue-700">{formatCurrency(rapportsGestionData.data.dso.encoursMoyen)}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 border border-slate-200/60">
+                    <p className="text-xs text-slate-400">Reste à payer fournisseurs</p>
+                    <p className="text-xl font-bold text-red-600">{formatCurrency(rapportsGestionData.data.dpoFournisseursProxy.reduce((s, f) => s + f.resteAPayer, 0))}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                    <h4 className="font-semibold text-slate-800 mb-3">Rentabilité par agence (point de vente)</h4>
+                    <table className="w-full text-xs">
+                      <thead className="border-b border-slate-100"><tr>
+                        <th className="text-left py-1.5 text-slate-500">PDV</th>
+                        <th className="text-right py-1.5 text-slate-500">CA</th>
+                        <th className="text-right py-1.5 text-slate-500">Marge</th>
+                        <th className="text-right py-1.5 text-slate-500">Marge %</th>
+                      </tr></thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {rapportsGestionData.data.rentabiliteParAgence.map((r) => (
+                          <tr key={r.pdvId}>
+                            <td className="py-1.5 text-slate-700">{r.pdvNom}</td>
+                            <td className="py-1.5 text-right text-slate-700">{formatCurrency(r.ca)}</td>
+                            <td className="py-1.5 text-right text-emerald-700">{r.marge != null ? formatCurrency(r.marge) : "—"}</td>
+                            <td className="py-1.5 text-right text-emerald-700">{r.margePct != null ? `${r.margePct}%` : "—"}</td>
+                          </tr>
+                        ))}
+                        {rapportsGestionData.data.rentabiliteParAgence.length === 0 && <tr><td colSpan={4} className="py-6 text-center text-slate-400">Aucune vente sur la période.</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                    <h4 className="font-semibold text-slate-800 mb-3">Marge par famille de produits</h4>
+                    <table className="w-full text-xs">
+                      <thead className="border-b border-slate-100"><tr>
+                        <th className="text-left py-1.5 text-slate-500">Famille</th>
+                        <th className="text-right py-1.5 text-slate-500">CA</th>
+                        <th className="text-right py-1.5 text-slate-500">Marge</th>
+                        <th className="text-right py-1.5 text-slate-500">Marge %</th>
+                      </tr></thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {rapportsGestionData.data.margeParFamille.map((f) => (
+                          <tr key={f.familleId ?? "sans"}>
+                            <td className="py-1.5 text-slate-700">{f.nom}</td>
+                            <td className="py-1.5 text-right text-slate-700">{formatCurrency(f.ca)}</td>
+                            <td className="py-1.5 text-right text-emerald-700">{f.marge != null ? formatCurrency(f.marge) : "coût inconnu"}</td>
+                            <td className="py-1.5 text-right text-emerald-700">{f.margePct != null ? `${f.margePct}%` : "—"}</td>
+                          </tr>
+                        ))}
+                        {rapportsGestionData.data.margeParFamille.length === 0 && <tr><td colSpan={4} className="py-6 text-center text-slate-400">Aucune vente sur la période.</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                  <h4 className="font-semibold text-slate-800 mb-3">Marge par produit (triée par CA)</h4>
+                  <div className="max-h-80 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="border-b border-slate-100 sticky top-0 bg-white"><tr>
+                        <th className="text-left py-1.5 text-slate-500">Produit</th>
+                        <th className="text-right py-1.5 text-slate-500">Qté vendue</th>
+                        <th className="text-right py-1.5 text-slate-500">CA</th>
+                        <th className="text-right py-1.5 text-slate-500">Marge</th>
+                        <th className="text-right py-1.5 text-slate-500">Marge %</th>
+                      </tr></thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {rapportsGestionData.data.margeParProduit.map((p) => (
+                          <tr key={p.produitId}>
+                            <td className="py-1.5 text-slate-700">{p.nom}</td>
+                            <td className="py-1.5 text-right text-slate-600">{p.quantiteVendue}</td>
+                            <td className="py-1.5 text-right text-slate-700">{formatCurrency(p.ca)}</td>
+                            <td className="py-1.5 text-right text-emerald-700">{p.coutConnu ? formatCurrency(p.marge!) : <span className="text-slate-400 italic">coût inconnu</span>}</td>
+                            <td className="py-1.5 text-right text-emerald-700">{p.margePct != null ? `${p.margePct}%` : "—"}</td>
+                          </tr>
+                        ))}
+                        {rapportsGestionData.data.margeParProduit.length === 0 && <tr><td colSpan={5} className="py-6 text-center text-slate-400">Aucune vente sur la période.</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-2 italic">« Coût inconnu » = prix d&apos;achat non renseigné sur la fiche produit (Catalogue).</p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                    <h4 className="font-semibold text-slate-800 mb-3">Rotation de stock &amp; stock immobilisé</h4>
+                    <div className="max-h-72 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="border-b border-slate-100 sticky top-0 bg-white"><tr>
+                          <th className="text-left py-1.5 text-slate-500">Produit</th>
+                          <th className="text-right py-1.5 text-slate-500">Stock</th>
+                          <th className="text-right py-1.5 text-slate-500">Rotation</th>
+                          <th className="text-right py-1.5 text-slate-500">Valeur immobilisée</th>
+                        </tr></thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {rapportsGestionData.data.rotationStock.map((r) => (
+                            <tr key={r.produitId}>
+                              <td className="py-1.5 text-slate-700">{r.nom}</td>
+                              <td className="py-1.5 text-right text-slate-600">{r.stockActuel}</td>
+                              <td className="py-1.5 text-right text-slate-600">{r.rotation != null ? r.rotation : "—"}</td>
+                              <td className="py-1.5 text-right text-amber-700">{formatCurrency(r.valeurStock)}</td>
+                            </tr>
+                          ))}
+                          {rapportsGestionData.data.rotationStock.length === 0 && <tr><td colSpan={4} className="py-6 text-center text-slate-400">Aucun stock.</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                    <h4 className="font-semibold text-slate-800 mb-1">Dettes fournisseurs (proxy DPO)</h4>
+                    <p className="text-xs text-amber-600 mb-3 italic">
+                      Pas un vrai DPO : le système n&apos;a ni date de facture fournisseur ni date de paiement effectif — seulement un reste à payer par bon de commande.
+                    </p>
+                    <div className="max-h-64 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="border-b border-slate-100 sticky top-0 bg-white"><tr>
+                          <th className="text-left py-1.5 text-slate-500">Fournisseur</th>
+                          <th className="text-right py-1.5 text-slate-500">Reste à payer</th>
+                        </tr></thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {rapportsGestionData.data.dpoFournisseursProxy.map((f) => (
+                            <tr key={f.fournisseurId}>
+                              <td className="py-1.5 text-slate-700">{f.nom}</td>
+                              <td className="py-1.5 text-right text-red-600">{formatCurrency(f.resteAPayer)}</td>
+                            </tr>
+                          ))}
+                          {rapportsGestionData.data.dpoFournisseursProxy.length === 0 && <tr><td colSpan={2} className="py-6 text-center text-slate-400">Aucune dette fournisseur en cours.</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB : CONFIGURATION INITIALE                                  */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === "configInitiale" && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-1">
+                <ListChecks className="text-violet-600" size={20} /> Configuration initiale
+              </h3>
+              <p className="text-xs text-slate-500 mb-4">
+                Assistant de première installation (CDC §60) — pour AfriSime : Togo, XOF, SYSCOHADA révisé, société commerciale.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Pays</label>
+                  <input value={configForm.pays} onChange={(e) => setConfigForm(p => ({ ...p, pays: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Devise</label>
+                  <input value={configForm.devise} onChange={(e) => setConfigForm(p => ({ ...p, devise: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Référentiel comptable</label>
+                  <input value={configForm.referentiel} onChange={(e) => setConfigForm(p => ({ ...p, referentiel: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Type d&apos;entité</label>
+                  <input value={configForm.typeEntite} onChange={(e) => setConfigForm(p => ({ ...p, typeEntite: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                </div>
+              </div>
+              <button onClick={handleEnregistrerConfig} disabled={enregistrantConfig}
+                className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
+                {enregistrantConfig ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={15} />} Enregistrer
+              </button>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold text-slate-800">Progression de la mise en place</h4>
+                {configInitialeData && (
+                  <span className="text-xs font-semibold text-slate-500">
+                    {configInitialeData.data.etapes.filter(e => e.complete).length}/{configInitialeData.data.etapes.length} étapes
+                  </span>
+                )}
+              </div>
+              <div className="space-y-2">
+                {(configInitialeData?.data.etapes ?? []).map((e) => (
+                  <div key={e.cle} className={`flex items-center justify-between p-3 rounded-xl border ${e.complete ? "border-emerald-200 bg-emerald-50/30" : "border-slate-200"}`}>
+                    <div className="flex items-center gap-3">
+                      {e.complete ? <CheckCircle size={18} className="text-emerald-500 flex-shrink-0" /> : <AlertCircle size={18} className="text-amber-500 flex-shrink-0" />}
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">{e.label}{e.optionnelle && <span className="text-xs text-slate-400 ml-1.5">(optionnel)</span>}</p>
+                        <p className="text-xs text-slate-400">{e.detail}</p>
+                      </div>
+                    </div>
+                    {!e.complete && (
+                      <button onClick={() => setActiveTab(e.onglet as Tab)}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-semibold hover:bg-violet-700 flex-shrink-0">
+                        Configurer
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

@@ -106,6 +106,7 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
     label: "Comptable",
     sections: [
       { key: "synthese",      label: "Synthèse",              defaultAllowed: true, module: "comptabilite" },
+      { key: "configInitiale", label: "Configuration initiale", defaultAllowed: true, module: "comptabilite" },
       { key: "plan",          label: "Plan Comptable",        defaultAllowed: true, module: "comptabilite" },
       { key: "saisie",        label: "Écritures",             defaultAllowed: true, module: "comptabilite" },
       { key: "journal",       label: "Journal",               defaultAllowed: true, module: "comptabilite" },
@@ -124,6 +125,7 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "controles",       label: "Contrôles",            defaultAllowed: true, module: "comptabilite" },
       { key: "exercices",       label: "Exercices, Taxes & Récurrentes", defaultAllowed: true, module: "comptabilite" },
       { key: "importEcritures", label: "Import comptable",     defaultAllowed: true, module: "comptabilite" },
+      { key: "rapportsGestion", label: "Rapports de gestion",  defaultAllowed: true, module: "comptabilite" },
     ],
   },
   {

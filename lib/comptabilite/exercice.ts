@@ -77,6 +77,7 @@ export async function cloturerExercice(tx: TxClient, annee: number, userId: numb
       userId,
       reference: `SYNC-CLOTURE-${annee}`,
       ignorerCloture: true,
+      statut: "VALIDE",
       lignes: lignesCloture,
     });
   }
@@ -90,6 +91,7 @@ export async function cloturerExercice(tx: TxClient, annee: number, userId: numb
       userId,
       reference: `SYNC-REPORT-${annee}`,
       ignorerCloture: true,
+      statut: "VALIDE",
       lignes:
         resultatNet > 0
           ? [

@@ -482,13 +482,24 @@ enum SensCompte {
   CREDITEUR
 }
 
-enum TypeJournalComptable {
-  CAISSE
-  BANQUE
-  VENTES
-  ACHATS
-  OD
-  PAIE
+// Les 6 journaux ci-dessous (CAISSE/BANQUE/VENTES/ACHATS/OD/PAIE) restent les
+// journaux "de base" toujours disponibles (utilisés dans tout le code existant) ;
+// le champ `journal` des écritures/règles/récurrentes est un simple String
+// (CDC §9 : "l'administrateur doit pouvoir créer d'autres journaux") — voir
+// modèle JournalComptable ci-dessous pour les journaux personnalisés et
+// lib/comptabilite/moteur.ts pour la validation (builtin OU JournalComptable actif).
+
+/// Journal comptable personnalisé (CDC §9), en complément des 6 journaux de base
+/// câblés dans le code (CAISSE/BANQUE/VENTES/ACHATS/OD/PAIE, toujours valides).
+model JournalComptable {
+  id      Int     @id @default(autoincrement())
+  code    String  @unique
+  libelle String
+  prefixe String // 2 caractères pour la numérotation des pièces (CDC §15)
+  actif   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum StatutEcriture {
@@ -3533,7 +3544,7 @@ model EcritureComptable {
   reference String               @unique
   date      DateTime
   libelle   String
-  journal   TypeJournalComptable
+  journal   String // code d'un journal builtin (CAISSE/BANQUE/VENTES/ACHATS/OD/PAIE) ou JournalComptable.code (CDC §9)
   statut    StatutEcriture       @default(BROUILLON)
   notes     String?
   userId    Int?
@@ -3678,7 +3689,7 @@ model RegleComptable {
 
   compteDebitNumero  String
   compteCreditNumero String
-  journal            TypeJournalComptable
+  journal            String // builtin ou JournalComptable.code (CDC §9)
 
   priorite Int                @default(0)
   actif    Boolean            @default(true)
@@ -3919,7 +3930,7 @@ model EcritureRecurrente {
 
   compteDebitNumero  String
   compteCreditNumero String
-  journal            TypeJournalComptable
+  journal            String // builtin ou JournalComptable.code (CDC §9)
 
   frequence FrequenceRecurrente @default(MENSUEL)
   dateDebut DateTime
@@ -3961,6 +3972,24 @@ model ExerciceComptable {
 
   ecritureClotureId        Int?
   ecritureReportANouveauId Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Configuration comptable initiale (CDC §60 — assistant de première installation).
+/// Singleton (id=1, même convention que ParametrageCompteCourant). Les autres
+/// étapes de l'assistant (exercice, plan comptable, taxes, journaux, comptes
+/// auxiliaires, immobilisations, analytique) ne sont PAS dupliquées ici : leur
+/// complétion est calculée à la volée depuis les données réelles
+/// (lib/comptabilite/configurationInitiale.ts), pour éviter un état "fait/pas
+/// fait" qui pourrait diverger de la réalité.
+model ConfigurationComptableInitiale {
+  id          Int    @id @default(1)
+  pays        String @default("Togo")
+  devise      String @default("XOF")
+  referentiel String @default("SYSCOHADA révisé")
+  typeEntite  String @default("Société commerciale")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
