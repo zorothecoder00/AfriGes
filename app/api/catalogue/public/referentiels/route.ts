@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getReferentielsPublics } from "@/lib/catalogueReferentielsPublics";
 
 /**
  * Référentiels publics pour filtrer la vitrine / borne (familles, catégories,
@@ -7,12 +7,8 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET() {
   try {
-    const [familles, categories, marques] = await Promise.all([
-      prisma.familleProduit.findMany({ where: { actif: true }, select: { id: true, nom: true }, orderBy: { nom: "asc" } }),
-      prisma.categorieProduit.findMany({ where: { actif: true }, select: { id: true, nom: true }, orderBy: { nom: "asc" } }),
-      prisma.marqueProduit.findMany({ where: { actif: true }, select: { id: true, nom: true }, orderBy: { nom: "asc" } }),
-    ]);
-    return NextResponse.json({ familles, categories, marques });
+    const refs = await getReferentielsPublics();
+    return NextResponse.json(refs);
   } catch (error) {
     console.error("GET /api/catalogue/public/referentiels", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

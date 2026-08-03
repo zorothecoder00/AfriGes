@@ -4,6 +4,7 @@ import "./globals.css";
 import { SessionWrapper } from "@/components/SessionWrapper";
 import ToastProvider from "@/components/ToastProvider";
 import { AppSettingsProvider } from "@/contexts/AppSettingsContext";
+import { appUrl } from "@/lib/email";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -11,6 +12,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(appUrl()),
   title: "AfriGes",
   description: "AfriGes — Plateforme de gestion AfriSime",
 };
