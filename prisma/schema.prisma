@@ -697,6 +697,8 @@ model User {
   immobilisationsResponsable Immobilisation[] @relation("ImmobilisationResponsable")
   immobilisationsCreees      Immobilisation[] @relation("ImmobilisationCreateur")
   budgets                    Budget[]
+  ecrituresRecurrentes       EcritureRecurrente[]
+  exercicesClotures          ExerciceComptable[]
 
   // Points de vente — cet user est RPV d'un PDV (1-1)
   pointDeVenteRPV      PointDeVente?        @relation("RPVPointDeVente")
@@ -3829,6 +3831,109 @@ model LigneBudget {
   @@index([budgetId])
   @@index([compteId])
   @@index([mois])
+}
+
+// ============================================================
+// TAXES GÉNÉRIQUES, ÉCRITURES RÉCURRENTES, EXERCICES (CDC §21/§26/§28-32)
+// ============================================================
+
+enum RegimeFiscal {
+  REEL_NORMAL
+  REEL_SIMPLIFIE
+  EXONERE
+}
+
+/// Taxe paramétrable (CDC §21) — ne jamais coder un taux fiscal en dur : la TVA
+/// dédiée (DeclarationTVA) reste le calcul officiel actuel, ce registre est la
+/// base pour paramétrer d'autres taxes (locales, retenues...) sans redéploiement.
+model TaxeConfig {
+  id      Int    @id @default(autoincrement())
+  code    String @unique
+  nom     String
+  taux    Decimal // %
+  nature  String  // libre : "TVA", "TAXE_LOCALE", "RETENUE_SOURCE"...
+
+  compteCollecteNumero       String  // crédité — taxe collectée sur ventes
+  compteDeductibleNumero     String? // débité — taxe déductible sur achats
+  compteRegularisationNumero String?
+
+  regimeFiscal    RegimeFiscal @default(REEL_NORMAL)
+  applicableAchat Boolean      @default(true)
+  applicableVente Boolean      @default(true)
+  dateDebut       DateTime?
+  dateFin         DateTime?
+  actif           Boolean      @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum FrequenceRecurrente {
+  MENSUEL
+  TRIMESTRIEL
+  ANNUEL
+}
+
+enum StatutRecurrente {
+  ACTIF
+  SUSPENDU
+  TERMINE
+}
+
+/// Écriture récurrente (CDC §26) — loyer, abonnement, assurance, frais bancaires...
+/// générée automatiquement à échéance par lib/comptabilite/recurrentes.ts.
+model EcritureRecurrente {
+  id      Int    @id @default(autoincrement())
+  libelle String
+  montant Decimal
+
+  compteDebitNumero  String
+  compteCreditNumero String
+  journal            TypeJournalComptable
+
+  frequence FrequenceRecurrente @default(MENSUEL)
+  dateDebut DateTime
+  dateFin   DateTime?
+  nombreOccurrencesMax      Int?
+  nombreOccurrencesGenerees Int      @default(0)
+  derniereGenerationLe      DateTime?
+
+  statut StatutRecurrente @default(ACTIF)
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+}
+
+enum StatutExercice {
+  PREPARATION
+  OUVERT
+  EN_CLOTURE
+  CLOTURE
+  ARCHIVE
+}
+
+/// Exercice comptable (CDC §28-32) : ouverture/clôture annuelle, avec assistant
+/// de clôture (réutilise les contrôles CDC §40) et report à nouveau automatique.
+model ExerciceComptable {
+  id        Int            @id @default(autoincrement())
+  annee     Int            @unique
+  dateDebut DateTime
+  dateFin   DateTime
+  statut    StatutExercice @default(PREPARATION)
+
+  clotureParId Int?
+  cloturePar   User?     @relation(fields: [clotureParId], references: [id])
+  dateCloture  DateTime?
+
+  ecritureClotureId        Int?
+  ecritureReportANouveauId Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ============================================================

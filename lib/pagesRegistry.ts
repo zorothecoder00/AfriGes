@@ -122,6 +122,7 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "analytique",      label: "Analytique & Budget",  defaultAllowed: true, module: "comptabilite" },
       { key: "etatsReels",      label: "États Financiers (réel)", defaultAllowed: true, module: "comptabilite" },
       { key: "controles",       label: "Contrôles",            defaultAllowed: true, module: "comptabilite" },
+      { key: "exercices",       label: "Exercices, Taxes & Récurrentes", defaultAllowed: true, module: "comptabilite" },
     ],
   },
   {

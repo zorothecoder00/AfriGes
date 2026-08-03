@@ -164,5 +164,7 @@ réussir les notifs par whatsapp
 Vérifie si ces choses seront bénéfiques et rendront l'app plus puissantes SEO , Embed stream , Cache/ISR, TanStack Query, SSE ou polling . Tu me donnes juste la réponse après analyses poussées et après je te dirai quoi faire
 
 
+Extraire et imprimer les crédits clients impayés
+
 
    

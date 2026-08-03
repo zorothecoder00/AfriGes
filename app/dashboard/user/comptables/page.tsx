@@ -297,6 +297,25 @@ interface ConstatControleEntry {
   entiteType?: string; entiteId?: number; montant?: number; date?: string;
 }
 
+interface TaxeConfigEntry {
+  id: number; code: string; nom: string; taux: number; nature: string;
+  compteCollecteNumero: string; compteDeductibleNumero: string | null;
+  applicableAchat: boolean; applicableVente: boolean; actif: boolean;
+}
+interface EcritureRecurrenteEntry {
+  id: number; libelle: string; montant: number; compteDebitNumero: string; compteCreditNumero: string;
+  journal: string; frequence: string; dateDebut: string; dateFin: string | null;
+  nombreOccurrencesMax: number | null; nombreOccurrencesGenerees: number; statut: string;
+}
+interface ExerciceEntry {
+  id: number; annee: number; dateDebut: string; dateFin: string; statut: string; dateCloture: string | null;
+}
+const FREQUENCE_LABELS: Record<string, string> = { MENSUEL: "Mensuel", TRIMESTRIEL: "Trimestriel", ANNUEL: "Annuel" };
+const STATUT_EXERCICE_COLORS: Record<string, string> = {
+  PREPARATION: "bg-slate-100 text-slate-600", OUVERT: "bg-emerald-50 text-emerald-700",
+  EN_CLOTURE: "bg-amber-50 text-amber-700", CLOTURE: "bg-red-50 text-red-600", ARCHIVE: "bg-slate-100 text-slate-500",
+};
+
 const STATUT_IMMO_COLORS: Record<string, string> = {
   EN_SERVICE: "bg-emerald-50 text-emerald-700 border-emerald-200",
   AMORTIE: "bg-slate-100 text-slate-600 border-slate-200",
@@ -465,7 +484,7 @@ const CAT_META: Record<string, { label: string; color: string; bg: string; icon:
 type Period = "7" | "30" | "90" | "365";
 type Tab    = "synthese" | "journal" | "tresorerie" | "balance" | "grandlivre" | "etats" | "pieces"
             | "plan" | "saisie" | "tva" | "rapprochement" | "regles" | "auxiliaire" | "immobilisations" | "analytique"
-            | "etatsReels" | "controles";
+            | "etatsReels" | "controles" | "exercices";
 
 export default function ComptablePage() {
   const t = useT();
@@ -600,6 +619,17 @@ export default function ComptablePage() {
 
   // ── État États Financiers réels & Contrôles ─────────────────────────────
   const [etatsReelsAnnee, setEtatsReelsAnnee] = useState(() => String(new Date().getFullYear()));
+
+  // ── État Exercices, Taxes & Récurrentes ─────────────────────────────────
+  const TAXE_VIDE = { code: "", nom: "", taux: "", nature: "TVA", compteCollecteNumero: "", compteDeductibleNumero: "" };
+  const [showAddTaxe, setShowAddTaxe] = useState(false);
+  const [newTaxe, setNewTaxe] = useState(TAXE_VIDE);
+
+  const RECURRENTE_VIDE = { libelle: "", montant: "", compteDebitNumero: "", compteCreditNumero: "", journal: "OD", frequence: "MENSUEL", dateDebut: "" };
+  const [showAddRecurrente, setShowAddRecurrente] = useState(false);
+  const [newRecurrente, setNewRecurrente] = useState(RECURRENTE_VIDE);
+
+  const [nouvelExerciceAnnee, setNouvelExerciceAnnee] = useState(() => String(new Date().getFullYear()));
 
   // ── API calls ─────────────────────────────────────────────────────────
 
@@ -1124,6 +1154,74 @@ export default function ComptablePage() {
       activeTab === "controles" ? "/api/comptable/controles" : null
     );
 
+  // ── Taxes API ────────────────────────────────────────────────────────────
+  const { data: taxesData, refetch: refetchTaxes } =
+    useApi<{ data: TaxeConfigEntry[] }>(activeTab === "exercices" ? "/api/comptable/taxes" : null);
+  const { mutate: creerTaxe, loading: creatingTaxe } = useMutation<unknown, object>(
+    "/api/comptable/taxes", "POST", { successMessage: "Taxe créée" }
+  );
+  const taxeActionIdRef = useRef<number | null>(null);
+  const { mutate: toggleTaxeApi } = useMutation<unknown, object>(
+    () => `/api/comptable/taxes/${taxeActionIdRef.current}`, "PATCH",
+  );
+  async function handleCreerTaxe() {
+    const res = await creerTaxe({ ...newTaxe, taux: Number(newTaxe.taux) });
+    if (res) { refetchTaxes(); setShowAddTaxe(false); setNewTaxe(TAXE_VIDE); }
+  }
+  async function handleToggleTaxe(taxe: TaxeConfigEntry) {
+    taxeActionIdRef.current = taxe.id;
+    const res = await toggleTaxeApi({ actif: !taxe.actif });
+    if (res) refetchTaxes();
+  }
+
+  // ── Écritures récurrentes API ────────────────────────────────────────────
+  const { data: recurrentesData, refetch: refetchRecurrentes } =
+    useApi<{ data: EcritureRecurrenteEntry[] }>(activeTab === "exercices" ? "/api/comptable/recurrentes" : null);
+  const { mutate: creerRecurrente, loading: creatingRecurrente } = useMutation<unknown, object>(
+    "/api/comptable/recurrentes", "POST", { successMessage: "Écriture récurrente créée" }
+  );
+  const recurrenteActionIdRef = useRef<number | null>(null);
+  const { mutate: toggleRecurrenteApi } = useMutation<unknown, object>(
+    () => `/api/comptable/recurrentes/${recurrenteActionIdRef.current}`, "PATCH",
+  );
+  const { mutate: genererRecurrentes, loading: generantRecurrentes } = useMutation<{ message: string }, object>(
+    "/api/comptable/recurrentes/generer", "POST",
+  );
+  async function handleCreerRecurrente() {
+    const res = await creerRecurrente({ ...newRecurrente, montant: Number(newRecurrente.montant) });
+    if (res) { refetchRecurrentes(); setShowAddRecurrente(false); setNewRecurrente(RECURRENTE_VIDE); }
+  }
+  async function handleToggleRecurrente(r: EcritureRecurrenteEntry) {
+    recurrenteActionIdRef.current = r.id;
+    const res = await toggleRecurrenteApi({ statut: r.statut === "ACTIF" ? "SUSPENDU" : "ACTIF" });
+    if (res) refetchRecurrentes();
+  }
+  async function handleGenererRecurrentes() {
+    const res = await genererRecurrentes({});
+    if (res) refetchRecurrentes();
+  }
+
+  // ── Exercices API ────────────────────────────────────────────────────────
+  const { data: exercicesData, refetch: refetchExercices } =
+    useApi<{ data: ExerciceEntry[] }>(activeTab === "exercices" ? "/api/comptable/exercices" : null);
+  const { mutate: ouvrirExerciceApi, loading: ouvrantExercice } = useMutation<unknown, object>(
+    "/api/comptable/exercices", "POST", { successMessage: "Exercice ouvert" }
+  );
+  const exerciceActionIdRef = useRef<number | null>(null);
+  const { mutate: cloturerExerciceApi, loading: cloturantExercice } = useMutation<{ error?: string; controles?: string[] }, object>(
+    () => `/api/comptable/exercices/${exerciceActionIdRef.current}/cloturer`, "POST",
+  );
+  async function handleOuvrirExercice() {
+    const res = await ouvrirExerciceApi({ annee: Number(nouvelExerciceAnnee) });
+    if (res) refetchExercices();
+  }
+  async function handleCloturerExercice(id: number) {
+    if (!confirm("Clôturer définitivement cet exercice ? Les 12 mois seront verrouillés.")) return;
+    exerciceActionIdRef.current = id;
+    const res = await cloturerExerciceApi({});
+    if (res) refetchExercices();
+  }
+
   interface ImmoDetail extends ImmobilisationEntry {
     lignesAmortissement: { id: number; periode: string; montantDotation: number; cumulApres: number; vncApres: number }[];
   }
@@ -1228,6 +1326,7 @@ export default function ComptablePage() {
     { key: "analytique",     label: "Analytique & Budget",   icon: TrendingUp   },
     { key: "etatsReels",     label: "États Financiers (réel)", icon: BarChart3  },
     { key: "controles",      label: "Contrôles",             icon: CheckCircle  },
+    { key: "exercices",      label: "Exercices, Taxes & Récurrentes", icon: Lock },
   ];
   const tabs = allTabs.filter((t) => isAllowed(t.key));
 
@@ -4262,6 +4361,129 @@ export default function ComptablePage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB : EXERCICES, TAXES & ÉCRITURES RÉCURRENTES                */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === "exercices" && (
+          <div className="space-y-4">
+            {/* Exercices comptables */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Lock className="text-violet-600" size={20} /> Exercices comptables</h3>
+                <div className="flex items-center gap-2">
+                  <input type="number" value={nouvelExerciceAnnee} onChange={(e) => setNouvelExerciceAnnee(e.target.value)}
+                    className="w-24 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 [appearance:textfield]" />
+                  <button onClick={handleOuvrirExercice} disabled={ouvrantExercice}
+                    className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
+                    <PlusCircle size={15} /> Ouvrir l&apos;exercice
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {(exercicesData?.data ?? []).map((ex) => (
+                  <div key={ex.id} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-slate-800">{ex.annee}</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUT_EXERCICE_COLORS[ex.statut] ?? "bg-slate-100"}`}>{ex.statut}</span>
+                      {ex.dateCloture && <span className="text-xs text-slate-400">Clôturé le {formatDateShort(ex.dateCloture)}</span>}
+                    </div>
+                    {ex.statut !== "CLOTURE" && (
+                      <button onClick={() => handleCloturerExercice(ex.id)} disabled={cloturantExercice}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50">
+                        <Lock size={13} /> Clôturer définitivement
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {(exercicesData?.data ?? []).length === 0 && <p className="text-center text-slate-400 text-sm py-6">Aucun exercice ouvert.</p>}
+              </div>
+            </div>
+
+            {/* Taxes paramétrables */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Percent className="text-violet-600" size={20} /> Taxes paramétrables</h3>
+                <button onClick={() => setShowAddTaxe(!showAddTaxe)} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700">
+                  <PlusCircle size={15} /> Nouvelle taxe
+                </button>
+              </div>
+              {showAddTaxe && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <input value={newTaxe.code} onChange={(e) => setNewTaxe(p => ({ ...p, code: e.target.value }))} placeholder="Code (ex: TVA18)" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  <input value={newTaxe.nom} onChange={(e) => setNewTaxe(p => ({ ...p, nom: e.target.value }))} placeholder="Nom" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  <input type="number" value={newTaxe.taux} onChange={(e) => setNewTaxe(p => ({ ...p, taux: e.target.value }))} placeholder="Taux %" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 [appearance:textfield]" />
+                  <input value={newTaxe.compteCollecteNumero} onChange={(e) => setNewTaxe(p => ({ ...p, compteCollecteNumero: e.target.value }))} placeholder="Compte collecté" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  <input value={newTaxe.compteDeductibleNumero} onChange={(e) => setNewTaxe(p => ({ ...p, compteDeductibleNumero: e.target.value }))} placeholder="Compte déductible" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  <button onClick={handleCreerTaxe} disabled={creatingTaxe || !newTaxe.code || !newTaxe.nom || !newTaxe.taux || !newTaxe.compteCollecteNumero}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 col-span-2 md:col-span-1">
+                    <Save size={14} /> Créer
+                  </button>
+                </div>
+              )}
+              <div className="space-y-1">
+                {(taxesData?.data ?? []).map((tx) => (
+                  <div key={tx.id} className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm ${tx.actif ? "border-slate-200" : "border-slate-100 opacity-50"}`}>
+                    <span className="text-slate-700"><span className="font-mono text-xs text-violet-700">{tx.code}</span> {tx.nom} — {Number(tx.taux)}%</span>
+                    <button onClick={() => handleToggleTaxe(tx)} className={tx.actif ? "text-amber-500" : "text-emerald-500"}>
+                      {tx.actif ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                    </button>
+                  </div>
+                ))}
+                {(taxesData?.data ?? []).length === 0 && <p className="text-center text-slate-400 text-sm py-4">Aucune taxe paramétrée.</p>}
+              </div>
+            </div>
+
+            {/* Écritures récurrentes */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><RefreshCw className="text-violet-600" size={20} /> Écritures récurrentes</h3>
+                <div className="flex items-center gap-2">
+                  <button onClick={handleGenererRecurrentes} disabled={generantRecurrentes}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50">
+                    {generantRecurrentes ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <RefreshCw size={15} />} Générer les échéances dues
+                  </button>
+                  <button onClick={() => setShowAddRecurrente(!showAddRecurrente)} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700">
+                    <PlusCircle size={15} /> Nouvelle
+                  </button>
+                </div>
+              </div>
+              {showAddRecurrente && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <input value={newRecurrente.libelle} onChange={(e) => setNewRecurrente(p => ({ ...p, libelle: e.target.value }))} placeholder="Libellé (ex: Loyer agence)" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 col-span-2" />
+                  <input type="number" value={newRecurrente.montant} onChange={(e) => setNewRecurrente(p => ({ ...p, montant: e.target.value }))} placeholder="Montant" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 [appearance:textfield]" />
+                  <select value={newRecurrente.frequence} onChange={(e) => setNewRecurrente(p => ({ ...p, frequence: e.target.value }))} className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                    {Object.entries(FREQUENCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                  <input value={newRecurrente.compteDebitNumero} onChange={(e) => setNewRecurrente(p => ({ ...p, compteDebitNumero: e.target.value }))} placeholder="Compte débit" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  <input value={newRecurrente.compteCreditNumero} onChange={(e) => setNewRecurrente(p => ({ ...p, compteCreditNumero: e.target.value }))} placeholder="Compte crédit" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  <select value={newRecurrente.journal} onChange={(e) => setNewRecurrente(p => ({ ...p, journal: e.target.value }))} className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                    {["CAISSE","BANQUE","VENTES","ACHATS","OD","PAIE"].map(j => <option key={j} value={j}>{JOURNAL_LABELS[j] ?? j}</option>)}
+                  </select>
+                  <input type="date" value={newRecurrente.dateDebut} onChange={(e) => setNewRecurrente(p => ({ ...p, dateDebut: e.target.value }))} className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  <button onClick={handleCreerRecurrente}
+                    disabled={creatingRecurrente || !newRecurrente.libelle || !newRecurrente.montant || !newRecurrente.compteDebitNumero || !newRecurrente.compteCreditNumero || !newRecurrente.dateDebut}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
+                    <Save size={14} /> Créer
+                  </button>
+                </div>
+              )}
+              <div className="space-y-1">
+                {(recurrentesData?.data ?? []).map((r) => (
+                  <div key={r.id} className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm ${r.statut === "ACTIF" ? "border-slate-200" : "border-slate-100 opacity-50"}`}>
+                    <span className="text-slate-700">{r.libelle} — {formatCurrency(Number(r.montant))} <span className="text-xs text-slate-400">({FREQUENCE_LABELS[r.frequence]}, {r.nombreOccurrencesGenerees}{r.nombreOccurrencesMax ? `/${r.nombreOccurrencesMax}` : ""})</span></span>
+                    {r.statut !== "TERMINE" && (
+                      <button onClick={() => handleToggleRecurrente(r)} className={r.statut === "ACTIF" ? "text-amber-500" : "text-emerald-500"}>
+                        {r.statut === "ACTIF" ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {(recurrentesData?.data ?? []).length === 0 && <p className="text-center text-slate-400 text-sm py-4">Aucune écriture récurrente.</p>}
+              </div>
+            </div>
           </div>
         )}
 
