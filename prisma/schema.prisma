@@ -694,6 +694,8 @@ model User {
   rapprochements       RapprochementBancaire[]
   declarationsTVA      DeclarationTVA[]
   journalValidations   JournalValidation[]
+  immobilisationsResponsable Immobilisation[] @relation("ImmobilisationResponsable")
+  immobilisationsCreees      Immobilisation[] @relation("ImmobilisationCreateur")
 
   // Points de vente — cet user est RPV d'un PDV (1-1)
   pointDeVenteRPV      PointDeVente?        @relation("RPVPointDeVente")
@@ -1539,6 +1541,7 @@ model Fournisseur {
   // Compte auxiliaire comptable réel (CDC Comptabilité §17) — sous-compte 401xxx
   // rattaché par FK, auto-provisionné par lib/comptabilite/auxiliaire.ts.
   compteAuxiliaire CompteComptable?
+  immobilisations  Immobilisation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3506,6 +3509,8 @@ model CompteComptable {
   fournisseur   Fournisseur? @relation(fields: [fournisseurId], references: [id])
 
   lignesEcriture LigneEcriture[]
+  immobilisationsActif         Immobilisation[] @relation("ImmobilisationCompte")
+  immobilisationsAmortissement Immobilisation[] @relation("ImmobilisationCompteAmortissement")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3634,6 +3639,102 @@ model RegleComptable {
 
   @@index([evenement])
   @@index([actif])
+}
+
+// ============================================================
+// IMMOBILISATIONS & AMORTISSEMENTS (CDC Comptabilité §22)
+// ============================================================
+
+enum CategorieImmobilisation {
+  TERRAIN
+  BATIMENT
+  MATERIEL_MOBILIER
+  MATERIEL_TRANSPORT
+  MATERIEL_INFORMATIQUE
+  AUTRE
+}
+
+enum StatutImmobilisation {
+  EN_SERVICE
+  AMORTIE
+  CEDEE
+  HORS_SERVICE
+}
+
+// Seule la méthode LINEAIRE est calculée automatiquement pour le moment
+// (lib/comptabilite/immobilisations.ts) ; DEGRESSIF est un champ de
+// paramétrage réservé à une évolution future, sans moteur de calcul dédié.
+enum MethodeAmortissement {
+  LINEAIRE
+  DEGRESSIF
+}
+
+/// Registre des immobilisations (CDC §22) — chaque acquisition génère son
+/// écriture comptable (Dr compte d'immobilisation / Cr fournisseur ou trésorerie),
+/// et l'amortissement mensuel est calculé automatiquement (lib/comptabilite/immobilisations.ts).
+model Immobilisation {
+  id                Int                     @id @default(autoincrement())
+  numeroInventaire  String                  @unique
+  designation       String
+  categorie         CategorieImmobilisation
+
+  compteId             Int
+  compte               CompteComptable @relation("ImmobilisationCompte", fields: [compteId], references: [id])
+  compteAmortissementId Int
+  compteAmortissement   CompteComptable @relation("ImmobilisationCompteAmortissement", fields: [compteAmortissementId], references: [id])
+
+  fournisseurId Int?
+  fournisseur   Fournisseur? @relation(fields: [fournisseurId], references: [id])
+
+  dateAcquisition    DateTime
+  dateMiseEnService  DateTime
+  coutAcquisition    Decimal
+  valeurResiduelle   Decimal              @default(0)
+  dureeAnnees        Int
+  methode            MethodeAmortissement @default(LINEAIRE)
+
+  amortissementCumule  Decimal @default(0)
+  valeurNetteComptable Decimal
+
+  localisation    String?
+  responsableId   Int?
+  responsable     User?   @relation("ImmobilisationResponsable", fields: [responsableId], references: [id])
+  numeroSerie     String?
+  notes           String?
+
+  statut          StatutImmobilisation @default(EN_SERVICE)
+  dateCession     DateTime?
+  prixCession     Decimal?
+
+  ecritureAcquisitionId Int?
+
+  creePar  Int
+  createur User @relation("ImmobilisationCreateur", fields: [creePar], references: [id])
+
+  lignesAmortissement LigneAmortissement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categorie])
+  @@index([statut])
+}
+
+/// Dotation mensuelle calculée pour une immobilisation (une ligne par période,
+/// idempotent) — CDC §22 "le système calcule amortissement mensuel/annuel/cumul/VNC".
+model LigneAmortissement {
+  id               Int            @id @default(autoincrement())
+  immobilisationId Int
+  immobilisation   Immobilisation @relation(fields: [immobilisationId], references: [id], onDelete: Cascade)
+  periode          String // "YYYY-MM"
+  montantDotation  Decimal
+  cumulApres       Decimal
+  vncApres         Decimal
+  ecritureId       Int?
+
+  createdAt DateTime @default(now())
+
+  @@unique([immobilisationId, periode])
 }
 
 // ============================================================
