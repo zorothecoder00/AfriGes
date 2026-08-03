@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
-import { parserReleveCsv, importerLignesReleve } from "@/lib/comptabilite/rapprochementImport";
+import { parserReleveCsv, parserReleveXlsx, parserReleveOfx, importerLignesReleve } from "@/lib/comptabilite/rapprochementImport";
 
 /**
  * POST /api/comptable/rapprochement/import
- * Body: { compteNumero, contenuCsv }
- * Importe un relevé bancaire CSV (CDC §19) — colonnes attendues : Date, Libelle,
- * Debit, Credit, Reference.
+ * Body: { compteNumero, format?: "CSV"|"XLSX"|"OFX", contenu?, contenuCsv? }
+ * - CSV/OFX : `contenu` (ou `contenuCsv` pour compat) est le texte brut du fichier.
+ * - XLSX    : `contenu` est le fichier encodé en base64 (binaire).
+ * Importe un relevé bancaire (CDC §19) — colonnes attendues (CSV/XLSX) : Date,
+ * Libelle, Debit, Credit, Reference.
  */
 export async function POST(req: Request) {
   try {
@@ -15,12 +17,19 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { compteNumero, contenuCsv } = body as { compteNumero?: string; contenuCsv?: string };
-    if (!compteNumero || !contenuCsv) {
-      return NextResponse.json({ error: "compteNumero et contenuCsv sont requis" }, { status: 400 });
+    const { compteNumero, format, contenuCsv } = body as { compteNumero?: string; format?: string; contenuCsv?: string };
+    const contenu = (body as { contenu?: string }).contenu ?? contenuCsv;
+    if (!compteNumero || !contenu) {
+      return NextResponse.json({ error: "compteNumero et contenu sont requis" }, { status: 400 });
     }
 
-    const { lignes, erreurs } = parserReleveCsv(contenuCsv);
+    const fmt = format ?? "CSV";
+    const { lignes, erreurs } = await (async () => {
+      if (fmt === "XLSX") return parserReleveXlsx(Buffer.from(contenu, "base64"));
+      if (fmt === "OFX") return parserReleveOfx(contenu);
+      return parserReleveCsv(contenu);
+    })();
+
     if (lignes.length === 0) {
       return NextResponse.json({ error: "Aucune ligne valide dans le fichier", erreurs }, { status: 422 });
     }

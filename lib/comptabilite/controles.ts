@@ -1,9 +1,10 @@
 // lib/comptabilite/controles.ts
 //
 // Contrôles de cohérence comptable (CDC §40-42) : erreurs bloquantes, anomalies,
-// comptes d'attente, doublons potentiels. Ne modifie jamais rien — se contente
-// de signaler, le comptable décide de l'action (CDC : "détecter", pas "corriger
-// automatiquement").
+// comptes d'attente, doublons potentiels, clients créditeurs/fournisseurs
+// débiteurs inhabituels, factures échues sans paiement. Ne modifie jamais rien
+// — se contente de signaler, le comptable décide de l'action (CDC : "détecter",
+// pas "corriger automatiquement").
 import type { Prisma } from "@prisma/client";
 
 type TxClient = Prisma.TransactionClient;
@@ -163,6 +164,100 @@ async function controlerImmobilisationsSansAmortissement(tx: TxClient): Promise<
     }));
 }
 
+/**
+ * §42 — client dont le compte auxiliaire 411xxx est CRÉDITEUR (solde négatif en
+ * sens débiteur normal) : un client ne doit normalement jamais avoir "trop payé"
+ * sans qu'un avoir ou un remboursement ne l'explique. Repère au passage un
+ * paiement enregistré sans facture correspondante (le compte devient créditeur).
+ */
+async function controlerClientCrediteurInhabituel(tx: TxClient): Promise<ConstatControle[]> {
+  const comptes = await tx.compteComptable.findMany({
+    where: { clientId: { not: null } },
+    select: { id: true, numero: true, libelle: true, client: { select: { nom: true, prenom: true } } },
+  });
+  if (comptes.length === 0) return [];
+
+  const aggs = await tx.ligneEcriture.groupBy({
+    by: ["compteId"],
+    where: { compteId: { in: comptes.map((c) => c.id) }, ecriture: { statut: { in: ["VALIDE", "CLOTURE"] } } },
+    _sum: { debit: true, credit: true },
+  });
+  const soldeParCompte = new Map(aggs.map((a) => [a.compteId, Number(a._sum.debit ?? 0) - Number(a._sum.credit ?? 0)]));
+
+  const constats: ConstatControle[] = [];
+  for (const c of comptes) {
+    const solde = soldeParCompte.get(c.id) ?? 0;
+    if (solde < -0.01) {
+      const nom = c.client ? `${c.client.prenom} ${c.client.nom}` : c.libelle;
+      constats.push({
+        code: "CLIENT_CREDITEUR_INHABITUEL",
+        gravite: "ANOMALIE",
+        message: `${nom} (${c.numero}) : compte créditeur de ${Math.abs(solde).toLocaleString("fr-FR")} FCFA (paiement sans facture correspondante ou trop-perçu ?)`,
+        entiteType: "CompteComptable",
+        entiteId: c.id,
+        montant: solde,
+      });
+    }
+  }
+  return constats;
+}
+
+/** §42 — symétrique : fournisseur dont le compte 401xxx est DÉBITEUR (on lui devrait de l'argent). */
+async function controlerFournisseurDebiteurInhabituel(tx: TxClient): Promise<ConstatControle[]> {
+  const comptes = await tx.compteComptable.findMany({
+    where: { fournisseurId: { not: null } },
+    select: { id: true, numero: true, libelle: true, fournisseur: { select: { nom: true } } },
+  });
+  if (comptes.length === 0) return [];
+
+  const aggs = await tx.ligneEcriture.groupBy({
+    by: ["compteId"],
+    where: { compteId: { in: comptes.map((c) => c.id) }, ecriture: { statut: { in: ["VALIDE", "CLOTURE"] } } },
+    _sum: { debit: true, credit: true },
+  });
+  const soldeParCompte = new Map(aggs.map((a) => [a.compteId, Number(a._sum.credit ?? 0) - Number(a._sum.debit ?? 0)]));
+
+  const constats: ConstatControle[] = [];
+  for (const c of comptes) {
+    const solde = soldeParCompte.get(c.id) ?? 0;
+    if (solde < -0.01) {
+      const nom = c.fournisseur?.nom ?? c.libelle;
+      constats.push({
+        code: "FOURNISSEUR_DEBITEUR_INHABITUEL",
+        gravite: "ANOMALIE",
+        message: `${nom} (${c.numero}) : compte débiteur de ${Math.abs(solde).toLocaleString("fr-FR")} FCFA (paiement en trop ou avoir non appliqué ?)`,
+        entiteType: "CompteComptable",
+        entiteId: c.id,
+        montant: solde,
+      });
+    }
+  }
+  return constats;
+}
+
+/** §42 — factures de vente échues et non intégralement réglées ("facture sans paiement"). */
+async function controlerFacturesSansPaiement(tx: TxClient): Promise<ConstatControle[]> {
+  const factures = await tx.factureVente.findMany({
+    where: {
+      statut: "EMISE",
+      dateEcheance: { lt: new Date() },
+    },
+    select: { id: true, numero: true, montantTTC: true, montantPaye: true, clientNom: true },
+    take: 200,
+  });
+
+  return factures
+    .filter((f) => Number(f.montantPaye) < Number(f.montantTTC) - 0.01)
+    .map((f) => ({
+      code: "FACTURE_SANS_PAIEMENT",
+      gravite: "ANOMALIE" as const,
+      message: `Facture ${f.numero} (${f.clientNom}) échue, réglée à ${Number(f.montantPaye).toLocaleString("fr-FR")} / ${Number(f.montantTTC).toLocaleString("fr-FR")} FCFA`,
+      entiteType: "FactureVente",
+      entiteId: f.id,
+      montant: Number(f.montantTTC) - Number(f.montantPaye),
+    }));
+}
+
 /** Exécute tous les contrôles et retourne la liste triée (bloquants d'abord). */
 export async function executerControles(tx: TxClient): Promise<ConstatControle[]> {
   const resultats = await Promise.all([
@@ -172,6 +267,9 @@ export async function executerControles(tx: TxClient): Promise<ConstatControle[]
     controlerSoldeCaisseNegatif(tx),
     controlerDoublons(tx),
     controlerImmobilisationsSansAmortissement(tx),
+    controlerClientCrediteurInhabituel(tx),
+    controlerFournisseurDebiteurInhabituel(tx),
+    controlerFacturesSansPaiement(tx),
   ]);
   const tous = resultats.flat();
   return tous.sort((a, b) => (a.gravite === b.gravite ? 0 : a.gravite === "BLOQUANT" ? -1 : 1));

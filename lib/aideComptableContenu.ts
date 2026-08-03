@@ -75,8 +75,8 @@ export const AIDE_COMPTABLE: Record<string, AideComptableContenu> = {
   },
   rapprochement: {
     titre: "Rapprochement bancaire",
-    fonction: "Compare le solde comptable du compte 521 Banque avec le relevé bancaire réel, et propose un appariement ligne à ligne des mouvements pour identifier les écarts (chèques non débités, frais bancaires non saisis, etc.).",
-    referentiel: "CDC §19 — rapprochement bancaire.",
+    fonction: "Compare le solde comptable du compte 521 Banque avec le relevé bancaire réel (import CSV, Excel ou OFX), et propose un appariement ligne à ligne des mouvements pour identifier les écarts (chèques non débités, frais bancaires non saisis, etc.).",
+    referentiel: "CDC §19 — rapprochement bancaire, import CSV/Excel/OFX.",
     exemple: "Un mouvement présent sur le relevé mais absent des écritures signale des frais bancaires à régulariser par une écriture OD.",
   },
   etats: {
@@ -129,16 +129,16 @@ export const AIDE_COMPTABLE: Record<string, AideComptableContenu> = {
   },
   controles: {
     titre: "Contrôles de cohérence",
-    fonction: "Détecte automatiquement les anomalies : écritures déséquilibrées (normalement impossibles), doublons de référence, comptes d'attente non soldés, écarts de balance.",
+    fonction: "Détecte automatiquement les anomalies : écritures déséquilibrées (normalement impossibles), doublons de référence, comptes d'attente non soldés, solde de trésorerie négatif, immobilisations sans dotation, clients créditeurs/fournisseurs débiteurs inhabituels, factures échues non réglées.",
     referentiel: "CDC §40-42 — contrôles de cohérence, comptes d'attente, détection de doublons.",
-    exemple: "Un compte d'attente 47 non soldé depuis plusieurs mois doit être investigué et régularisé.",
+    exemple: "Un compte d'attente 47 non soldé depuis plusieurs mois doit être investigué et régularisé. Un client créditeur signale souvent un paiement enregistré sans facture correspondante.",
   },
   exercices: {
     titre: "Exercices, Taxes & Récurrentes",
     fonction: "Regroupe trois briques : (1) ouverture/clôture d'exercice comptable avec report à nouveau automatique des soldes, (2) configuration des taxes génériques paramétrables (TVA, autres), (3) écritures récurrentes (ex. loyer mensuel) générées automatiquement à échéance.",
-    regle: "La clôture d'un exercice génère deux écritures VALIDE : solde des comptes de charges/produits vers le résultat (131/132), puis report des soldes de bilan sur le nouvel exercice. Après clôture, plus aucune écriture ne peut être créée sur la période clôturée.",
-    referentiel: "CDC §21 (taxes), §26 (récurrentes), §28-32 (exercices/report à nouveau).",
-    exemple: "Clôturer 2024 : le résultat net de l'année est viré en 131/132, et les comptes de bilan (411, 401, 521...) rouvrent avec leur solde de clôture au 01/01/2025.",
+    regle: "La clôture d'un exercice génère deux écritures VALIDE : solde des comptes de charges/produits vers le résultat (131/132), puis report des soldes de bilan sur le nouvel exercice. Après clôture, plus aucune écriture ne peut être créée sur la période clôturée. Le bouton « Clôturer » ouvre d'abord un assistant (CDC §30) qui vérifie écritures non validées, contrôles de cohérence, rapprochements en attente, immobilisations/TVA et affiche le résultat prévisionnel — sans rien modifier tant que vous ne confirmez pas.",
+    referentiel: "CDC §21 (taxes), §26 (récurrentes), §28-32 (exercices/report à nouveau), §30 (assistant de clôture).",
+    exemple: "Clôturer 2024 : l'assistant confirme d'abord qu'aucune anomalie bloquante ne subsiste, puis le résultat net de l'année est viré en 131/132, et les comptes de bilan (411, 401, 521...) rouvrent avec leur solde de clôture au 01/01/2025.",
   },
   importEcritures: {
     titre: "Import comptable",

@@ -1056,8 +1056,22 @@ export default function ComptablePage() {
 
   async function handleImporterReleve() {
     if (!releveCsvFile) return;
-    const contenuCsv = await releveCsvFile.text();
-    const res = await importerReleveApi({ compteNumero: releveCompteNumero, contenuCsv });
+    const nomFichier = releveCsvFile.name.toLowerCase();
+    let format: "CSV" | "XLSX" | "OFX" = "CSV";
+    if (nomFichier.endsWith(".xlsx") || nomFichier.endsWith(".xls")) format = "XLSX";
+    else if (nomFichier.endsWith(".ofx")) format = "OFX";
+
+    let contenu: string;
+    if (format === "XLSX") {
+      const buffer = await releveCsvFile.arrayBuffer();
+      let binaire = "";
+      new Uint8Array(buffer).forEach((b) => { binaire += String.fromCharCode(b); });
+      contenu = btoa(binaire);
+    } else {
+      contenu = await releveCsvFile.text();
+    }
+
+    const res = await importerReleveApi({ compteNumero: releveCompteNumero, format, contenu });
     if (res) { setReleveCsvFile(null); refetchReleve(); }
   }
   async function handleConfirmerRapprochement(ligneReleveId: number, ligneEcritureId: number) {
@@ -1440,11 +1454,22 @@ export default function ComptablePage() {
     const res = await ouvrirExerciceApi({ annee: Number(nouvelExerciceAnnee) });
     if (res) refetchExercices();
   }
-  async function handleCloturerExercice(id: number) {
-    if (!confirm("Clôturer définitivement cet exercice ? Les 12 mois seront verrouillés.")) return;
+
+  // ── Assistant de clôture (CDC §30) ───────────────────────────────────────
+  const [assistantClotureId, setAssistantClotureId] = useState<number | null>(null);
+  const { data: preClotureData, loading: preClotureLoading } = useApi<{ data: {
+    items: { cle: string; label: string; ok: boolean; bloquant: boolean; detail: string }[];
+    peutCloturer: boolean;
+    resultatNetPrevisionnel: number;
+  } }>(assistantClotureId ? `/api/comptable/exercices/${assistantClotureId}/pre-cloture` : null);
+
+  function handleCloturerExercice(id: number) {
     exerciceActionIdRef.current = id;
+    setAssistantClotureId(id);
+  }
+  async function handleConfirmerCloture() {
     const res = await cloturerExerciceApi({});
-    if (res) refetchExercices();
+    if (res) { setAssistantClotureId(null); refetchExercices(); }
   }
 
   interface ImmoDetail extends ImmobilisationEntry {
@@ -3856,13 +3881,14 @@ export default function ComptablePage() {
                 <Upload className="text-violet-600" size={20} /> Rapprochement ligne à ligne
               </h3>
               <p className="text-xs text-slate-500 mb-4">
-                Importez le relevé bancaire (CSV : Date, Libelle, Debit, Credit, Reference) — le système propose des correspondances
-                exactes (montant + date ±10 j) avec les écritures déjà passées sur le compte ; vous confirmez chaque rapprochement.
+                Importez le relevé bancaire — CSV/Excel (Date, Libelle, Debit, Credit, Reference) ou OFX — le système propose des
+                correspondances exactes (montant + date ±10 j) avec les écritures déjà passées sur le compte ; vous confirmez chaque rapprochement.
               </p>
               <div className="flex items-center gap-3 flex-wrap mb-4">
                 <input value={releveCompteNumero} onChange={(e) => setReleveCompteNumero(e.target.value)}
                   placeholder="N° compte (ex: 521)" className="w-40 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
-                <input type="file" accept=".csv,text/csv" onChange={(e) => setReleveCsvFile(e.target.files?.[0] ?? null)}
+                <input type="file" accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.ofx"
+                  onChange={(e) => setReleveCsvFile(e.target.files?.[0] ?? null)}
                   className="text-sm text-slate-600" />
                 <button onClick={handleImporterReleve} disabled={importingReleve || !releveCsvFile}
                   className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
@@ -5289,6 +5315,68 @@ export default function ComptablePage() {
               <button onClick={handleCreerDevise} className="mt-2 flex items-center gap-1.5 px-3 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700">
                 <PlusCircle size={15} /> Ajouter la devise
               </button>
+            </div>
+          </div>
+        )}
+
+        {assistantClotureId && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                  <ListChecks size={18} className="text-violet-600" /> Assistant de clôture
+                </h3>
+                <button onClick={() => setAssistantClotureId(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><X size={16} /></button>
+              </div>
+              <p className="text-xs text-slate-500 mb-4">
+                Vérifications avant clôture définitive (CDC §30) — n&apos;altère rien tant que vous ne confirmez pas.
+              </p>
+
+              {preClotureLoading ? (
+                <div className="flex items-center justify-center p-8"><div className="w-7 h-7 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin" /></div>
+              ) : preClotureData ? (
+                <>
+                  <div className="space-y-2 mb-4">
+                    {preClotureData.data.items.map((item) => (
+                      <div key={item.cle} className={`flex items-start gap-3 p-2.5 rounded-xl border ${
+                        item.ok ? "border-emerald-200 bg-emerald-50/30" : item.bloquant ? "border-red-200 bg-red-50/40" : "border-amber-200 bg-amber-50/30"
+                      }`}>
+                        {item.ok
+                          ? <CheckCircle size={16} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                          : <AlertCircle size={16} className={`flex-shrink-0 mt-0.5 ${item.bloquant ? "text-red-500" : "text-amber-500"}`} />}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-slate-800">
+                            {item.label} {!item.ok && item.bloquant && <span className="text-xs text-red-600 font-semibold ml-1">(bloquant)</span>}
+                          </p>
+                          <p className="text-xs text-slate-500 truncate">{item.detail}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl mb-4">
+                    <span className="text-sm text-slate-600">Résultat prévisionnel</span>
+                    <span className={`font-bold ${preClotureData.data.resultatNetPrevisionnel >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                      {formatCurrency(preClotureData.data.resultatNetPrevisionnel)}
+                    </span>
+                  </div>
+                  {!preClotureData.data.peutCloturer && (
+                    <p className="text-xs text-red-600 mb-3">Des anomalies bloquantes doivent être résolues avant de pouvoir clôturer.</p>
+                  )}
+                  <div className="flex gap-3">
+                    <button onClick={() => setAssistantClotureId(null)} className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 text-sm font-medium">
+                      Annuler
+                    </button>
+                    <button
+                      onClick={handleConfirmerCloture}
+                      disabled={!preClotureData.data.peutCloturer || cloturantExercice}
+                      className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 disabled:opacity-40 flex items-center justify-center gap-2"
+                    >
+                      {cloturantExercice ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Lock size={15} />}
+                      Confirmer la clôture
+                    </button>
+                  </div>
+                </>
+              ) : null}
             </div>
           </div>
         )}

@@ -1,11 +1,12 @@
 // lib/comptabilite/rapprochementImport.ts
 //
-// Rapprochement bancaire ligne à ligne (CDC §19) : import du relevé (CSV), puis
-// proposition automatique de correspondances avec les écritures déjà passées sur
-// le compte de trésorerie — le comptable confirme toujours avant rapprochement
-// (jamais automatique et silencieux).
+// Rapprochement bancaire ligne à ligne (CDC §19) : import du relevé (CSV, Excel
+// ou OFX), puis proposition automatique de correspondances avec les écritures
+// déjà passées sur le compte de trésorerie — le comptable confirme toujours
+// avant rapprochement (jamais automatique et silencieux).
 import type { Prisma } from "@prisma/client";
-import { parserCsv, parserNombreCsv, parserDateCsv } from "@/lib/csvParser";
+import ExcelJS from "exceljs";
+import { parserCsv, parserNombreCsv, parserDateCsv, type LigneCsv } from "@/lib/csvParser";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -17,12 +18,8 @@ export interface LigneReleveImport {
   credit: number;
 }
 
-/**
- * Format CSV attendu (en-tête, séparateur `,` ou `;` auto-détecté) :
- * Date;Libelle;Debit;Credit;Reference — Date au format ISO ou JJ/MM/AAAA.
- */
-export function parserReleveCsv(contenu: string): { lignes: LigneReleveImport[]; erreurs: string[] } {
-  const rows = parserCsv(contenu);
+/** Mapping colonnes → LigneReleveImport, partagé par les imports CSV et Excel (même en-têtes attendues). */
+function lignesDepuisRowsObjets(rows: LigneCsv[]): { lignes: LigneReleveImport[]; erreurs: string[] } {
   const lignes: LigneReleveImport[] = [];
   const erreurs: string[] = [];
 
@@ -39,6 +36,103 @@ export function parserReleveCsv(contenu: string): { lignes: LigneReleveImport[];
     if (debit <= 0 && credit <= 0) { erreurs.push(`Ligne ${i + 2} : ni débit ni crédit renseigné`); return; }
 
     lignes.push({ date, libelle, reference: reference || null, debit, credit });
+  });
+
+  return { lignes, erreurs };
+}
+
+/**
+ * Format CSV attendu (en-tête, séparateur `,` ou `;` auto-détecté) :
+ * Date;Libelle;Debit;Credit;Reference — Date au format ISO ou JJ/MM/AAAA.
+ */
+export function parserReleveCsv(contenu: string): { lignes: LigneReleveImport[]; erreurs: string[] } {
+  return lignesDepuisRowsObjets(parserCsv(contenu));
+}
+
+/**
+ * Format Excel attendu : mêmes en-têtes que le CSV (Date, Libelle, Debit,
+ * Credit, Reference), sur la 1ʳᵉ feuille du classeur, 1ʳᵉ ligne = en-tête.
+ * Les cellules Date/Nombre natives Excel sont acceptées telles quelles (pas
+ * seulement du texte, contrairement au CSV).
+ */
+export async function parserReleveXlsx(buffer: Buffer): Promise<{ lignes: LigneReleveImport[]; erreurs: string[] }> {
+  const workbook = new ExcelJS.Workbook();
+  // @types/node type désormais Buffer<ArrayBufferLike>, incompatible avec la
+  // déclaration interne d'exceljs — même donnée binaire, juste un désaccord de
+  // types entre libs tierces (aucun impact runtime).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await workbook.xlsx.load(buffer as any);
+  const feuille = workbook.worksheets[0];
+  if (!feuille || feuille.rowCount < 2) return { lignes: [], erreurs: ["Classeur vide ou sans données"] };
+
+  const enTetes: string[] = [];
+  feuille.getRow(1).eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    enTetes[colNumber - 1] = String(cell.value ?? "").trim();
+  });
+
+  const rows: LigneCsv[] = [];
+  for (let r = 2; r <= feuille.rowCount; r++) {
+    const row = feuille.getRow(r);
+    if (row.cellCount === 0) continue;
+    const obj: LigneCsv = {};
+    enTetes.forEach((entete, i) => {
+      if (!entete) return;
+      const cell = row.getCell(i + 1);
+      const v = cell.value;
+      if (v instanceof Date) obj[entete] = v.toISOString().slice(0, 10);
+      else if (v && typeof v === "object" && "result" in v) obj[entete] = String((v as { result: unknown }).result ?? "");
+      else obj[entete] = v == null ? "" : String(v);
+    });
+    rows.push(obj);
+  }
+
+  return lignesDepuisRowsObjets(rows);
+}
+
+/**
+ * Format OFX (Open Financial Exchange) attendu : blocs `<STMTTRN>` (SGML OFX
+ * 1.x non fermé, ou XML OFX 2.x) — extraction par balise plutôt qu'un vrai
+ * parseur XML, car l'OFX 1.x n'est pas du XML valide (balises non fermées).
+ * `TRNAMT` négatif = débit (sortie), positif = crédit (entrée), comme dans un
+ * relevé bancaire classique. `FITID` sert de référence.
+ */
+export function parserReleveOfx(contenu: string): { lignes: LigneReleveImport[]; erreurs: string[] } {
+  const lignes: LigneReleveImport[] = [];
+  const erreurs: string[] = [];
+
+  const blocs = contenu.match(/<STMTTRN>[\s\S]*?<\/STMTTRN>/gi) ?? [];
+  if (blocs.length === 0) {
+    return { lignes: [], erreurs: ["Aucune transaction <STMTTRN> trouvée — fichier OFX invalide ou vide"] };
+  }
+
+  const champ = (bloc: string, tag: string): string | null => {
+    const m = bloc.match(new RegExp(`<${tag}>([^<\\r\\n]*)`, "i"));
+    return m ? m[1].trim() : null;
+  };
+
+  blocs.forEach((bloc, i) => {
+    const dtPosted = champ(bloc, "DTPOSTED");
+    const trnAmt = champ(bloc, "TRNAMT");
+    if (!dtPosted || trnAmt == null) { erreurs.push(`Transaction ${i + 1} : DTPOSTED ou TRNAMT manquant`); return; }
+
+    // DTPOSTED = YYYYMMDD[HHMMSS][.xxx][[gmt offset]]
+    const m = dtPosted.match(/^(\d{4})(\d{2})(\d{2})/);
+    if (!m) { erreurs.push(`Transaction ${i + 1} : date invalide ("${dtPosted}")`); return; }
+    const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+
+    const montant = Number(trnAmt.replace(",", "."));
+    if (isNaN(montant) || montant === 0) { erreurs.push(`Transaction ${i + 1} : montant invalide ("${trnAmt}")`); return; }
+
+    const nom = champ(bloc, "NAME") ?? "";
+    const memo = champ(bloc, "MEMO") ?? "";
+    const libelle = [nom, memo].filter(Boolean).join(" — ") || "Transaction OFX";
+    const reference = champ(bloc, "FITID");
+
+    lignes.push({
+      date, libelle, reference,
+      debit: montant < 0 ? Math.abs(montant) : 0,
+      credit: montant > 0 ? montant : 0,
+    });
   });
 
   return { lignes, erreurs };
