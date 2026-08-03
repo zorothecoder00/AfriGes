@@ -699,6 +699,7 @@ model User {
   budgets                    Budget[]
   ecrituresRecurrentes       EcritureRecurrente[]
   exercicesClotures          ExerciceComptable[]
+  lignesReleveBancaire       LigneReleveBancaire[]
 
   // Points de vente — cet user est RPV d'un PDV (1-1)
   pointDeVenteRPV      PointDeVente?        @relation("RPVPointDeVente")
@@ -3611,6 +3612,35 @@ model RapprochementBancaire {
 
   @@unique([periode])
   @@index([statut])
+}
+
+enum StatutLigneReleve {
+  NON_RAPPROCHE
+  RAPPROCHE
+  IGNORE
+}
+
+/// Ligne de relevé bancaire importée (CSV, CDC §19) — rapprochée ligne à ligne
+/// avec une écriture comptable existante du compte de trésorerie concerné.
+model LigneReleveBancaire {
+  id           Int    @id @default(autoincrement())
+  compteNumero String // ex "521" — compte de trésorerie concerné
+  date         DateTime
+  libelle      String
+  reference    String?
+  debit        Decimal @default(0) // sortie de fonds (montant débité du compte bancaire)
+  credit       Decimal @default(0) // entrée de fonds
+
+  statut          StatutLigneReleve @default(NON_RAPPROCHE)
+  ligneEcritureId Int? // rapprochée avec cette ligne d'écriture comptable
+
+  importeParId Int
+  importePar   User     @relation(fields: [importeParId], references: [id])
+  importeLe    DateTime @default(now())
+
+  @@index([compteNumero])
+  @@index([statut])
+  @@index([date])
 }
 
 model DeclarationTVA {

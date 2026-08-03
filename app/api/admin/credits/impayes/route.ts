@@ -4,18 +4,31 @@ import { getAdminSession } from "@/lib/authAdmin";
 
 /**
  * GET /api/admin/credits/impayes
- * Liste complète des crédits clients EN_RETARD, avec le client responsable et
- * le détail de chaque échéance impayée (pour extraction Excel / impression).
- * Contrairement à GET /api/admin/credits, non paginé : usage export/impression
- * uniquement, jamais pour l'affichage courant de la liste.
+ * Liste complète des crédits clients ayant au moins une échéance impayée en
+ * retard, avec le client responsable et le détail de chaque échéance (pour
+ * extraction Excel / impression). Contrairement à GET /api/admin/credits, non
+ * paginé : usage export/impression uniquement, jamais pour l'affichage courant.
+ *
+ * Important : le retard est calculé en direct depuis EcheanceCredit.dateEcheance
+ * (échéance EN_ATTENTE/PARTIEL dont la date est dépassée), PAS depuis
+ * EcheanceCredit.statut === "EN_RETARD" — ce champ n'est jamais mis à jour par un
+ * scan quotidien, il ne change qu'en sous-produit d'un remboursement (même
+ * constat déjà fait dans lib/alertesSystem.ts pour la même raison : s'y fier ici
+ * ne détectait presque jamais rien, alors que CreditClient.statut peut déjà
+ * valoir EN_RETARD pendant que ses échéances restent EN_ATTENTE en base).
  */
 export async function GET() {
   try {
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+    const maintenant = new Date();
+
     const credits = await prisma.creditClient.findMany({
-      where: { statut: "EN_RETARD" },
+      where: {
+        statut: { in: ["ACTIF", "EN_RETARD"] },
+        echeances: { some: { statut: { in: ["EN_ATTENTE", "PARTIEL"] }, dateEcheance: { lt: maintenant } } },
+      },
       select: {
         id: true,
         reference: true,
@@ -29,7 +42,7 @@ export async function GET() {
           select: { id: true, nom: true, prenom: true, telephone: true, codeClient: true },
         },
         echeances: {
-          where: { statut: "EN_RETARD" },
+          where: { statut: { in: ["EN_ATTENTE", "PARTIEL"] }, dateEcheance: { lt: maintenant } },
           orderBy: { numeroEcheance: "asc" },
           select: { numeroEcheance: true, dateEcheance: true, montantDu: true, montantPaye: true },
         },
@@ -37,7 +50,6 @@ export async function GET() {
       orderBy: { dateEcheanceFin: "asc" },
     });
 
-    const maintenant = Date.now();
     const data = credits.map((c) => ({
       creditId: c.id,
       reference: c.reference,
@@ -55,7 +67,7 @@ export async function GET() {
         const montantRestant = Number(e.montantDu) - Number(e.montantPaye);
         const joursRetard = Math.max(
           0,
-          Math.floor((maintenant - e.dateEcheance.getTime()) / 86_400_000) - (c.delaiGraceJours ?? 0),
+          Math.floor((maintenant.getTime() - e.dateEcheance.getTime()) / 86_400_000) - (c.delaiGraceJours ?? 0),
         );
         return {
           numeroEcheance: e.numeroEcheance,
