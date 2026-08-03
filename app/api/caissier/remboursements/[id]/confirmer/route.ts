@@ -214,6 +214,7 @@ export async function POST(req: Request, { params }: Ctx) {
           montant: montantNum,
           reference: `${credit.reference}-${remboursementId}`,
           clientNom: credit.client ? `${credit.client.prenom} ${credit.client.nom}` : "Client",
+          clientId: credit.clientId,
           modePaiement: remboursement.modePaiement,
           userId,
         });

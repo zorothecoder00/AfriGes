@@ -129,6 +129,7 @@ export async function POST(_req: Request, { params }: Ctx) {
         montant: montantTotal,
         reference: credit.reference,
         clientNom: `${client.prenom} ${client.nom}`,
+        clientId: credit.clientId,
         userId: Number(session.user.id),
       });
 

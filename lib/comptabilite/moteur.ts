@@ -13,6 +13,7 @@
 // personnalisée n'existe — donc zéro régression et entièrement reconfigurable
 // sans redéploiement.
 import { Prisma, type TypeJournalComptable } from "@prisma/client";
+import { compteAuxiliaireOuDefaut } from "@/lib/comptabilite/auxiliaire";
 
 export type TxClient = Prisma.TransactionClient;
 
@@ -183,13 +184,18 @@ export async function resoudreRegleComptable(
 // Points d'intégration (Lot 1) : Crédit, Remboursement, Paie
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Vente à crédit validée : Dr Créances client / Cr Ventes. */
+/**
+ * Vente à crédit validée : Dr Créances client / Cr Ventes. Si `clientId` est
+ * fourni, la créance est imputée au sous-compte auxiliaire du client (CDC §16),
+ * auto-créé si besoin, plutôt qu'au seul compte collectif 411.
+ */
 export async function ecritureVenteCreditValidee(
   tx: TxClient,
-  params: { montant: number; reference: string; clientNom: string; userId: number; date?: Date },
+  params: { montant: number; reference: string; clientNom: string; clientId?: number; userId: number; date?: Date },
 ): Promise<number | null> {
   const regle = await resoudreRegleComptable(tx, "VENTE_CREDIT_VALIDEE");
   if (!regle) return null;
+  const compteDebit = await compteAuxiliaireOuDefaut(tx, regle.compteDebitNumero, { clientId: params.clientId });
   return creerEcriture(tx, {
     journal: regle.journal,
     date: params.date ?? new Date(),
@@ -197,19 +203,24 @@ export async function ecritureVenteCreditValidee(
     userId: params.userId,
     reference: `SYNC-CRD-${params.reference}`,
     lignes: [
-      { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Créance ${params.clientNom}` },
+      { numero: compteDebit, debit: params.montant, libelle: `Créance ${params.clientNom}` },
       { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Vente crédit ${params.reference}` },
     ],
   });
 }
 
-/** Remboursement de crédit confirmé (encaissement cash/banque) : Dr Trésorerie / Cr Créances client. */
+/**
+ * Remboursement de crédit confirmé (encaissement cash/banque) : Dr Trésorerie /
+ * Cr Créances client — imputée au sous-compte auxiliaire du client si `clientId`
+ * est fourni, symétriquement à `ecritureVenteCreditValidee`.
+ */
 export async function ecritureRemboursementCreditConfirme(
   tx: TxClient,
   params: {
     montant: number;
     reference: string;
     clientNom: string;
+    clientId?: number;
     modePaiement?: string | null;
     userId: number;
     date?: Date;
@@ -217,6 +228,7 @@ export async function ecritureRemboursementCreditConfirme(
 ): Promise<number | null> {
   const regle = await resoudreRegleComptable(tx, "REMBOURSEMENT_CREDIT_CONFIRME", { modePaiement: params.modePaiement });
   if (!regle) return null;
+  const compteCredit = await compteAuxiliaireOuDefaut(tx, regle.compteCreditNumero, { clientId: params.clientId });
   return creerEcriture(tx, {
     journal: regle.journal,
     date: params.date ?? new Date(),
@@ -225,7 +237,7 @@ export async function ecritureRemboursementCreditConfirme(
     reference: `SYNC-RBT-${params.reference}`,
     lignes: [
       { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Encaissement ${params.reference}` },
-      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Solde créance ${params.clientNom}` },
+      { numero: compteCredit, credit: params.montant, libelle: `Solde créance ${params.clientNom}` },
     ],
   });
 }

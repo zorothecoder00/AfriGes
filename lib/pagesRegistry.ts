@@ -117,6 +117,7 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "etats",         label: "États Financiers",      defaultAllowed: true, module: "comptabilite" },
       { key: "pieces",        label: "Pièces justificatives", defaultAllowed: true, module: "comptabilite" },
       { key: "regles",        label: "Règles comptables",     defaultAllowed: true, module: "comptabilite" },
+      { key: "auxiliaire",    label: "Auxiliaire & Lettrage",  defaultAllowed: true, module: "comptabilite" },
     ],
   },
   {

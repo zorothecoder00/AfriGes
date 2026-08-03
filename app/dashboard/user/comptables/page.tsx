@@ -221,6 +221,31 @@ interface RegleComptableEntry {
   notes: string | null;
 }
 
+interface AuxiliaireEntry {
+  id: number;
+  nom: string;
+  prenom?: string;
+  code?: string | null;
+  codeClient?: string | null;
+  compteAuxiliaire: { id: number; numero: string } | null;
+}
+
+interface LigneNonLettreeEntry {
+  id: number;
+  debit: number;
+  credit: number;
+  libelle: string;
+  lettrage: string | null;
+  ecriture: { reference: string; date: string; statut: string; libelle: string };
+}
+
+interface LettrageResponse {
+  data: {
+    lignes: LigneNonLettreeEntry[];
+    propositions: { ligneIds: number[]; montant: number }[];
+  };
+}
+
 interface DeclarationTVA {
   id: number; periode: string; tvaCollectee: number; tvaDeductible: number;
   tvaDue: number; statut: string; notes: string | null;
@@ -381,7 +406,7 @@ const CAT_META: Record<string, { label: string; color: string; bg: string; icon:
 
 type Period = "7" | "30" | "90" | "365";
 type Tab    = "synthese" | "journal" | "tresorerie" | "balance" | "grandlivre" | "etats" | "pieces"
-            | "plan" | "saisie" | "tva" | "rapprochement" | "regles";
+            | "plan" | "saisie" | "tva" | "rapprochement" | "regles" | "auxiliaire";
 
 export default function ComptablePage() {
   const t = useT();
@@ -491,6 +516,12 @@ export default function ComptablePage() {
   const [showAddRegle, setShowAddRegle] = useState(false);
   const [newRegle, setNewRegle]         = useState(REGLE_VIDE);
   const [editRegleId, setEditRegleId]   = useState<number | null>(null);
+
+  // ── État Auxiliaire & Lettrage ────────────────────────────────────────
+  const [auxType, setAuxType]                 = useState<"CLIENT" | "FOURNISSEUR">("CLIENT");
+  const [auxSearch, setAuxSearch]             = useState("");
+  const [auxSelectedCompte, setAuxSelectedCompte] = useState<{ id: number; numero: string; nom: string } | null>(null);
+  const [lettrageSelection, setLettrageSelection] = useState<number[]>([]);
 
   // ── API calls ─────────────────────────────────────────────────────────
 
@@ -862,6 +893,57 @@ export default function ComptablePage() {
     if (res) refetchRegles();
   }
 
+  // ── Auxiliaire & Lettrage API ─────────────────────────────────────────
+  const auxUrl = useMemo(() => {
+    const p = new URLSearchParams({ type: auxType });
+    if (auxSearch) p.set("search", auxSearch);
+    return `/api/comptable/auxiliaires?${p.toString()}`;
+  }, [auxType, auxSearch]);
+  const { data: auxData, loading: auxLoading, refetch: refetchAux } =
+    useApi<{ data: AuxiliaireEntry[] }>(activeTab === "auxiliaire" ? auxUrl : null);
+
+  const { mutate: creerCompteAux, loading: creatingCompteAux } = useMutation<{ data: { id: number; numero: string } }, object>(
+    "/api/comptable/auxiliaires", "POST",
+  );
+
+  async function handleCreerCompteAux(entry: AuxiliaireEntry) {
+    const res = await creerCompteAux({ type: auxType, id: entry.id });
+    if (res) {
+      refetchAux();
+      setAuxSelectedCompte({
+        id: res.data.id,
+        numero: res.data.numero,
+        nom: auxType === "FOURNISSEUR" ? entry.nom : `${entry.prenom ?? ""} ${entry.nom}`.trim(),
+      });
+    }
+  }
+
+  const { data: lettrageData, loading: lettrageLoading, refetch: refetchLettrage } =
+    useApi<LettrageResponse>(auxSelectedCompte ? `/api/comptable/lettrage?compteId=${auxSelectedCompte.id}` : null);
+
+  const { mutate: appliquerLettrageApi, loading: applyingLettrage } = useMutation<{ data: { code: string } }, object>(
+    "/api/comptable/lettrage", "POST",
+    { successMessage: "Lignes lettrées" }
+  );
+  const lettrageCodeRef = useRef<string>("");
+  const { mutate: delettrerApi } = useMutation<unknown, object>(
+    () => `/api/comptable/lettrage/${lettrageCodeRef.current}`, "DELETE",
+    { successMessage: "Lettrage retiré" }
+  );
+
+  function toggleLigneSelection(id: number) {
+    setLettrageSelection((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+  async function handleAppliquerLettrage(ligneIds: number[]) {
+    const res = await appliquerLettrageApi({ ligneIds });
+    if (res) { refetchLettrage(); setLettrageSelection([]); }
+  }
+  async function handleDelettrer(code: string) {
+    lettrageCodeRef.current = code;
+    const res = await delettrerApi({});
+    if (res) refetchLettrage();
+  }
+
   // ── Synchronisation journaux ──────────────────────────────────────────
   const [syncDateMin, setSyncDateMin] = useState("");
   const [syncDateMax, setSyncDateMax] = useState("");
@@ -955,6 +1037,7 @@ export default function ComptablePage() {
     { key: "etats",          label: "États Financiers",      icon: FileText     },
     { key: "pieces",         label: "Pièces justificatives", icon: Paperclip    },
     { key: "regles",         label: "Règles comptables",     icon: ListChecks   },
+    { key: "auxiliaire",     label: "Auxiliaire & Lettrage", icon: Users        },
   ];
   const tabs = allTabs.filter((t) => isAllowed(t.key));
 
@@ -3388,6 +3471,134 @@ export default function ComptablePage() {
                 </table>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB : AUXILIAIRE & LETTRAGE                                   */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === "auxiliaire" && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-1">
+                <Users className="text-violet-600" size={20} /> Comptabilité auxiliaire
+              </h3>
+              <p className="text-xs text-slate-500 mb-4">
+                Chaque client/fournisseur peut avoir son propre sous-compte (411xxx/401xxx), créé automatiquement.
+                Sélectionnez-en un pour lettrer ses lignes non rapprochées.
+              </p>
+              <div className="flex items-center gap-2 mb-3">
+                <button onClick={() => { setAuxType("CLIENT"); setAuxSelectedCompte(null); }}
+                  className={`px-3 py-1.5 rounded-xl text-sm font-semibold ${auxType === "CLIENT" ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                  Clients
+                </button>
+                <button onClick={() => { setAuxType("FOURNISSEUR"); setAuxSelectedCompte(null); }}
+                  className={`px-3 py-1.5 rounded-xl text-sm font-semibold ${auxType === "FOURNISSEUR" ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                  Fournisseurs
+                </button>
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input value={auxSearch} onChange={(e) => setAuxSearch(e.target.value)}
+                    placeholder="Rechercher un nom…"
+                    className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                </div>
+              </div>
+
+              {auxLoading ? (
+                <div className="flex items-center justify-center p-8"><div className="w-7 h-7 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin" /></div>
+              ) : (
+                <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                  {(auxData?.data ?? []).map((entry) => {
+                    const nom = auxType === "FOURNISSEUR" ? entry.nom : `${entry.prenom ?? ""} ${entry.nom}`.trim();
+                    const code = auxType === "FOURNISSEUR" ? entry.code : entry.codeClient;
+                    return (
+                      <div key={entry.id} className="flex items-center justify-between py-2.5">
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">{nom}</p>
+                          {code && <p className="text-xs text-slate-400">{code}</p>}
+                        </div>
+                        {entry.compteAuxiliaire ? (
+                          <button
+                            onClick={() => { setAuxSelectedCompte({ id: entry.compteAuxiliaire!.id, numero: entry.compteAuxiliaire!.numero, nom }); setLettrageSelection([]); }}
+                            className={`font-mono text-xs px-3 py-1.5 rounded-lg border ${auxSelectedCompte?.id === entry.compteAuxiliaire.id ? "bg-violet-600 text-white border-violet-600" : "border-violet-200 text-violet-700 hover:bg-violet-50"}`}
+                          >
+                            {entry.compteAuxiliaire.numero}
+                          </button>
+                        ) : (
+                          <button onClick={() => handleCreerCompteAux(entry)} disabled={creatingCompteAux}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 disabled:opacity-50">
+                            <PlusCircle size={13} /> Créer compte
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {(auxData?.data ?? []).length === 0 && (
+                    <p className="text-center text-slate-400 text-sm py-6">Aucun résultat.</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {auxSelectedCompte && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-violet-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-semibold text-slate-800 flex items-center gap-2">
+                    <BadgeCheck size={16} className="text-violet-600" />
+                    Lettrage — <span className="font-mono text-violet-700">{auxSelectedCompte.numero}</span> {auxSelectedCompte.nom}
+                  </h4>
+                  <button onClick={() => setAuxSelectedCompte(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><X size={15} /></button>
+                </div>
+
+                {lettrageLoading ? (
+                  <div className="flex items-center justify-center p-8"><div className="w-7 h-7 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin" /></div>
+                ) : (
+                  <>
+                    {(lettrageData?.data.propositions ?? []).length > 0 && (
+                      <div className="mb-4 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                        <p className="text-xs font-semibold text-emerald-700 mb-2">Correspondances exactes proposées</p>
+                        <div className="space-y-1.5">
+                          {lettrageData!.data.propositions.map((p, i) => (
+                            <div key={i} className="flex items-center justify-between text-xs">
+                              <span className="text-slate-600">{formatCurrency(p.montant)} — {p.ligneIds.length} lignes</span>
+                              <button onClick={() => handleAppliquerLettrage(p.ligneIds)} disabled={applyingLettrage}
+                                className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 disabled:opacity-50">
+                                Lettrer
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Lignes non lettrées</p>
+                      <button onClick={() => handleAppliquerLettrage(lettrageSelection)}
+                        disabled={lettrageSelection.length < 2 || applyingLettrage}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-semibold hover:bg-violet-700 disabled:opacity-40">
+                        <BadgeCheck size={13} /> Lettrer la sélection ({lettrageSelection.length})
+                      </button>
+                    </div>
+                    <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                      {(lettrageData?.data.lignes ?? []).map((l) => (
+                        <label key={l.id} className="flex items-center gap-3 py-2 text-sm cursor-pointer hover:bg-slate-50 px-1 rounded-lg">
+                          <input type="checkbox" checked={lettrageSelection.includes(l.id)} onChange={() => toggleLigneSelection(l.id)}
+                            className="rounded border-slate-300 text-violet-600 focus:ring-violet-500" />
+                          <span className="text-xs text-slate-400 w-24 flex-shrink-0">{formatDateShort(l.ecriture.date)}</span>
+                          <span className="font-mono text-xs text-slate-500 w-28 flex-shrink-0">{l.ecriture.reference}</span>
+                          <span className="flex-1 text-slate-700 truncate">{l.libelle}</span>
+                          <span className="text-blue-700 font-medium w-28 text-right">{Number(l.debit) > 0 ? formatCurrency(Number(l.debit)) : ""}</span>
+                          <span className="text-emerald-700 font-medium w-28 text-right">{Number(l.credit) > 0 ? formatCurrency(Number(l.credit)) : ""}</span>
+                        </label>
+                      ))}
+                      {(lettrageData?.data.lignes ?? []).length === 0 && (
+                        <p className="text-center text-slate-400 text-sm py-6">Toutes les lignes de ce compte sont lettrées.</p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
 

@@ -1024,6 +1024,10 @@ model Client {
   // Promotions ciblant nommément ce client (Catalogue §9) — Phase 5
   promotions       Promotion[]               @relation("PromotionClient")
 
+  // Compte auxiliaire comptable réel (CDC Comptabilité §16) — sous-compte 411xxx
+  // rattaché par FK, auto-provisionné par lib/comptabilite/auxiliaire.ts.
+  compteAuxiliaire CompteComptable?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1531,6 +1535,10 @@ model Fournisseur {
   rfqRetenues DemandeCotation[] @relation("RFQFournisseurRetenu") // RFQ où ce fournisseur a été retenu
   bonsCommande BonCommande[]                  // bons de commande émis vers ce fournisseur
   importationsTransitees Importation[] @relation("ImportationTransitaire") // en tant que transitaire (type TRANSPORTEUR)
+
+  // Compte auxiliaire comptable réel (CDC Comptabilité §17) — sous-compte 401xxx
+  // rattaché par FK, auto-provisionné par lib/comptabilite/auxiliaire.ts.
+  compteAuxiliaire CompteComptable?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3488,6 +3496,15 @@ model CompteComptable {
   sousComptes    CompteComptable[] @relation("HierarchieComptes")
   tiersType      String?
   tiersNom       String?
+
+  // Compte auxiliaire réel (CDC Comptabilité §16-17) : sous-compte 411xxx/401xxx
+  // rattaché à un client ou fournisseur précis par FK (et non plus seulement par
+  // texte libre tiersNom). Auto-provisionné par lib/comptabilite/auxiliaire.ts.
+  clientId      Int?        @unique
+  client        Client?     @relation(fields: [clientId], references: [id])
+  fournisseurId Int?        @unique
+  fournisseur   Fournisseur? @relation(fields: [fournisseurId], references: [id])
+
   lignesEcriture LigneEcriture[]
 
   createdAt DateTime @default(now())
@@ -3531,8 +3548,14 @@ model LigneEcriture {
   tauxTva    Decimal?
   montantTva Decimal?
 
+  // Lettrage (CDC Comptabilité §18) : code partagé par un groupe de lignes du
+  // même compte dont la somme débit = somme crédit (facture soldée par un
+  // paiement). null = non lettrée.
+  lettrage   String?
+
   @@index([ecritureId])
   @@index([compteId])
+  @@index([lettrage])
 }
 
 model JournalValidation {
