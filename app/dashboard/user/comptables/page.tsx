@@ -232,6 +232,17 @@ interface AuxiliaireEntry {
   compteAuxiliaire: { id: number; numero: string } | null;
 }
 
+interface BalanceAgeeEntry {
+  tiersId: number;
+  tiersNom: string;
+  compteNumero: string;
+  tranche0_30: number;
+  tranche31_60: number;
+  tranche61_90: number;
+  tranche90Plus: number;
+  total: number;
+}
+
 interface LigneNonLettreeEntry {
   id: number;
   debit: number;
@@ -1120,6 +1131,12 @@ export default function ComptablePage() {
   }, [auxType, auxSearch]);
   const { data: auxData, loading: auxLoading, refetch: refetchAux } =
     useApi<{ data: AuxiliaireEntry[] }>(activeTab === "auxiliaire" ? auxUrl : null);
+
+  // ── Balance âgée (CDC §16-17) ────────────────────────────────────────────
+  const { data: balanceAgeeData, loading: balanceAgeeLoading } = useApi<{
+    data: BalanceAgeeEntry[];
+    totaux: { tranche0_30: number; tranche31_60: number; tranche61_90: number; tranche90Plus: number; total: number };
+  }>(activeTab === "auxiliaire" ? `/api/comptable/balance-agee?type=${auxType}` : null);
 
   const { mutate: creerCompteAux, loading: creatingCompteAux } = useMutation<{ data: { id: number; numero: string } }, object>(
     "/api/comptable/auxiliaires", "POST",
@@ -4112,6 +4129,86 @@ export default function ComptablePage() {
                   {(auxData?.data ?? []).length === 0 && (
                     <p className="text-center text-slate-400 text-sm py-6">Aucun résultat.</p>
                   )}
+                </div>
+              )}
+            </div>
+
+            {/* Balance âgée (CDC §16-17) */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="font-semibold text-slate-800">
+                  Balance âgée — {auxType === "FOURNISSEUR" ? "Fournisseurs" : "Clients"}
+                </h4>
+                <button
+                  onClick={() => {
+                    const rows = (balanceAgeeData?.data ?? []).map((l) => ({
+                      compte: l.compteNumero, tiers: l.tiersNom,
+                      t0: l.tranche0_30, t1: l.tranche31_60, t2: l.tranche61_90, t3: l.tranche90Plus, total: l.total,
+                    }));
+                    exportToXlsx(rows, [
+                      { label: "Compte", key: "compte" },
+                      { label: "Tiers", key: "tiers" },
+                      { label: "0-30j", key: "t0", type: "currency", format: (v) => Number(v) },
+                      { label: "31-60j", key: "t1", type: "currency", format: (v) => Number(v) },
+                      { label: "61-90j", key: "t2", type: "currency", format: (v) => Number(v) },
+                      { label: "90j+", key: "t3", type: "currency", format: (v) => Number(v) },
+                      { label: "Total dû", key: "total", type: "currency", format: (v) => Number(v) },
+                    ], `balance-agee-${auxType.toLowerCase()}.xlsx`, { sheetName: "Balance âgée" });
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 text-xs font-medium"
+                >
+                  <Download size={13} /> Exporter
+                </button>
+              </div>
+              <p className="text-xs text-slate-500 mb-4">
+                Solde dû par tiers (lignes non lettrées), ventilé par ancienneté depuis la date de l&apos;écriture.
+              </p>
+              {balanceAgeeLoading ? (
+                <div className="flex items-center justify-center p-8"><div className="w-7 h-7 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin" /></div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs font-semibold text-slate-500 uppercase border-b border-slate-100">
+                        <th className="py-2 pr-3">Tiers</th>
+                        <th className="py-2 px-3 text-right">0-30j</th>
+                        <th className="py-2 px-3 text-right">31-60j</th>
+                        <th className="py-2 px-3 text-right">61-90j</th>
+                        <th className="py-2 px-3 text-right">90j+</th>
+                        <th className="py-2 pl-3 text-right">Total dû</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {(balanceAgeeData?.data ?? []).map((l) => (
+                        <tr key={l.tiersId}>
+                          <td className="py-2 pr-3">
+                            <span className="font-medium text-slate-800">{l.tiersNom}</span>
+                            <span className="font-mono text-xs text-slate-400 ml-2">{l.compteNumero}</span>
+                          </td>
+                          <td className="py-2 px-3 text-right text-slate-600">{l.tranche0_30 !== 0 ? formatCurrency(l.tranche0_30) : "—"}</td>
+                          <td className="py-2 px-3 text-right text-amber-600">{l.tranche31_60 !== 0 ? formatCurrency(l.tranche31_60) : "—"}</td>
+                          <td className="py-2 px-3 text-right text-orange-600">{l.tranche61_90 !== 0 ? formatCurrency(l.tranche61_90) : "—"}</td>
+                          <td className="py-2 px-3 text-right text-red-600 font-medium">{l.tranche90Plus !== 0 ? formatCurrency(l.tranche90Plus) : "—"}</td>
+                          <td className="py-2 pl-3 text-right font-bold text-slate-800">{formatCurrency(l.total)}</td>
+                        </tr>
+                      ))}
+                      {(balanceAgeeData?.data ?? []).length === 0 && (
+                        <tr><td colSpan={6} className="text-center text-slate-400 text-sm py-6">Aucun solde dû.</td></tr>
+                      )}
+                    </tbody>
+                    {balanceAgeeData && balanceAgeeData.data.length > 0 && (
+                      <tfoot>
+                        <tr className="border-t-2 border-slate-200 font-bold text-slate-800">
+                          <td className="py-2 pr-3">Total</td>
+                          <td className="py-2 px-3 text-right">{formatCurrency(balanceAgeeData.totaux.tranche0_30)}</td>
+                          <td className="py-2 px-3 text-right">{formatCurrency(balanceAgeeData.totaux.tranche31_60)}</td>
+                          <td className="py-2 px-3 text-right">{formatCurrency(balanceAgeeData.totaux.tranche61_90)}</td>
+                          <td className="py-2 px-3 text-right">{formatCurrency(balanceAgeeData.totaux.tranche90Plus)}</td>
+                          <td className="py-2 pl-3 text-right">{formatCurrency(balanceAgeeData.totaux.total)}</td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
                 </div>
               )}
             </div>

@@ -10,7 +10,7 @@ import { tariferLigne } from "@/lib/venteTarification";
 import { consommerFEFOBestEffort } from "@/lib/lotsFefo";
 import { substitutsDisponibles } from "@/lib/substitutsServer";
 import { resoudrePrixBatch } from "@/lib/tarificationBatch";
-import { creerEcritureVenteDepuisVenteDirecte } from "@/lib/ecritureVenteServer";
+import { creerEcritureVenteDepuisVenteDirecte, creerEcritureCogsVenteDirecte } from "@/lib/ecritureVenteServer";
 
 /**
  * GET /api/caissier/ventes
@@ -250,6 +250,7 @@ export async function POST(req: Request) {
 
       // Écriture comptable automatique (CDC §8/§54) — moteur central.
       await creerEcritureVenteDepuisVenteDirecte(tx, v.id, userId);
+      await creerEcritureCogsVenteDirecte(tx, v.id, userId);
 
       // Décrémenter StockSite + MouvementStock
       for (const ligne of v.lignes) {

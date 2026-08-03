@@ -5,7 +5,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
-import { creerEcritureVenteDepuisVenteDirecte } from "@/lib/ecritureVenteServer";
+import { creerEcritureVenteDepuisVenteDirecte, creerEcritureCogsVenteDirecte } from "@/lib/ecritureVenteServer";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -87,6 +87,7 @@ export async function POST(req: Request, { params }: Ctx) {
 
       // Écriture comptable automatique (CDC §8/§54) — moteur central.
       await creerEcritureVenteDepuisVenteDirecte(tx, vente.id, Number(session.user.id));
+      await creerEcritureCogsVenteDirecte(tx, vente.id, Number(session.user.id));
 
       // ── Décrémentation du stock pour chaque ligne ─────────────────────────
       for (const ligne of credit.lignes) {

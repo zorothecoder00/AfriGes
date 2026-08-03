@@ -16,7 +16,7 @@ import { projeterProduit, type ProduitSource } from "@/lib/vuesCatalogue";
 import { vueEffective } from "@/lib/vuesCatalogueServer";
 import { promotionApplicable } from "@/lib/promotionsServer";
 import { libelleRemise } from "@/lib/promotions";
-import { creerEcritureVenteDepuisVenteDirecte } from "@/lib/ecritureVenteServer";
+import { creerEcritureVenteDepuisVenteDirecte, creerEcritureCogsVenteDirecte } from "@/lib/ecritureVenteServer";
 
 /**
  * GET /api/agentTerrain/ventes
@@ -280,6 +280,7 @@ export async function POST(req: Request) {
 
       // Écriture comptable automatique (CDC §8/§54) — moteur central.
       await creerEcritureVenteDepuisVenteDirecte(tx, v.id, userId);
+      await creerEcritureCogsVenteDirecte(tx, v.id, userId);
 
       const vLignes = await tx.ligneVenteDirecte.findMany({
         where: { venteId: v.id },

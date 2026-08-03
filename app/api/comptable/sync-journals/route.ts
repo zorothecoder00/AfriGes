@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
 import { resolveViewAs } from "@/lib/viewAs";
 import { creerEcriture } from "@/lib/comptabilite/moteur";
+import { creerEcritureAchatDepuisMouvement } from "@/lib/ecritureAchatServer";
 
 /**
  * POST /api/comptable/sync-journals
@@ -262,18 +263,12 @@ async function syncAchats(
     const ref = `SYNC-MST-${m.id}`;
     if (await referenceExiste(ref)) { skipped++; continue; }
 
-    const montant = m.quantite * Number(m.produit.prixUnitaire);
-
-    const id = await creerEcriture(prisma, {
-      journal: "ACHATS", date: m.dateMouvement,
-      libelle: `Approvisionnement ${m.produit.nom} ×${m.quantite}${m.motif ? ` — ${m.motif}` : ""}`,
-      userId, reference: ref,
-      lignes: [
-        { numero: N.MARCHANDISES, debit: montant, libelle: m.produit.nom },
-        { numero: N.FOURNISSEURS, credit: montant, libelle: m.produit.nom },
-      ],
-    });
-    id ? created++ : skipped++;
+    // Délègue à creerEcritureAchatDepuisMouvement (lib/ecritureAchatServer.ts)
+    // plutôt que de dupliquer ici la règle comptant/crédit une 2e fois — cette
+    // route de rattrapage manuel doit produire exactement la même écriture que
+    // le hook automatique de validation de réception.
+    await creerEcritureAchatDepuisMouvement(prisma, m.id, userId);
+    (await referenceExiste(ref)) ? created++ : skipped++;
   }
 
   return { created, skipped };

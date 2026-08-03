@@ -545,6 +545,7 @@ export default function LogistiqueApprovisionnementPage() {
   const [commandeModal, setCommandeModal]   = useState(false);
   const [cmdForm, setCmdForm] = useState({
     type: "FOURNISSEUR", pointDeVenteId: "", fournisseurNom: "", datePrevisionnelle: "", notes: "",
+    modeReglement: "CREDIT", modePaiement: "ESPECES",
   });
   type CmdLigne = { produitId: string; quantiteAttendue: string; prixUnitaire: string; numeroLot: string; dateFabrication: string; dlc: string; dluo: string };
   const ligneVide: CmdLigne = { produitId: "", quantiteAttendue: "", prixUnitaire: "", numeroLot: "", dateFabrication: "", dlc: "", dluo: "" };
@@ -557,7 +558,7 @@ export default function LogistiqueApprovisionnementPage() {
 
   const openCommandeModal = () => {
     const d = new Date(); d.setDate(d.getDate() + 7);
-    setCmdForm({ type: "FOURNISSEUR", pointDeVenteId: userPdvId ? String(userPdvId) : "", fournisseurNom: "", datePrevisionnelle: d.toISOString().slice(0, 10), notes: "" });
+    setCmdForm({ type: "FOURNISSEUR", pointDeVenteId: userPdvId ? String(userPdvId) : "", fournisseurNom: "", datePrevisionnelle: d.toISOString().slice(0, 10), notes: "", modeReglement: "CREDIT", modePaiement: "ESPECES" });
     setCmdLignes([{ ...ligneVide }]);
     setCommandeModal(true);
   };
@@ -582,6 +583,10 @@ export default function LogistiqueApprovisionnementPage() {
       ...(cmdForm.type === "FOURNISSEUR" && cmdForm.fournisseurNom && { fournisseurNom: cmdForm.fournisseurNom }),
       datePrevisionnelle: cmdForm.datePrevisionnelle,
       ...(cmdForm.notes && { notes: cmdForm.notes }),
+      ...(cmdForm.type === "FOURNISSEUR" && {
+        modeReglement: cmdForm.modeReglement,
+        ...(cmdForm.modeReglement === "COMPTANT" && { modePaiement: cmdForm.modePaiement }),
+      }),
       lignes,
     });
     if (result) {
@@ -2691,6 +2696,38 @@ export default function LogistiqueApprovisionnementPage() {
                     />
                   </div>
                 </div>
+
+                {/* Mode de règlement (achat comptant/crédit) */}
+                {cmdForm.type === "FOURNISSEUR" && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 block mb-1.5">Mode de règlement</label>
+                      <select
+                        value={cmdForm.modeReglement}
+                        onChange={e => setCmdForm(f => ({ ...f, modeReglement: e.target.value }))}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
+                      >
+                        <option value="CREDIT">À crédit (dette fournisseur)</option>
+                        <option value="COMPTANT">Comptant (réglé à la livraison)</option>
+                      </select>
+                    </div>
+                    {cmdForm.modeReglement === "COMPTANT" && (
+                      <div>
+                        <label className="text-sm font-medium text-slate-700 block mb-1.5">Mode de paiement</label>
+                        <select
+                          value={cmdForm.modePaiement}
+                          onChange={e => setCmdForm(f => ({ ...f, modePaiement: e.target.value }))}
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
+                        >
+                          <option value="ESPECES">Espèces (caisse)</option>
+                          <option value="VIREMENT">Virement (banque)</option>
+                          <option value="CHEQUE">Chèque (banque)</option>
+                          <option value="MOBILE_MONEY">Mobile Money (banque)</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Notes */}
                 <div>

@@ -17,7 +17,7 @@
  * (lib/comptabilite/moteur.ts::ecritureVenteCreditValidee).
  */
 import type { Prisma } from "@prisma/client";
-import { creerEcriture, type LigneMoteur } from "@/lib/comptabilite/moteur";
+import { creerEcriture, resoudreRegleComptable, type LigneMoteur } from "@/lib/comptabilite/moteur";
 import { resoudreTvaVente, decomposerTTC } from "@/lib/comptabilite/tva";
 
 type TxClient = Prisma.TransactionClient;
@@ -72,5 +72,74 @@ export async function creerEcritureVenteDepuisVenteDirecte(
     journal: "VENTES",
     userId,
     lignes,
+  });
+}
+
+/**
+ * Sortie de stock / coût des marchandises vendues (COGS), constatée au moment
+ * où le stock physique sort réellement — pour une vente comptant c'est la
+ * création de la vente elle-même ; pour une vente à crédit, c'est la
+ * confirmation de livraison par le magasinier (la validation du crédit ne
+ * fait que RÉSERVER le stock, elle ne le sort pas). Avant cette fonction,
+ * aucune écriture ne constatait cette sortie : le compte 311 Marchandises
+ * était décrémenté en gestion de stock mais ne bougeait jamais en
+ * comptabilité — Dr 6031 Variation de stocks / Cr 311 Marchandises comble ce
+ * trou, au même titre qu'une vente comptant ou à crédit (le stock sort dans
+ * les deux cas, seul l'encaissement diffère).
+ *
+ * Coût retenu : `Produit.prixAchat` au moment de l'appel (pas de FIFO/CUMP
+ * réel) — même simplification assumée que dans
+ * lib/comptabilite/rapportsGestion.ts pour le calcul de marge. Une ligne dont
+ * le produit n'a pas de prixAchat connu (ou hors catalogue, produitId null)
+ * est ignorée : jamais de coût fabriqué, elle reste simplement absente du COGS.
+ */
+export async function creerEcritureCogsVenteDirecte(
+  tx: TxClient,
+  venteDirecteId: number,
+  userId: number,
+): Promise<void> {
+  const vente = await tx.venteDirecte.findUnique({
+    where: { id: venteDirecteId },
+    select: {
+      reference: true,
+      statut: true,
+      createdAt: true,
+      lignes: { select: { produitId: true, quantite: true } },
+    },
+  });
+  if (!vente) return;
+  if (vente.statut === "BROUILLON" || vente.statut === "ANNULEE") return;
+
+  const produitIds = [...new Set(vente.lignes.map((l) => l.produitId).filter((id): id is number => id != null))];
+  if (produitIds.length === 0) return;
+
+  const produits = await tx.produit.findMany({
+    where: { id: { in: produitIds } },
+    select: { id: true, prixAchat: true },
+  });
+  const coutParProduit = new Map(produits.map((p) => [p.id, p.prixAchat != null ? Number(p.prixAchat) : null]));
+
+  let coutTotal = 0;
+  for (const l of vente.lignes) {
+    if (l.produitId == null) continue;
+    const cout = coutParProduit.get(l.produitId);
+    if (cout == null) continue;
+    coutTotal += l.quantite * cout;
+  }
+  if (coutTotal <= 0) return;
+
+  const regle = await resoudreRegleComptable(tx, "SORTIE_STOCK_VENTE");
+  if (!regle) return;
+
+  await creerEcriture(tx, {
+    reference: `SYNC-COGS-${venteDirecteId}`,
+    date: vente.createdAt,
+    journal: regle.journal,
+    libelle: `Sortie de stock — ${vente.reference}`,
+    userId,
+    lignes: [
+      { numero: regle.compteDebitNumero, debit: coutTotal, libelle: `COGS ${vente.reference}` },
+      { numero: regle.compteCreditNumero, credit: coutTotal, libelle: `COGS ${vente.reference}` },
+    ],
   });
 }

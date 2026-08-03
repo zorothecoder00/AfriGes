@@ -177,7 +177,7 @@ export interface ComptesRegle {
   compteCreditNumero: string;
 }
 
-function compteTresorerie(modePaiement?: string | null): { numero: string; journal: string } {
+export function compteTresorerie(modePaiement?: string | null): { numero: string; journal: string } {
   const m = (modePaiement ?? "").toUpperCase();
   if (["VIREMENT", "CHEQUE", "MOBILE_MONEY"].includes(m)) return { numero: "521", journal: "BANQUE" };
   return { numero: "571", journal: "CAISSE" };
@@ -197,6 +197,21 @@ const REGLES_PAR_DEFAUT: Record<string, (ctx: ContexteEvenement) => ComptesRegle
     const tr = compteTresorerie(ctx.modePaiement);
     return { journal: "PAIE", compteDebitNumero: "661", compteCreditNumero: tr.numero };
   },
+  // ctx.modePaiement absent/null = achat à crédit (comportement historique, Dr
+  // 311 / Cr 401) ; renseigné (ESPECES/VIREMENT/CHEQUE/MOBILE_MONEY) = achat
+  // comptant, crédite directement la trésorerie au lieu du fournisseur.
+  RECEPTION_ACHAT_VALIDEE: (ctx) => {
+    if (!ctx.modePaiement) return { journal: "ACHATS", compteDebitNumero: "311", compteCreditNumero: "401" };
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "311", compteCreditNumero: tr.numero };
+  },
+  PAIEMENT_FOURNISSEUR: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "401", compteCreditNumero: tr.numero };
+  },
+  // Coût des marchandises vendues (COGS), constaté à la sortie physique du
+  // stock : Dr 6031 Variation de stocks / Cr 311 Marchandises.
+  SORTIE_STOCK_VENTE: () => ({ journal: "VENTES", compteDebitNumero: "6031", compteCreditNumero: "311" }),
 };
 
 /**
@@ -300,6 +315,39 @@ export async function ecritureRemboursementCreditConfirme(
   });
 }
 
+/**
+ * Paiement fournisseur (règlement d'un achat à crédit) : Dr Fournisseurs /
+ * Cr Trésorerie — imputé au sous-compte auxiliaire du fournisseur si
+ * `fournisseurId` est fourni, symétriquement à `ecritureRemboursementCreditConfirme`.
+ */
+export async function ecripturePaiementFournisseur(
+  tx: TxClient,
+  params: {
+    montant: number;
+    reference: string;
+    fournisseurNom: string;
+    fournisseurId?: number;
+    modePaiement?: string | null;
+    userId: number;
+    date?: Date;
+  },
+): Promise<number | null> {
+  const regle = await resoudreRegleComptable(tx, "PAIEMENT_FOURNISSEUR", { modePaiement: params.modePaiement });
+  if (!regle) return null;
+  const compteDebit = await compteAuxiliaireOuDefaut(tx, regle.compteDebitNumero, { fournisseurId: params.fournisseurId });
+  return creerEcriture(tx, {
+    journal: regle.journal,
+    date: params.date ?? new Date(),
+    libelle: `Paiement fournisseur — ${params.fournisseurNom} — ${params.reference}`,
+    userId: params.userId,
+    reference: `SYNC-PAF-${params.reference}`,
+    lignes: [
+      { numero: compteDebit, debit: params.montant, libelle: `Solde dette ${params.fournisseurNom}` },
+      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Décaissement ${params.reference}` },
+    ],
+  });
+}
+
 /** Paie versée (mise en paiement effective) : Dr Rémunérations / Cr Trésorerie. */
 export async function ecripturePaieVersee(
   tx: TxClient,
@@ -323,6 +371,56 @@ export async function ecripturePaieVersee(
     lignes: [
       { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Rémunération ${params.profilNom}` },
       { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Paiement ${params.reference}` },
+    ],
+  });
+}
+
+/**
+ * Sortie de stock / coût des marchandises vendues (COGS) pour une ligne du
+ * module « Crédits clients » (CreditClient/LigneCreditClient — distinct de
+ * VenteDirecte, voir lib/ecritureVenteServer.ts::creerEcritureCogsVenteDirecte
+ * pour l'équivalent côté vente directe). Constatée à la livraison physique
+ * (statut EN_ATTENTE→LIVRE), jamais à la validation du crédit qui ne fait que
+ * réserver le stock. Coût = `Produit.prixAchat` (ou du substitut si la ligne a
+ * été substituée) × quantité ; ligne sans coût connu ignorée, jamais fabriqué.
+ */
+export async function creerEcritureCogsLigneCreditClient(
+  tx: TxClient,
+  ligneCreditClientId: number,
+  userId: number,
+): Promise<void> {
+  const ligne = await tx.ligneCreditClient.findUnique({
+    where: { id: ligneCreditClientId },
+    select: {
+      quantite: true,
+      produitId: true,
+      produitSubstitutId: true,
+      credit: { select: { reference: true } },
+    },
+  });
+  if (!ligne) return;
+
+  const produitId = ligne.produitSubstitutId ?? ligne.produitId;
+  if (produitId == null) return;
+
+  const produit = await tx.produit.findUnique({ where: { id: produitId }, select: { prixAchat: true } });
+  if (!produit || produit.prixAchat == null) return;
+
+  const coutTotal = ligne.quantite * Number(produit.prixAchat);
+  if (coutTotal <= 0) return;
+
+  const regle = await resoudreRegleComptable(tx, "SORTIE_STOCK_VENTE");
+  if (!regle) return;
+
+  await creerEcriture(tx, {
+    reference: `SYNC-COGS-LCC-${ligneCreditClientId}`,
+    date: new Date(),
+    journal: regle.journal,
+    libelle: `Sortie de stock — ${ligne.credit.reference}`,
+    userId,
+    lignes: [
+      { numero: regle.compteDebitNumero, debit: coutTotal, libelle: `COGS ${ligne.credit.reference}` },
+      { numero: regle.compteCreditNumero, credit: coutTotal, libelle: `COGS ${ligne.credit.reference}` },
     ],
   });
 }

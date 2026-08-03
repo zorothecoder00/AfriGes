@@ -2,23 +2,19 @@
  * lib/ecritureAchatServer.ts — Écriture comptable automatique à la réception
  * (CDC Approvisionnement §10 "création automatique : écriture comptable").
  *
- * Avant : la génération de l'écriture ACHATS (SYSCOHADA, débit 311 Marchandises
- * / crédit 401 Fournisseurs) se faisait uniquement via une synchronisation
- * manuelle côté comptable (`/api/comptable/sync-journals`). Cette fonction
- * reprend exactement la même logique (même référence `SYNC-MST-{id}`, même
- * statut BROUILLON en attente de validation comptable) mais est appelée
- * directement dans la transaction de validation de réception, pour que
- * l'écriture existe dès la mise en stock. La synchronisation manuelle reste
- * disponible en rattrapage (elle ignore silencieusement les références déjà
- * créées, donc aucun doublon).
+ * Passe par le moteur de règles (`RECEPTION_ACHAT_VALIDEE`) plutôt que des
+ * comptes câblés en dur : une réception à crédit (par défaut, comportement
+ * historique) crédite le sous-compte auxiliaire du fournisseur (401xxx) ; une
+ * réception marquée COMPTANT sur `ReceptionApprovisionnement.modeReglement`
+ * crédite directement la trésorerie (Caisse/Banque selon `modePaiement`) —
+ * avant cette distinction, TOUT achat était compté comme une dette fournisseur,
+ * même réglé cash à la livraison.
  */
 import type { Prisma } from "@prisma/client";
-import { creerEcriture } from "@/lib/comptabilite/moteur";
+import { creerEcriture, resoudreRegleComptable } from "@/lib/comptabilite/moteur";
+import { compteAuxiliaireOuDefaut } from "@/lib/comptabilite/auxiliaire";
 
 type TxClient = Prisma.TransactionClient;
-
-const COMPTE_MARCHANDISES = "311";
-const COMPTE_FOURNISSEURS = "401";
 
 export async function creerEcritureAchatDepuisMouvement(
   tx: TxClient,
@@ -34,15 +30,30 @@ export async function creerEcritureAchatDepuisMouvement(
   const montant = mouvement.quantite * Number(mouvement.produit.prixUnitaire);
   if (montant <= 0) return;
 
+  // Pas de relation Prisma déclarée entre MouvementStock et
+  // ReceptionApprovisionnement (simple Int) — résolution par requête séparée.
+  const reception = mouvement.receptionApproId
+    ? await tx.receptionApprovisionnement.findUnique({
+        where: { id: mouvement.receptionApproId },
+        select: { fournisseurId: true, modeReglement: true, modePaiement: true },
+      })
+    : null;
+  const modePaiementCtx = reception?.modeReglement === "COMPTANT" ? (reception.modePaiement ?? "ESPECES") : null;
+
+  const regle = await resoudreRegleComptable(tx, "RECEPTION_ACHAT_VALIDEE", { modePaiement: modePaiementCtx });
+  if (!regle) return;
+
+  const compteCredit = await compteAuxiliaireOuDefaut(tx, regle.compteCreditNumero, { fournisseurId: reception?.fournisseurId });
+
   await creerEcriture(tx, {
     reference: `SYNC-MST-${mouvementStockId}`,
     date: mouvement.dateMouvement,
     libelle: `Approvisionnement ${mouvement.produit.nom} ×${mouvement.quantite}${mouvement.motif ? ` — ${mouvement.motif}` : ""}`,
-    journal: "ACHATS",
+    journal: regle.journal,
     userId,
     lignes: [
-      { numero: COMPTE_MARCHANDISES, debit: montant, libelle: mouvement.produit.nom },
-      { numero: COMPTE_FOURNISSEURS, credit: montant, libelle: mouvement.produit.nom },
+      { numero: regle.compteDebitNumero, debit: montant, libelle: mouvement.produit.nom },
+      { numero: compteCredit, credit: montant, libelle: mouvement.produit.nom },
     ],
   });
 }

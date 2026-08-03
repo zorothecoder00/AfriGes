@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 import { PrioriteNotification } from "@prisma/client";
+import { creerEcritureCogsVenteDirecte } from "@/lib/ecritureVenteServer";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -101,6 +102,12 @@ export async function POST(_req: Request, { params }: Ctx) {
           },
         });
       }
+
+      // Écriture comptable — coût des marchandises vendues (CDC Comptabilité) :
+      // c'est ICI, à la sortie physique du stock, que le COGS d'une vente à
+      // crédit doit être constaté (la validation du crédit n'avait fait que
+      // réserver le stock, jamais généré la contrepartie de sa sortie réelle).
+      await creerEcritureCogsVenteDirecte(tx, venteId, magId);
 
       // 2. Mettre à jour creditClient.montantConsomme
       if (vente.creditClient) {

@@ -289,6 +289,7 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
   const { data, loading, refetch } = useApi<{ data: BonCommande }>(`/api/logistique/bons-commande/${id}`);
   const [busy, setBusy] = useState(false);
   const [montantPaiement, setMontantPaiement] = useState("");
+  const [modePaiementPO, setModePaiementPO] = useState("ESPECES");
   const b = data?.data;
 
   const enregistrerPaiement = async () => {
@@ -298,7 +299,7 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
     try {
       const r = await fetch(`/api/logistique/bons-commande/${id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "ENREGISTRER_PAIEMENT", montant }),
+        body: JSON.stringify({ action: "ENREGISTRER_PAIEMENT", montant, modePaiement: modePaiementPO }),
       });
       const j = await r.json().catch(() => ({}));
       if (r.ok) { toast.success("Paiement enregistré"); setMontantPaiement(""); refetch(); onUpdated(); }
@@ -411,6 +412,13 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
                       <input type="number" min="0" placeholder="Montant à enregistrer" value={montantPaiement}
                         onChange={(e) => setMontantPaiement(e.target.value)}
                         className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      <select value={modePaiementPO} onChange={(e) => setModePaiementPO(e.target.value)}
+                        className="px-2 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="ESPECES">Espèces</option>
+                        <option value="VIREMENT">Virement</option>
+                        <option value="CHEQUE">Chèque</option>
+                        <option value="MOBILE_MONEY">Mobile Money</option>
+                      </select>
                       <button onClick={enregistrerPaiement} disabled={busy}
                         className="px-3 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap">
                         Enregistrer

@@ -1,8 +1,10 @@
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../../fournisseurs/route";
 import { getRequestMeta } from "@/lib/requestMeta";
+import { ecripturePaiementFournisseur } from "@/lib/comptabilite/moteur";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -67,11 +69,22 @@ export async function PATCH(req: Request, { params }: Ctx) {
         if (montant > soldeDu) {
           return NextResponse.json({ error: `Le montant dépasse le solde dû (${soldeDu})` }, { status: 422 });
         }
+        const modePaiement = typeof body.modePaiement === "string" ? body.modePaiement : null;
         const updated = await prisma.$transaction(async (tx) => {
           const b = await tx.bonCommande.update({
             where: { id: bonId },
             data: { montantPaye: { increment: montant } },
             include: INCLUDE,
+          });
+          // Écriture comptable (CDC Comptabilité — jusqu'ici ce paiement mettait
+          // à jour montantPaye sans jamais générer de contrepartie en comptabilité).
+          await ecripturePaiementFournisseur(tx, {
+            montant,
+            reference: `PO-${b.reference}-${randomUUID().slice(0, 8).toUpperCase()}`,
+            fournisseurNom: b.fournisseur.nom,
+            fournisseurId: b.fournisseurId,
+            modePaiement,
+            userId,
           });
           await auditLog(tx, userId, "PO_PAIEMENT_ENREGISTRE", "BonCommande", bonId, {
             montant, soldeRestant: Number(b.montantTotal) - Number(b.montantPaye),

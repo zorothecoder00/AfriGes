@@ -4,6 +4,7 @@ import { getMagasinierSession } from "@/lib/authMagasinier";
 import { auditLog, notifyRoles } from "@/lib/notifications";
 import { PrioriteNotification, TypeMouvement, TypeSortieStock } from "@prisma/client";
 import { consommerFEFOBestEffort } from "@/lib/lotsFefo";
+import { creerEcritureCogsLigneCreditClient } from "@/lib/comptabilite/moteur";
 
 type Ctx = { params: Promise<{ id: string; ligneId: string }> };
 
@@ -97,6 +98,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
             operateurId:    userId,
           },
         });
+        // Écriture comptable — coût des marchandises vendues (CDC Comptabilité),
+        // constatée ici à la sortie physique réelle du stock.
+        await creerEcritureCogsLigneCreditClient(tx, ligneIdN, userId);
         // Déstockage FEFO best-effort (traçabilité lots/péremption, Enterprise #5).
         await consommerFEFOBestEffort(tx, {
           produitId: ligne.produitId, pointDeVenteId: ligne.credit.pointDeVenteId, quantite: ligne.quantite,

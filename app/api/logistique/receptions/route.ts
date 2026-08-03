@@ -84,7 +84,9 @@ export async function GET(req: Request) {
  * POST /api/logistique/receptions
  * Créer une nouvelle réception (statut BROUILLON).
  * Body: { type, pointDeVenteId, fournisseurId?, fournisseurNom?, origineId?,
- *         datePrevisionnelle, notes?, lignes: [{produitId, quantiteAttendue, prixUnitaire?}] }
+ *         datePrevisionnelle, notes?, modeReglement? ("CREDIT"|"COMPTANT", défaut CREDIT),
+ *         modePaiement? (si COMPTANT : ESPECES/VIREMENT/CHEQUE/MOBILE_MONEY),
+ *         lignes: [{produitId, quantiteAttendue, prixUnitaire?}] }
  */
 export async function POST(req: Request) {
   try {
@@ -93,7 +95,7 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { type, pointDeVenteId, fournisseurId, fournisseurNom,
-            origineId, datePrevisionnelle, notes, lignes } = body;
+            origineId, datePrevisionnelle, notes, lignes, modeReglement, modePaiement } = body;
 
     if (!type || !pointDeVenteId || !datePrevisionnelle || !lignes?.length) {
       return NextResponse.json(
@@ -125,6 +127,8 @@ export async function POST(req: Request) {
           origineId:         origineId     ? Number(origineId)     : null,
           datePrevisionnelle:new Date(datePrevisionnelle),
           notes:             notes  || null,
+          modeReglement:     modeReglement === "COMPTANT" ? "COMPTANT" : "CREDIT",
+          modePaiement:      modeReglement === "COMPTANT" ? (modePaiement || "ESPECES") : null,
           receptionneParId:  parseInt(session.user.id),
           lignes: {
             create: lignes.map((l: { produitId: number; quantiteAttendue: number; prixUnitaire?: number | string | null; numeroLot?: string | null; dateFabrication?: string | null; dlc?: string | null; dluo?: string | null }) => {

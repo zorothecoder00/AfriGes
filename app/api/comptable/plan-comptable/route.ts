@@ -93,6 +93,7 @@ const PLAN_SYSCOHADA_BASE = [
 
   // ── Classe 6 — Charges ───────────────────────────────────────────────────────
   { numero: "601", libelle: "Achats de marchandises", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "6031", libelle: "Variation de stocks de marchandises", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
   { numero: "602", libelle: "Achats de matières premières et fournitures", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
   { numero: "604", libelle: "Achats stockés - Matières et fournitures consommables", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
   { numero: "605", libelle: "Autres achats", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
