@@ -119,6 +119,7 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "regles",        label: "Règles comptables",     defaultAllowed: true, module: "comptabilite" },
       { key: "auxiliaire",    label: "Auxiliaire & Lettrage",  defaultAllowed: true, module: "comptabilite" },
       { key: "immobilisations", label: "Immobilisations",      defaultAllowed: true, module: "comptabilite" },
+      { key: "analytique",      label: "Analytique & Budget",  defaultAllowed: true, module: "comptabilite" },
     ],
   },
   {

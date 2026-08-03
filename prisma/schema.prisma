@@ -696,6 +696,7 @@ model User {
   journalValidations   JournalValidation[]
   immobilisationsResponsable Immobilisation[] @relation("ImmobilisationResponsable")
   immobilisationsCreees      Immobilisation[] @relation("ImmobilisationCreateur")
+  budgets                    Budget[]
 
   // Points de vente — cet user est RPV d'un PDV (1-1)
   pointDeVenteRPV      PointDeVente?        @relation("RPVPointDeVente")
@@ -914,6 +915,8 @@ model PointDeVente {
   documentsStrategiques      DocumentStrategiqueRH[]
   demandesCotation           DemandeCotation[]
   bonsCommande               BonCommande[]
+  lignesEcritureComptable    LigneEcriture[]
+  lignesBudget               LigneBudget[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1783,6 +1786,7 @@ model Produit {
   estSubstitutDe ProduitSubstitut[] @relation("ProduitEstSubstitutDe")  // produits dont CE produit est l'équivalent
   demandesCotation DemandeCotation[] // RFQ portant sur ce produit
   lignesBonCommande LigneBonCommande[] // lignes de bons de commande portant sur ce produit
+  lignesEcritureComptable LigneEcriture[] // imputation analytique axe Produit (Comptabilité §24)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3509,6 +3513,7 @@ model CompteComptable {
   fournisseur   Fournisseur? @relation(fields: [fournisseurId], references: [id])
 
   lignesEcriture LigneEcriture[]
+  lignesBudget   LigneBudget[]
   immobilisationsActif         Immobilisation[] @relation("ImmobilisationCompte")
   immobilisationsAmortissement Immobilisation[] @relation("ImmobilisationCompteAmortissement")
 
@@ -3558,9 +3563,23 @@ model LigneEcriture {
   // paiement). null = non lettrée.
   lettrage   String?
 
+  // Imputation analytique (CDC §24, 5 axes) : Activité/Projet/Département via
+  // SectionAnalytique, Point de vente et Produit réutilisent les modèles
+  // existants. Tous optionnels — une ligne peut n'avoir aucune, une ou plusieurs
+  // imputations selon ce que l'appelant connaît au moment de l'écriture.
+  sectionAnalytiqueId Int?
+  sectionAnalytique   SectionAnalytique? @relation(fields: [sectionAnalytiqueId], references: [id])
+  pointDeVenteId      Int?
+  pointDeVente        PointDeVente?      @relation(fields: [pointDeVenteId], references: [id])
+  produitId           Int?
+  produit             Produit?           @relation(fields: [produitId], references: [id])
+
   @@index([ecritureId])
   @@index([compteId])
   @@index([lettrage])
+  @@index([sectionAnalytiqueId])
+  @@index([pointDeVenteId])
+  @@index([produitId])
 }
 
 model JournalValidation {
@@ -3735,6 +3754,81 @@ model LigneAmortissement {
   createdAt DateTime @default(now())
 
   @@unique([immobilisationId, periode])
+}
+
+// ============================================================
+// ANALYTIQUE (5 axes) & BUDGET (CDC Comptabilité §24-25)
+// ============================================================
+
+// Les 5 axes du CDC : POINT_DE_VENTE et PRODUIT réutilisent les modèles existants
+// (PointDeVente, Produit → famille/catégorie) plutôt que d'être dupliqués ici.
+// Seuls ACTIVITE, PROJET et DEPARTEMENT ont besoin d'un référentiel dédié.
+enum AxeAnalytique {
+  ACTIVITE
+  PROJET
+  DEPARTEMENT
+}
+
+/// Section analytique (CDC §24, axes Activité/Projet/Département) — un même
+/// modèle paramétrable pour les 3 axes qui n'ont pas d'entité métier existante.
+model SectionAnalytique {
+  id      Int           @id @default(autoincrement())
+  axe     AxeAnalytique
+  code    String        @unique
+  libelle String
+  actif   Boolean       @default(true)
+
+  lignesEcriture LigneEcriture[]
+  lignesBudget   LigneBudget[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([axe])
+}
+
+enum StatutBudget {
+  BROUILLON
+  VALIDE
+}
+
+/// Budget annuel (CDC §25) — décliné par compte/section analytique/PDV et par mois.
+model Budget {
+  id      Int          @id @default(autoincrement())
+  annee   Int          @unique
+  libelle String?
+  statut  StatutBudget @default(BROUILLON)
+  userId  Int?
+  user    User?        @relation(fields: [userId], references: [id])
+
+  lignes LigneBudget[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LigneBudget {
+  id       Int    @id @default(autoincrement())
+  budgetId Int
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  compteId Int
+  compte   CompteComptable @relation(fields: [compteId], references: [id])
+
+  sectionAnalytiqueId Int?
+  sectionAnalytique   SectionAnalytique? @relation(fields: [sectionAnalytiqueId], references: [id])
+  pointDeVenteId      Int?
+  pointDeVente        PointDeVente?      @relation(fields: [pointDeVenteId], references: [id])
+
+  mois         Int // 1-12
+  montantPrevu Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([budgetId])
+  @@index([compteId])
+  @@index([mois])
 }
 
 // ============================================================

@@ -1,0 +1,52 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getComptableSession } from "@/lib/authComptable";
+
+/**
+ * GET /api/comptable/analytique/sections?axe=ACTIVITE|PROJET|DEPARTEMENT
+ * Liste les sections analytiques (CDC §24, axes sans entité métier dédiée).
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getComptableSession();
+    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const axe = req.nextUrl.searchParams.get("axe");
+    const sections = await prisma.sectionAnalytique.findMany({
+      where: axe ? { axe: axe as never } : {},
+      orderBy: [{ axe: "asc" }, { libelle: "asc" }],
+    });
+    return NextResponse.json({ data: sections });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/comptable/analytique/sections
+ * Body: { axe, code, libelle }
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getComptableSession();
+    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const body = await req.json();
+    const { axe, code, libelle } = body as { axe?: string; code?: string; libelle?: string };
+    if (!axe || !code || !libelle) {
+      return NextResponse.json({ error: "axe, code et libelle sont requis" }, { status: 400 });
+    }
+
+    const section = await prisma.sectionAnalytique.create({
+      data: { axe: axe as never, code: code.trim(), libelle: libelle.trim() },
+    });
+    return NextResponse.json({ data: section }, { status: 201 });
+  } catch (e: unknown) {
+    if ((e as { code?: string }).code === "P2002") {
+      return NextResponse.json({ error: "Ce code existe déjà" }, { status: 409 });
+    }
+    console.error(e);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
+}
