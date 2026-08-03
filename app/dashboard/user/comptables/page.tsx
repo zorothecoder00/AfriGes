@@ -283,6 +283,20 @@ interface LigneBudgetEntry {
 const AXE_LABELS: Record<string, string> = { ACTIVITE: "Activité", PROJET: "Projet", DEPARTEMENT: "Département" };
 const MOIS_LABELS = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"];
 
+interface EtatFinancierReelResponse {
+  data: {
+    annee: number;
+    bilan: { actif: { compteNumero: string; libelle: string; montant: number }[]; passif: { compteNumero: string; libelle: string; montant: number }[]; totalActif: number; totalPassif: number; equilibre: boolean };
+    compteResultat: { produits: { compteNumero: string; libelle: string; montant: number }[]; charges: { compteNumero: string; libelle: string; montant: number }[]; totalProduits: number; totalCharges: number; resultatNet: number };
+    tableauFlux: { encaissements: number; decaissements: number; fluxNet: number; parJournal: Record<string, number> };
+    notesAnnexes: { immobilisations: { brut: number; amortissementCumule: number; net: number }; stocks: number; creances: number; dettes: number; tresorerie: number; capitauxPropres: number; charges: number; produits: number };
+  };
+}
+interface ConstatControleEntry {
+  code: string; gravite: "BLOQUANT" | "ANOMALIE"; message: string;
+  entiteType?: string; entiteId?: number; montant?: number; date?: string;
+}
+
 const STATUT_IMMO_COLORS: Record<string, string> = {
   EN_SERVICE: "bg-emerald-50 text-emerald-700 border-emerald-200",
   AMORTIE: "bg-slate-100 text-slate-600 border-slate-200",
@@ -450,7 +464,8 @@ const CAT_META: Record<string, { label: string; color: string; bg: string; icon:
 
 type Period = "7" | "30" | "90" | "365";
 type Tab    = "synthese" | "journal" | "tresorerie" | "balance" | "grandlivre" | "etats" | "pieces"
-            | "plan" | "saisie" | "tva" | "rapprochement" | "regles" | "auxiliaire" | "immobilisations" | "analytique";
+            | "plan" | "saisie" | "tva" | "rapprochement" | "regles" | "auxiliaire" | "immobilisations" | "analytique"
+            | "etatsReels" | "controles";
 
 export default function ComptablePage() {
   const t = useT();
@@ -582,6 +597,9 @@ export default function ComptablePage() {
   const [budgetAnnee, setBudgetAnnee] = useState(() => String(new Date().getFullYear()));
   const NOUVELLE_LIGNE_BUDGET = { compteNumero: "", mois: String(new Date().getMonth() + 1), montantPrevu: "", sectionAnalytiqueId: "" };
   const [nouvelleLigneBudget, setNouvelleLigneBudget] = useState(NOUVELLE_LIGNE_BUDGET);
+
+  // ── État États Financiers réels & Contrôles ─────────────────────────────
+  const [etatsReelsAnnee, setEtatsReelsAnnee] = useState(() => String(new Date().getFullYear()));
 
   // ── API calls ─────────────────────────────────────────────────────────
 
@@ -1095,6 +1113,17 @@ export default function ComptablePage() {
     if (res) { refetchLignesBudget(); setNouvelleLigneBudget({ ...NOUVELLE_LIGNE_BUDGET, mois: nouvelleLigneBudget.mois }); }
   }
 
+  // ── États Financiers réels API ──────────────────────────────────────────
+  const { data: etatsReelsData, loading: etatsReelsLoading } = useApi<EtatFinancierReelResponse>(
+    activeTab === "etatsReels" ? `/api/comptable/etats-financiers-reels?annee=${etatsReelsAnnee}` : null
+  );
+
+  // ── Contrôles comptables API ────────────────────────────────────────────
+  const { data: controlesData, loading: controlesLoading, refetch: refetchControles } =
+    useApi<{ data: ConstatControleEntry[]; meta: { bloquants: number; anomalies: number; total: number } }>(
+      activeTab === "controles" ? "/api/comptable/controles" : null
+    );
+
   interface ImmoDetail extends ImmobilisationEntry {
     lignesAmortissement: { id: number; periode: string; montantDotation: number; cumulApres: number; vncApres: number }[];
   }
@@ -1197,6 +1226,8 @@ export default function ComptablePage() {
     { key: "auxiliaire",     label: "Auxiliaire & Lettrage", icon: Users        },
     { key: "immobilisations",label: "Immobilisations",       icon: Building2    },
     { key: "analytique",     label: "Analytique & Budget",   icon: TrendingUp   },
+    { key: "etatsReels",     label: "États Financiers (réel)", icon: BarChart3  },
+    { key: "controles",      label: "Contrôles",             icon: CheckCircle  },
   ];
   const tabs = allTabs.filter((t) => isAllowed(t.key));
 
@@ -4081,6 +4112,156 @@ export default function ComptablePage() {
                 </>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB : ÉTATS FINANCIERS RÉELS (depuis les écritures)           */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === "etatsReels" && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <BarChart3 className="text-violet-600" size={20} /> États financiers — calculés depuis les écritures
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Bilan, compte de résultat, flux de trésorerie et notes annexes dérivés uniquement des écritures validées/clôturées (CDC §36-39) — jamais des modules opérationnels.
+                </p>
+              </div>
+              <input type="number" value={etatsReelsAnnee} onChange={(e) => setEtatsReelsAnnee(e.target.value)}
+                className="w-24 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 [appearance:textfield]" />
+            </div>
+
+            {etatsReelsLoading ? (
+              <div className="flex items-center justify-center p-12"><div className="w-8 h-8 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin" /></div>
+            ) : etatsReelsData && (
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-slate-800">Bilan — Actif</h4>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${etatsReelsData.data.bilan.equilibre ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>
+                        {etatsReelsData.data.bilan.equilibre ? "Équilibré" : "Déséquilibré"}
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-sm max-h-64 overflow-y-auto">
+                      {etatsReelsData.data.bilan.actif.map((l) => (
+                        <div key={l.compteNumero} className="flex justify-between"><span className="text-slate-600 font-mono text-xs">{l.compteNumero} <span className="font-sans text-slate-500">{l.libelle}</span></span><span className="font-medium text-slate-800">{formatCurrency(l.montant)}</span></div>
+                      ))}
+                      {etatsReelsData.data.bilan.actif.length === 0 && <p className="text-slate-400 text-xs italic">Aucune écriture validée</p>}
+                    </div>
+                    <div className="flex justify-between mt-3 pt-3 border-t border-slate-200 font-bold text-slate-800">
+                      <span>Total Actif</span><span>{formatCurrency(etatsReelsData.data.bilan.totalActif)}</span>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                    <h4 className="font-semibold text-slate-800 mb-3">Bilan — Passif</h4>
+                    <div className="space-y-1 text-sm max-h-64 overflow-y-auto">
+                      {etatsReelsData.data.bilan.passif.map((l) => (
+                        <div key={l.compteNumero} className="flex justify-between"><span className="text-slate-600 font-mono text-xs">{l.compteNumero} <span className="font-sans text-slate-500">{l.libelle}</span></span><span className="font-medium text-slate-800">{formatCurrency(l.montant)}</span></div>
+                      ))}
+                      {etatsReelsData.data.bilan.passif.length === 0 && <p className="text-slate-400 text-xs italic">Aucune écriture validée</p>}
+                    </div>
+                    <div className="flex justify-between mt-3 pt-3 border-t border-slate-200 font-bold text-slate-800">
+                      <span>Total Passif</span><span>{formatCurrency(etatsReelsData.data.bilan.totalPassif)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                    <h4 className="font-semibold text-slate-800 mb-3">Compte de résultat {etatsReelsAnnee}</h4>
+                    <div className="space-y-1 text-sm mb-2">
+                      <p className="text-xs font-semibold text-emerald-600 uppercase">Produits</p>
+                      {etatsReelsData.data.compteResultat.produits.map((l) => (
+                        <div key={l.compteNumero} className="flex justify-between"><span className="text-slate-600 font-mono text-xs">{l.compteNumero} {l.libelle}</span><span className="text-emerald-700">{formatCurrency(l.montant)}</span></div>
+                      ))}
+                      <p className="text-xs font-semibold text-red-600 uppercase mt-2">Charges</p>
+                      {etatsReelsData.data.compteResultat.charges.map((l) => (
+                        <div key={l.compteNumero} className="flex justify-between"><span className="text-slate-600 font-mono text-xs">{l.compteNumero} {l.libelle}</span><span className="text-red-600">{formatCurrency(l.montant)}</span></div>
+                      ))}
+                    </div>
+                    <div className={`flex justify-between mt-3 pt-3 border-t border-slate-200 font-bold ${etatsReelsData.data.compteResultat.resultatNet >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+                      <span>Résultat net</span><span>{formatCurrency(etatsReelsData.data.compteResultat.resultatNet)}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                    <h4 className="font-semibold text-slate-800 mb-3">Tableau des flux de trésorerie</h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                      <div className="p-3 bg-emerald-50 rounded-xl"><p className="text-xs text-emerald-600">Encaissements</p><p className="font-bold text-emerald-700">{formatCurrency(etatsReelsData.data.tableauFlux.encaissements)}</p></div>
+                      <div className="p-3 bg-red-50 rounded-xl"><p className="text-xs text-red-600">Décaissements</p><p className="font-bold text-red-600">{formatCurrency(etatsReelsData.data.tableauFlux.decaissements)}</p></div>
+                    </div>
+                    <div className="flex justify-between pt-3 border-t border-slate-200 font-bold text-slate-800 mb-3">
+                      <span>Flux net de trésorerie</span><span>{formatCurrency(etatsReelsData.data.tableauFlux.fluxNet)}</span>
+                    </div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Par journal</p>
+                    {Object.entries(etatsReelsData.data.tableauFlux.parJournal).map(([j, m]) => (
+                      <div key={j} className="flex justify-between text-xs text-slate-600"><span>{JOURNAL_LABELS[j] ?? j}</span><span>{formatCurrency(m)}</span></div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+                  <h4 className="font-semibold text-slate-800 mb-3">Notes annexes</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div><p className="text-xs text-slate-400">Immobilisations (net)</p><p className="font-semibold text-slate-800">{formatCurrency(etatsReelsData.data.notesAnnexes.immobilisations.net)}</p></div>
+                    <div><p className="text-xs text-slate-400">Amort. cumulé</p><p className="font-semibold text-amber-700">{formatCurrency(etatsReelsData.data.notesAnnexes.immobilisations.amortissementCumule)}</p></div>
+                    <div><p className="text-xs text-slate-400">Stocks</p><p className="font-semibold text-slate-800">{formatCurrency(etatsReelsData.data.notesAnnexes.stocks)}</p></div>
+                    <div><p className="text-xs text-slate-400">Créances (41x)</p><p className="font-semibold text-blue-700">{formatCurrency(etatsReelsData.data.notesAnnexes.creances)}</p></div>
+                    <div><p className="text-xs text-slate-400">Dettes (40x)</p><p className="font-semibold text-red-600">{formatCurrency(etatsReelsData.data.notesAnnexes.dettes)}</p></div>
+                    <div><p className="text-xs text-slate-400">Trésorerie</p><p className="font-semibold text-emerald-700">{formatCurrency(etatsReelsData.data.notesAnnexes.tresorerie)}</p></div>
+                    <div><p className="text-xs text-slate-400">Capitaux propres</p><p className="font-semibold text-slate-800">{formatCurrency(etatsReelsData.data.notesAnnexes.capitauxPropres)}</p></div>
+                    <div><p className="text-xs text-slate-400">Charges / Produits</p><p className="font-semibold text-slate-800">{formatCurrency(etatsReelsData.data.notesAnnexes.charges)} / {formatCurrency(etatsReelsData.data.notesAnnexes.produits)}</p></div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB : CONTRÔLES COMPTABLES                                    */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === "controles" && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <CheckCircle className="text-violet-600" size={20} /> Contrôles comptables
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {controlesData
+                    ? `${controlesData.meta.bloquants} bloquant(s) · ${controlesData.meta.anomalies} anomalie(s)`
+                    : "Écritures déséquilibrées, comptes d'attente, soldes de trésorerie négatifs, doublons potentiels (CDC §40-42)"}
+                </p>
+              </div>
+              <button onClick={() => refetchControles()} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                <RefreshCw size={15} /> Relancer les contrôles
+              </button>
+            </div>
+
+            {controlesLoading ? (
+              <div className="flex items-center justify-center p-12"><div className="w-8 h-8 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin" /></div>
+            ) : (controlesData?.data ?? []).length === 0 ? (
+              <div className="bg-white rounded-2xl p-12 text-center border border-emerald-200 shadow-sm">
+                <CheckCircle size={32} className="mx-auto mb-2 text-emerald-400" />
+                <p className="text-emerald-700 font-semibold">Aucune anomalie détectée</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {(controlesData?.data ?? []).map((c, i) => (
+                  <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border ${c.gravite === "BLOQUANT" ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}>
+                    <AlertCircle size={16} className={`mt-0.5 flex-shrink-0 ${c.gravite === "BLOQUANT" ? "text-red-500" : "text-amber-500"}`} />
+                    <div className="flex-1">
+                      <span className={`text-xs font-bold uppercase ${c.gravite === "BLOQUANT" ? "text-red-600" : "text-amber-600"}`}>{c.gravite}</span>
+                      <p className="text-sm text-slate-700">{c.message}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
