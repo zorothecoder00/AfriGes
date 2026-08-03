@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
 import { chargerParametrageCC, debiterCCPourCredit, extraireMetaRequete } from "@/lib/compteCourant";
+import { ecritureRemboursementCreditConfirme } from "@/lib/comptabilite/moteur";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -186,21 +187,35 @@ export async function POST(req: Request, { params }: Ctx) {
           observation: `Confirmé par le caissier ${caissierNom}`,
           ip, userAgent,
         });
-      } else if (sessionActive) {
-        const collecteurNom = remboursement.enregistrePar
-          ? `${remboursement.enregistrePar.prenom} ${remboursement.enregistrePar.nom}`
-          : "agent";
-        await tx.operationCaisse.create({
-          data: {
-            sessionId:    sessionActive.id,
-            type:         "ENCAISSEMENT",
-            mode:         "ESPECES",
-            montant:      new Prisma.Decimal(montantNum),
-            motif:        `Remboursement crédit confirmé — ${credit.reference} (${collecteurNom})`,
-            reference:    genRef(),
-            operateurNom: caissierNom,
-            operateurId:  userId,
-          },
+      } else {
+        if (sessionActive) {
+          const collecteurNom = remboursement.enregistrePar
+            ? `${remboursement.enregistrePar.prenom} ${remboursement.enregistrePar.nom}`
+            : "agent";
+          await tx.operationCaisse.create({
+            data: {
+              sessionId:    sessionActive.id,
+              type:         "ENCAISSEMENT",
+              mode:         "ESPECES",
+              montant:      new Prisma.Decimal(montantNum),
+              motif:        `Remboursement crédit confirmé — ${credit.reference} (${collecteurNom})`,
+              reference:    genRef(),
+              operateurNom: caissierNom,
+              operateurId:  userId,
+            },
+          });
+        }
+
+        // Écriture comptable — encaissement du remboursement (moteur central, CDC §7/§8).
+        // Référence suffixée par l'id du remboursement : un même crédit peut être
+        // remboursé plusieurs fois, chaque encaissement doit avoir sa propre écriture.
+        // Le cas CC (branche ci-dessus) a déjà sa propre écriture via debiterCCPourCredit.
+        await ecritureRemboursementCreditConfirme(tx, {
+          montant: montantNum,
+          reference: `${credit.reference}-${remboursementId}`,
+          clientNom: credit.client ? `${credit.client.prenom} ${credit.client.nom}` : "Client",
+          modePaiement: remboursement.modePaiement,
+          userId,
         });
       }
 

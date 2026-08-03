@@ -43,9 +43,14 @@ export async function PUT(req: Request, { params }: Ctx) {
     const existing = await prisma.ecritureComptable.findUnique({ where: { id: Number(id) } });
     if (!existing) return NextResponse.json({ error: "Écriture introuvable" }, { status: 404 });
 
-    // Seules les écritures BROUILLON peuvent être modifiées (sauf pour la validation)
-    if (existing.statut === "VALIDE" && statut !== "ANNULE") {
-      return NextResponse.json({ error: "Une écriture validée ne peut qu'être annulée" }, { status: 400 });
+    // Une écriture validée ou clôturée ne peut plus être modifiée directement
+    // (CDC §12/§13) — seule la contrepassation (POST .../contrepasser) permet
+    // de la neutraliser, sans jamais l'altérer ni la supprimer.
+    if (existing.statut === "VALIDE" || existing.statut === "CLOTURE") {
+      return NextResponse.json(
+        { error: "Une écriture validée ou clôturée ne peut plus être modifiée — utilisez la contrepassation" },
+        { status: 400 },
+      );
     }
 
     // Si on fournit des lignes, valider l'équilibre

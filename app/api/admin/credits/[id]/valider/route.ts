@@ -5,6 +5,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
+import { ecritureVenteCreditValidee } from "@/lib/comptabilite/moteur";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -121,6 +122,14 @@ export async function POST(_req: Request, { params }: Ctx) {
       await tx.client.update({
         where: { id: credit.clientId },
         data: { soldeActuel: { increment: montantTotal } },
+      });
+
+      // ── 9a. Écriture comptable — vente à crédit (moteur central, CDC §7/§8) ─
+      await ecritureVenteCreditValidee(tx, {
+        montant: montantTotal,
+        reference: credit.reference,
+        clientNom: `${client.prenom} ${client.nom}`,
+        userId: Number(session.user.id),
       });
 
       // ── 9b. Hook RIA — pour chaque affectation active du client ──────────

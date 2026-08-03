@@ -13,6 +13,7 @@
  * créées, donc aucun doublon).
  */
 import type { Prisma } from "@prisma/client";
+import { creerEcriture } from "@/lib/comptabilite/moteur";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -24,18 +25,6 @@ export async function creerEcritureAchatDepuisMouvement(
   mouvementStockId: number,
   userId: number
 ): Promise<void> {
-  const reference = `SYNC-MST-${mouvementStockId}`;
-  const existing = await tx.ecritureComptable.findUnique({ where: { reference }, select: { id: true } });
-  if (existing) return;
-
-  const [compteMarchandises, compteFournisseurs] = await Promise.all([
-    tx.compteComptable.findFirst({ where: { numero: COMPTE_MARCHANDISES, actif: true }, select: { id: true } }),
-    tx.compteComptable.findFirst({ where: { numero: COMPTE_FOURNISSEURS, actif: true }, select: { id: true } }),
-  ]);
-  // Plan comptable pas encore paramétré (comptes 311/401 absents) : ne bloque pas
-  // la réception, l'écriture sera générée plus tard par la synchronisation manuelle.
-  if (!compteMarchandises || !compteFournisseurs) return;
-
   const mouvement = await tx.mouvementStock.findUnique({
     where: { id: mouvementStockId },
     include: { produit: { select: { nom: true, prixUnitaire: true } } },
@@ -45,20 +34,15 @@ export async function creerEcritureAchatDepuisMouvement(
   const montant = mouvement.quantite * Number(mouvement.produit.prixUnitaire);
   if (montant <= 0) return;
 
-  await tx.ecritureComptable.create({
-    data: {
-      reference,
-      date: mouvement.dateMouvement,
-      libelle: `Approvisionnement ${mouvement.produit.nom} ×${mouvement.quantite}${mouvement.motif ? ` — ${mouvement.motif}` : ""}`,
-      journal: "ACHATS",
-      statut: "BROUILLON",
-      userId,
-      lignes: {
-        create: [
-          { compteId: compteMarchandises.id, libelle: mouvement.produit.nom, debit: montant, credit: 0 },
-          { compteId: compteFournisseurs.id, libelle: mouvement.produit.nom, debit: 0, credit: montant },
-        ],
-      },
-    },
+  await creerEcriture(tx, {
+    reference: `SYNC-MST-${mouvementStockId}`,
+    date: mouvement.dateMouvement,
+    libelle: `Approvisionnement ${mouvement.produit.nom} ×${mouvement.quantite}${mouvement.motif ? ` — ${mouvement.motif}` : ""}`,
+    journal: "ACHATS",
+    userId,
+    lignes: [
+      { numero: COMPTE_MARCHANDISES, debit: montant, libelle: mouvement.produit.nom },
+      { numero: COMPTE_FOURNISSEURS, credit: montant, libelle: mouvement.produit.nom },
+    ],
   });
 }

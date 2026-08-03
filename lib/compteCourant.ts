@@ -10,6 +10,7 @@ import { Prisma, PrioriteNotification, TypePaiement, type NatureMouvementCC, typ
 import { notifyAdmins } from "@/lib/notifications";
 import { enregistrerRemboursementCredit } from "@/lib/remboursementCredit";
 import { attribuerPointsDepot } from "@/lib/fidelite";
+import { creerEcriture as creerEcritureMoteur } from "@/lib/comptabilite/moteur";
 
 export type TxClient = Prisma.TransactionClient;
 
@@ -78,50 +79,21 @@ export async function genererReferenceMouvementCC(tx: TxClient, prefix = "MVT"):
   return `${prefix}-${ymd}-${String(count + 1).padStart(5, "0")}`;
 }
 
-async function genererReferenceEcriture(tx: TxClient, journal: string): Promise<string> {
-  const prefix = journal.slice(0, 3).toUpperCase();
-  const now = new Date();
-  const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const count = await tx.ecritureComptable.count();
-  return `${prefix}-${ym}-${String(count + 1).padStart(5, "0")}`;
-}
-
 export interface LigneEcritureCC { numero: string; debit?: number; credit?: number; libelle?: string }
 
 /**
  * Crée une écriture comptable (BROUILLON) équilibrée à partir de numéros de compte.
  * Renvoie l'id de l'écriture, ou null si un compte du plan comptable est absent
  * (le mouvement reste enregistré ; l'écriture pourra être régularisée manuellement).
+ *
+ * Fin wrapper autour du moteur comptable central (lib/comptabilite/moteur.ts) —
+ * conservé pour compatibilité avec les appelants existants du module Compte Courant.
  */
 export async function creerEcritureCC(
   tx: TxClient,
   opts: { journal: TypeJournalComptable; date: Date; libelle: string; userId: number; lignes: LigneEcritureCC[] },
 ): Promise<number | null> {
-  const numeros = [...new Set(opts.lignes.map((l) => l.numero))];
-  const comptes = await tx.compteComptable.findMany({
-    where: { numero: { in: numeros } },
-    select: { id: true, numero: true },
-  });
-  const map = new Map(comptes.map((c) => [c.numero, c.id]));
-  if (opts.lignes.some((l) => !map.has(l.numero))) return null;
-
-  const reference = await genererReferenceEcriture(tx, opts.journal);
-  const ecriture = await tx.ecritureComptable.create({
-    data: {
-      reference, date: opts.date, libelle: opts.libelle, journal: opts.journal,
-      statut: "BROUILLON", userId: opts.userId,
-      lignes: {
-        create: opts.lignes.map((l) => ({
-          compteId: map.get(l.numero)!,
-          libelle:  l.libelle ?? opts.libelle,
-          debit:    new Prisma.Decimal(l.debit ?? 0),
-          credit:   new Prisma.Decimal(l.credit ?? 0),
-        })),
-      },
-    },
-    select: { id: true },
-  });
-  return ecriture.id;
+  return creerEcritureMoteur(tx, opts);
 }
 
 /**

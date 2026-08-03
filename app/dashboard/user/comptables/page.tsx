@@ -205,6 +205,22 @@ interface EcrituresResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
+interface RegleComptableEntry {
+  id: number;
+  evenement: string;
+  moduleSource: string;
+  conditionProduit: string | null;
+  conditionFamille: string | null;
+  conditionModePaiement: string | null;
+  compteDebitNumero: string;
+  compteCreditNumero: string;
+  journal: string;
+  priorite: number;
+  actif: boolean;
+  mode: string;
+  notes: string | null;
+}
+
 interface DeclarationTVA {
   id: number; periode: string; tvaCollectee: number; tvaDeductible: number;
   tvaDue: number; statut: string; notes: string | null;
@@ -365,7 +381,7 @@ const CAT_META: Record<string, { label: string; color: string; bg: string; icon:
 
 type Period = "7" | "30" | "90" | "365";
 type Tab    = "synthese" | "journal" | "tresorerie" | "balance" | "grandlivre" | "etats" | "pieces"
-            | "plan" | "saisie" | "tva" | "rapprochement";
+            | "plan" | "saisie" | "tva" | "rapprochement" | "regles";
 
 export default function ComptablePage() {
   const t = useT();
@@ -466,6 +482,15 @@ export default function ComptablePage() {
   });
   const [soldeBancaireInput, setSoldeBancaireInput] = useState("");
   const [rapproNotes, setRapproNotes]       = useState("");
+
+  // ── État Règles comptables ────────────────────────────────────────────
+  const REGLE_VIDE = {
+    evenement: "", moduleSource: "", compteDebitNumero: "", compteCreditNumero: "",
+    journal: "OD", conditionModePaiement: "", priorite: "0",
+  };
+  const [showAddRegle, setShowAddRegle] = useState(false);
+  const [newRegle, setNewRegle]         = useState(REGLE_VIDE);
+  const [editRegleId, setEditRegleId]   = useState<number | null>(null);
 
   // ── API calls ─────────────────────────────────────────────────────────
 
@@ -674,6 +699,10 @@ export default function ComptablePage() {
     () => `/api/comptable/ecritures/${ecritureActionIdRef.current}`, "DELETE",
     { successMessage: "Écriture supprimée" }
   );
+  const { mutate: contrepasserEcritureApi } = useMutation<unknown, object>(
+    () => `/api/comptable/ecritures/${ecritureActionIdRef.current}/contrepasser`, "POST",
+    { successMessage: "Écriture contrepassée" }
+  );
 
   const { mutate: validerEntreeJournal, loading: validatingJournalEntry } = useMutation<unknown, object>(
     "/api/comptable/journal/valider", "POST",
@@ -748,6 +777,11 @@ export default function ComptablePage() {
     const res = await supprimerEcriture({});
     if (res) refetchEcritures();
   }
+  async function handleContrepasserEcriture(id: number) {
+    ecritureActionIdRef.current = id;
+    const res = await contrepasserEcritureApi({});
+    if (res) refetchEcritures();
+  }
 
   // ── TVA API ───────────────────────────────────────────────────────────
   const { data: tvaData, loading: tvaLoading, refetch: refetchTva } =
@@ -790,6 +824,42 @@ export default function ComptablePage() {
   async function handleEnregistrerRappro() {
     const res = await enregistrerRappro({ periode: rapproPeriode, soldeBancaireReel: Number(soldeBancaireInput), notes: rapproNotes || null });
     if (res) { refetchRappro(); setSoldeBancaireInput(""); setRapproNotes(""); }
+  }
+
+  // ── Règles comptables API (moteur central) ────────────────────────────
+  const { data: reglesData, loading: reglesLoading, refetch: refetchRegles } =
+    useApi<{ data: RegleComptableEntry[] }>(activeTab === "regles" ? "/api/comptable/regles" : null);
+
+  const { mutate: creerRegle, loading: creatingRegle } = useMutation<unknown, object>(
+    "/api/comptable/regles", "POST",
+    { successMessage: "Règle comptable créée" }
+  );
+  const regleActionIdRef = useRef<number | null>(null);
+  const { mutate: majRegle } = useMutation<unknown, object>(
+    () => `/api/comptable/regles/${regleActionIdRef.current}`, "PUT",
+  );
+  const { mutate: supprimerRegle } = useMutation<unknown, object>(
+    () => `/api/comptable/regles/${regleActionIdRef.current}`, "DELETE",
+    { successMessage: "Règle supprimée" }
+  );
+
+  async function handleCreerRegle() {
+    const res = await creerRegle({
+      ...newRegle,
+      priorite: Number(newRegle.priorite) || 0,
+      conditionModePaiement: newRegle.conditionModePaiement || null,
+    });
+    if (res) { refetchRegles(); setShowAddRegle(false); setNewRegle(REGLE_VIDE); }
+  }
+  async function handleToggleRegle(r: RegleComptableEntry) {
+    regleActionIdRef.current = r.id;
+    const res = await majRegle({ actif: !r.actif });
+    if (res) refetchRegles();
+  }
+  async function handleSupprimerRegle(id: number) {
+    regleActionIdRef.current = id;
+    const res = await supprimerRegle({});
+    if (res) refetchRegles();
   }
 
   // ── Synchronisation journaux ──────────────────────────────────────────
@@ -884,6 +954,7 @@ export default function ComptablePage() {
     { key: "rapprochement",  label: "Rapprochement",         icon: Building2    },
     { key: "etats",          label: "États Financiers",      icon: FileText     },
     { key: "pieces",         label: "Pièces justificatives", icon: Paperclip    },
+    { key: "regles",         label: "Règles comptables",     icon: ListChecks   },
   ];
   const tabs = allTabs.filter((t) => isAllowed(t.key));
 
@@ -2935,10 +3006,17 @@ export default function ComptablePage() {
                             </>
                           )}
                           {e.statut === "VALIDE" && (
-                            <button onClick={() => handleAnnulerEcriture(e.id)}
-                              className="flex items-center gap-1 px-2.5 py-1.5 border border-red-200 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50">
-                              <X size={13} /> {t('btn_cancel')}
-                            </button>
+                            <>
+                              <button onClick={() => handleContrepasserEcriture(e.id)}
+                                className="flex items-center gap-1 px-2.5 py-1.5 border border-violet-200 text-violet-600 rounded-lg text-xs font-semibold hover:bg-violet-50"
+                                title="Génère l'écriture inverse — l'originale reste intacte">
+                                <RefreshCw size={13} /> Contrepasser
+                              </button>
+                              <button onClick={() => handleAnnulerEcriture(e.id)}
+                                className="flex items-center gap-1 px-2.5 py-1.5 border border-red-200 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50">
+                                <X size={13} /> {t('btn_cancel')}
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -3169,6 +3247,146 @@ export default function ComptablePage() {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* TAB : RÈGLES COMPTABLES (moteur central)                      */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {activeTab === "regles" && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <ListChecks className="text-violet-600" size={20} /> Règles comptables
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Associez un événement métier (vente à crédit, remboursement, paie…) aux comptes débit/crédit à utiliser.
+                  Une règle active personnalisée prend le pas sur la règle par défaut ; aucune saisie de compte en dur dans le code.
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowAddRegle(!showAddRegle); setEditRegleId(null); setNewRegle(REGLE_VIDE); }}
+                className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700"
+              >
+                <PlusCircle size={15} /> Nouvelle règle
+              </button>
+            </div>
+
+            {showAddRegle && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-violet-200">
+                <h4 className="font-semibold text-slate-800 mb-4 flex items-center gap-2"><PlusCircle size={16} className="text-violet-600" /> Nouvelle règle</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Événement *</label>
+                    <input value={newRegle.evenement} onChange={(e) => setNewRegle(p => ({ ...p, evenement: e.target.value }))}
+                      placeholder="ex: VENTE_CREDIT_VALIDEE" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Module source *</label>
+                    <input value={newRegle.moduleSource} onChange={(e) => setNewRegle(p => ({ ...p, moduleSource: e.target.value }))}
+                      placeholder="ex: CREDIT" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Journal *</label>
+                    <select value={newRegle.journal} onChange={(e) => setNewRegle(p => ({ ...p, journal: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                      {["CAISSE","BANQUE","VENTES","ACHATS","OD","PAIE"].map(j => <option key={j} value={j}>{JOURNAL_LABELS[j] ?? j}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Compte débit *</label>
+                    <input value={newRegle.compteDebitNumero} onChange={(e) => setNewRegle(p => ({ ...p, compteDebitNumero: e.target.value }))}
+                      placeholder="ex: 411" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Compte crédit *</label>
+                    <input value={newRegle.compteCreditNumero} onChange={(e) => setNewRegle(p => ({ ...p, compteCreditNumero: e.target.value }))}
+                      placeholder="ex: 701" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Condition mode de paiement</label>
+                    <input value={newRegle.conditionModePaiement} onChange={(e) => setNewRegle(p => ({ ...p, conditionModePaiement: e.target.value }))}
+                      placeholder="ex: VIREMENT (optionnel)" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Priorité</label>
+                    <input type="number" value={newRegle.priorite} onChange={(e) => setNewRegle(p => ({ ...p, priorite: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-4">
+                  <button onClick={() => setShowAddRegle(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">{t('btn_cancel')}</button>
+                  <button onClick={handleCreerRegle}
+                    disabled={creatingRegle || !newRegle.evenement || !newRegle.moduleSource || !newRegle.compteDebitNumero || !newRegle.compteCreditNumero}
+                    className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
+                    {creatingRegle ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={15} />} Créer
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+              {reglesLoading ? (
+                <div className="flex items-center justify-center p-12">
+                  <div className="w-8 h-8 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin" />
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Événement</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase hidden md:table-cell">Module</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Débit</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Crédit</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase hidden lg:table-cell">Journal</th>
+                      <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs uppercase hidden lg:table-cell">Priorité</th>
+                      <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Statut</th>
+                      <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(reglesData?.data ?? []).map((r) => (
+                      <tr key={r.id} className={`hover:bg-slate-50 transition-colors ${!r.actif ? "opacity-50" : ""}`}>
+                        <td className="px-4 py-3 font-mono text-xs font-bold text-violet-700">
+                          {r.evenement}
+                          {r.conditionModePaiement && <span className="ml-2 text-xs font-sans text-slate-400">si {r.conditionModePaiement}</span>}
+                        </td>
+                        <td className="px-4 py-3 text-slate-500 hidden md:table-cell">{r.moduleSource}</td>
+                        <td className="px-4 py-3 font-mono text-blue-700">{r.compteDebitNumero}</td>
+                        <td className="px-4 py-3 font-mono text-emerald-700">{r.compteCreditNumero}</td>
+                        <td className="px-4 py-3 text-slate-500 hidden lg:table-cell">{JOURNAL_LABELS[r.journal] ?? r.journal}</td>
+                        <td className="px-4 py-3 text-center text-slate-500 hidden lg:table-cell">{r.priorite}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${r.actif ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                            {r.actif ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => handleToggleRegle(r)}
+                              className={`p-1.5 rounded-lg ${r.actif ? "text-amber-500 hover:bg-amber-50" : "text-emerald-500 hover:bg-emerald-50"}`}
+                              title={r.actif ? "Désactiver" : "Activer"}>
+                              {r.actif ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                            </button>
+                            <button onClick={() => handleSupprimerRegle(r.id)}
+                              className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {(reglesData?.data ?? []).length === 0 && !reglesLoading && (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-12 text-center text-slate-400">
+                          <ListChecks size={32} className="mx-auto mb-2 opacity-30" />
+                          <p>Aucune règle personnalisée. Les événements utilisent les comptes par défaut (411/701, 571/521, 661).</p>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         )}

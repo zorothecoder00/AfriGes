@@ -116,6 +116,7 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "rapprochement", label: "Rapprochement",         defaultAllowed: true, module: "comptabilite" },
       { key: "etats",         label: "États Financiers",      defaultAllowed: true, module: "comptabilite" },
       { key: "pieces",        label: "Pièces justificatives", defaultAllowed: true, module: "comptabilite" },
+      { key: "regles",        label: "Règles comptables",     defaultAllowed: true, module: "comptabilite" },
     ],
   },
   {

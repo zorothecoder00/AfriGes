@@ -493,8 +493,14 @@ enum TypeJournalComptable {
 
 enum StatutEcriture {
   BROUILLON
+  A_CONTROLER
   VALIDE
   CLOTURE
+}
+
+enum ModeRegleComptable {
+  AUTOMATIQUE
+  MANUEL
 }
 
 enum StatutRapprochement {
@@ -3573,6 +3579,38 @@ model DeclarationTVA {
   updatedAt DateTime @updatedAt
 
   @@unique([periode])
+}
+
+// Moteur de règles comptables paramétrable (CDC Comptabilité §7) : associe un
+// événement métier (ex. "VENTE_CREDIT_VALIDEE") aux comptes débit/crédit à
+// utiliser, sans jamais coder ces numéros en dur dans la logique métier. Le
+// module appelant (crédit, paie, remboursement...) ne connaît que le nom de
+// l'événement ; la résolution des comptes passe par lib/comptabilite/moteur.ts.
+model RegleComptable {
+  id     Int    @id @default(autoincrement())
+  evenement    String // ex: "VENTE_CREDIT_VALIDEE", "PAIE_VERSEE", "REMBOURSEMENT_CREDIT_CONFIRME"
+  moduleSource String // ex: "CREDIT", "PAIE", "TRESORERIE" — informatif, pour l'écran de paramétrage
+
+  // Conditions optionnelles (égalité simple) — la règle la plus précise et
+  // prioritaire l'emporte ; laissée vide = s'applique à tout evenement.
+  conditionProduit      String?
+  conditionFamille      String?
+  conditionModePaiement String?
+
+  compteDebitNumero  String
+  compteCreditNumero String
+  journal            TypeJournalComptable
+
+  priorite Int                @default(0)
+  actif    Boolean            @default(true)
+  mode     ModeRegleComptable @default(AUTOMATIQUE)
+  notes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([evenement])
+  @@index([actif])
 }
 
 // ============================================================

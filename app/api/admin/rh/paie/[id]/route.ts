@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 import { StatutFichePaie } from "@prisma/client";
+import { ecripturePaieVersee } from "@/lib/comptabilite/moteur";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -151,6 +152,48 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
       const now   = new Date();
       const extra = transition.extra ? transition.extra(now) : {};
+
+      // MARQUER_PAYE = argent réellement versé : génère l'écriture comptable
+      // (moteur central, CDC §7/§8) dans la même transaction que le changement de statut.
+      if (action === "MARQUER_PAYE") {
+        const profil = await prisma.profilRH.findUnique({
+          where: { id: fiche.profilRHId },
+          select: { gestionnaire: { select: { member: { select: { nom: true, prenom: true } } } } },
+        });
+        const profilNom = profil?.gestionnaire?.member
+          ? `${profil.gestionnaire.member.prenom} ${profil.gestionnaire.member.nom}`
+          : `Profil #${fiche.profilRHId}`;
+
+        const updated = await prisma.$transaction(async (tx) => {
+          const upd = await tx.fichePaie.update({
+            where: { id: Number(id) },
+            data:  { statut: transition.to, ...extra } as never,
+            include: { composants: true },
+          });
+
+          await ecripturePaieVersee(tx, {
+            montant: Number(fiche.netAPayer),
+            reference: `${fiche.annee}${String(fiche.mois).padStart(2, "0")}-${fiche.id}`,
+            profilNom,
+            modePaiement: fiche.modePaiement,
+            userId,
+          });
+
+          await tx.auditLog.create({
+            data: {
+              userId,
+              action:   "UPDATE",
+              entite:   "FichePaie",
+              entiteId: upd.id,
+              details:  { avant: { statut: fiche.statut }, apres: { statut: transition.to } },
+            },
+          });
+
+          return upd;
+        });
+
+        return NextResponse.json({ data: updated });
+      }
 
       const updated = await prisma.fichePaie.update({
         where: { id: Number(id) },
