@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 
 /**
  * GET /api/admin/ria/clients-eligibles
@@ -22,9 +23,8 @@ export async function GET(req: NextRequest) {
         ...(pdvId && { pointDeVenteId: parseInt(pdvId) }),
         ...(search && {
           OR: [
-            { nom:        { contains: search, mode: "insensitive" } },
-            { prenom:     { contains: search, mode: "insensitive" } },
-            { telephone:  { contains: search, mode: "insensitive" } },
+            ...conditionsNomPrenom(search),
+            { telephone: { contains: search, mode: "insensitive" } },
             { codeClient: { contains: search, mode: "insensitive" } },
           ],
         }),

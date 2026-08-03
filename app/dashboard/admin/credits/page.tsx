@@ -6,6 +6,7 @@ import {
   Wallet, ChevronLeft, ChevronRight, X, TrendingDown, Loader2,
   Eye, Ban, BadgeCheck, Banknote, Calendar, Clock, User, ChevronDown, ChevronUp,
   Plus, Trash, Info, Receipt, PackageCheck, ArrowLeftRight, Pencil, FolderTree, FileText,
+  Download, Printer,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
@@ -13,6 +14,8 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { dureeJoursPourFormule, remunerationFormule } from '@/lib/formuleCredit';
 import { toast } from 'sonner';
+import { exportToXlsx } from '@/lib/exportXlsx';
+import { printToPdf } from '@/lib/exportPdf';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 import { useTagModal } from '@/contexts/TagModalContext';
 import FactureModal from '@/components/FactureModal';
@@ -173,6 +176,41 @@ const MODE_PAIEMENT_OPTIONS = [
   { value: 'VIREMENT',     label: 'Virement' },
   { value: 'CHEQUE',       label: 'Chèque' },
 ];
+
+// ─── Impayés (extraction / impression) ────────────────────────────────────────
+
+interface CreditImpayeEcheance {
+  numeroEcheance: number;
+  dateEcheance: string;
+  montantDu: number;
+  montantPaye: number;
+  montantRestant: number;
+  joursRetard: number;
+}
+interface CreditImpaye {
+  creditId: number;
+  reference: string;
+  montantTotal: number;
+  soldeRestant: number;
+  dateEcheanceFin: string;
+  client: { id: number; nom: string; prenom: string; telephone: string | null; codeClient: string | null };
+  echeancesImpayees: CreditImpayeEcheance[];
+}
+interface CreditsImpayesResponse {
+  data: CreditImpaye[];
+  meta: { nbCredits: number; nbEcheancesImpayees: number; totalImpaye: number };
+}
+
+function tableHtml(headers: string[], rows: (string | number)[][]): string {
+  const th  = headers.map((h) => `<th>${h}</th>`).join('');
+  const trs = rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('');
+  return `<table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`;
+}
+function kpisHtml(items: { label: string; value: string }[]): string {
+  return `<div class="kpis">${items.map((i) =>
+    `<div class="kpi"><div class="kpi-label">${i.label}</div><div class="kpi-value">${i.value}</div></div>`
+  ).join('')}</div>`;
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -611,6 +649,78 @@ export default function CreditsPage() {
   const credits = res?.data ?? [];
   const meta    = res?.meta;
 
+  // ── Extraction / impression des crédits impayés ─────────────────────────────
+  const [exportingImpayes, setExportingImpayes] = useState<'xlsx' | 'print' | null>(null);
+
+  async function handleImpayes(mode: 'xlsx' | 'print') {
+    setExportingImpayes(mode);
+    try {
+      const res = await fetch('/api/admin/credits/impayes');
+      if (!res.ok) { toast.error("Erreur lors de la récupération des impayés"); return; }
+      const { data, meta: metaImpayes }: CreditsImpayesResponse = await res.json();
+
+      if (data.length === 0) { toast.info('Aucun crédit impayé actuellement.'); return; }
+
+      const lignes = data.flatMap((c) =>
+        c.echeancesImpayees.map((e) => ({
+          reference: c.reference,
+          clientNom: `${c.client.prenom} ${c.client.nom}`,
+          clientTelephone: c.client.telephone ?? '',
+          clientCode: c.client.codeClient ?? '',
+          numeroEcheance: e.numeroEcheance,
+          dateEcheance: e.dateEcheance,
+          montantDu: e.montantDu,
+          montantRestant: e.montantRestant,
+          joursRetard: e.joursRetard,
+        })),
+      );
+
+      if (mode === 'xlsx') {
+        await exportToXlsx(
+          lignes,
+          [
+            { label: 'Référence crédit', key: 'reference' },
+            { label: 'Client responsable', key: 'clientNom' },
+            { label: 'Téléphone', key: 'clientTelephone' },
+            { label: 'Code client', key: 'clientCode' },
+            { label: 'N° échéance', key: 'numeroEcheance', type: 'number' },
+            { label: 'Date échéance', key: 'dateEcheance', type: 'date', format: (v) => (v ? new Date(String(v)) : null) },
+            { label: 'Montant dû', key: 'montantDu', type: 'currency' },
+            { label: 'Montant restant', key: 'montantRestant', type: 'currency' },
+            { label: 'Jours de retard', key: 'joursRetard', type: 'number' },
+          ],
+          `credits-impayes-${new Date().toISOString().slice(0, 10)}.xlsx`,
+          { sheetName: 'Impayés', title: 'Crédits clients impayés' },
+        );
+      } else {
+        printToPdf('Crédits clients impayés', [
+          {
+            content: kpisHtml([
+              { label: 'Crédits en retard', value: String(metaImpayes.nbCredits) },
+              { label: 'Échéances impayées', value: String(metaImpayes.nbEcheancesImpayees) },
+              { label: 'Total impayé', value: formatCurrency(metaImpayes.totalImpaye) },
+            ]),
+          },
+          {
+            heading: 'Détail par échéance impayée — client responsable',
+            content: tableHtml(
+              ['Référence', 'Client responsable', 'Téléphone', 'N° éch.', 'Date échéance', 'Montant dû', 'Montant restant', 'Jours retard'],
+              lignes.map((l) => [
+                l.reference, l.clientNom, l.clientTelephone || '—', l.numeroEcheance,
+                formatDate(l.dateEcheance), formatCurrency(l.montantDu), formatCurrency(l.montantRestant), l.joursRetard,
+              ]),
+            ),
+          },
+        ]);
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Erreur lors de l'export des impayés");
+    } finally {
+      setExportingImpayes(null);
+    }
+  }
+
   // RBAC granulaire : l'annulation d'un crédit = suppression logique.
   const { can } = usePermissions();
   const canSoftDeleteCredit = can("credits", "SUPPRESSION_LOGIQUE");
@@ -836,6 +946,18 @@ export default function CreditsPage() {
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
               <FolderTree className="w-4 h-4" /> Archivage
             </a>
+            <button onClick={() => handleImpayes('xlsx')} disabled={exportingImpayes !== null}
+              title="Extraire la liste des crédits impayés (Excel)"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-red-200 text-red-700 rounded-xl hover:bg-red-50 text-sm font-medium disabled:opacity-50">
+              {exportingImpayes === 'xlsx' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              Extraire impayés
+            </button>
+            <button onClick={() => handleImpayes('print')} disabled={exportingImpayes !== null}
+              title="Imprimer la liste des crédits impayés"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-red-200 text-red-700 rounded-xl hover:bg-red-50 text-sm font-medium disabled:opacity-50">
+              {exportingImpayes === 'print' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+              Imprimer impayés
+            </button>
             <button onClick={() => { resetNewCredit(); setNewCreditOpen(true); }}
               className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 text-sm font-medium">
               <Plus className="w-4 h-4" /> Nouvelle vente à crédit

@@ -8,6 +8,7 @@ import { getFidelite } from "@/lib/fidelite";
 import { tariferLigne } from "@/lib/venteTarification";
 import { estFormuleValide, dureeJoursPourFormule, remunerationFormule } from "@/lib/formuleCredit";
 import { randomUUID } from "crypto";
+import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 
 /**
  * GET /api/rvc/credits
@@ -44,9 +45,11 @@ export async function GET(req: Request) {
       ...(search && {
         OR: [
           { reference: { contains: search, mode: "insensitive" } },
-          { client: { nom:       { contains: search, mode: "insensitive" } } },
-          { client: { prenom:    { contains: search, mode: "insensitive" } } },
-          { client: { telephone: { contains: search, mode: "insensitive" } } },
+          {
+            client: {
+              OR: [...conditionsNomPrenom(search), { telephone: { contains: search, mode: "insensitive" } }],
+            },
+          },
         ],
       }),
     };

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { StatutCredit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
+import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 
 /**
  * GET /api/caissier/credits
@@ -40,10 +41,12 @@ export async function GET(req: Request) {
       ...(search
         ? {
             OR: [
-              { reference:    { contains: search, mode: "insensitive" as const } },
-              { client: { nom:    { contains: search, mode: "insensitive" as const } } },
-              { client: { prenom: { contains: search, mode: "insensitive" as const } } },
-              { client: { telephone: { contains: search, mode: "insensitive" as const } } },
+              { reference: { contains: search, mode: "insensitive" as const } },
+              {
+                client: {
+                  OR: [...conditionsNomPrenom(search), { telephone: { contains: search, mode: "insensitive" as const } }],
+                },
+              },
             ],
           }
         : {}),

@@ -7,6 +7,7 @@ import { chargerParametrageCC, preleverCompteCourant, extraireMetaRequete } from
 import { getFidelite } from "@/lib/fidelite";
 import { tariferLigne } from "@/lib/venteTarification";
 import { estFormuleValide, dureeJoursPourFormule, remunerationFormule } from "@/lib/formuleCredit";
+import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 
 /**
  * ==========================
@@ -35,10 +36,15 @@ export async function GET(req: Request) {
       ...(search && {
         OR: [
           { reference: { contains: search, mode: "insensitive" } },
-          { client: { nom:    { contains: search, mode: "insensitive" } } },
-          { client: { prenom: { contains: search, mode: "insensitive" } } },
-          { client: { telephone: { contains: search, mode: "insensitive" } } },
-          { client: { codeClient: { contains: search, mode: "insensitive" } } },
+          {
+            client: {
+              OR: [
+                ...conditionsNomPrenom(search),
+                { telephone: { contains: search, mode: "insensitive" } },
+                { codeClient: { contains: search, mode: "insensitive" } },
+              ],
+            },
+          },
         ],
       }),
     };

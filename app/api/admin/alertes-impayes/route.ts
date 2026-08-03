@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/authAdmin';
+import { conditionsNomPrenom } from '@/lib/clientNameSearch';
 
 /**
  * GET /api/admin/alertes-impayes
@@ -30,11 +31,7 @@ export async function GET(req: Request) {
       ...(agentId && { client: { agentTerrainId: Number(agentId) } }),
       ...(search && {
         client: {
-          OR: [
-            { nom:       { contains: search, mode: 'insensitive' } },
-            { prenom:    { contains: search, mode: 'insensitive' } },
-            { telephone: { contains: search, mode: 'insensitive' } },
-          ],
+          OR: [...conditionsNomPrenom(search), { telephone: { contains: search, mode: 'insensitive' } }],
         },
       }),
     };

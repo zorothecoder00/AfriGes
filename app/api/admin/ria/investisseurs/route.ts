@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
 import bcrypt from "bcryptjs";
+import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 
 // ── GET — liste des investisseurs OU recherche d'utilisateurs éligibles ────────
 
@@ -26,8 +27,7 @@ export async function GET(req: NextRequest) {
           ],
           AND: [{
             OR: [
-              { nom: { contains: q, mode: "insensitive" } },
-              { prenom: { contains: q, mode: "insensitive" } },
+              ...conditionsNomPrenom(q),
               { email: { contains: q, mode: "insensitive" } },
               { telephone: { contains: q } },
             ],
@@ -63,9 +63,8 @@ export async function GET(req: NextRequest) {
             baseCondition,
             {
               OR: [
-                { member: { nom:    { contains: search, mode: "insensitive" as const } } },
-                { member: { prenom: { contains: search, mode: "insensitive" as const } } },
-                { member: { email:  { contains: search, mode: "insensitive" as const } } },
+                { member: { OR: conditionsNomPrenom(search) } },
+                { member: { email: { contains: search, mode: "insensitive" as const } } },
                 { member: { telephone: { contains: search } } },
                 { profilRIA: { numero: { contains: search, mode: "insensitive" as const } } },
               ],

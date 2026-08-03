@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
+import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 
 /**
  * GET /api/admin/creances
@@ -36,10 +37,9 @@ export async function GET(req: Request) {
       ...(search && {
         client: {
           OR: [
-            { nom:       { contains: search, mode: "insensitive" } },
-            { prenom:    { contains: search, mode: "insensitive" } },
+            ...conditionsNomPrenom(search),
             { telephone: { contains: search, mode: "insensitive" } },
-            { codeClient:{ contains: search, mode: "insensitive" } },
+            { codeClient: { contains: search, mode: "insensitive" } },
           ],
         },
       }),

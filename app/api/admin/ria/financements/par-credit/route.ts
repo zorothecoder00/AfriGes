@@ -3,6 +3,7 @@ import { StatutCredit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
 import { dansFenetreAffectation } from "@/lib/riaAffectation";
+import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,8 +22,7 @@ export async function GET(req: NextRequest) {
           ? {
               OR: [
                 { reference: { contains: search, mode: "insensitive" } },
-                { client: { nom:    { contains: search, mode: "insensitive" } } },
-                { client: { prenom: { contains: search, mode: "insensitive" } } },
+                { client: { OR: conditionsNomPrenom(search) } },
               ],
             }
           : {}),

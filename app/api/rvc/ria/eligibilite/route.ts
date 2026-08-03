@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
 import { evaluerEligibiliteClientRIA, calculerSolvabiliteEligibilite } from "@/lib/riaEligibilite";
+import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 
 // Crédits comptés (hors annulés/rejetés) et crédits « en cours » (encours non soldé).
 const CREDIT_STATUTS_COMPTES  = ["EN_ATTENTE_VALIDATION", "VALIDE", "ACTIF", "EN_RETARD", "SOLDE"] as const;
@@ -45,9 +46,8 @@ export async function GET(req: Request) {
     };
     if (search) {
       where.OR = [
-        { nom:        { contains: search, mode: "insensitive" } },
-        { prenom:     { contains: search, mode: "insensitive" } },
-        { telephone:  { contains: search, mode: "insensitive" } },
+        ...conditionsNomPrenom(search),
+        { telephone: { contains: search, mode: "insensitive" } },
         { codeClient: { contains: search, mode: "insensitive" } },
       ];
     }

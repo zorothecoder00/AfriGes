@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
 import type { NiveauRisque } from "@prisma/client";
+import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -135,13 +136,7 @@ export async function GET(req: Request) {
       where: {
         affectationsRIA: { some: {} },
         ...(search
-          ? {
-              OR: [
-                { nom:       { contains: search, mode: "insensitive" } },
-                { prenom:    { contains: search, mode: "insensitive" } },
-                { telephone: { contains: search, mode: "insensitive" } },
-              ],
-            }
+          ? { OR: [...conditionsNomPrenom(search), { telephone: { contains: search, mode: "insensitive" } }] }
           : {}),
       },
       select: {

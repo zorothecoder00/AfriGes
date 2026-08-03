@@ -164,7 +164,7 @@ réussir les notifs par whatsapp
 Vérifie si ces choses seront bénéfiques et rendront l'app plus puissantes SEO , Embed stream , Cache/ISR, TanStack Query, SSE ou polling . Tu me donnes juste la réponse après analyses poussées et après je te dirai quoi faire
 
 
-Extraire et imprimer les crédits clients impayés
-
+Permettre à l'admin , d'Extraire et imprimer la liste des crédits clients impayés (avec chaque impayé le client qui est responsable)
+La recherche de nom ne fonctionne pas ( par exemple je viens de copier le nom complet d'un client existant qui a un crédit client et un compte courant mais lorsque je colle dans la barre e recherche de nom , aucun résultat)
 
    

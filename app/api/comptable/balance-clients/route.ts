@@ -3,6 +3,7 @@ import { Prisma, StatutCredit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
 import { resolveViewAs } from "@/lib/viewAs";
+import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 
 /**
  * GET /api/comptable/balance-clients
@@ -47,10 +48,9 @@ export async function GET(req: Request) {
       ...(search
         ? {
             OR: [
-              { nom:       { contains: search, mode: "insensitive" } },
-              { prenom:    { contains: search, mode: "insensitive" } },
+              ...conditionsNomPrenom(search),
               { telephone: { contains: search, mode: "insensitive" } },
-              { codeClient:{ contains: search, mode: "insensitive" } },
+              { codeClient: { contains: search, mode: "insensitive" } },
             ],
           }
         : {}),

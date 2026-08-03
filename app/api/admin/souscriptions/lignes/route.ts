@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 import { getLogistiqueSession } from "@/lib/authLogistique";
+import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 
 /**
  * GET /api/admin/souscriptions/lignes
@@ -55,8 +56,7 @@ export async function GET(req: NextRequest) {
     if (search) {
       where.OR = [
         { produitNomSaisi: { contains: search, mode: "insensitive" } },
-        { souscription: { client: { nom:    { contains: search, mode: "insensitive" } } } },
-        { souscription: { client: { prenom: { contains: search, mode: "insensitive" } } } },
+        { souscription: { client: { OR: conditionsNomPrenom(search) } } },
       ];
     }
 

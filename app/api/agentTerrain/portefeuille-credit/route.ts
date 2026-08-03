@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
+import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 
 /**
  * GET /api/agentTerrain/portefeuille-credit
@@ -30,11 +31,7 @@ export async function GET(req: NextRequest) {
     };
 
     if (search) {
-      where.OR = [
-        { nom:       { contains: search, mode: "insensitive" } },
-        { prenom:    { contains: search, mode: "insensitive" } },
-        { telephone: { contains: search } },
-      ];
+      where.OR = [...conditionsNomPrenom(search), { telephone: { contains: search } }];
     }
 
     const rawClients = await prisma.client.findMany({

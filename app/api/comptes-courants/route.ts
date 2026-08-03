@@ -8,6 +8,7 @@ import {
 } from "@/lib/compteCourant";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
 import { PrioriteNotification } from "@prisma/client";
+import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 
 /**
  * /api/comptes-courants
@@ -43,17 +44,19 @@ export async function GET(req: Request) {
         { numeroCompte: { contains: search } },
         { ribComplet:   { contains: search, ...insensitive } },
         { libelle:      { contains: search, ...insensitive } },
-        { client: { nom:        { contains: search, ...insensitive } } },
-        { client: { prenom:     { contains: search, ...insensitive } } },
-        { client: { telephone:  { contains: search } } },
-        { client: { codeClient: { contains: search, ...insensitive } } },
-        { client: { quartier:   { contains: search, ...insensitive } } },
-        { client: { ville:      { contains: search, ...insensitive } } },
-        { client: { commune:    { contains: search, ...insensitive } } },
-        { client: { agentTerrain: { OR: [
-          { nom:    { contains: search, ...insensitive } },
-          { prenom: { contains: search, ...insensitive } },
-        ] } } },
+        {
+          client: {
+            OR: [
+              ...conditionsNomPrenom(search),
+              { telephone: { contains: search } },
+              { codeClient: { contains: search, ...insensitive } },
+              { quartier:   { contains: search, ...insensitive } },
+              { ville:      { contains: search, ...insensitive } },
+              { commune:    { contains: search, ...insensitive } },
+            ],
+          },
+        },
+        { client: { agentTerrain: { OR: conditionsNomPrenom(search) } } },
       ],
     }),
   };
