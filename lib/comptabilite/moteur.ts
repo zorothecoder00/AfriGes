@@ -243,6 +243,13 @@ const REGLES_PAR_DEFAUT: Record<string, (ctx: ContexteEvenement) => ComptesRegle
     const tr = compteTresorerie(ctx.modePaiement);
     return { journal: tr.journal, compteDebitNumero: "401", compteCreditNumero: tr.numero };
   },
+  // Avoir fournisseur (CDC §17) : inverse d'un achat — Dr 401 Fournisseur (réduit la dette) / Cr 601 Achats.
+  AVOIR_FOURNISSEUR_RECU: () => ({ journal: "ACHATS", compteDebitNumero: "401", compteCreditNumero: "601" }),
+  // Avance/acompte versé à un fournisseur (CDC §17) : Dr 402 / Cr Trésorerie.
+  AVANCE_FOURNISSEUR_VERSEE: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "402", compteCreditNumero: tr.numero };
+  },
   // Coût des marchandises vendues (COGS), constaté à la sortie physique du
   // stock : Dr 6031 Variation de stocks / Cr 311 Marchandises.
   SORTIE_STOCK_VENTE: () => ({ journal: "VENTES", compteDebitNumero: "6031", compteCreditNumero: "311" }),
@@ -444,6 +451,51 @@ export async function ecripturePaiementFournisseur(
     lignes: [
       { numero: compteDebit, debit: params.montant, libelle: `Solde dette ${params.fournisseurNom}`, pointDeVenteId: pdv },
       { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Décaissement ${params.reference}`, pointDeVenteId: pdv },
+    ],
+  });
+}
+
+/**
+ * Avoir fournisseur (CDC §17) : Dr Fournisseurs / Cr Achats — inverse d'un
+ * achat, imputé au sous-compte auxiliaire du fournisseur si `fournisseurId`
+ * est fourni.
+ */
+export async function ecritureAvoirFournisseur(
+  tx: TxClient,
+  params: { montant: number; reference: string; fournisseurNom: string; fournisseurId?: number; userId: number; date?: Date },
+): Promise<number | null> {
+  const regle = await resoudreRegleComptable(tx, "AVOIR_FOURNISSEUR_RECU");
+  if (!regle) return null;
+  const compteDebit = await compteAuxiliaireOuDefaut(tx, regle.compteDebitNumero, { fournisseurId: params.fournisseurId });
+  return creerEcriture(tx, {
+    journal: regle.journal,
+    date: params.date ?? new Date(),
+    libelle: `Avoir fournisseur — ${params.fournisseurNom} — ${params.reference}`,
+    userId: params.userId,
+    reference: `SYNC-AVF-${params.reference}`,
+    lignes: [
+      { numero: compteDebit, debit: params.montant, libelle: `Avoir ${params.reference}` },
+      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Avoir ${params.reference}` },
+    ],
+  });
+}
+
+/** Avance/acompte versé à un fournisseur (CDC §17) : Dr 402 / Cr Trésorerie. */
+export async function ecritureAvanceFournisseur(
+  tx: TxClient,
+  params: { montant: number; reference: string; fournisseurNom: string; modePaiement?: string | null; userId: number; date?: Date },
+): Promise<number | null> {
+  const regle = await resoudreRegleComptable(tx, "AVANCE_FOURNISSEUR_VERSEE", { modePaiement: params.modePaiement });
+  if (!regle) return null;
+  return creerEcriture(tx, {
+    journal: regle.journal,
+    date: params.date ?? new Date(),
+    libelle: `Avance fournisseur — ${params.fournisseurNom} — ${params.reference}`,
+    userId: params.userId,
+    reference: `SYNC-AVF2-${params.reference}`,
+    lignes: [
+      { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Avance ${params.reference}` },
+      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Avance ${params.reference}` },
     ],
   });
 }

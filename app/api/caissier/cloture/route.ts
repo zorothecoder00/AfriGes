@@ -311,6 +311,16 @@ export async function POST(req: Request) {
     const soldeTheorique           = fondsCaisse + montantTotal + totalEncaissementsAutres - totalDecaissements - totalTransferts;
     const ecart                    = soldeReel !== null ? soldeReel - soldeTheorique : null;
 
+    // CDC Comptabilité §20 — "le système doit demander une justification" dès
+    // qu'un écart de caisse existe (solde physique ≠ solde théorique) : bloque
+    // la clôture tant que `notes` ne porte pas cette justification.
+    if (ecart !== null && Math.abs(ecart) > 0.01 && !notes) {
+      return NextResponse.json(
+        { message: `Écart de caisse détecté (${ecart > 0 ? "+" : ""}${ecart.toFixed(2)}) : une justification est obligatoire pour clôturer.` },
+        { status: 400 },
+      );
+    }
+
     const caissierNom = session.user.name ?? "Caissier";
 
     const cloture = await prisma.$transaction(async (tx) => {

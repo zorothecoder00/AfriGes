@@ -27,6 +27,29 @@ export async function resoudreTvaVente(tx: TxClient): Promise<TvaActive | null> 
   return { taux: Number(taxe.taux), compteCollecteNumero: taxe.compteCollecteNumero };
 }
 
+export interface TvaAchatActive {
+  taux: number;
+  compteDeductibleNumero: string;
+}
+
+/**
+ * Taxe TVA active applicable aux achats (CDC §21 — "applicable à achat") :
+ * avant cette fonction, `TaxeConfig.applicableAchat` était stocké mais jamais
+ * lu par le moteur d'écriture d'achat, qui imputait tout le montant TTC en
+ * charge/stock sans jamais isoler la TVA déductible (4432).
+ */
+export async function resoudreTvaAchat(tx: TxClient): Promise<TvaAchatActive | null> {
+  const taxe = await tx.taxeConfig.findFirst({
+    where: { nature: "TVA", actif: true, applicableAchat: true },
+    orderBy: { id: "asc" },
+  });
+  // compteDeductibleNumero est nullable en base (une taxe peut n'être configurée
+  // que côté vente) — sans compte déductible, impossible de décomposer la TVA
+  // sur achat, comportement identique à "aucune taxe applicable".
+  if (!taxe || !taxe.compteDeductibleNumero) return null;
+  return { taux: Number(taxe.taux), compteDeductibleNumero: taxe.compteDeductibleNumero };
+}
+
 /** Décompose un montant TTC en HT + TVA selon un taux (%). */
 export function decomposerTTC(montantTTC: number, tauxPct: number): { montantHT: number; montantTVA: number } {
   const montantHT = montantTTC / (1 + tauxPct / 100);

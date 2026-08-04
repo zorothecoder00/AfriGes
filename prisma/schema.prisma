@@ -754,6 +754,8 @@ model User {
   comptesComptablesCrees     CompteComptable[]       @relation("CompteComptableCreateur")
   avoirsClientsCrees         AvoirClient[]           @relation("AvoirClientCreateur")
   litigesClientsCrees        LitigeClient[]          @relation("LitigeClientCreateur")
+  avoirsFournisseursCrees    AvoirFournisseur[]      @relation("AvoirFournisseurCreateur")
+  avancesFournisseursCrees   AvanceFournisseur[]     @relation("AvanceFournisseurCreateur")
 
   // Points de vente — cet user est RPV d'un PDV (1-1)
   pointDeVenteRPV      PointDeVente?        @relation("RPVPointDeVente")
@@ -1672,9 +1674,71 @@ model Fournisseur {
   compteAuxiliaire CompteComptable?
   immobilisations  Immobilisation[]
   provisionsDepreciation ProvisionDepreciation[]
+  avoirs           AvoirFournisseur[]
+  avances          AvanceFournisseur[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum StatutAvoirFournisseur {
+  RECU
+  UTILISE
+  ANNULE
+}
+
+/// Avoir fournisseur (note de crédit reçue) — réduit la dette 401xxx envers le
+/// fournisseur. Génère une écriture Dr 401 Fournisseur / Cr 601 Achats
+/// (inverse d'un achat), via le moteur central (evenement AVOIR_FOURNISSEUR_RECU).
+model AvoirFournisseur {
+  id            Int                    @id @default(autoincrement())
+  reference     String                 @unique
+  fournisseurId Int
+  fournisseur   Fournisseur            @relation(fields: [fournisseurId], references: [id])
+  montant       Decimal
+  motif         String
+  statut        StatutAvoirFournisseur @default(RECU)
+  dateEmission  DateTime               @default(now())
+  ecritureId    Int?
+  notes         String?
+  creeParId     Int
+  creePar       User                   @relation("AvoirFournisseurCreateur", fields: [creeParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fournisseurId])
+}
+
+enum StatutAvanceFournisseur {
+  VERSEE
+  IMPUTEE
+  REMBOURSEE
+}
+
+/// Avance/acompte versé à un fournisseur (CDC Comptabilité §17) — Dr 402
+/// Fournisseurs avances et acomptes versés / Cr Trésorerie. Reste un suivi
+/// manuel (statut IMPUTEE) tant qu'aucun rapprochement facture n'est modélisé
+/// (cf. écart "facture fournisseur" déjà documenté ailleurs dans ce module).
+model AvanceFournisseur {
+  id            Int                     @id @default(autoincrement())
+  reference     String                  @unique
+  fournisseurId Int
+  fournisseur   Fournisseur             @relation(fields: [fournisseurId], references: [id])
+  montant       Decimal
+  montantImpute Decimal                 @default(0)
+  statut        StatutAvanceFournisseur @default(VERSEE)
+  dateVersement DateTime                @default(now())
+  modePaiement  String?
+  ecritureId    Int?
+  notes         String?
+  creeParId     Int
+  creePar       User                    @relation("AvanceFournisseurCreateur", fields: [creeParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fournisseurId])
 }
 
 /// Contrat rattaché à un fournisseur (CDC §8) — document + période de validité.

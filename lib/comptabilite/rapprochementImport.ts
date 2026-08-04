@@ -168,10 +168,55 @@ export interface PropositionRapprochement {
 
 const FENETRE_JOURS = 10;
 
+/** Mots significatifs (≥3 caractères) d'un libellé, normalisés pour comparaison. */
+function motsSignificatifs(libelle: string): Set<string> {
+  return new Set(
+    libelle
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((m) => m.length >= 3),
+  );
+}
+
+/**
+ * Score de correspondance entre une ligne de relevé et une ligne d'écriture
+ * déjà appariées sur le montant (CDC §19 — "Le moteur compare : montant ;
+ * date ; référence ; bénéficiaire ; libellé"). Plus haut = meilleure
+ * correspondance ; sert à départager plusieurs candidats à montant identique
+ * dans la même fenêtre de dates, plutôt que de prendre le premier trouvé.
+ */
+function scoreCorrespondance(
+  lr: { date: Date; libelle: string; reference: string | null },
+  le: { ecriture: { date: Date; reference: string; libelle: string } },
+): number {
+  let score = 0;
+
+  const ecartJours = Math.abs((le.ecriture.date.getTime() - lr.date.getTime()) / 86_400_000);
+  score += (FENETRE_JOURS - ecartJours) * 2; // plus proche en date = mieux
+
+  if (lr.reference) {
+    const refReleve = lr.reference.trim().toLowerCase();
+    const refEcriture = le.ecriture.reference.trim().toLowerCase();
+    if (refReleve === refEcriture) score += 50;
+    else if (refReleve.length >= 4 && (refEcriture.includes(refReleve) || refReleve.includes(refEcriture))) score += 25;
+  }
+
+  const motsReleve = motsSignificatifs(lr.libelle);
+  const motsEcriture = motsSignificatifs(le.ecriture.libelle);
+  let motsCommuns = 0;
+  for (const m of motsReleve) if (motsEcriture.has(m)) motsCommuns++;
+  score += motsCommuns * 5;
+
+  return score;
+}
+
 /**
  * Propose des correspondances entre les lignes de relevé non rapprochées et les
  * lignes d'écriture (validées) du même compte non encore rapprochées, sur un
- * montant identique dans une fenêtre de ±10 jours. Le comptable confirme.
+ * montant identique dans une fenêtre de ±10 jours — départagées par date,
+ * référence et libellé quand plusieurs écritures partagent le même montant
+ * (CDC §19). Le comptable confirme toujours avant rapprochement.
  */
 export async function proposerRapprochements(tx: TxClient, compteNumero: string): Promise<PropositionRapprochement[]> {
   const compte = await tx.compteComptable.findUnique({ where: { numero: compteNumero }, select: { id: true } });
@@ -190,7 +235,7 @@ export async function proposerRapprochements(tx: TxClient, compteNumero: string)
       id: { notIn: idsExclus.length > 0 ? idsExclus : undefined },
       ecriture: { statut: { in: ["VALIDE", "CLOTURE"] } },
     },
-    include: { ecriture: { select: { date: true } } },
+    include: { ecriture: { select: { date: true, reference: true, libelle: true } } },
   });
 
   const propositions: PropositionRapprochement[] = [];
@@ -201,7 +246,7 @@ export async function proposerRapprochements(tx: TxClient, compteNumero: string)
     // Sens : un débit bancaire (sortie) correspond à un crédit du compte de trésorerie
     // en comptabilité (et inversement) — le compte bancaire vu de la banque est en
     // miroir du compte 52x/57x vu de l'entreprise.
-    const candidat = lignesEcriture.find((le) => {
+    const candidats = lignesEcriture.filter((le) => {
       if (ecrituresUtilisees.has(le.id)) return false;
       const montantLigne = Number(lr.debit) > 0 ? Number(le.credit) : Number(le.debit);
       if (Math.abs(montantLigne - montantReleve) > 0.01) return false;
@@ -209,13 +254,16 @@ export async function proposerRapprochements(tx: TxClient, compteNumero: string)
       return ecartJours <= FENETRE_JOURS;
     });
 
-    if (candidat) {
-      ecrituresUtilisees.add(candidat.id);
+    if (candidats.length > 0) {
+      const meilleur = candidats.reduce((best, c) =>
+        scoreCorrespondance(lr, c) > scoreCorrespondance(lr, best) ? c : best,
+      );
+      ecrituresUtilisees.add(meilleur.id);
       propositions.push({
         ligneReleveId: lr.id,
-        ligneEcritureId: candidat.id,
+        ligneEcritureId: meilleur.id,
         montant: montantReleve,
-        ecartJours: Math.round(Math.abs((candidat.ecriture.date.getTime() - lr.date.getTime()) / 86_400_000)),
+        ecartJours: Math.round(Math.abs((meilleur.ecriture.date.getTime() - lr.date.getTime()) / 86_400_000)),
       });
     }
   }

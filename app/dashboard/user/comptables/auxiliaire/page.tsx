@@ -164,13 +164,16 @@ export default function AuxiliairePage() {
                       {code && <p className="text-xs text-slate-400">{code}</p>}
                     </div>
                     <div className="flex items-center gap-1.5">
-                      {auxType === "CLIENT" && (
-                        <Link href={`/dashboard/user/comptables/auxiliaire/clients/${entry.id}`}
-                          title="Fiche client comptable (grand livre, créances, avoirs, litiges)"
-                          className="p-1.5 text-violet-500 hover:bg-violet-50 rounded-lg">
-                          <FileText size={15} />
-                        </Link>
-                      )}
+                      <Link
+                        href={auxType === "CLIENT"
+                          ? `/dashboard/user/comptables/auxiliaire/clients/${entry.id}`
+                          : `/dashboard/user/comptables/auxiliaire/fournisseurs/${entry.id}`}
+                        title={auxType === "CLIENT"
+                          ? "Fiche client comptable (grand livre, créances, avoirs, litiges)"
+                          : "Fiche fournisseur comptable (grand livre, avoirs, avances)"}
+                        className="p-1.5 text-violet-500 hover:bg-violet-50 rounded-lg">
+                        <FileText size={15} />
+                      </Link>
                       {entry.compteAuxiliaire ? (
                         <button
                           onClick={() => { setAuxSelectedCompte({ id: entry.compteAuxiliaire!.id, numero: entry.compteAuxiliaire!.numero, nom }); setLettrageSelection([]); }}

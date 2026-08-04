@@ -34,7 +34,7 @@ export async function PUT(req: Request, { params }: Ctx) {
         where: { id: Number(litigeId) },
         data: {
           ...(statut !== undefined && {
-            statut,
+            statut: statut as import("@prisma/client").StatutLitigeClient,
             // La résolution/clôture fige une date, jamais réécrite par un aller-retour ultérieur.
             ...((statut === "RESOLU" || statut === "CLOTURE") && !existing.dateResolution && { dateResolution: new Date() }),
           }),
