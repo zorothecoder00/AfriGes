@@ -17,11 +17,19 @@ export async function GET(_req: Request, { params }: Ctx) {
       include: {
         lignes: {
           include: {
-            compte: { select: { id: true, numero: true, libelle: true, type: true, sens: true } },
+            compte: {
+              select: {
+                id: true, numero: true, libelle: true, type: true, sens: true,
+                tiersType: true, tiersNom: true,
+                client: { select: { nom: true, prenom: true } },
+                fournisseur: { select: { nom: true } },
+              },
+            },
           },
           orderBy: { id: "asc" },
         },
         user: { select: { id: true, nom: true, prenom: true } },
+        validePar: { select: { id: true, nom: true, prenom: true } },
       },
     });
 
@@ -118,6 +126,10 @@ export async function PUT(req: Request, { params }: Ctx) {
           ...(statut  !== undefined && { statut }),
           ...(libelle !== undefined && { libelle }),
           ...(notes   !== undefined && { notes }),
+          // CDC §10 — "Date de validation" : stampée une seule fois, à l'instant
+          // précis où l'écriture devient VALIDE (jamais réécrite ensuite, une
+          // écriture VALIDE ne se modifiant plus directement — CDC §13).
+          ...(statut === "VALIDE" && existing.statut !== "VALIDE" && { dateValidation: new Date(), valideParId: userId }),
         },
         include: {
           lignes: {

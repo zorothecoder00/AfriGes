@@ -54,11 +54,19 @@ export async function GET(req: Request) {
         include: {
           lignes: {
             include: {
-              compte: { select: { id: true, numero: true, libelle: true, type: true } },
+              compte: {
+                select: {
+                  id: true, numero: true, libelle: true, type: true,
+                  tiersType: true, tiersNom: true,
+                  client: { select: { nom: true, prenom: true } },
+                  fournisseur: { select: { nom: true } },
+                },
+              },
             },
             orderBy: { id: "asc" },
           },
           user: { select: { id: true, nom: true, prenom: true } },
+          validePar: { select: { id: true, nom: true, prenom: true } },
         },
         orderBy: { date: "desc" },
         skip,

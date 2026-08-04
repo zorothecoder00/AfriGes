@@ -7,20 +7,26 @@
 //
 // Ajout CDC : le statut A_CONTROLER ("à valider") existe dans l'enum Prisma
 // StatutEcriture mais n'était pas exposé comme filtre séparé dans l'ancien
-// onglet — on l'ajoute ici avec CLOTURE, en plus de BROUILLON/VALIDE/ANNULE.
+// onglet — on l'ajoute ici avec CLOTURE, en plus de BROUILLON/VALIDE.
+// CDC §13 : pas de statut "ANNULE" — une écriture validée ne s'annule jamais
+// directement, seule la contrepassation (bouton dédié) est autorisée.
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
   Edit2, PlusCircle, Download, ChevronLeft, ChevronRight,
-  RefreshCw, Wallet, TrendingUp, Package, X, BadgeCheck, Trash2,
+  RefreshCw, Wallet, TrendingUp, Package, BadgeCheck, Trash2,
+  Paperclip, Upload, ExternalLink, X,
 } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort } from "@/lib/format";
 import { exportToXlsx } from "@/lib/exportXlsx";
-import { useT } from "@/contexts/AppSettingsContext";
+import { generateUploadButton } from "@uploadthing/react";
+import type { OurFileRouter } from "@/app/api/uploadthing/core";
 import AideComptable from "@/components/AideComptable";
 import { AIDE_COMPTABLE } from "@/lib/aideComptableContenu";
+
+const UploadButton = generateUploadButton<OurFileRouter>();
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -28,12 +34,25 @@ interface LigneEcritureData {
   id: number; compteId: number; libelle: string;
   debit: number; credit: number; isTva: boolean;
   tauxTva: number | null; montantTva: number | null;
-  compte: { id: number; numero: string; libelle: string; type: string };
+  compte: {
+    id: number; numero: string; libelle: string; type: string;
+    tiersType: string | null; tiersNom: string | null;
+    client: { nom: string; prenom: string } | null;
+    fournisseur: { nom: string } | null;
+  };
+}
+
+function nomTiers(compte: LigneEcritureData["compte"]): string | null {
+  if (compte.client) return `${compte.client.prenom} ${compte.client.nom}`;
+  if (compte.fournisseur) return compte.fournisseur.nom;
+  return compte.tiersNom;
 }
 interface EcritureComptable {
   id: number; reference: string; date: string; libelle: string;
   journal: string; statut: string; notes: string | null;
+  dateValidation: string | null;
   user?: { id: number; nom: string; prenom: string };
+  validePar?: { id: number; nom: string; prenom: string } | null;
   lignes: LigneEcritureData[];
 }
 interface EcrituresResponse {
@@ -50,6 +69,19 @@ interface SyncApercu {
 }
 interface SyncApercuResponse { apercu: SyncApercu }
 
+interface PieceEntry {
+  id: number; nom: string; url: string; uploadthingKey: string; type: string; taille: number;
+  sourceType: string; sourceId: number; description: string | null; archiverJusquau: string;
+  createdAt: string; uploadeUser: { nom: string; prenom: string };
+}
+interface PiecesResponse { success: boolean; data: PieceEntry[] }
+
+function formatTaille(octets: number): string {
+  if (octets >= 1024 * 1024) return `${(octets / (1024 * 1024)).toFixed(1)} Mo`;
+  if (octets >= 1024)        return `${Math.round(octets / 1024)} Ko`;
+  return `${octets} o`;
+}
+
 const JOURNAL_LABELS: Record<string, string> = {
   CAISSE: "Caisse", BANQUE: "Banque", VENTES: "Ventes",
   ACHATS: "Achats", OD: "Opérations diverses", PAIE: "Paie",
@@ -60,7 +92,6 @@ const STATUT_ECRITURE_COLORS: Record<string, string> = {
   A_CONTROLER: "bg-blue-50 text-blue-700 border-blue-200",
   VALIDE:      "bg-emerald-50 text-emerald-700 border-emerald-200",
   CLOTURE:     "bg-slate-100 text-slate-600 border-slate-200",
-  ANNULE:      "bg-red-50 text-red-600 border-red-200",
 };
 
 const STATUT_FILTRE_OPTIONS = [
@@ -69,12 +100,9 @@ const STATUT_FILTRE_OPTIONS = [
   { value: "A_CONTROLER", label: "À valider" },
   { value: "VALIDE",      label: "Validé" },
   { value: "CLOTURE",     label: "Clôturé" },
-  { value: "ANNULE",      label: "Annulé" },
 ];
 
 export default function SaisieEcrituresPage() {
-  const t = useT();
-
   // ── État filtres écritures ───────────────────────────────────────────
   const [ecrituresPage, setEcrituresPage]       = useState(1);
   const [ecrituresJournal, setEcrituresJournal] = useState("");
@@ -100,10 +128,6 @@ export default function SaisieEcrituresPage() {
     () => `/api/comptable/ecritures/${ecritureActionIdRef.current}`, "PUT",
     { successMessage: "Écriture validée" }
   );
-  const { mutate: annulerEcriture } = useMutation<unknown, object>(
-    () => `/api/comptable/ecritures/${ecritureActionIdRef.current}`, "PUT",
-    { successMessage: "Écriture annulée" }
-  );
   const { mutate: supprimerEcriture } = useMutation<unknown, object>(
     () => `/api/comptable/ecritures/${ecritureActionIdRef.current}`, "DELETE",
     { successMessage: "Écriture supprimée" }
@@ -113,14 +137,44 @@ export default function SaisieEcrituresPage() {
     { successMessage: "Écriture contrepassée" }
   );
 
+  // ── Pièces justificatives (CDC §10 — "Pièce justificative" est un champ de
+  // l'écriture elle-même, pas seulement des sources opérationnelles) ────────
+  const [piecesModal, setPiecesModal] = useState<{ ecritureId: number; libelle: string } | null>(null);
+  const [piecesLocalList, setPiecesLocalList] = useState<PieceEntry[]>([]);
+  const [piecesLoading, setPiecesLoading] = useState(false);
+  const [piecesSuppLoading, setPiecesSuppLoading] = useState<number | null>(null);
+
+  const fetchPiecesModal = useCallback(async (ecritureId: number) => {
+    setPiecesLoading(true);
+    try {
+      const res = await fetch(`/api/comptable/pieces?sourceType=ECRITURE_COMPTABLE&sourceId=${ecritureId}`);
+      const json: PiecesResponse = await res.json();
+      setPiecesLocalList(json.data ?? []);
+    } catch {
+      setPiecesLocalList([]);
+    } finally {
+      setPiecesLoading(false);
+    }
+  }, []);
+
+  function openPiecesModal(ecritureId: number, libelle: string) {
+    setPiecesModal({ ecritureId, libelle });
+    fetchPiecesModal(ecritureId);
+  }
+
+  async function supprimerPiece(pieceId: number) {
+    setPiecesSuppLoading(pieceId);
+    try {
+      await fetch(`/api/comptable/pieces/${pieceId}`, { method: "DELETE" });
+      setPiecesLocalList((prev) => prev.filter((p) => p.id !== pieceId));
+    } finally {
+      setPiecesSuppLoading(null);
+    }
+  }
+
   async function handleValider(id: number) {
     ecritureActionIdRef.current = id;
     const res = await validerEcriture({ statut: "VALIDE" });
-    if (res) refetchEcritures();
-  }
-  async function handleAnnulerEcriture(id: number) {
-    ecritureActionIdRef.current = id;
-    const res = await annulerEcriture({ statut: "ANNULE" });
     if (res) refetchEcritures();
   }
   async function handleSupprimerEcriture(id: number) {
@@ -166,6 +220,7 @@ export default function SaisieEcrituresPage() {
   }
 
   return (
+    <>
     <main className="max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-2xl font-bold text-slate-800">Saisie comptable — Écritures</h1>
@@ -316,9 +371,19 @@ export default function SaisieEcrituresPage() {
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${STATUT_ECRITURE_COLORS[e.statut] ?? "bg-slate-100 text-slate-600"}`}>{e.statut}</span>
                     <span className="text-xs bg-blue-50 text-blue-700 font-medium px-2 py-0.5 rounded-full">{JOURNAL_LABELS[e.journal] ?? e.journal}</span>
                     <span className="text-xs text-slate-400">{formatDateShort(e.date)}</span>
-                    {e.user && <span className="text-xs text-slate-400">{e.user.prenom} {e.user.nom}</span>}
+                    {e.user && <span className="text-xs text-slate-400" title="Saisie par">{e.user.prenom} {e.user.nom}</span>}
+                    {e.validePar && e.dateValidation && (
+                      <span className="text-xs text-emerald-600" title="Validée par">
+                        ✓ {e.validePar.prenom} {e.validePar.nom} le {formatDateShort(e.dateValidation)}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
+                    <button onClick={() => openPiecesModal(e.id, e.libelle)}
+                      title="Pièces justificatives"
+                      className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
+                      <Paperclip size={14} />
+                    </button>
                     {e.statut === "BROUILLON" && (
                       <>
                         <button onClick={() => handleValider(e.id)}
@@ -330,17 +395,14 @@ export default function SaisieEcrituresPage() {
                       </>
                     )}
                     {e.statut === "VALIDE" && (
-                      <>
-                        <button onClick={() => handleContrepasserEcriture(e.id)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 border border-violet-200 text-violet-600 rounded-lg text-xs font-semibold hover:bg-violet-50"
-                          title="Génère l'écriture inverse — l'originale reste intacte">
-                          <RefreshCw size={13} /> Contrepasser
-                        </button>
-                        <button onClick={() => handleAnnulerEcriture(e.id)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 border border-red-200 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50">
-                          <X size={13} /> {t('btn_cancel')}
-                        </button>
-                      </>
+                      // CDC §13 — une écriture validée ne se modifie/annule jamais
+                      // directement : seule la contrepassation (écriture inverse
+                      // automatique, originale intacte) est autorisée.
+                      <button onClick={() => handleContrepasserEcriture(e.id)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 border border-violet-200 text-violet-600 rounded-lg text-xs font-semibold hover:bg-violet-50"
+                        title="Génère l'écriture inverse — l'originale reste intacte">
+                        <RefreshCw size={13} /> Contrepasser
+                      </button>
                     )}
                   </div>
                 </div>
@@ -352,6 +414,7 @@ export default function SaisieEcrituresPage() {
                   <thead className="border-b border-slate-100 bg-slate-50/50">
                     <tr>
                       <th className="text-left px-5 py-1.5 font-semibold text-slate-500">Compte</th>
+                      <th className="text-left px-3 py-1.5 font-semibold text-slate-500">Tiers</th>
                       <th className="text-left px-3 py-1.5 font-semibold text-slate-500">Libellé</th>
                       <th className="text-right px-5 py-1.5 font-semibold text-blue-600">Débit</th>
                       <th className="text-right px-5 py-1.5 font-semibold text-emerald-600">Crédit</th>
@@ -362,6 +425,7 @@ export default function SaisieEcrituresPage() {
                     {e.lignes.map((l) => (
                       <tr key={l.id} className={`hover:bg-slate-50 ${l.isTva ? "bg-amber-50/40" : ""}`}>
                         <td className="px-5 py-1.5 font-mono text-slate-700">{l.compte.numero} <span className="text-slate-400 font-sans">{l.compte.libelle}</span></td>
+                        <td className="px-3 py-1.5 text-slate-500">{nomTiers(l.compte) ?? "—"}</td>
                         <td className="px-3 py-1.5 text-slate-600">{l.libelle}</td>
                         <td className="px-5 py-1.5 text-right font-medium text-blue-700">{Number(l.debit) > 0 ? formatCurrency(Number(l.debit)) : ""}</td>
                         <td className="px-5 py-1.5 text-right font-medium text-emerald-700">{Number(l.credit) > 0 ? formatCurrency(Number(l.credit)) : ""}</td>
@@ -371,7 +435,7 @@ export default function SaisieEcrituresPage() {
                   </tbody>
                   <tfoot className="border-t-2 border-slate-200 bg-slate-50">
                     <tr>
-                      <td colSpan={2} className="px-5 py-1.5 font-bold text-slate-600 text-xs">Total</td>
+                      <td colSpan={3} className="px-5 py-1.5 font-bold text-slate-600 text-xs">Total</td>
                       <td className="px-5 py-1.5 text-right font-bold text-blue-700">{formatCurrency(totalD)}</td>
                       <td className="px-5 py-1.5 text-right font-bold text-emerald-700">{formatCurrency(e.lignes.reduce((s, l) => s + Number(l.credit), 0))}</td>
                       <td></td>
@@ -397,5 +461,97 @@ export default function SaisieEcrituresPage() {
         </div>
       )}
     </main>
+
+    {/* Modal pièces justificatives */}
+    {piecesModal && (
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[80vh]">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-200 flex-shrink-0">
+            <div className="w-9 h-9 bg-violet-100 rounded-xl flex items-center justify-center">
+              <Paperclip size={18} className="text-violet-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-slate-800 text-sm">Pièces justificatives</h3>
+              <p className="text-xs text-slate-400 truncate">{piecesModal.libelle}</p>
+            </div>
+            <button onClick={() => setPiecesModal(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2 min-h-0">
+            {piecesLoading ? (
+              <div className="py-6 text-center"><div className="w-7 h-7 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto" /></div>
+            ) : piecesLocalList.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-sm">
+                <Paperclip size={32} className="mx-auto mb-2 opacity-30" />
+                Aucune pièce jointe pour cette écriture
+              </div>
+            ) : (
+              piecesLocalList.map((piece) => (
+                <div key={piece.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors">
+                  <div className="w-9 h-9 bg-white border border-slate-200 rounded-lg flex items-center justify-center flex-shrink-0 text-lg">
+                    {piece.type.includes("pdf") ? "📄" : "🖼️"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{piece.nom}</p>
+                    <p className="text-xs text-slate-400">
+                      {formatTaille(piece.taille)} · {piece.uploadeUser.prenom} {piece.uploadeUser.nom} · {formatDateShort(piece.createdAt)}
+                    </p>
+                    {piece.description && <p className="text-xs text-slate-500 italic mt-0.5">{piece.description}</p>}
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <a href={piece.url} target="_blank" rel="noopener noreferrer"
+                      className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg" title="Ouvrir">
+                      <ExternalLink size={15} />
+                    </a>
+                    <button onClick={() => supprimerPiece(piece.id)}
+                      disabled={piecesSuppLoading === piece.id}
+                      className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg disabled:opacity-40" title="Supprimer">
+                      {piecesSuppLoading === piece.id
+                        ? <div className="w-3.5 h-3.5 border-2 border-red-300 border-t-red-500 rounded-full animate-spin" />
+                        : <Trash2 size={15} />}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="px-6 py-4 border-t border-slate-100 flex-shrink-0">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+              <Upload size={12} />Ajouter un document (PDF ou image, max 16 Mo)
+            </p>
+            <UploadButton
+              endpoint="justificatif"
+              onClientUploadComplete={async (res) => {
+                for (const file of res) {
+                  await fetch("/api/comptable/pieces", {
+                    method:  "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body:    JSON.stringify({
+                      sourceType:     "ECRITURE_COMPTABLE",
+                      sourceId:       piecesModal.ecritureId,
+                      nom:            file.name,
+                      url:            file.url,
+                      uploadthingKey: file.key,
+                      type:           file.type ?? "application/octet-stream",
+                      taille:         file.size,
+                    }),
+                  });
+                }
+                fetchPiecesModal(piecesModal.ecritureId);
+              }}
+              onUploadError={(err) => console.error("Upload error:", err)}
+              appearance={{
+                button: "bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors",
+                allowedContent: "text-slate-400 text-xs mt-1",
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

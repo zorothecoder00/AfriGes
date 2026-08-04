@@ -738,6 +738,7 @@ model User {
   // Comptabilité
   cloturesComptables   ClotureComptable[]
   ecrituresComptables  EcritureComptable[]
+  ecrituresValidees    EcritureComptable[] @relation("EcritureValidateur")
   rapprochements       RapprochementBancaire[]
   declarationsTVA      DeclarationTVA[]
   journalValidations   JournalValidation[]
@@ -3461,7 +3462,7 @@ model PieceJustificative {
   type           String
   taille         Int
   // Association polymorphique
-  sourceType     String   // VERSEMENT_PACK | OPERATION_CAISSE | MOUVEMENT_STOCK | CLOTURE_COMPTABLE | RECEPTION_APPRO | TRANSFERT_STOCK
+  sourceType     String   // VERSEMENT_PACK | OPERATION_CAISSE | MOUVEMENT_STOCK | CLOTURE_COMPTABLE | RECEPTION_APPRO | TRANSFERT_STOCK | ECRITURE_COMPTABLE
   sourceId       Int
   description    String?
   uploadePar     Int
@@ -3635,6 +3636,13 @@ model EcritureComptable {
   userId    Int?
   user      User?                @relation(fields: [userId], references: [id])
   lignes    LigneEcriture[]
+
+  // CDC §10 — "Date de validation" distincte de "Date de saisie" (createdAt) :
+  // stampée par le PUT lorsque le statut transite vers VALIDE, jamais modifiée
+  // ensuite (une écriture VALIDE ne se modifie plus directement, CDC §13).
+  dateValidation DateTime?
+  valideParId    Int?
+  validePar      User?     @relation("EcritureValidateur", fields: [valideParId], references: [id])
 
   // Multi-société (CDC §50) : null = société principale (résolu par le moteur).
   societeId Int?
