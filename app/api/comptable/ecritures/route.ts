@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
-import { genererReferenceEcriture } from "@/lib/comptabilite/moteur";
+import { genererReferenceEcriture, periodeClôturée } from "@/lib/comptabilite/moteur";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 
@@ -93,11 +93,29 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { date, libelle, journal, notes, lignes, devise, tauxChange } = body;
+    const { date, libelle, journal, notes, lignes, devise, tauxChange, derogationJustification } = body;
 
     // Validations de base
     if (!date || !libelle || !journal) {
       return NextResponse.json({ error: "date, libelle et journal sont obligatoires" }, { status: 400 });
+    }
+
+    // CDC §29/§31 — période fermée : interdit sauf "autorisation spéciale"
+    // (ADMIN/SUPER_ADMIN uniquement, justification obligatoire, tracée dans
+    // les notes de l'écriture). Avant ce contrôle, cette route ne vérifiait
+    // JAMAIS la clôture mensuelle (contrairement à creerEcriture côté flux
+    // automatiques) — n'importe quel comptable pouvait saisir sur un mois clos.
+    const dateEcriture = new Date(date);
+    if (await periodeClôturée(prisma, dateEcriture)) {
+      const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+      const justification = typeof derogationJustification === "string" ? derogationJustification.trim() : "";
+      if (!isAdmin || !justification) {
+        return NextResponse.json({
+          error: isAdmin
+            ? "Période fermée — une justification est obligatoire pour déroger (autorisation spéciale)"
+            : "Période fermée — seul un administrateur peut déroger avec justification (autorisation spéciale)",
+        }, { status: 403 });
+      }
     }
     if (!Array.isArray(lignes) || lignes.length < 2) {
       return NextResponse.json({ error: "Une écriture nécessite au moins 2 lignes" }, { status: 400 });
@@ -134,7 +152,9 @@ export async function POST(req: Request) {
           date:    new Date(date),
           libelle,
           journal,
-          notes:   notes || null,
+          notes:   derogationJustification?.trim()
+            ? `[Dérogation période fermée — CDC §29] ${derogationJustification.trim()}${notes ? ` — ${notes}` : ""}`
+            : (notes || null),
           statut:  "BROUILLON" as import("@prisma/client").StatutEcriture,
           userId,
           devise:  devise || "XOF",
@@ -166,6 +186,9 @@ export async function POST(req: Request) {
         },
       });
       await auditLog(tx, userId, "CREATION_ECRITURE", "EcritureComptable", e.id, { reference: e.reference, libelle: e.libelle, journal: e.journal }, meta);
+      if (derogationJustification?.trim()) {
+        await auditLog(tx, userId, "DEROGATION_PERIODE_FERMEE", "EcritureComptable", e.id, { reference: e.reference, justification: derogationJustification.trim() }, meta);
+      }
       return e;
     });
 

@@ -33,6 +33,15 @@ export default function ExercicesPage() {
   const { mutate: cloturerExerciceApi, loading: cloturantExercice } = useMutation<{ error?: string; controles?: string[] }, object>(
     () => `/api/comptable/exercices/${exerciceActionIdRef.current}/cloturer`, "POST",
   );
+  const { mutate: archiverExerciceApi } = useMutation<unknown, object>(
+    () => `/api/comptable/exercices/${exerciceActionIdRef.current}/archiver`, "POST",
+    { successMessage: "Exercice archivé" }
+  );
+  async function handleArchiverExercice(id: number) {
+    exerciceActionIdRef.current = id;
+    const res = await archiverExerciceApi({});
+    if (res) refetchExercices();
+  }
   async function handleOuvrirExercice() {
     const res = await ouvrirExerciceApi({ annee: Number(nouvelExerciceAnnee) });
     if (res) refetchExercices();
@@ -87,10 +96,16 @@ export default function ExercicesPage() {
                 <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUT_EXERCICE_COLORS[ex.statut] ?? "bg-slate-100"}`}>{ex.statut}</span>
                 {ex.dateCloture && <span className="text-xs text-slate-400">Clôturé le {formatDateShort(ex.dateCloture)}</span>}
               </div>
-              {ex.statut !== "CLOTURE" && (
+              {ex.statut !== "CLOTURE" && ex.statut !== "ARCHIVE" && (
                 <button onClick={() => handleCloturerExercice(ex.id)} disabled={cloturantExercice}
                   className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50">
                   <Lock size={13} /> Clôturer définitivement
+                </button>
+              )}
+              {ex.statut === "CLOTURE" && (
+                <button onClick={() => handleArchiverExercice(ex.id)}
+                  className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-50">
+                  Archiver
                 </button>
               )}
             </div>

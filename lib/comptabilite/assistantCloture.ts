@@ -105,14 +105,74 @@ export async function verifierPreCloture(tx: TxClient, annee: number): Promise<E
     detail: nbImmoSansDotation === 0 ? "À jour" : `${nbImmoSansDotation} immobilisation(s) sans dotation récente`,
   });
 
-  // Taxes/TVA paramétrées (informatif — l'absence de taxe active est un choix valide).
-  const nbTaxesActives = await tx.taxeConfig.count({ where: { actif: true } });
+  // Taxes/TVA : TVA collectée/déductible réellement due sur le dernier mois de
+  // l'exercice, non encore déclarée (DeclarationTVA absente ou BROUILLON) — avant
+  // cette version, l'item ne vérifiait qu'un nombre de taxes actives, jamais un
+  // montant dû, et affichait toujours ok:true quel que soit l'état réel.
+  const dernierMois = `${annee}-12`;
+  const declarationDecembre = await tx.declarationTVA.findUnique({ where: { periode: dernierMois } });
   items.push({
     cle: "taxes",
     label: "Taxes / TVA",
-    ok: true,
+    ok: !!declarationDecembre && declarationDecembre.statut === "VALIDE",
     bloquant: false,
-    detail: nbTaxesActives > 0 ? `${nbTaxesActives} taxe(s) active(s)` : "Aucune taxe configurée",
+    detail: !declarationDecembre
+      ? `Déclaration TVA ${dernierMois} non enregistrée`
+      : declarationDecembre.statut !== "VALIDE"
+        ? `Déclaration TVA ${dernierMois} en brouillon, non validée`
+        : "À jour",
+  });
+
+  // Stocks — inventaires validés dont l'écart n'a pas encore été comptabilisé (CDC §23/§30).
+  const nbInventairesNonComptabilises = await tx.inventaireSite.count({ where: { statut: "VALIDE", ecritureRegularisationId: null } });
+  items.push({
+    cle: "stocks",
+    label: "Stocks",
+    ok: nbInventairesNonComptabilises === 0,
+    bloquant: false,
+    detail: nbInventairesNonComptabilises === 0 ? "Aucun inventaire en attente" : `${nbInventairesNonComptabilises} inventaire(s) validé(s) non comptabilisé(s)`,
+  });
+
+  // Écritures de régularisation (CCA/PCA) dont une échéance de l'exercice n'est pas encore comptabilisée.
+  const nbEcheancesRegulEnAttente = await tx.echeanceRegularisation.count({
+    where: { comptabilise: false, periode: { lte: `${annee}-12` }, regularisation: { statut: "ACTIVE" } },
+  });
+  items.push({
+    cle: "regularisations",
+    label: "Écritures de régularisation",
+    ok: nbEcheancesRegulEnAttente === 0,
+    bloquant: false,
+    detail: nbEcheancesRegulEnAttente === 0 ? "Aucune échéance en attente" : `${nbEcheancesRegulEnAttente} échéance(s) CCA/PCA non comptabilisée(s)`,
+  });
+
+  // Caisse, clients, fournisseurs — nommés individuellement (CDC §30 les liste
+  // séparément) plutôt que noyés dans le fourre-tout "controles_anomalies".
+  const nbCaisseNegative = constats.filter((c) => c.code === "SOLDE_TRESORERIE_NEGATIF").length;
+  items.push({
+    cle: "caisse",
+    label: "Caisse",
+    ok: nbCaisseNegative === 0,
+    bloquant: false,
+    detail: nbCaisseNegative === 0 ? "Aucun solde négatif" : `${nbCaisseNegative} compte(s) de trésorerie en solde négatif`,
+  });
+  const nbClientsInhabituels = constats.filter((c) => c.code === "CLIENT_CREDITEUR_INHABITUEL").length;
+  items.push({
+    cle: "clients",
+    label: "Clients",
+    ok: nbClientsInhabituels === 0,
+    bloquant: false,
+    detail: nbClientsInhabituels === 0 ? "Aucune anomalie" : `${nbClientsInhabituels} client(s) créditeur(s) inhabituel(s)`,
+  });
+  const nbFournisseursAnomalies = constats.filter((c) => c.code === "FOURNISSEUR_DEBITEUR_INHABITUEL" || c.code === "PAIEMENT_SANS_FACTURE").length;
+  const nbFacturesFournisseursImpayees = constats.filter((c) => c.code === "FACTURE_SANS_PAIEMENT").length;
+  items.push({
+    cle: "fournisseurs",
+    label: "Fournisseurs / factures impayées",
+    ok: nbFournisseursAnomalies === 0 && nbFacturesFournisseursImpayees === 0,
+    bloquant: false,
+    detail: nbFournisseursAnomalies === 0 && nbFacturesFournisseursImpayees === 0
+      ? "Aucune anomalie"
+      : `${nbFournisseursAnomalies} anomalie(s) fournisseur · ${nbFacturesFournisseursImpayees} facture(s) impayée(s)`,
   });
 
   // Résultat prévisionnel (aperçu, sans rien clôturer).

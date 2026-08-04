@@ -16,7 +16,7 @@ import Link from "next/link";
 import {
   Edit2, PlusCircle, Download, ChevronLeft, ChevronRight,
   RefreshCw, Wallet, TrendingUp, Package, BadgeCheck, Trash2,
-  Paperclip, Upload, ExternalLink, X,
+  Paperclip, Upload, ExternalLink, X, Printer,
 } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort } from "@/lib/format";
@@ -259,7 +259,7 @@ export default function SaisieEcrituresPage() {
       </div>
 
       {/* Bloc synchronisation automatique */}
-      <div className="bg-gradient-to-r from-indigo-50 to-violet-50 rounded-2xl p-5 border border-indigo-200 shadow-sm">
+      <div className="bg-gradient-to-r from-indigo-50 to-violet-50 rounded-2xl p-5 border border-indigo-200 shadow-sm print:hidden">
         <div className="flex items-center gap-2 mb-3">
           <RefreshCw size={18} className="text-indigo-600" />
           <h4 className="font-bold text-indigo-900">Alimentation automatique des journaux</h4>
@@ -337,7 +337,7 @@ export default function SaisieEcrituresPage() {
       </div>
 
       {/* Filtres écritures */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60 flex gap-3 flex-wrap">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60 flex gap-3 flex-wrap print:hidden">
         <select value={ecrituresJournal} onChange={(e) => { setEcrituresJournal(e.target.value); setEcrituresPage(1); }}
           className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
           <option value="">Tous les journaux</option>
@@ -354,6 +354,13 @@ export default function SaisieEcrituresPage() {
         <button onClick={() => exportToXlsx(ecrituresData?.data?.flatMap(e => e.lignes.map(l => ({ ref: e.reference, date: e.date.slice(0,10), journal: e.journal, libelle: l.libelle, compte: l.compte.numero, debit: Number(l.debit), credit: Number(l.credit) }))) ?? [], [{ label: "Référence", key: "ref" }, { label: "Date", key: "date" }, { label: "Journal", key: "journal" }, { label: "Libellé", key: "libelle" }, { label: "Compte", key: "compte" }, { label: "Débit", key: "debit", type: "currency" }, { label: "Crédit", key: "credit", type: "currency" }], "ecritures.xlsx", { sheetName: "Écritures" })}
           className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">
           <Download size={14} /> CSV
+        </button>
+        {/* CDC §35 — "possibilité d'imprimer le journal par période" : imprime
+            la liste actuellement filtrée (journal + période déjà sélectionnés
+            ci-dessus), écritures et boutons d'action masqués via print:hidden. */}
+        <button onClick={() => window.print()}
+          className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">
+          <Printer size={14} /> Imprimer
         </button>
       </div>
 
@@ -386,7 +393,7 @@ export default function SaisieEcrituresPage() {
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 print:hidden">
                     <button onClick={() => openPiecesModal(e.id, e.libelle)}
                       title="Pièces justificatives"
                       className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">

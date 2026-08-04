@@ -21,6 +21,8 @@ export interface ConstatControle {
 
 const SEUIL_COMPTE_ATTENTE = 100_000; // FCFA — au-delà, signalé
 const JOURS_BROUILLON_ANCIEN = 7;
+const JOURS_RAPPROCHEMENT_INCOMPLET = 15;
+const JOURS_AVANCE_SANS_FACTURE = 30;
 
 /** §40 — écritures dont le total débit ≠ crédit (protection contre d'anciens imports manuels). */
 async function controlerEquilibre(tx: TxClient): Promise<ConstatControle[]> {
@@ -258,6 +260,166 @@ async function controlerFacturesSansPaiement(tx: TxClient): Promise<ConstatContr
     }));
 }
 
+/** §40 — écritures manuelles (hors flux auto-synchronisés "SYNC-…", déjà tracés par leur enregistrement source) validées sans aucune pièce justificative attachée. */
+async function controlerEcritureSansPiece(tx: TxClient): Promise<ConstatControle[]> {
+  const ecritures = await tx.ecritureComptable.findMany({
+    where: { statut: { in: ["VALIDE", "CLOTURE"] }, NOT: { reference: { startsWith: "SYNC-" } } },
+    select: { id: true, reference: true, libelle: true },
+  });
+  if (ecritures.length === 0) return [];
+
+  const pieces = await tx.pieceJustificative.findMany({
+    where: { sourceType: "ECRITURE_COMPTABLE", sourceId: { in: ecritures.map((e) => e.id) } },
+    select: { sourceId: true },
+  });
+  const idsAvecPiece = new Set(pieces.map((p) => p.sourceId));
+
+  return ecritures
+    .filter((e) => !idsAvecPiece.has(e.id))
+    .map((e) => ({
+      code: "ECRITURE_SANS_PIECE",
+      gravite: "ANOMALIE" as const,
+      message: `Écriture ${e.reference} (${e.libelle}) validée sans pièce justificative`,
+      entiteType: "EcritureComptable",
+      entiteId: e.id,
+    }));
+}
+
+/** §40 — écritures postées sur un compte interdit (collectif ou de regroupement, ou compte désactivé/archivé/obsolète). */
+async function controlerCompteInterdit(tx: TxClient): Promise<ConstatControle[]> {
+  const lignes = await tx.ligneEcriture.findMany({
+    where: {
+      ecriture: { statut: { in: ["VALIDE", "CLOTURE"] } },
+      compte: { OR: [{ nature: "REGROUPEMENT" }, { estCompteCollectif: true }, { statut: { not: "ACTIF" } }] },
+    },
+    select: {
+      id: true, ecriture: { select: { id: true, reference: true } },
+      compte: { select: { numero: true, libelle: true, nature: true, estCompteCollectif: true, statut: true } },
+    },
+    take: 200,
+  });
+
+  return lignes.map((l) => {
+    const raison =
+      l.compte.nature === "REGROUPEMENT" ? "compte de regroupement (jamais mouvementé directement)"
+      : l.compte.estCompteCollectif ? "compte collectif (un mouvement était attendu sur un sous-compte auxiliaire)"
+      : `compte ${l.compte.statut?.toLowerCase()}`;
+    return {
+      code: "COMPTE_INTERDIT",
+      gravite: "ANOMALIE" as const,
+      message: `Écriture ${l.ecriture.reference} : mouvement sur ${l.compte.numero} (${l.compte.libelle}) — ${raison}`,
+      entiteType: "EcritureComptable",
+      entiteId: l.ecriture.id,
+    };
+  });
+}
+
+/** §40/§21 — taxes actives incohérentes : plusieurs TVA actives sur le même sens (vente/achat), ou dates de validité invalides. */
+async function controlerTaxeIncoherente(tx: TxClient): Promise<ConstatControle[]> {
+  const taxes = await tx.taxeConfig.findMany({ where: { actif: true } });
+  const constats: ConstatControle[] = [];
+
+  for (const t of taxes) {
+    if (t.dateFin && t.dateDebut && t.dateFin < t.dateDebut) {
+      constats.push({
+        code: "TAXE_DATES_INCOHERENTES",
+        gravite: "ANOMALIE",
+        message: `Taxe ${t.code} (${t.nom}) : date de fin antérieure à la date de début`,
+        entiteType: "TaxeConfig",
+        entiteId: t.id,
+      });
+    }
+  }
+
+  const tvaVente = taxes.filter((t) => t.nature === "TVA" && t.applicableVente);
+  if (tvaVente.length > 1) {
+    constats.push({
+      code: "TVA_VENTE_AMBIGUE",
+      gravite: "ANOMALIE",
+      message: `${tvaVente.length} taxes TVA actives applicables aux ventes (${tvaVente.map((t) => t.code).join(", ")}) — le moteur n'en retient qu'une seule (la plus ancienne), désactivez les autres`,
+      entiteType: "TaxeConfig",
+    });
+  }
+  const tvaAchat = taxes.filter((t) => t.nature === "TVA" && t.applicableAchat);
+  if (tvaAchat.length > 1) {
+    constats.push({
+      code: "TVA_ACHAT_AMBIGUE",
+      gravite: "ANOMALIE",
+      message: `${tvaAchat.length} taxes TVA actives applicables aux achats (${tvaAchat.map((t) => t.code).join(", ")}) — le moteur n'en retient qu'une seule (la plus ancienne), désactivez les autres`,
+      entiteType: "TaxeConfig",
+    });
+  }
+
+  return constats;
+}
+
+/** §40 — avance fournisseur versée depuis longtemps jamais imputée à une facture ("paiement sans facture"). */
+async function controlerAvanceFournisseurSansFacture(tx: TxClient): Promise<ConstatControle[]> {
+  const seuil = new Date(Date.now() - JOURS_AVANCE_SANS_FACTURE * 24 * 60 * 60 * 1000);
+  const avances = await tx.avanceFournisseur.findMany({
+    where: { statut: "VERSEE", dateVersement: { lt: seuil } },
+    select: { id: true, reference: true, montant: true, fournisseur: { select: { nom: true } } },
+  });
+  return avances.map((a) => ({
+    code: "PAIEMENT_SANS_FACTURE",
+    gravite: "ANOMALIE" as const,
+    message: `Avance ${a.reference} (${a.fournisseur.nom}, ${Number(a.montant).toLocaleString("fr-FR")} FCFA) versée depuis plus de ${JOURS_AVANCE_SANS_FACTURE} jours, jamais imputée à une facture`,
+    entiteType: "AvanceFournisseur",
+    entiteId: a.id,
+    montant: Number(a.montant),
+  }));
+}
+
+/** §19/§40 — lignes de relevé bancaire importées non rapprochées depuis longtemps ("rapprochement incomplet"). */
+async function controlerRapprochementIncomplet(tx: TxClient): Promise<ConstatControle[]> {
+  const seuil = new Date(Date.now() - JOURS_RAPPROCHEMENT_INCOMPLET * 24 * 60 * 60 * 1000);
+  const lignes = await tx.ligneReleveBancaire.findMany({
+    where: { statut: "NON_RAPPROCHE", date: { lt: seuil } },
+    select: { id: true, compteNumero: true, date: true, libelle: true, debit: true, credit: true },
+    take: 100,
+  });
+  return lignes.map((l) => ({
+    code: "RAPPROCHEMENT_INCOMPLET",
+    gravite: "ANOMALIE" as const,
+    message: `Relevé ${l.compteNumero} : ligne "${l.libelle}" du ${l.date.toLocaleDateString("fr-FR")} non rapprochée depuis plus de ${JOURS_RAPPROCHEMENT_INCOMPLET} jours`,
+    entiteType: "LigneReleveBancaire",
+    entiteId: l.id,
+    montant: Number(l.debit) > 0 ? Number(l.debit) : Number(l.credit),
+    date: l.date,
+  }));
+}
+
+/** §22/§40 — écriture d'acquisition sur un compte d'immobilisation (classe 2, hors amortissements 28x) sans fiche Immobilisation correspondante. */
+async function controlerImmobilisationSansFiche(tx: TxClient): Promise<ConstatControle[]> {
+  const lignes = await tx.ligneEcriture.findMany({
+    where: {
+      debit: { gt: 0 },
+      compte: { classe: 2, NOT: { numero: { startsWith: "28" } } },
+      ecriture: { statut: { in: ["VALIDE", "CLOTURE"] } },
+    },
+    select: { ecriture: { select: { id: true, reference: true } }, compte: { select: { numero: true, libelle: true } } },
+    take: 200,
+  });
+  if (lignes.length === 0) return [];
+
+  // Une immobilisation référence l'écriture d'acquisition par son id (ecritureAcquisitionId).
+  const immosLiees = await tx.immobilisation.findMany({
+    where: { ecritureAcquisitionId: { not: null } },
+    select: { ecritureAcquisitionId: true },
+  });
+  const ecritureIdsLies = new Set(immosLiees.map((i) => i.ecritureAcquisitionId));
+
+  return lignes
+    .filter((l) => !ecritureIdsLies.has(l.ecriture.id))
+    .map((l) => ({
+      code: "IMMOBILISATION_SANS_FICHE",
+      gravite: "ANOMALIE" as const,
+      message: `Écriture ${l.ecriture.reference} : mouvement sur ${l.compte.numero} (${l.compte.libelle}, classe immobilisation) sans fiche Immobilisation associée`,
+      entiteType: "EcritureComptable",
+      entiteId: l.ecriture.id,
+    }));
+}
+
 /** Exécute tous les contrôles et retourne la liste triée (bloquants d'abord). */
 export async function executerControles(tx: TxClient): Promise<ConstatControle[]> {
   const resultats = await Promise.all([
@@ -270,6 +432,12 @@ export async function executerControles(tx: TxClient): Promise<ConstatControle[]
     controlerClientCrediteurInhabituel(tx),
     controlerFournisseurDebiteurInhabituel(tx),
     controlerFacturesSansPaiement(tx),
+    controlerEcritureSansPiece(tx),
+    controlerCompteInterdit(tx),
+    controlerTaxeIncoherente(tx),
+    controlerAvanceFournisseurSansFacture(tx),
+    controlerRapprochementIncomplet(tx),
+    controlerImmobilisationSansFiche(tx),
   ]);
   const tous = resultats.flat();
   return tous.sort((a, b) => (a.gravite === b.gravite ? 0 : a.gravite === "BLOQUANT" ? -1 : 1));

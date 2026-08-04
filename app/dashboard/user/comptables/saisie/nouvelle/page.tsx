@@ -32,11 +32,16 @@ export default function NouvelleEcriturePage() {
     libelle: "", journal: "CAISSE", notes: "",
   });
   const [saisieLignes, setSaisieLignes] = useState<LigneEcritureForm[]>([{ ...LIGNE_VIDE }, { ...LIGNE_VIDE }]);
+  const [derogationJustification, setDerogationJustification] = useState("");
 
-  const { mutate: createEcriture, loading: creatingEcriture } = useMutation<unknown, object>(
+  const { mutate: createEcriture, loading: creatingEcriture, error: creationError } = useMutation<unknown, object>(
     "/api/comptable/ecritures", "POST",
     { successMessage: "Écriture enregistrée" }
   );
+  // CDC §29/§31 — "période fermée" ne bloque pas silencieusement : un champ de
+  // justification apparaît pour retenter avec l'autorisation spéciale (réservée
+  // ADMIN/SUPER_ADMIN côté serveur, qui revalide de toute façon le rôle).
+  const periodeFermee = !!creationError?.includes("Période fermée");
 
   async function handleSaisieSubmit() {
     const lignes = saisieLignes
@@ -47,7 +52,10 @@ export default function NouvelleEcriturePage() {
         isTva: l.isTva, tauxTva: l.isTva ? Number(l.tauxTva) : null,
         montantTva: l.isTva && l.montantTva ? Number(l.montantTva) : null,
       }));
-    const res = await createEcriture({ ...saisieForm, lignes });
+    const res = await createEcriture({
+      ...saisieForm, lignes,
+      ...(periodeFermee && derogationJustification.trim() && { derogationJustification: derogationJustification.trim() }),
+    });
     if (res) {
       router.push("/dashboard/user/comptables/saisie");
     }
@@ -146,6 +154,17 @@ export default function NouvelleEcriturePage() {
           </table>
         </div>
 
+        {periodeFermee && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3">
+            <p className="text-xs font-semibold text-amber-800 mb-1.5">
+              Période fermée — autorisation spéciale requise (CDC §29). Réservé aux administrateurs, avec justification obligatoire.
+            </p>
+            <input value={derogationJustification} onChange={(e) => setDerogationJustification(e.target.value)}
+              placeholder="Motif de la dérogation…"
+              className="w-full px-3 py-2 border border-amber-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-3">
           <button onClick={() => setSaisieLignes(ls => [...ls, { ...LIGNE_VIDE }])}
             className="flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700 font-medium">
@@ -154,9 +173,10 @@ export default function NouvelleEcriturePage() {
           <div className="flex gap-2">
             <button onClick={() => router.push("/dashboard/user/comptables/saisie")} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">{t('btn_cancel')}</button>
             <button onClick={handleSaisieSubmit}
-              disabled={creatingEcriture || !saisieForm.libelle || !saisieForm.date}
+              disabled={creatingEcriture || !saisieForm.libelle || !saisieForm.date || (periodeFermee && !derogationJustification.trim())}
               className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
-              {creatingEcriture ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={15} />} Enregistrer
+              {creatingEcriture ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={15} />}
+              {periodeFermee ? "Forcer avec justification" : "Enregistrer"}
             </button>
           </div>
         </div>

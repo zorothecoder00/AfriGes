@@ -120,6 +120,58 @@ export async function genererCompteResultat(tx: TxClient, dateDebut: Date, dateF
   };
 }
 
+// Regroupement des comptes de charges/produits par préfixe SYSCOHADA à 2
+// chiffres, pour reconstituer les niveaux de résultat intermédiaires (CDC §37)
+// — exhaustif sur les classes 6/7/8 telles que livrées dans le plan comptable
+// (lib/... plan-comptable/route.ts) : chaque préfixe rencontré y tombe dans
+// exactement un des 4 paniers ci-dessous (aucun chevauchement).
+const PREFIXES_EXPLOITATION_CHARGES = ["60", "61", "62", "63", "64", "65", "66", "68"];
+const PREFIXES_EXPLOITATION_PRODUITS = ["70", "71", "72", "73", "75", "78", "79"];
+const PREFIXES_FINANCIER_CHARGES = ["67", "69"];
+const PREFIXES_FINANCIER_PRODUITS = ["77"];
+const PREFIXES_HAO_CHARGES = ["81", "83", "85", "87"];
+const PREFIXES_HAO_PRODUITS = ["82", "84", "86", "88"];
+const PREFIXES_IMPOTS_RESULTAT = ["89"];
+
+function sommePrefixes(lignes: LigneEtatFinancier[], prefixes: string[]): number {
+  return lignes.filter((l) => prefixes.includes(l.compteNumero.slice(0, 2))).reduce((s, l) => s + l.montant, 0);
+}
+
+/**
+ * Compte de résultat détaillé par niveaux SYSCOHADA (CDC §37) : résultat
+ * d'exploitation, résultat financier (→ résultat des activités ordinaires),
+ * résultat HAO, impôts sur le résultat, résultat net — reconstitués depuis
+ * `genererCompteResultat` par préfixe de compte, sans dupliquer la lecture
+ * des écritures.
+ */
+export async function genererCompteResultatDetaille(tx: TxClient, dateDebut: Date, dateFin: Date) {
+  const { produits, charges, totalProduits, totalCharges } = await genererCompteResultat(tx, dateDebut, dateFin);
+
+  const chargesExploitation = sommePrefixes(charges, PREFIXES_EXPLOITATION_CHARGES);
+  const produitsExploitation = sommePrefixes(produits, PREFIXES_EXPLOITATION_PRODUITS);
+  const chargesFinancier = sommePrefixes(charges, PREFIXES_FINANCIER_CHARGES);
+  const produitsFinancier = sommePrefixes(produits, PREFIXES_FINANCIER_PRODUITS);
+  const chargesHAO = sommePrefixes(charges, PREFIXES_HAO_CHARGES);
+  const produitsHAO = sommePrefixes(produits, PREFIXES_HAO_PRODUITS);
+  const impotsSurResultat = sommePrefixes(charges, PREFIXES_IMPOTS_RESULTAT);
+
+  const resultatExploitation = produitsExploitation - chargesExploitation;
+  const resultatFinancier = produitsFinancier - chargesFinancier;
+  const resultatActivitesOrdinaires = resultatExploitation + resultatFinancier;
+  const resultatHAO = produitsHAO - chargesHAO;
+  const resultatNet = resultatActivitesOrdinaires + resultatHAO - impotsSurResultat;
+
+  return {
+    produits, charges, totalProduits, totalCharges,
+    exploitation: { produits: produitsExploitation, charges: chargesExploitation, resultat: resultatExploitation },
+    financier: { produits: produitsFinancier, charges: chargesFinancier, resultat: resultatFinancier },
+    resultatActivitesOrdinaires,
+    hao: { produits: produitsHAO, charges: chargesHAO, resultat: resultatHAO },
+    impotsSurResultat,
+    resultatNet,
+  };
+}
+
 /**
  * Tableau des flux de trésorerie simplifié (CDC §38) : mouvements nets des
  * comptes de trésorerie (classe 5) sur la période, ventilés par journal
@@ -228,7 +280,21 @@ export async function genererNotesAnnexes(tx: TxClient, dateDebut: Date, dateFin
   });
   const variationCapitauxPropres = mouvementsCapitaux.reduce((s, l) => s + (Number(l._sum.credit ?? 0) - Number(l._sum.debit ?? 0)), 0);
 
+  // Effectifs (CDC §39 — "effectifs/données pertinentes"), à la date de clôture
+  // : collaborateurs en poste (actifs ou en période d'essai), ventilés par
+  // département (RH.ProfilRH.departement reste un texte libre — cf. §24).
+  const effectifsParDepartement = await tx.profilRH.groupBy({
+    by: ["departement"],
+    where: { statut: { in: ["ACTIF", "EN_PERIODE_ESSAI"] } },
+    _count: true,
+  });
+  const effectifs = {
+    total: effectifsParDepartement.reduce((s, e) => s + e._count, 0),
+    parDepartement: effectifsParDepartement.map((e) => ({ departement: e.departement ?? "Non renseigné", effectif: e._count })),
+  };
+
   return {
+    effectifs,
     immobilisations: {
       parCategorie: [...parCategorie.entries()].map(([categorie, v]) => ({ categorie, ...v })),
       brut: [...parCategorie.values()].reduce((s, v) => s + v.brutFin, 0),

@@ -64,8 +64,23 @@ export default function NotesAnnexesPage() {
               <div><p className="text-xs text-slate-400">Trésorerie</p><p className="font-semibold text-emerald-700">{formatCurrency(notes.tresorerie)}</p></div>
               <div><p className="text-xs text-slate-400">Capitaux propres</p><p className="font-semibold text-slate-800">{formatCurrency(notes.capitauxPropres)}</p></div>
               <div><p className="text-xs text-slate-400">Charges / Produits</p><p className="font-semibold text-slate-800">{formatCurrency(notes.charges)} / {formatCurrency(notes.produits)}</p></div>
+              <div><p className="text-xs text-slate-400">Effectifs</p><p className="font-semibold text-slate-800">{notes.effectifs.total} collaborateur(s)</p></div>
             </div>
           </div>
+
+          {/* Effectifs par département */}
+          {notes.effectifs.parDepartement.length > 0 && (
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <h4 className="font-semibold text-slate-800 mb-3">Effectifs par département — à ce jour</h4>
+              <div className="flex flex-wrap gap-2">
+                {notes.effectifs.parDepartement.map((e) => (
+                  <span key={e.departement} className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium">
+                    {e.departement} — <strong>{e.effectif}</strong>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Immobilisations par catégorie */}
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">

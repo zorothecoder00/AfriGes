@@ -125,3 +125,16 @@ export async function cloturerExercice(tx: TxClient, annee: number, userId: numb
 
   return { ecritureClotureId, ecritureReportId, resultatNet, controlesBloquants: [] };
 }
+
+/**
+ * Archive un exercice déjà clôturé (CDC §28, dernier statut du cycle de vie
+ * PREPARATION→OUVERT→EN_CLOTURE→CLOTURE→ARCHIVE) — purement déclaratif : ne
+ * change rien à ses écritures, sert seulement à distinguer un vieil exercice
+ * clos de longue date d'un exercice tout juste clôturé.
+ */
+export async function archiverExercice(tx: TxClient, annee: number): Promise<void> {
+  const exercice = await tx.exerciceComptable.findUnique({ where: { annee } });
+  if (!exercice) throw new Error("EXERCICE_INTROUVABLE");
+  if (exercice.statut !== "CLOTURE") throw new Error("EXERCICE_NON_CLOTURE");
+  await tx.exerciceComptable.update({ where: { id: exercice.id }, data: { statut: "ARCHIVE" } });
+}

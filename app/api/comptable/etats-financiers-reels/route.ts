@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
-import { genererBilan, genererCompteResultat, genererTableauFlux, genererNotesAnnexes } from "@/lib/comptabilite/etatsFinanciers";
+import { genererBilan, genererCompteResultatDetaille, genererTableauFlux, genererNotesAnnexes } from "@/lib/comptabilite/etatsFinanciers";
 
 /**
  * GET /api/comptable/etats-financiers-reels?annee=2026
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
     const [bilan, compteResultat, tableauFlux, notesAnnexes] = await Promise.all([
       genererBilan(prisma, dateFin),
-      genererCompteResultat(prisma, dateDebut, dateFin),
+      genererCompteResultatDetaille(prisma, dateDebut, dateFin),
       genererTableauFlux(prisma, dateDebut, dateFin),
       genererNotesAnnexes(prisma, dateDebut, dateFin),
     ]);

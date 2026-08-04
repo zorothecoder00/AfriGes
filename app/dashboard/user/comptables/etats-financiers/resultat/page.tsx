@@ -53,6 +53,27 @@ export default function CompteResultatPage() {
           </div>
         </div>
       )}
+
+      {/* Niveaux de résultat SYSCOHADA (CDC §37) */}
+      {cr && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 max-w-2xl">
+          <h4 className="font-semibold text-slate-800 mb-3">Résultats intermédiaires SYSCOHADA</h4>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between"><span className="text-slate-600">Résultat d&apos;exploitation</span><span className={`font-semibold ${cr.exploitation.resultat >= 0 ? "text-emerald-700" : "text-red-600"}`}>{formatCurrency(cr.exploitation.resultat)}</span></div>
+            <div className="flex justify-between"><span className="text-slate-600">Résultat financier</span><span className={`font-semibold ${cr.financier.resultat >= 0 ? "text-emerald-700" : "text-red-600"}`}>{formatCurrency(cr.financier.resultat)}</span></div>
+            <div className="flex justify-between pt-2 border-t border-slate-100"><span className="font-medium text-slate-700">= Résultat des activités ordinaires</span><span className={`font-bold ${cr.resultatActivitesOrdinaires >= 0 ? "text-emerald-700" : "text-red-600"}`}>{formatCurrency(cr.resultatActivitesOrdinaires)}</span></div>
+            {Math.abs(cr.hao.resultat) > 0.01 && (
+              <div className="flex justify-between"><span className="text-slate-600">Résultat hors activités ordinaires (HAO)</span><span className={`font-semibold ${cr.hao.resultat >= 0 ? "text-emerald-700" : "text-red-600"}`}>{formatCurrency(cr.hao.resultat)}</span></div>
+            )}
+            {cr.impotsSurResultat > 0.01 && (
+              <div className="flex justify-between"><span className="text-slate-600">Impôts sur le résultat</span><span className="font-semibold text-red-600">-{formatCurrency(cr.impotsSurResultat)}</span></div>
+            )}
+            <div className={`flex justify-between pt-2 border-t-2 border-slate-200 font-bold ${cr.resultatNet >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+              <span>= Résultat net</span><span>{formatCurrency(cr.resultatNet)}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

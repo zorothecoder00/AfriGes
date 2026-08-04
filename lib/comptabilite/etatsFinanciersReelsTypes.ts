@@ -53,6 +53,12 @@ export interface EtatsFinanciersReelsData {
     totalProduits: number;
     totalCharges: number;
     resultatNet: number;
+    // Niveaux de résultat SYSCOHADA (CDC §37) — genererCompteResultatDetaille.
+    exploitation: { produits: number; charges: number; resultat: number };
+    financier: { produits: number; charges: number; resultat: number };
+    resultatActivitesOrdinaires: number;
+    hao: { produits: number; charges: number; resultat: number };
+    impotsSurResultat: number;
   };
   tableauFlux: {
     encaissements: number;
@@ -61,6 +67,7 @@ export interface EtatsFinanciersReelsData {
     parJournal: Record<string, number>;
   };
   notesAnnexes: {
+    effectifs: { total: number; parDepartement: { departement: string; effectif: number }[] };
     immobilisations: { parCategorie: ImmobilisationCategorieMouvement[]; brut: number; amortissementCumule: number; net: number };
     creances: { total: number; echeancier: LigneBalanceAgeeEntry[] };
     dettes: { total: number; echeancier: LigneBalanceAgeeEntry[] };

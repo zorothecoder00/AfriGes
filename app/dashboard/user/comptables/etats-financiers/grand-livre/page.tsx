@@ -1,178 +1,185 @@
 "use client";
 
-// États financiers — Grand livre.
-// Extrait du bloc activeTab === "grandlivre" du monolithe (app/dashboard/user/comptables/page.tsx,
-// ~ligne 2535), consommant /api/comptable/journal?grandlivre=1 (~ligne 839 du monolithe).
-import { useMemo, useState, type ElementType } from "react";
+// Grand livre (CDC Comptabilité §34) — mouvements d'UN compte réel du plan
+// comptable, solde progressif, dérivés exclusivement des écritures
+// (lib/comptabilite/grandLivreBalance.ts). Remplace l'ancienne page qui
+// regroupait des opérations métier (VersementPack, OperationCaisse…) par
+// "catégorie", sans aucun lien avec le plan comptable SYSCOHADA réel.
+
+import { useMemo, useState } from "react";
+import { BookOpen, Search, Download, Printer } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort } from "@/lib/format";
-import {
-  BookOpen, Filter, Calendar, TrendingUp, CheckCircle, Package, Wallet,
-  ShoppingBag, BadgeCheck, Users, ArrowDownRight,
-} from "lucide-react";
+import { exportToXlsx } from "@/lib/exportXlsx";
 import AideComptable from "@/components/AideComptable";
 import { AIDE_COMPTABLE } from "@/lib/aideComptableContenu";
 
-interface JournalEntry {
-  id:              string;
-  sourceId:        number;
-  date:            string;
-  type:            "ENCAISSEMENT" | "DECAISSEMENT";
-  categorie:       string;
-  libelle:         string;
-  montant:         number;
-  reference:       string;
-  valide?:         boolean;
-  valideParNom?:   string;
-  dateValidation?: string;
+interface CompteEntry { id: number; numero: string; libelle: string }
+interface ComptesResponse { data: CompteEntry[] }
+interface LigneGrandLivre {
+  id: number; date: string; numeroPiece: string; journal: string; libelle: string;
+  debit: number; credit: number; lettrage: string | null; solde: number; utilisateur: string | null;
 }
-interface JournalResponse { success: boolean; data: JournalEntry[] }
+interface GrandLivreResponse {
+  data: { compte: { numero: string; libelle: string } | null; soldeOuverture: number; lignes: LigneGrandLivre[]; soldeFinal: number };
+}
 
-const CAT_META: Record<string, { label: string; color: string; bg: string; icon: ElementType }> = {
-  COTISATION_INITIALE:  { label: "Acompte initial",        color: "text-blue-600",    bg: "bg-blue-100",    icon: Calendar },
-  VERSEMENT_PERIODIQUE: { label: "Versement périodique",   color: "text-emerald-600", bg: "bg-emerald-100", icon: TrendingUp },
-  REMBOURSEMENT:        { label: "Remboursement",          color: "text-teal-600",    bg: "bg-teal-100",    icon: CheckCircle },
-  VERSEMENT_PACK:       { label: "Bonus / Ajustement",     color: "text-violet-600",  bg: "bg-violet-100",  icon: BookOpen },
-  APPROVISIONNEMENT:    { label: "Approvisionnement",      color: "text-orange-600",  bg: "bg-orange-100",  icon: Package },
-  CAISSE_ENCAISSEMENT:  { label: "Encaissement caisse",    color: "text-cyan-600",    bg: "bg-cyan-100",    icon: Wallet },
-  VENTE_DIRECTE:        { label: "Vente directe",          color: "text-indigo-600",  bg: "bg-indigo-100",  icon: ShoppingBag },
-  REMBOURSEMENT_CREDIT: { label: "Remb. crédit client",    color: "text-green-600",   bg: "bg-green-100",   icon: BadgeCheck },
-  SALAIRE:              { label: "Salaire",                color: "text-red-600",     bg: "bg-red-100",     icon: Users },
-  AVANCE:                { label: "Avance",                 color: "text-rose-600",    bg: "bg-rose-100",    icon: ArrowDownRight },
-  FOURNISSEUR:          { label: "Fournisseur",            color: "text-amber-600",   bg: "bg-amber-100",   icon: Package },
-  CAISSE_AUTRE:         { label: "Autre décaissement",     color: "text-slate-600",   bg: "bg-slate-100",   icon: Filter },
-};
+function telechargerCsv(nom: string, lignes: LigneGrandLivre[]) {
+  const entetes = ["Date", "N° pièce", "Journal", "Libellé", "Débit", "Crédit", "Solde"];
+  const rows = lignes.map((l) => [
+    formatDateShort(l.date), l.numeroPiece, l.journal, `"${l.libelle.replace(/"/g, '""')}"`,
+    l.debit || "", l.credit || "", l.solde,
+  ]);
+  const csv = [entetes, ...rows].map((r) => r.join(";")).join("\n");
+  const blob = new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = nom;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function GrandLivrePage() {
-  const [journalDateDebut, setJournalDateDebut] = useState("");
-  const [journalDateFin, setJournalDateFin]     = useState("");
+  const [rechercheCompte, setRechercheCompte] = useState("");
+  const [compteSelectionne, setCompteSelectionne] = useState<CompteEntry | null>(null);
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin, setDateFin] = useState("");
+
+  const { data: comptesData } = useApi<ComptesResponse>(
+    rechercheCompte.trim().length >= 2 ? `/api/comptable/plan-comptable?search=${encodeURIComponent(rechercheCompte)}&limit=15` : null,
+  );
 
   const grandLivreUrl = useMemo(() => {
-    const p = new URLSearchParams({ grandlivre: "1" });
-    if (journalDateDebut) p.set("dateDebut", journalDateDebut);
-    if (journalDateFin)   p.set("dateFin",   journalDateFin);
-    return `/api/comptable/journal?${p.toString()}`;
-  }, [journalDateDebut, journalDateFin]);
+    if (!compteSelectionne) return null;
+    const p = new URLSearchParams({ compteId: String(compteSelectionne.id) });
+    if (dateDebut) p.set("dateDebut", dateDebut);
+    if (dateFin) p.set("dateFin", dateFin);
+    return `/api/comptable/etats-financiers/grand-livre?${p.toString()}`;
+  }, [compteSelectionne, dateDebut, dateFin]);
 
-  const { data: grandLivreData, loading: grandLivreLoading } = useApi<JournalResponse>(grandLivreUrl);
+  const { data: grandLivreData, loading: grandLivreLoading } = useApi<GrandLivreResponse>(grandLivreUrl);
+  const gl = grandLivreData?.data;
+
+  function handleExporterExcel() {
+    if (!gl || !compteSelectionne) return;
+    exportToXlsx(
+      gl.lignes.map((l) => ({ date: l.date.slice(0, 10), piece: l.numeroPiece, journal: l.journal, libelle: l.libelle, debit: l.debit, credit: l.credit, solde: l.solde })),
+      [
+        { label: "Date", key: "date" }, { label: "N° pièce", key: "piece" }, { label: "Journal", key: "journal" },
+        { label: "Libellé", key: "libelle" },
+        { label: "Débit", key: "debit", type: "currency", format: (v) => Number(v) },
+        { label: "Crédit", key: "credit", type: "currency", format: (v) => Number(v) },
+        { label: "Solde", key: "solde", type: "currency", format: (v) => Number(v) },
+      ],
+      `grand-livre-${compteSelectionne.numero}.xlsx`,
+      { sheetName: `Compte ${compteSelectionne.numero}` },
+    );
+  }
 
   return (
-    <main className="flex-1 max-w-[1400px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-5">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <main className="flex-1 max-w-[1400px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-5 print:px-0">
+      <div className="flex items-center justify-between flex-wrap gap-4 print:hidden">
         <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
           <BookOpen className="text-emerald-600" size={22} /> Grand livre
         </h2>
         {AIDE_COMPTABLE.grandlivre && <AideComptable contenu={AIDE_COMPTABLE.grandlivre} />}
       </div>
 
-      <div className="space-y-5">
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <BookOpen size={20} className="text-emerald-600" />Grand Livre des Comptes
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">Toutes les écritures regroupées par compte</p>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <input type="date" value={journalDateDebut}
-                onChange={(e) => setJournalDateDebut(e.target.value)}
-                className="px-3 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              <span className="text-slate-400 text-xs">→</span>
-              <input type="date" value={journalDateFin}
-                onChange={(e) => setJournalDateFin(e.target.value)}
-                className="px-3 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </div>
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 print:hidden">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="relative md:col-span-1">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={compteSelectionne ? `${compteSelectionne.numero} — ${compteSelectionne.libelle}` : rechercheCompte}
+              onChange={(e) => { setCompteSelectionne(null); setRechercheCompte(e.target.value); }}
+              placeholder="Rechercher un compte (n° ou libellé)…"
+              className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            {!compteSelectionne && (comptesData?.data.length ?? 0) > 0 && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                {comptesData!.data.map((c) => (
+                  <button key={c.id} onClick={() => { setCompteSelectionne(c); setRechercheCompte(""); }}
+                    className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-sm border-b border-slate-50 last:border-0">
+                    <span className="font-mono font-bold text-emerald-700">{c.numero}</span> <span className="text-slate-600">{c.libelle}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)}
+              className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            <span className="text-slate-400 text-xs">→</span>
+            <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)}
+              className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div className="flex items-center gap-2 justify-end">
+            <button onClick={() => gl && compteSelectionne && telechargerCsv(`grand-livre-${compteSelectionne.numero}.csv`, gl.lignes)}
+              disabled={!gl} className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+              <Download size={14} /> CSV
+            </button>
+            <button onClick={handleExporterExcel} disabled={!gl}
+              className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">
+              <Download size={14} /> Excel
+            </button>
+            <button onClick={() => window.print()} disabled={!gl}
+              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-40">
+              <Printer size={14} /> PDF
+            </button>
           </div>
         </div>
-
-        {grandLivreLoading ? (
-          <div className="p-16 text-center"><div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto" /></div>
-        ) : (
-          (() => {
-            const entries = grandLivreData?.data ?? [];
-            const groups = new Map<string, JournalEntry[]>();
-            for (const e of entries) {
-              const list = groups.get(e.categorie) ?? [];
-              list.push(e);
-              groups.set(e.categorie, list);
-            }
-            const sortedGroups = Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
-
-            if (sortedGroups.length === 0) {
-              return (
-                <div className="bg-white rounded-2xl p-12 text-center text-slate-400 shadow-sm border border-slate-200/60">
-                  Aucune écriture pour cette période
-                </div>
-              );
-            }
-
-            return (
-              <div className="space-y-5">
-                {sortedGroups.map(([cat, catEntries]) => {
-                  const meta      = CAT_META[cat] ?? { label: cat, color: "text-slate-600", bg: "bg-slate-100", icon: Filter };
-                  const CatIcon   = meta.icon;
-                  let runningBal  = 0;
-                  const totalDeb  = catEntries.filter((e) => e.type === "DECAISSEMENT").reduce((s, e) => s + e.montant, 0);
-                  const totalCred = catEntries.filter((e) => e.type === "ENCAISSEMENT").reduce((s, e) => s + e.montant, 0);
-
-                  return (
-                    <div key={cat} className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-                      <div className={`px-6 py-3 border-b border-slate-200 flex items-center justify-between ${meta.bg}`}>
-                        <div className="flex items-center gap-2">
-                          <CatIcon size={16} className={meta.color} />
-                          <span className={`font-bold ${meta.color}`}>{meta.label}</span>
-                          <span className="text-xs text-slate-500 ml-2">{catEntries.length} écritures</span>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs font-semibold">
-                          <span className="text-red-600">Débit : {formatCurrency(totalDeb)}</span>
-                          <span className="text-emerald-600">Crédit : {formatCurrency(totalCred)}</span>
-                          <span className={`${(totalCred - totalDeb) >= 0 ? "text-emerald-700" : "text-red-700"} font-bold`}>
-                            Solde : {(totalCred - totalDeb) >= 0 ? "+" : ""}{formatCurrency(totalCred - totalDeb)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead className="bg-slate-50 border-b border-slate-100">
-                            <tr>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500">Date</th>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500">Référence</th>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500">Libellé</th>
-                              <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500">Débit</th>
-                              <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500">Crédit</th>
-                              <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500">Solde cumulé</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-50">
-                            {catEntries.map((e) => {
-                              const deb  = e.type === "DECAISSEMENT" ? e.montant : 0;
-                              const cred = e.type === "ENCAISSEMENT" ? e.montant : 0;
-                              runningBal += (cred - deb);
-                              return (
-                                <tr key={e.id} className="hover:bg-slate-50">
-                                  <td className="px-4 py-2 text-slate-500 whitespace-nowrap">{formatDateShort(e.date)}</td>
-                                  <td className="px-4 py-2 font-mono text-xs text-slate-500">{e.reference}</td>
-                                  <td className="px-4 py-2 text-slate-700 max-w-xs truncate" title={e.libelle}>{e.libelle}</td>
-                                  <td className="px-4 py-2 text-right text-red-600">{deb > 0 ? formatCurrency(deb) : <span className="text-slate-200">—</span>}</td>
-                                  <td className="px-4 py-2 text-right text-emerald-600">{cred > 0 ? formatCurrency(cred) : <span className="text-slate-200">—</span>}</td>
-                                  <td className={`px-4 py-2 text-right font-semibold ${runningBal >= 0 ? "text-emerald-700" : "text-red-700"}`}>
-                                    {runningBal >= 0 ? "+" : ""}{formatCurrency(runningBal)}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()
-        )}
       </div>
+
+      {!compteSelectionne ? (
+        <div className="bg-white rounded-2xl p-12 text-center text-slate-400 shadow-sm border border-slate-200/60 print:hidden">
+          Recherchez et sélectionnez un compte pour afficher son grand livre.
+        </div>
+      ) : grandLivreLoading ? (
+        <div className="p-16 text-center"><div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto" /></div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden print:border-0 print:shadow-none">
+          <div className="px-6 py-3 border-b border-slate-200 bg-slate-50 print:bg-white">
+            <span className="font-mono font-bold text-emerald-700">{gl?.compte?.numero}</span>{" "}
+            <span className="font-bold text-slate-800">{gl?.compte?.libelle}</span>
+            {dateDebut && <span className="text-xs text-slate-400 ml-2">Solde d&apos;ouverture : {formatCurrency(gl?.soldeOuverture ?? 0)}</span>}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-100">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500">Date</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500">N° pièce</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500">Libellé</th>
+                  <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500">Débit</th>
+                  <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500">Crédit</th>
+                  <th className="px-4 py-2 text-right text-xs font-semibold text-slate-500">Solde</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {(gl?.lignes ?? []).map((l) => (
+                  <tr key={l.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-2 text-slate-500 whitespace-nowrap">{formatDateShort(l.date)}</td>
+                    <td className="px-4 py-2 font-mono text-xs text-slate-500">{l.numeroPiece}</td>
+                    <td className="px-4 py-2 text-slate-700 max-w-xs truncate" title={l.libelle}>{l.libelle}</td>
+                    <td className="px-4 py-2 text-right text-blue-700">{l.debit > 0 ? formatCurrency(l.debit) : <span className="text-slate-200">—</span>}</td>
+                    <td className="px-4 py-2 text-right text-emerald-700">{l.credit > 0 ? formatCurrency(l.credit) : <span className="text-slate-200">—</span>}</td>
+                    <td className="px-4 py-2 text-right font-semibold text-slate-800">{formatCurrency(l.solde)}</td>
+                  </tr>
+                ))}
+                {(gl?.lignes ?? []).length === 0 && (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">Aucun mouvement pour ce compte sur la période.</td></tr>
+                )}
+              </tbody>
+              {gl && gl.lignes.length > 0 && (
+                <tfoot className="bg-slate-50 border-t-2 border-slate-200">
+                  <tr>
+                    <td colSpan={5} className="px-4 py-3 text-right font-bold text-slate-700">Solde final</td>
+                    <td className="px-4 py-3 text-right font-bold text-slate-900">{formatCurrency(gl.soldeFinal)}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

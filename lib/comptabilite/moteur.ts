@@ -58,6 +58,15 @@ export interface CreerEcritureOpts {
    */
   devise?: string;
   tauxChange?: number;
+  notes?: string | null;
+  /**
+   * Dérogation "autorisation spéciale" (CDC §29) : passe outre le verrou de
+   * clôture mensuelle sur demande explicite d'un utilisateur habilité (le
+   * contrôle du rôle se fait à l'appelant, jamais ici) — contrairement à
+   * `ignorerCloture` (réservé au code système), la justification est tracée
+   * dans `notes` pour rester auditable après coup.
+   */
+  derogationJustification?: string;
 }
 
 /** Journaux toujours disponibles, câblés dans le code (utilisés partout dans AfriGes) — CDC §9 : les 10 journaux par défaut. */
@@ -106,7 +115,8 @@ export async function genererReferenceEcriture(tx: TxClient, journal: string): P
   return `${prefixeComplet}${String(count + 1).padStart(6, "0")}`;
 }
 
-async function periodeClôturée(tx: TxClient, date: Date): Promise<boolean> {
+/** CDC §29/§31 — exporté pour que les routes qui n'appellent pas `creerEcriture` (ex. saisie manuelle) appliquent le même verrou. */
+export async function periodeClôturée(tx: TxClient, date: Date): Promise<boolean> {
   const cloture = await tx.clotureComptable.findUnique({
     where: { annee_mois: { annee: date.getFullYear(), mois: date.getMonth() + 1 } },
     select: { id: true },
@@ -133,7 +143,7 @@ export async function creerEcriture(tx: TxClient, opts: CreerEcritureOpts): Prom
     throw new Error(`Journal "${opts.journal}" inexistant ou inactif`);
   }
 
-  if (!opts.ignorerCloture && (await periodeClôturée(tx, opts.date))) return null;
+  if (!opts.ignorerCloture && !opts.derogationJustification && (await periodeClôturée(tx, opts.date))) return null;
 
   const numeros = [...new Set(opts.lignes.map((l) => l.numero))];
   const comptes = await tx.compteComptable.findMany({
@@ -155,6 +165,9 @@ export async function creerEcriture(tx: TxClient, opts: CreerEcritureOpts): Prom
       journal: opts.journal,
       statut: opts.statut ?? "BROUILLON",
       userId: opts.userId ?? null,
+      notes: opts.derogationJustification
+        ? `[Dérogation période fermée — CDC §29] ${opts.derogationJustification}${opts.notes ? ` — ${opts.notes}` : ""}`
+        : (opts.notes ?? null),
       societeId: opts.societeId ?? null,
       devise: opts.devise ?? "XOF",
       tauxChange: new Prisma.Decimal(opts.tauxChange ?? 1),
