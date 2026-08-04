@@ -562,6 +562,9 @@ export default function SuperAdminPage() {
                 <option value="CAISSIER">{t('role_caissier')}</option>
                 <option value="MAGAZINIER">{t('role_magasinier')}</option>
                 <option value="COMPTABLE">{t('role_comptable')}</option>
+                <option value="CHEF_COMPTABLE">{t('role_chef_comptable')}</option>
+                <option value="DIRECTEUR_GENERAL">{t('role_directeur_general')}</option>
+                <option value="RESPONSABLE_ACHATS">{t('role_responsable_achats')}</option>
                 <option value="AGENT_LOGISTIQUE_APPROVISIONNEMENT">{t('role_agent_logistique')}</option>
                 <option value="AGENT_TERRAIN">{t('role_agent_terrain')}</option>
               </select>

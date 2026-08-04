@@ -20,6 +20,8 @@ const ROLE_LABEL: Record<string, string> = {
   RESPONSABLE_VENTE_CREDIT: "Responsable vente crédit", AGENT_TERRAIN: "Agent terrain", COMPTABLE: "Comptable",
   MAGAZINIER: "Magasinier", AGENT_LOGISTIQUE_APPROVISIONNEMENT: "Agent logistique",
   RESPONSABLE_POINT_DE_VENTE: "Responsable PDV", RESPONSABLE_RH: "Responsable RH", AUDITEUR_INTERNE: "Auditeur interne",
+  CHEF_COMPTABLE: "Chef comptable", DIRECTEUR_GENERAL: "Directeur général", RESPONSABLE_ACHATS: "Responsable achats",
+  ACTIONNAIRE: "Investisseur / actionnaire",
 };
 const roleLabel = (r: string) => ROLE_LABEL[r] ?? r.replace(/_/g, " ");
 

@@ -54,6 +54,14 @@ const ROLE_DASHBOARD_MAP: Record<string, string> = {
   MAGAZINIER:                           '/dashboard/user/magasiniers',
   CAISSIER:                             '/dashboard/user/caissiers',
   COMPTABLE:                            '/dashboard/user/comptables',
+  // CDC comptabilité §43 : CHEF_COMPTABLE a le même dashboard que COMPTABLE
+  // (lib/authComptable.ts::getComptableSession) ; DIRECTEUR_GENERAL a le
+  // module comptable pour port d'attache (consultation globale) ;
+  // RESPONSABLE_ACHATS réutilise le dashboard appro/logistique existant —
+  // mêmes destinations que proxy.ts::gestionnaireDashboardMap.
+  CHEF_COMPTABLE:                       '/dashboard/user/comptables',
+  DIRECTEUR_GENERAL:                    '/dashboard/user/comptables',
+  RESPONSABLE_ACHATS:                   '/dashboard/user/logistiquesApprovisionnements',
   AGENT_TERRAIN:                        '/dashboard/user/agentsTerrain',
   AUDITEUR_INTERNE:                     '/dashboard/user/auditeursInterne',
   ACTIONNAIRE:                          '/dashboard/user/actionnaires',
@@ -79,6 +87,8 @@ const ROLES_AVEC_PDV = new Set([
   'CONTROLEUR_TERRAIN',
   'RESPONSABLE_VENTE_CREDIT',
   'COMPTABLE',
+  'CHEF_COMPTABLE',
+  'RESPONSABLE_ACHATS',
   'AUDITEUR_INTERNE',
   'RESPONSABLE_ECONOMIQUE',
   'REVENDEUR',
@@ -378,6 +388,9 @@ export default function GestionnairesPage() {
               <option value="COMMERCIAL">{t('role_commercial')}</option>
               <option value="DIRECTEUR_COMMERCIAL">{t('role_directeur_commercial')}</option>
               <option value="COMPTABLE">{t('role_comptable')}</option>
+              <option value="CHEF_COMPTABLE">{t('role_chef_comptable')}</option>
+              <option value="DIRECTEUR_GENERAL">{t('role_directeur_general')}</option>
+              <option value="RESPONSABLE_ACHATS">{t('role_responsable_achats')}</option>
               <option value="AUDITEUR_INTERNE">{t('role_auditeur_interne')}</option>
               <option value="RESPONSABLE_VENTE_CREDIT">{t('role_responsable_vente_credit')}</option>
               <option value="CONTROLEUR_TERRAIN">{t('role_controleur_terrain')}</option>
@@ -428,6 +441,9 @@ export default function GestionnairesPage() {
                     <option value="COMMERCIAL">{t('role_commercial')}</option>
               <option value="DIRECTEUR_COMMERCIAL">{t('role_directeur_commercial')}</option>
                     <option value="COMPTABLE">{t('role_comptable')}</option>
+                    <option value="CHEF_COMPTABLE">{t('role_chef_comptable')}</option>
+                    <option value="DIRECTEUR_GENERAL">{t('role_directeur_general')}</option>
+                    <option value="RESPONSABLE_ACHATS">{t('role_responsable_achats')}</option>
                     <option value="AUDITEUR_INTERNE">{t('role_auditeur_interne')}</option>
                     <option value="RESPONSABLE_VENTE_CREDIT">{t('role_responsable_vente_credit')}</option>
                     <option value="CONTROLEUR_TERRAIN">{t('role_controleur_terrain')}</option>
