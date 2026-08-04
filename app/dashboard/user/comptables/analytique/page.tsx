@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { TrendingUp, PlusCircle, ToggleLeft, ToggleRight, Calculator, Save } from "lucide-react";
+import { TrendingUp, PlusCircle, ToggleLeft, ToggleRight, Calculator, Save, RefreshCw } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
 import AideComptable from "@/components/AideComptable";
@@ -40,10 +40,17 @@ export default function AnalytiquePage() {
   const { mutate: toggleSectionApi } = useMutation<unknown, object>(
     () => `/api/comptable/analytique/sections/${sectionActionIdRef.current}`, "PATCH",
   );
+  const { mutate: synchroniserDepartements, loading: synchronisingDepartements } = useMutation<{ data: { crees: string[] } }, object>(
+    "/api/comptable/analytique/sections", "POST",
+  );
 
   async function handleCreerSection() {
     const res = await creerSection(newSection);
     if (res) { refetchSections(); setNewSection({ axe: "DEPARTEMENT", code: "", libelle: "" }); }
+  }
+  async function handleSynchroniserDepartements() {
+    const res = await synchroniserDepartements({ action: "synchroniser_departements" });
+    if (res) refetchSections();
   }
   async function handleToggleSection(s: SectionAnalytiqueEntry) {
     sectionActionIdRef.current = s.id;
@@ -94,9 +101,17 @@ export default function AnalytiquePage() {
 
       <div className="space-y-4">
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
-          <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-1">
-            <TrendingUp className="text-violet-600" size={20} /> Sections analytiques
-          </h3>
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-1">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <TrendingUp className="text-violet-600" size={20} /> Sections analytiques
+            </h3>
+            <button onClick={handleSynchroniserDepartements} disabled={synchronisingDepartements}
+              title="Crée automatiquement une section Département pour chaque valeur déjà utilisée dans les profils RH, sans doublon"
+              className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 text-white rounded-xl text-xs font-semibold hover:bg-teal-700 disabled:opacity-50">
+              {synchronisingDepartements ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <RefreshCw size={13} />}
+              Synchroniser les départements RH
+            </button>
+          </div>
           <p className="text-xs text-slate-500 mb-4">
             Axes Activité, Projet et Département (CDC §24) — les axes Point de vente et Produit réutilisent directement vos PDV et votre catalogue.
           </p>

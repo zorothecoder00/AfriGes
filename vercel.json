@@ -46,6 +46,14 @@
     {
       "path": "/api/cron/comptes-courants/blocages?secret=${CRON_SECRET}",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/comptabilite/recurrentes?secret=${CRON_SECRET}",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/comptabilite/amortissements?secret=${CRON_SECRET}",
+      "schedule": "0 6 1 * *"
     }
   ]
 }

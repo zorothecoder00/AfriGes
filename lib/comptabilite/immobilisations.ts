@@ -90,7 +90,7 @@ export async function genererDotationPeriode(
   immobilisationId: number,
   annee: number,
   mois: number,
-  userId: number,
+  userId: number | null,
 ): Promise<{ created: boolean; montant: number }> {
   const periode = `${annee}-${String(mois).padStart(2, "0")}`;
   const existing = await tx.ligneAmortissement.findUnique({
@@ -182,7 +182,7 @@ export async function genererDotationsDuMois(
   tx: TxClient,
   annee: number,
   mois: number,
-  userId: number,
+  userId: number | null,
 ): Promise<{ created: number; skipped: number; total: number }> {
   const immos = await tx.immobilisation.findMany({ where: { statut: "EN_SERVICE" }, select: { id: true } });
   let created = 0;

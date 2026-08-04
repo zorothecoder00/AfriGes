@@ -27,7 +27,7 @@ function prochaineEcheance(dateDebut: Date, frequence: string, occurrencesGenere
 export async function genererEcheancesDues(
   tx: TxClient,
   dateReference: Date,
-  userId: number,
+  userId: number | null,
 ): Promise<{ created: number; skipped: number }> {
   const recurrentes = await tx.ecritureRecurrente.findMany({ where: { statut: "ACTIF" } });
   let created = 0;

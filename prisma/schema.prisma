@@ -3611,7 +3611,7 @@ model PieceJustificative {
   taille         Int
   nature         NatureDocumentJustificatif @default(AUTRE)
   // Association polymorphique
-  sourceType     String   // VERSEMENT_PACK | OPERATION_CAISSE | MOUVEMENT_STOCK | CLOTURE_COMPTABLE | RECEPTION_APPRO | TRANSFERT_STOCK | ECRITURE_COMPTABLE
+  sourceType     String   // VERSEMENT_PACK | OPERATION_CAISSE | MOUVEMENT_STOCK | CLOTURE_COMPTABLE | RECEPTION_APPRO | TRANSFERT_STOCK | ECRITURE_COMPTABLE | IMMOBILISATION
   sourceId       Int
   description    String?
   uploadePar     Int

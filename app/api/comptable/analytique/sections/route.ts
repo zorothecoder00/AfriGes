@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { synchroniserSectionsDepartements } from "@/lib/comptabilite/analytique";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 
@@ -27,7 +28,9 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/comptable/analytique/sections
- * Body: { axe, code, libelle }
+ * Body: { axe, code, libelle } — ou { action: "synchroniser_departements" }
+ * (CDC §24 : "que la création des départements puisse être automatique" —
+ * crée les SectionAnalytique(axe=DEPARTEMENT) manquantes depuis ProfilRH.departement).
  */
 export async function POST(req: NextRequest) {
   try {
@@ -35,6 +38,20 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
+
+    if (body?.action === "synchroniser_departements") {
+      const userId = Number(session.user.id);
+      const meta = getRequestMeta(req);
+      const result = await prisma.$transaction(async (tx) => {
+        const r = await synchroniserSectionsDepartements(tx);
+        if (r.crees.length > 0) {
+          await auditLog(tx, userId, "SYNCHRONISATION_DEPARTEMENTS_ANALYTIQUES", "SectionAnalytique", undefined, { crees: r.crees }, meta);
+        }
+        return r;
+      });
+      return NextResponse.json({ data: result });
+    }
+
     const { axe, code, libelle } = body as { axe?: string; code?: string; libelle?: string };
     if (!axe || !code || !libelle) {
       return NextResponse.json({ error: "axe, code et libelle sont requis" }, { status: 400 });
