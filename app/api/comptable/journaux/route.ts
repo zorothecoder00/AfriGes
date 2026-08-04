@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { JOURNAUX_BUILTIN } from "@/lib/comptabilite/moteur";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 const LIBELLES_BUILTIN: Record<string, string> = {
   CAISSE: "Caisse", BANQUE: "Banque", VENTES: "Ventes",
@@ -54,8 +56,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `"${codeNorm}" est déjà un journal de base` }, { status: 409 });
     }
 
-    const journal = await prisma.journalComptable.create({
-      data: { code: codeNorm, libelle: libelle.trim(), prefixe: prefixe.trim().slice(0, 2).toUpperCase() },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const journal = await prisma.$transaction(async (tx) => {
+      const j = await tx.journalComptable.create({
+        data: { code: codeNorm, libelle: libelle.trim(), prefixe: prefixe.trim().slice(0, 2).toUpperCase() },
+      });
+      await auditLog(tx, userId, "CREATION_JOURNAL_COMPTABLE", "JournalComptable", j.id, { code: j.code, libelle: j.libelle }, meta);
+      return j;
     });
     return NextResponse.json({ data: journal }, { status: 201 });
   } catch (e: unknown) {

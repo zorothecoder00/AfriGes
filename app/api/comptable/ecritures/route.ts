@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 // Génère une référence unique : JNL-YYYYMM-XXXXX
 async function generateReference(journal: string): Promise<string> {
@@ -122,43 +124,49 @@ export async function POST(req: Request) {
     }
 
     const reference = await generateReference(journal);
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
 
-    const ecriture = await prisma.ecritureComptable.create({
-      data: {
-        reference,
-        date:    new Date(date),
-        libelle,
-        journal,
-        notes:   notes || null,
-        statut:  "BROUILLON" as import("@prisma/client").StatutEcriture,
-        userId:  Number(session.user.id),
-        devise:  devise || "XOF",
-        tauxChange: tauxChange != null ? Number(tauxChange) : 1,
-        lignes: {
-          create: lignes.map((l: {
-            compteId: number;
-            libelle?: string;
-            debit?: number;
-            credit?: number;
-            isTva?: boolean;
-            tauxTva?: number;
-            montantTva?: number;
-          }) => ({
-            compteId:   Number(l.compteId),
-            libelle:    l.libelle || libelle,
-            debit:      Number(l.debit  || 0),
-            credit:     Number(l.credit || 0),
-            isTva:      Boolean(l.isTva),
-            tauxTva:    l.tauxTva    != null ? Number(l.tauxTva)    : null,
-            montantTva: l.montantTva != null ? Number(l.montantTva) : null,
-          })),
+    const ecriture = await prisma.$transaction(async (tx) => {
+      const e = await tx.ecritureComptable.create({
+        data: {
+          reference,
+          date:    new Date(date),
+          libelle,
+          journal,
+          notes:   notes || null,
+          statut:  "BROUILLON" as import("@prisma/client").StatutEcriture,
+          userId,
+          devise:  devise || "XOF",
+          tauxChange: tauxChange != null ? Number(tauxChange) : 1,
+          lignes: {
+            create: lignes.map((l: {
+              compteId: number;
+              libelle?: string;
+              debit?: number;
+              credit?: number;
+              isTva?: boolean;
+              tauxTva?: number;
+              montantTva?: number;
+            }) => ({
+              compteId:   Number(l.compteId),
+              libelle:    l.libelle || libelle,
+              debit:      Number(l.debit  || 0),
+              credit:     Number(l.credit || 0),
+              isTva:      Boolean(l.isTva),
+              tauxTva:    l.tauxTva    != null ? Number(l.tauxTva)    : null,
+              montantTva: l.montantTva != null ? Number(l.montantTva) : null,
+            })),
+          },
         },
-      },
-      include: {
-        lignes: {
-          include: { compte: { select: { id: true, numero: true, libelle: true } } },
+        include: {
+          lignes: {
+            include: { compte: { select: { id: true, numero: true, libelle: true } } },
+          },
         },
-      },
+      });
+      await auditLog(tx, userId, "CREATION_ECRITURE", "EcritureComptable", e.id, { reference: e.reference, libelle: e.libelle, journal: e.journal }, meta);
+      return e;
     });
 
     return NextResponse.json({ data: ecriture }, { status: 201 });

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -17,19 +19,25 @@ export async function PATCH(req: Request, { params }: Ctx) {
       applicableAchat, applicableVente, dateFin, actif,
     } = body;
 
-    const updated = await prisma.taxeConfig.update({
-      where: { id: Number(id) },
-      data: {
-        ...(nom !== undefined && { nom }),
-        ...(taux !== undefined && { taux: Number(taux) }),
-        ...(compteCollecteNumero !== undefined && { compteCollecteNumero }),
-        ...(compteDeductibleNumero !== undefined && { compteDeductibleNumero: compteDeductibleNumero || null }),
-        ...(compteRegularisationNumero !== undefined && { compteRegularisationNumero: compteRegularisationNumero || null }),
-        ...(applicableAchat !== undefined && { applicableAchat: Boolean(applicableAchat) }),
-        ...(applicableVente !== undefined && { applicableVente: Boolean(applicableVente) }),
-        ...(dateFin !== undefined && { dateFin: dateFin ? new Date(dateFin) : null }),
-        ...(actif !== undefined && { actif: Boolean(actif) }),
-      },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const updated = await prisma.$transaction(async (tx) => {
+      const u = await tx.taxeConfig.update({
+        where: { id: Number(id) },
+        data: {
+          ...(nom !== undefined && { nom }),
+          ...(taux !== undefined && { taux: Number(taux) }),
+          ...(compteCollecteNumero !== undefined && { compteCollecteNumero }),
+          ...(compteDeductibleNumero !== undefined && { compteDeductibleNumero: compteDeductibleNumero || null }),
+          ...(compteRegularisationNumero !== undefined && { compteRegularisationNumero: compteRegularisationNumero || null }),
+          ...(applicableAchat !== undefined && { applicableAchat: Boolean(applicableAchat) }),
+          ...(applicableVente !== undefined && { applicableVente: Boolean(applicableVente) }),
+          ...(dateFin !== undefined && { dateFin: dateFin ? new Date(dateFin) : null }),
+          ...(actif !== undefined && { actif: Boolean(actif) }),
+        },
+      });
+      await auditLog(tx, userId, "MODIFICATION_TAXE_CONFIG", "TaxeConfig", u.id, { nom, taux, actif }, meta);
+      return u;
     });
     return NextResponse.json({ data: updated });
   } catch (e) {

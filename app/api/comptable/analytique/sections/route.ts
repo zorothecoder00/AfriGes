@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * GET /api/comptable/analytique/sections?axe=ACTIVITE|PROJET|DEPARTEMENT
@@ -38,8 +40,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "axe, code et libelle sont requis" }, { status: 400 });
     }
 
-    const section = await prisma.sectionAnalytique.create({
-      data: { axe: axe as never, code: code.trim(), libelle: libelle.trim() },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const section = await prisma.$transaction(async (tx) => {
+      const s = await tx.sectionAnalytique.create({
+        data: { axe: axe as never, code: code.trim(), libelle: libelle.trim() },
+      });
+      await auditLog(tx, userId, "CREATION_SECTION_ANALYTIQUE", "SectionAnalytique", s.id, { axe, code: s.code, libelle: s.libelle }, meta);
+      return s;
     });
     return NextResponse.json({ data: section }, { status: 201 });
   } catch (e: unknown) {

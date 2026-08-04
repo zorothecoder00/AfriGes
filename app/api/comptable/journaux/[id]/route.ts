@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -14,12 +16,18 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const body = await req.json();
     const { libelle, actif } = body;
 
-    const updated = await prisma.journalComptable.update({
-      where: { id: Number(id) },
-      data: {
-        ...(libelle !== undefined && { libelle }),
-        ...(actif !== undefined && { actif: Boolean(actif) }),
-      },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const updated = await prisma.$transaction(async (tx) => {
+      const u = await tx.journalComptable.update({
+        where: { id: Number(id) },
+        data: {
+          ...(libelle !== undefined && { libelle }),
+          ...(actif !== undefined && { actif: Boolean(actif) }),
+        },
+      });
+      await auditLog(tx, userId, "MODIFICATION_JOURNAL_COMPTABLE", "JournalComptable", u.id, { libelle, actif }, meta);
+      return u;
     });
     return NextResponse.json({ data: updated });
   } catch (e) {

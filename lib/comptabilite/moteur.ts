@@ -59,7 +59,7 @@ export interface CreerEcritureOpts {
 }
 
 /** Journaux toujours disponibles, câblés dans le code (utilisés partout dans AfriGes). */
-export const JOURNAUX_BUILTIN = ["CAISSE", "BANQUE", "VENTES", "ACHATS", "OD", "PAIE"] as const;
+export const JOURNAUX_BUILTIN = ["CAISSE", "BANQUE", "VENTES", "ACHATS", "OD", "PAIE", "IMMOBILISATIONS", "CLOTURE"] as const;
 const BUILTIN_SET = new Set<string>(JOURNAUX_BUILTIN);
 
 const PREFIXES_JOURNAL: Record<string, string> = {
@@ -69,6 +69,8 @@ const PREFIXES_JOURNAL: Record<string, string> = {
   ACHATS: "AC",
   OD: "OD",
   PAIE: "PA",
+  IMMOBILISATIONS: "IM",
+  CLOTURE: "CL",
 };
 
 /**
@@ -215,6 +217,10 @@ const REGLES_PAR_DEFAUT: Record<string, (ctx: ContexteEvenement) => ComptesRegle
   // Coût des marchandises vendues (COGS), constaté à la sortie physique du
   // stock : Dr 6031 Variation de stocks / Cr 311 Marchandises.
   SORTIE_STOCK_VENTE: () => ({ journal: "VENTES", compteDebitNumero: "6031", compteCreditNumero: "311" }),
+  // Écart d'inventaire physique validé (lib/comptabilite/ecrituresInventaire.ts) :
+  // sens (débit/crédit) déterminé à l'appel selon le signe de l'écart — ce couple
+  // ne sert que de comptes par défaut (311 Marchandises / 6031 Variation de stocks).
+  INVENTAIRE_ECART_VALIDE: () => ({ journal: "OD", compteDebitNumero: "311", compteCreditNumero: "6031" }),
 };
 
 /**

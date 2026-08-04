@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { calculerRealiseCompte } from "@/lib/comptabilite/analytique";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -89,15 +91,27 @@ export async function POST(req: Request, { params }: Ctx) {
       },
     });
 
-    const ligne = existing
-      ? await prisma.ligneBudget.update({ where: { id: existing.id }, data: { montantPrevu: Number(montantPrevu) } })
-      : await prisma.ligneBudget.create({
-          data: {
-            budgetId, compteId: resolvedCompteId!, mois: Number(mois), montantPrevu: Number(montantPrevu),
-            sectionAnalytiqueId: sectionAnalytiqueId ? Number(sectionAnalytiqueId) : null,
-            pointDeVenteId: pointDeVenteId ? Number(pointDeVenteId) : null,
-          },
-        });
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const ligne = await prisma.$transaction(async (tx) => {
+      const l = existing
+        ? await tx.ligneBudget.update({ where: { id: existing.id }, data: { montantPrevu: Number(montantPrevu) } })
+        : await tx.ligneBudget.create({
+            data: {
+              budgetId, compteId: resolvedCompteId!, mois: Number(mois), montantPrevu: Number(montantPrevu),
+              sectionAnalytiqueId: sectionAnalytiqueId ? Number(sectionAnalytiqueId) : null,
+              pointDeVenteId: pointDeVenteId ? Number(pointDeVenteId) : null,
+            },
+          });
+      await auditLog(
+        tx, userId,
+        existing ? "MODIFICATION_LIGNE_BUDGET" : "CREATION_LIGNE_BUDGET",
+        "LigneBudget", l.id,
+        { budgetId, compteId: resolvedCompteId, mois: Number(mois), montantPrevu: Number(montantPrevu) },
+        meta,
+      );
+      return l;
+    });
 
     return NextResponse.json({ data: ligne }, { status: existing ? 200 : 201 });
   } catch (e) {

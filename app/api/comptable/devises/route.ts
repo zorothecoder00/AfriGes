@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { getOuCreerDeviseFonctionnelle } from "@/lib/comptabilite/societe";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * GET /api/comptable/devises
@@ -39,14 +41,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "code, nom et symbole sont requis" }, { status: 400 });
     }
 
-    const devise = await prisma.devise.create({
-      data: {
-        code: code.trim().toUpperCase(),
-        nom: nom.trim(),
-        symbole: symbole.trim(),
-        tauxVersFonctionnelle: tauxVersFonctionnelle ?? 1,
-        dateTauxMaj: new Date(),
-      },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const devise = await prisma.$transaction(async (tx) => {
+      const d = await tx.devise.create({
+        data: {
+          code: code.trim().toUpperCase(),
+          nom: nom.trim(),
+          symbole: symbole.trim(),
+          tauxVersFonctionnelle: tauxVersFonctionnelle ?? 1,
+          dateTauxMaj: new Date(),
+        },
+      });
+      await auditLog(tx, userId, "CREATION_DEVISE", "Devise", undefined, { code: d.code, nom: d.nom }, meta);
+      return d;
     });
     return NextResponse.json({ data: devise }, { status: 201 });
   } catch (e: unknown) {

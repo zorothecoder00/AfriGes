@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { genererDotationsDuMois } from "@/lib/comptabilite/immobilisations";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * POST /api/comptable/immobilisations/dotations
@@ -21,7 +23,12 @@ export async function POST(req: Request) {
     const mois = Number(body?.mois) || now.getMonth() + 1;
 
     const userId = Number(session.user.id);
-    const result = await prisma.$transaction((tx) => genererDotationsDuMois(tx, annee, mois, userId));
+    const meta = getRequestMeta(req);
+    const result = await prisma.$transaction(async (tx) => {
+      const r = await genererDotationsDuMois(tx, annee, mois, userId);
+      await auditLog(tx, userId, "DOTATION_AMORTISSEMENT_MENSUELLE", "Immobilisation", undefined, { annee, mois, created: r.created, total: r.total }, meta);
+      return r;
+    });
 
     return NextResponse.json({
       success: true,

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { confirmerRapprochement } from "@/lib/comptabilite/rapprochementImport";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 const MESSAGES: Record<string, [string, number]> = {
   LIGNE_RELEVE_INTROUVABLE: ["Ligne de relevé introuvable", 404],
@@ -24,7 +26,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "ligneReleveId et ligneEcritureId sont requis" }, { status: 400 });
     }
 
-    await prisma.$transaction((tx) => confirmerRapprochement(tx, Number(ligneReleveId), Number(ligneEcritureId)));
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    await prisma.$transaction(async (tx) => {
+      await confirmerRapprochement(tx, Number(ligneReleveId), Number(ligneEcritureId));
+      await auditLog(tx, userId, "CONFIRMATION_RAPPROCHEMENT", "LigneReleveBancaire", Number(ligneReleveId), { ligneEcritureId: Number(ligneEcritureId) }, meta);
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("POST /api/comptable/rapprochement/confirmer", error);

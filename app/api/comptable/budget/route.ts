@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * GET /api/comptable/budget?annee=2026
@@ -41,8 +43,14 @@ export async function POST(req: NextRequest) {
     const existing = await prisma.budget.findUnique({ where: { annee: Number(annee) } });
     if (existing) return NextResponse.json({ data: existing });
 
-    const budget = await prisma.budget.create({
-      data: { annee: Number(annee), libelle: libelle || null, userId: Number(session.user.id) },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const budget = await prisma.$transaction(async (tx) => {
+      const b = await tx.budget.create({
+        data: { annee: Number(annee), libelle: libelle || null, userId },
+      });
+      await auditLog(tx, userId, "CREATION_BUDGET", "Budget", b.id, { annee: b.annee, libelle: b.libelle }, meta);
+      return b;
     });
     return NextResponse.json({ data: budget }, { status: 201 });
   } catch (e) {

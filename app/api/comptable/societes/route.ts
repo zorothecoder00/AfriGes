@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { getOuCreerSocietePrincipale } from "@/lib/comptabilite/societe";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * GET /api/comptable/societes
@@ -40,15 +42,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "nom est requis" }, { status: 400 });
     }
 
-    const societe = await prisma.societe.create({
-      data: {
-        nom: nom.trim(),
-        ...(pays !== undefined && { pays }),
-        ...(deviseFonctionnelleCode !== undefined && { deviseFonctionnelleCode }),
-        ...(referentielComptable !== undefined && { referentielComptable }),
-        ...(typeEntite !== undefined && { typeEntite }),
-        estPrincipale: false,
-      },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const societe = await prisma.$transaction(async (tx) => {
+      const s = await tx.societe.create({
+        data: {
+          nom: nom.trim(),
+          ...(pays !== undefined && { pays }),
+          ...(deviseFonctionnelleCode !== undefined && { deviseFonctionnelleCode }),
+          ...(referentielComptable !== undefined && { referentielComptable }),
+          ...(typeEntite !== undefined && { typeEntite }),
+          estPrincipale: false,
+        },
+      });
+      await auditLog(tx, userId, "CREATION_SOCIETE", "Societe", s.id, { nom: s.nom }, meta);
+      return s;
     });
     return NextResponse.json({ data: societe }, { status: 201 });
   } catch (e) {

@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * GET  /api/comptable/clotures?annee=2025
@@ -67,14 +69,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: "Ce mois est déjà clôturé" }, { status: 409 });
     }
 
-    const cloture = await prisma.clotureComptable.create({
-      data: {
-        annee,
-        mois,
-        notes: notes || null,
-        cloturePar: parseInt(session.user.id),
-      },
-      include: { clotureUser: { select: { nom: true, prenom: true } } },
+    const meta = getRequestMeta(req);
+    const cloture = await prisma.$transaction(async (tx) => {
+      const c = await tx.clotureComptable.create({
+        data: {
+          annee,
+          mois,
+          notes: notes || null,
+          cloturePar: parseInt(session.user.id),
+        },
+        include: { clotureUser: { select: { nom: true, prenom: true } } },
+      });
+      await auditLog(tx, parseInt(session.user.id), "CLOTURE_PERIODE_COMPTABLE", "ClotureComptable", c.id, { annee, mois }, meta);
+      return c;
     });
 
     return NextResponse.json({
@@ -108,7 +115,11 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ success: false, message: "Année ou mois invalide" }, { status: 400 });
     }
 
-    await prisma.clotureComptable.delete({ where: { annee_mois: { annee, mois } } });
+    const meta = getRequestMeta(req);
+    await prisma.$transaction(async (tx) => {
+      const deleted = await tx.clotureComptable.delete({ where: { annee_mois: { annee, mois } } });
+      await auditLog(tx, parseInt(session.user.id), "DEVERROUILLAGE_PERIODE_COMPTABLE", "ClotureComptable", deleted.id, { annee, mois }, meta);
+    });
 
     return NextResponse.json({ success: true, message: `Période ${mois}/${annee} déverrouillée` });
   } catch (error) {

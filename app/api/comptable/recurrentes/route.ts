@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /** GET /api/comptable/recurrentes — liste des écritures récurrentes (CDC §26). */
 export async function GET() {
@@ -39,19 +41,25 @@ export async function POST(req: Request) {
       );
     }
 
-    const recurrente = await prisma.ecritureRecurrente.create({
-      data: {
-        libelle: String(libelle).trim(),
-        montant: Number(montant),
-        compteDebitNumero: String(compteDebitNumero).trim(),
-        compteCreditNumero: String(compteCreditNumero).trim(),
-        journal,
-        frequence: frequence || "MENSUEL",
-        dateDebut: new Date(dateDebut),
-        dateFin: dateFin ? new Date(dateFin) : null,
-        nombreOccurrencesMax: nombreOccurrencesMax ? Number(nombreOccurrencesMax) : null,
-        userId: Number(session.user.id),
-      },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const recurrente = await prisma.$transaction(async (tx) => {
+      const r = await tx.ecritureRecurrente.create({
+        data: {
+          libelle: String(libelle).trim(),
+          montant: Number(montant),
+          compteDebitNumero: String(compteDebitNumero).trim(),
+          compteCreditNumero: String(compteCreditNumero).trim(),
+          journal,
+          frequence: frequence || "MENSUEL",
+          dateDebut: new Date(dateDebut),
+          dateFin: dateFin ? new Date(dateFin) : null,
+          nombreOccurrencesMax: nombreOccurrencesMax ? Number(nombreOccurrencesMax) : null,
+          userId,
+        },
+      });
+      await auditLog(tx, userId, "CREATION_ECRITURE_RECURRENTE", "EcritureRecurrente", r.id, { libelle: r.libelle, montant: r.montant }, meta);
+      return r;
     });
     return NextResponse.json({ data: recurrente }, { status: 201 });
   } catch (e) {

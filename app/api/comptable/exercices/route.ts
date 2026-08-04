@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { ouvrirExercice } from "@/lib/comptabilite/exercice";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /** GET /api/comptable/exercices — liste des exercices comptables (CDC §28-29). */
 export async function GET() {
@@ -27,7 +29,13 @@ export async function POST(req: Request) {
     const { annee } = body as { annee?: number };
     if (!annee) return NextResponse.json({ error: "annee requise" }, { status: 400 });
 
-    const exercice = await prisma.$transaction((tx) => ouvrirExercice(tx, Number(annee)));
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const exercice = await prisma.$transaction(async (tx) => {
+      const ex = await ouvrirExercice(tx, Number(annee));
+      await auditLog(tx, userId, "OUVERTURE_EXERCICE", "ExerciceComptable", ex.id, { annee: Number(annee) }, meta);
+      return ex;
+    });
     return NextResponse.json({ data: exercice }, { status: 201 });
   } catch (e) {
     console.error(e);

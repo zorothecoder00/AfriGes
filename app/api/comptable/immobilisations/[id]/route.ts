@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -50,15 +52,21 @@ export async function PATCH(req: Request, { params }: Ctx) {
       return NextResponse.json({ error: "Statut non modifiable directement ici (utilisez /ceder pour une sortie)" }, { status: 400 });
     }
 
-    const updated = await prisma.immobilisation.update({
-      where: { id: Number(id) },
-      data: {
-        ...(localisation !== undefined && { localisation: localisation || null }),
-        ...(responsableId !== undefined && { responsableId: responsableId ? Number(responsableId) : null }),
-        ...(notes !== undefined && { notes: notes || null }),
-        ...(numeroSerie !== undefined && { numeroSerie: numeroSerie || null }),
-        ...(statut !== undefined && { statut }),
-      },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const updated = await prisma.$transaction(async (tx) => {
+      const u = await tx.immobilisation.update({
+        where: { id: Number(id) },
+        data: {
+          ...(localisation !== undefined && { localisation: localisation || null }),
+          ...(responsableId !== undefined && { responsableId: responsableId ? Number(responsableId) : null }),
+          ...(notes !== undefined && { notes: notes || null }),
+          ...(numeroSerie !== undefined && { numeroSerie: numeroSerie || null }),
+          ...(statut !== undefined && { statut }),
+        },
+      });
+      await auditLog(tx, userId, "MODIFICATION_IMMOBILISATION", "Immobilisation", u.id, { statutAvant: existing.statut, statutApres: u.statut }, meta);
+      return u;
     });
 
     return NextResponse.json({ data: updated });

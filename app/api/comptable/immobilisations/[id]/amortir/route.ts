@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { genererDotationPeriode } from "@/lib/comptabilite/immobilisations";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -26,7 +28,14 @@ export async function POST(req: Request, { params }: Ctx) {
     const mois = Number(body?.mois) || now.getMonth() + 1;
 
     const userId = Number(session.user.id);
-    const result = await prisma.$transaction((tx) => genererDotationPeriode(tx, immobilisationId, annee, mois, userId));
+    const meta = getRequestMeta(req);
+    const result = await prisma.$transaction(async (tx) => {
+      const r = await genererDotationPeriode(tx, immobilisationId, annee, mois, userId);
+      if (r.created) {
+        await auditLog(tx, userId, "DOTATION_AMORTISSEMENT", "Immobilisation", immobilisationId, { annee, mois }, meta);
+      }
+      return r;
+    });
 
     if (!result.created) {
       return NextResponse.json({

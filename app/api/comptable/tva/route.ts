@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 export async function GET(req: Request) {
   try {
@@ -96,18 +98,24 @@ export async function POST(req: Request) {
     const ded  = Number(tvaDeductible);
     const due  = Math.max(0, coll - ded);
 
-    const declaration = await prisma.declarationTVA.upsert({
-      where:  { periode },
-      update: { tvaCollectee: coll, tvaDeductible: ded, tvaDue: due, notes: notes || null, statut: "EN_ATTENTE" as import("@prisma/client").StatutTVA },
-      create: {
-        periode,
-        tvaCollectee: coll,
-        tvaDeductible: ded,
-        tvaDue: due,
-        notes:  notes || null,
-        statut: "EN_ATTENTE" as import("@prisma/client").StatutTVA,
-        userId: Number(session.user.id),
-      },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const declaration = await prisma.$transaction(async (tx) => {
+      const d = await tx.declarationTVA.upsert({
+        where:  { periode },
+        update: { tvaCollectee: coll, tvaDeductible: ded, tvaDue: due, notes: notes || null, statut: "EN_ATTENTE" as import("@prisma/client").StatutTVA },
+        create: {
+          periode,
+          tvaCollectee: coll,
+          tvaDeductible: ded,
+          tvaDue: due,
+          notes:  notes || null,
+          statut: "EN_ATTENTE" as import("@prisma/client").StatutTVA,
+          userId,
+        },
+      });
+      await auditLog(tx, userId, "ENREGISTREMENT_DECLARATION_TVA", "DeclarationTVA", d.id, { periode, tvaCollectee: coll, tvaDeductible: ded, tvaDue: due }, meta);
+      return d;
     });
 
     return NextResponse.json({ data: declaration }, { status: 201 });
@@ -125,12 +133,18 @@ export async function PATCH(req: Request) {
     const { id, statut, notes } = await req.json();
     if (!id) return NextResponse.json({ error: "ID manquant" }, { status: 400 });
 
-    const updated = await prisma.declarationTVA.update({
-      where: { id: Number(id) },
-      data: {
-        ...(statut !== undefined && { statut }),
-        ...(notes  !== undefined && { notes }),
-      },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const updated = await prisma.$transaction(async (tx) => {
+      const u = await tx.declarationTVA.update({
+        where: { id: Number(id) },
+        data: {
+          ...(statut !== undefined && { statut }),
+          ...(notes  !== undefined && { notes }),
+        },
+      });
+      await auditLog(tx, userId, "MODIFICATION_DECLARATION_TVA", "DeclarationTVA", u.id, { statut, notes }, meta);
+      return u;
     });
 
     return NextResponse.json({ data: updated });

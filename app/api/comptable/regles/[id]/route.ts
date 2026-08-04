@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -20,22 +22,28 @@ export async function PUT(req: Request, { params }: Ctx) {
       priorite, actif, mode, notes,
     } = body;
 
-    const updated = await prisma.regleComptable.update({
-      where: { id: Number(id) },
-      data: {
-        ...(evenement !== undefined && { evenement: String(evenement).trim() }),
-        ...(moduleSource !== undefined && { moduleSource: String(moduleSource).trim() }),
-        ...(compteDebitNumero !== undefined && { compteDebitNumero: String(compteDebitNumero).trim() }),
-        ...(compteCreditNumero !== undefined && { compteCreditNumero: String(compteCreditNumero).trim() }),
-        ...(journal !== undefined && { journal }),
-        ...(conditionProduit !== undefined && { conditionProduit: conditionProduit || null }),
-        ...(conditionFamille !== undefined && { conditionFamille: conditionFamille || null }),
-        ...(conditionModePaiement !== undefined && { conditionModePaiement: conditionModePaiement || null }),
-        ...(priorite !== undefined && { priorite: Number(priorite) }),
-        ...(actif !== undefined && { actif: Boolean(actif) }),
-        ...(mode !== undefined && { mode }),
-        ...(notes !== undefined && { notes: notes || null }),
-      },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const updated = await prisma.$transaction(async (tx) => {
+      const u = await tx.regleComptable.update({
+        where: { id: Number(id) },
+        data: {
+          ...(evenement !== undefined && { evenement: String(evenement).trim() }),
+          ...(moduleSource !== undefined && { moduleSource: String(moduleSource).trim() }),
+          ...(compteDebitNumero !== undefined && { compteDebitNumero: String(compteDebitNumero).trim() }),
+          ...(compteCreditNumero !== undefined && { compteCreditNumero: String(compteCreditNumero).trim() }),
+          ...(journal !== undefined && { journal }),
+          ...(conditionProduit !== undefined && { conditionProduit: conditionProduit || null }),
+          ...(conditionFamille !== undefined && { conditionFamille: conditionFamille || null }),
+          ...(conditionModePaiement !== undefined && { conditionModePaiement: conditionModePaiement || null }),
+          ...(priorite !== undefined && { priorite: Number(priorite) }),
+          ...(actif !== undefined && { actif: Boolean(actif) }),
+          ...(mode !== undefined && { mode }),
+          ...(notes !== undefined && { notes: notes || null }),
+        },
+      });
+      await auditLog(tx, userId, "MODIFICATION_REGLE_COMPTABLE", "RegleComptable", u.id, { evenement: u.evenement }, meta);
+      return u;
     });
 
     return NextResponse.json({ data: updated });
@@ -45,7 +53,7 @@ export async function PUT(req: Request, { params }: Ctx) {
   }
 }
 
-export async function DELETE(_req: Request, { params }: Ctx) {
+export async function DELETE(req: Request, { params }: Ctx) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -54,7 +62,12 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     const existing = await prisma.regleComptable.findUnique({ where: { id: Number(id) } });
     if (!existing) return NextResponse.json({ error: "Règle introuvable" }, { status: 404 });
 
-    await prisma.regleComptable.delete({ where: { id: Number(id) } });
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    await prisma.$transaction(async (tx) => {
+      await tx.regleComptable.delete({ where: { id: Number(id) } });
+      await auditLog(tx, userId, "SUPPRESSION_REGLE_COMPTABLE", "RegleComptable", Number(id), { evenement: existing.evenement }, meta);
+    });
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error(e);

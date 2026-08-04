@@ -126,6 +126,13 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "exercices",       label: "Exercices, Taxes & Récurrentes", defaultAllowed: true, module: "comptabilite" },
       { key: "importEcritures", label: "Import comptable",     defaultAllowed: true, module: "comptabilite" },
       { key: "rapportsGestion", label: "Rapports de gestion",  defaultAllowed: true, module: "comptabilite" },
+      // Nouvelles sections (restructuration menu 13 rubriques) — extraites de
+      // "exercices" (recurrentes/taxes) ou nouvelles fonctionnalités CDC.
+      { key: "recurrentes",     label: "Écritures récurrentes", defaultAllowed: true, module: "comptabilite" },
+      { key: "taxes",           label: "Taxes",                 defaultAllowed: true, module: "comptabilite" },
+      { key: "provisions",      label: "Provisions & Dépréciations", defaultAllowed: true, module: "comptabilite" },
+      { key: "regularisations", label: "Charges/Produits constatés d'avance", defaultAllowed: true, module: "comptabilite" },
+      { key: "inventaire",      label: "Écritures d'inventaire", defaultAllowed: true, module: "comptabilite" },
     ],
   },
   {

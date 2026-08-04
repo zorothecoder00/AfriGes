@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       genererBilan(prisma, dateFin),
       genererCompteResultat(prisma, dateDebut, dateFin),
       genererTableauFlux(prisma, dateDebut, dateFin),
-      genererNotesAnnexes(prisma, dateFin),
+      genererNotesAnnexes(prisma, dateDebut, dateFin),
     ]);
 
     return NextResponse.json({ data: { annee, bilan, compteResultat, tableauFlux, notesAnnexes } });

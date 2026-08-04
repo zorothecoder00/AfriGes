@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * POST /api/comptable/journal/valider
@@ -22,21 +24,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "entryId est obligatoire" }, { status: 400 });
     }
 
-    const validation = await prisma.journalValidation.upsert({
-      where: { entryId },
-      update: {
-        notes: notes ?? null,
-        valideParId: Number(session.user.id),
-        createdAt: new Date(),
-      },
-      create: {
-        entryId,
-        notes: notes ?? null,
-        valideParId: Number(session.user.id),
-      },
-      include: {
-        validePar: { select: { id: true, nom: true, prenom: true } },
-      },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const validation = await prisma.$transaction(async (tx) => {
+      const v = await tx.journalValidation.upsert({
+        where: { entryId },
+        update: {
+          notes: notes ?? null,
+          valideParId: userId,
+          createdAt: new Date(),
+        },
+        create: {
+          entryId,
+          notes: notes ?? null,
+          valideParId: userId,
+        },
+        include: {
+          validePar: { select: { id: true, nom: true, prenom: true } },
+        },
+      });
+      await auditLog(tx, userId, "VALIDATION_JOURNAL", "JournalValidation", v.id, { entryId }, meta);
+      return v;
     });
 
     return NextResponse.json({ data: validation });
@@ -56,7 +64,12 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "entryId est obligatoire" }, { status: 400 });
     }
 
-    await prisma.journalValidation.delete({ where: { entryId } });
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    await prisma.$transaction(async (tx) => {
+      const deleted = await tx.journalValidation.delete({ where: { entryId } });
+      await auditLog(tx, userId, "ANNULATION_VALIDATION_JOURNAL", "JournalValidation", deleted.id, { entryId }, meta);
+    });
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error(e);

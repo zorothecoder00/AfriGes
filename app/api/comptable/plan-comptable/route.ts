@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
-// Plan SYSCOHADA de base pour import rapide (CDC Comptabilité §5). Ne couvre pas
-// les ~500 comptes de la nomenclature officielle, mais un socle réaliste pour une
-// PME commerciale togolaise, couvrant les 8 classes. Les comptes déjà livrés
-// (marqués ci-dessous) ne sont JAMAIS renumérotés ou relabellisés — un import déjà
-// effectué chez un client ne doit jamais changer de sens. Seuls des comptes
-// supplémentaires ont été ajoutés. Certains numéros (165, 1672, 416, 776, 676)
-// sont indispensables au module RIA (lib/riaComptable.ts) : sans eux, ses lignes
-// d'écriture correspondantes étaient silencieusement omises faute de compte.
+// Plan SYSCOHADA pour import rapide (CDC Comptabilité §5). Ne prétend pas couvrir
+// l'intégralité des ~500 comptes de la nomenclature officielle au niveau le plus
+// détaillé, mais une base substantiellement élargie (comptes principaux et
+// subdivisions courantes des 8 classes) pour une PME commerciale togolaise. Les
+// comptes déjà livrés (marqués ci-dessous) ne sont JAMAIS renumérotés ou
+// relabellisés — un import déjà effectué chez un client ne doit jamais changer de
+// sens ; seuls des comptes supplémentaires ont été ajoutés au fil de l'eau.
+// Certains numéros (165, 1672, 416, 776, 676) sont indispensables au module RIA
+// (lib/riaComptable.ts) : sans eux, ses lignes d'écriture correspondantes étaient
+// silencieusement omises faute de compte. Les comptes 476/477 sont déjà pris par
+// les écarts de conversion actif/passif ; les charges/produits constatés d'avance
+// utilisent donc 4786/4787 (lib/comptabilite/regularisationsAvance.ts).
 const PLAN_SYSCOHADA_BASE = [
   // ── Classe 1 — Ressources durables ──────────────────────────────────────────
   { numero: "101", libelle: "Capital social", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
@@ -30,6 +36,19 @@ const PLAN_SYSCOHADA_BASE = [
   { numero: "1672", libelle: "Comptes courants associés — investisseurs (RIA)", classe: 1, type: "PASSIF", nature: "AUXILIAIRE", sens: "CREDITEUR" },
   { numero: "191", libelle: "Provisions pour litiges", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
   { numero: "198", libelle: "Autres provisions pour charges", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "105", libelle: "Écarts de réévaluation", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "108", libelle: "Compte de l'exploitant", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "152", libelle: "Provisions réglementées relatives aux stocks", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "161", libelle: "Emprunts obligataires", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "164", libelle: "Avances reçues de l'État", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "166", libelle: "Intérêts courus", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "168", libelle: "Autres emprunts et dettes", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "171", libelle: "Dettes de crédit-bail immobilier", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "172", libelle: "Dettes de crédit-bail mobilier", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "181", libelle: "Dettes liées à des participations (groupe)", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "194", libelle: "Provisions pour pensions et obligations similaires", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "195", libelle: "Provisions pour impôts", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "197", libelle: "Provisions pour charges à répartir sur plusieurs exercices", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
 
   // ── Classe 2 — Charges immobilisées & immobilisations ───────────────────────
   { numero: "201", libelle: "Frais de développement", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
@@ -51,12 +70,39 @@ const PLAN_SYSCOHADA_BASE = [
   { numero: "2845", libelle: "Amortissements du matériel de transport", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
   { numero: "2848", libelle: "Amortissements du matériel informatique", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
   { numero: "291", libelle: "Provisions pour dépréciation des immobilisations", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "203", libelle: "Frais d'augmentation de capital", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "232", libelle: "Installations techniques", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "233", libelle: "Ouvrages d'infrastructure", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "241", libelle: "Matériel et outillage industriel et commercial", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "246", libelle: "Emballages récupérables", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "271", libelle: "Prêts et créances non commerciales", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "2751", libelle: "Dépôts", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "2757", libelle: "Cautionnements", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "282", libelle: "Amortissements des charges immobilisées", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "2833", libelle: "Amortissements des installations techniques", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "2841", libelle: "Amortissements du matériel et outillage", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "2846", libelle: "Amortissements des emballages récupérables", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "292", libelle: "Provisions pour dépréciation des titres de participation", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "296", libelle: "Provisions pour dépréciation des autres immobilisations financières", classe: 2, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
 
   // ── Classe 3 — Stocks ────────────────────────────────────────────────────────
   { numero: "31",  libelle: "Stocks de marchandises", classe: 3, type: "ACTIF", nature: "REGROUPEMENT", sens: "DEBITEUR" },
   { numero: "311", libelle: "Marchandises", classe: 3, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
   { numero: "32",  libelle: "Matières premières et fournitures", classe: 3, type: "ACTIF", nature: "REGROUPEMENT", sens: "DEBITEUR" },
   { numero: "391", libelle: "Dépréciation des stocks de marchandises", classe: 3, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "321", libelle: "Matières premières", classe: 3, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "322", libelle: "Matières consommables", classe: 3, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "33",  libelle: "Autres approvisionnements", classe: 3, type: "ACTIF", nature: "REGROUPEMENT", sens: "DEBITEUR" },
+  { numero: "335", libelle: "Emballages", classe: 3, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "34",  libelle: "Produits en cours", classe: 3, type: "ACTIF", nature: "REGROUPEMENT", sens: "DEBITEUR" },
+  { numero: "35",  libelle: "Services en cours", classe: 3, type: "ACTIF", nature: "REGROUPEMENT", sens: "DEBITEUR" },
+  { numero: "36",  libelle: "Produits finis", classe: 3, type: "ACTIF", nature: "REGROUPEMENT", sens: "DEBITEUR" },
+  { numero: "37",  libelle: "Produits intermédiaires", classe: 3, type: "ACTIF", nature: "REGROUPEMENT", sens: "DEBITEUR" },
+  { numero: "38",  libelle: "Stocks en cours de route, en consignation ou en dépôt", classe: 3, type: "ACTIF", nature: "REGROUPEMENT", sens: "DEBITEUR" },
+  { numero: "392", libelle: "Dépréciation des matières premières", classe: 3, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "393", libelle: "Dépréciation des autres approvisionnements", classe: 3, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "394", libelle: "Dépréciation des produits en cours", classe: 3, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "396", libelle: "Dépréciation des produits finis", classe: 3, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
 
   // ── Classe 4 — Comptes de tiers ──────────────────────────────────────────────
   { numero: "401", libelle: "Fournisseurs", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
@@ -82,6 +128,25 @@ const PLAN_SYSCOHADA_BASE = [
   { numero: "477", libelle: "Écarts de conversion — passif", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
   { numero: "481", libelle: "Créances sur cessions d'immobilisations", classe: 4, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
   { numero: "491", libelle: "Dépréciation des comptes clients", classe: 4, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "403", libelle: "Fournisseurs — Effets à payer", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "422", libelle: "Personnel — Oppositions sur salaires", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "423", libelle: "Personnel — Œuvres sociales internes", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "424", libelle: "Personnel — Participation aux bénéfices", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "426", libelle: "Personnel — Dépôts", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "428", libelle: "Personnel — Charges à payer et produits à recevoir", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "432", libelle: "Caisse de retraite complémentaire", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "433", libelle: "Autres organismes sociaux", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "442", libelle: "État, autres impôts et taxes", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "443", libelle: "État, TVA", classe: 4, type: "PASSIF", nature: "REGROUPEMENT", sens: "CREDITEUR" },
+  { numero: "446", libelle: "État — Autres taxes recouvrables", classe: 4, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "448", libelle: "État — Charges à payer et produits à recevoir", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "451", libelle: "Organismes internationaux", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "455", libelle: "Associés — comptes courants", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "464", libelle: "Créances sur cessions de valeurs mobilières de placement", classe: 4, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "467", libelle: "Autres comptes débiteurs ou créditeurs", classe: 4, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "478", libelle: "Comptes de régularisation (charges/produits constatés d'avance)", classe: 4, type: "ACTIF", nature: "REGROUPEMENT", sens: "DEBITEUR" },
+  { numero: "4786", libelle: "Charges constatées d'avance", classe: 4, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "4787", libelle: "Produits constatés d'avance", classe: 4, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
 
   // ── Classe 5 — Trésorerie ────────────────────────────────────────────────────
   { numero: "519", libelle: "Concours bancaires courants", classe: 5, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
@@ -90,6 +155,11 @@ const PLAN_SYSCOHADA_BASE = [
   { numero: "571", libelle: "Caisse siège", classe: 5, type: "TRESORERIE", nature: "DETAIL", sens: "DEBITEUR" },
   { numero: "572", libelle: "Caisse succursale", classe: 5, type: "TRESORERIE", nature: "DETAIL", sens: "DEBITEUR" },
   { numero: "585", libelle: "Virements de fonds", classe: 5, type: "TRESORERIE", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "501", libelle: "Titres de placement", classe: 5, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "511", libelle: "Valeurs à l'encaissement", classe: 5, type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "531", libelle: "Chèques postaux", classe: 5, type: "TRESORERIE", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "561", libelle: "Banques, crédits de trésorerie", classe: 5, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "590", libelle: "Provisions pour dépréciation des titres de placement", classe: 5, type: "ACTIF", nature: "DETAIL", sens: "CREDITEUR" },
 
   // ── Classe 6 — Charges ───────────────────────────────────────────────────────
   { numero: "601", libelle: "Achats de marchandises", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
@@ -124,6 +194,16 @@ const PLAN_SYSCOHADA_BASE = [
   { numero: "676", libelle: "Charges d'intérêts / distributions (RIA)", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
   { numero: "681", libelle: "Dotations aux amortissements", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
   { numero: "691", libelle: "Dotations aux provisions pour risques et charges", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "612", libelle: "Transports sur ventes", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "634", libelle: "Frais de recrutement du personnel", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "645", libelle: "Impôts et taxes indirects", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "646", libelle: "Droits d'enregistrement", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "647", libelle: "Charges sociales diverses", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "672", libelle: "Pertes de change", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "675", libelle: "Escomptes accordés", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "678", libelle: "Autres charges financières", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "692", libelle: "Dotations aux provisions financières", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "694", libelle: "Dotations aux provisions pour dépréciation", classe: 6, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
 
   // ── Classe 7 — Produits ──────────────────────────────────────────────────────
   { numero: "701", libelle: "Ventes de marchandises", classe: 7, type: "PRODUITS", nature: "DETAIL", sens: "CREDITEUR" },
@@ -138,6 +218,12 @@ const PLAN_SYSCOHADA_BASE = [
   { numero: "781", libelle: "Transferts de charges d'exploitation", classe: 7, type: "PRODUITS", nature: "DETAIL", sens: "CREDITEUR" },
   { numero: "786", libelle: "Reprises de provisions", classe: 7, type: "PRODUITS", nature: "DETAIL", sens: "CREDITEUR" },
   { numero: "798", libelle: "Reprises d'amortissements", classe: 7, type: "PRODUITS", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "711", libelle: "Subventions d'exploitation", classe: 7, type: "PRODUITS", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "754", libelle: "Ristournes perçues", classe: 7, type: "PRODUITS", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "772", libelle: "Revenus de titres de placement", classe: 7, type: "PRODUITS", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "775", libelle: "Escomptes obtenus", classe: 7, type: "PRODUITS", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "777", libelle: "Gains de change", classe: 7, type: "PRODUITS", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "778", libelle: "Autres produits financiers", classe: 7, type: "PRODUITS", nature: "DETAIL", sens: "CREDITEUR" },
 
   // ── Classe 8 — Autres charges/produits (HAO) ─────────────────────────────────
   { numero: "81", libelle: "Valeurs comptables des cessions d'immobilisations", classe: 8, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
@@ -145,6 +231,10 @@ const PLAN_SYSCOHADA_BASE = [
   { numero: "83", libelle: "Charges hors activités ordinaires (HAO)", classe: 8, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
   { numero: "84", libelle: "Produits hors activités ordinaires (HAO)", classe: 8, type: "PRODUITS", nature: "DETAIL", sens: "CREDITEUR" },
   { numero: "891", libelle: "Impôts sur le résultat", classe: 8, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "85", libelle: "Dotations HAO", classe: 8, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "86", libelle: "Reprises HAO", classe: 8, type: "PRODUITS", nature: "DETAIL", sens: "CREDITEUR" },
+  { numero: "87", libelle: "Participation des travailleurs", classe: 8, type: "CHARGES", nature: "DETAIL", sens: "DEBITEUR" },
+  { numero: "88", libelle: "Subventions d'équilibre", classe: 8, type: "PRODUITS", nature: "DETAIL", sens: "CREDITEUR" },
 ];
 
 export async function GET(req: Request) {
@@ -212,6 +302,8 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { action } = body;
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
 
     // Import du plan SYSCOHADA de base
     if (action === "import_syscohada") {
@@ -219,14 +311,40 @@ export async function POST(req: Request) {
       if (existing > 0) {
         return NextResponse.json({ error: "Le plan comptable n'est pas vide. Supprimez d'abord les comptes existants." }, { status: 400 });
       }
-      const created = await prisma.compteComptable.createMany({
-        data: PLAN_SYSCOHADA_BASE.map((c) => ({
-          ...c,
-          type: c.type as import("@prisma/client").TypeCompte,
-          nature: c.nature as import("@prisma/client").NatureCompte,
-          sens: c.sens as import("@prisma/client").SensCompte,
-        })),
-        skipDuplicates: true,
+      const created = await prisma.$transaction(async (tx) => {
+        const c = await tx.compteComptable.createMany({
+          data: PLAN_SYSCOHADA_BASE.map((c) => ({
+            ...c,
+            type: c.type as import("@prisma/client").TypeCompte,
+            nature: c.nature as import("@prisma/client").NatureCompte,
+            sens: c.sens as import("@prisma/client").SensCompte,
+          })),
+          skipDuplicates: true,
+        });
+        await auditLog(tx, userId, "IMPORT_SYSCOHADA", "CompteComptable", undefined, { count: c.count }, meta);
+        return c;
+      });
+      return NextResponse.json({ success: true, count: created.count });
+    }
+
+    // Complète un plan comptable déjà provisionné avec les comptes SYSCOHADA
+    // manquants (upsert additif par numéro) — contrairement à "import_syscohada"
+    // (all-or-nothing), ne bloque jamais sur un plan non vide et ne touche jamais
+    // à un compte déjà présent (skipDuplicates), pour combler le plan d'un client
+    // qui a déjà des données sans risquer de renumeroter/relabelliser quoi que ce soit.
+    if (action === "completer_syscohada") {
+      const created = await prisma.$transaction(async (tx) => {
+        const c = await tx.compteComptable.createMany({
+          data: PLAN_SYSCOHADA_BASE.map((c) => ({
+            ...c,
+            type: c.type as import("@prisma/client").TypeCompte,
+            nature: c.nature as import("@prisma/client").NatureCompte,
+            sens: c.sens as import("@prisma/client").SensCompte,
+          })),
+          skipDuplicates: true,
+        });
+        await auditLog(tx, userId, "COMPLETION_SYSCOHADA", "CompteComptable", undefined, { count: c.count }, meta);
+        return c;
       });
       return NextResponse.json({ success: true, count: created.count });
     }
@@ -237,18 +355,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Champs obligatoires manquants" }, { status: 400 });
     }
 
-    const compte = await prisma.compteComptable.create({
-      data: {
-        numero,
-        libelle,
-        classe: Number(classe),
-        type,
-        nature: nature || "DETAIL",
-        sens: sens || "DEBITEUR",
-        compteParentId: compteParentId ? Number(compteParentId) : null,
-        tiersType: tiersType || null,
-        tiersNom: tiersNom || null,
-      },
+    const compte = await prisma.$transaction(async (tx) => {
+      const c = await tx.compteComptable.create({
+        data: {
+          numero,
+          libelle,
+          classe: Number(classe),
+          type,
+          nature: nature || "DETAIL",
+          sens: sens || "DEBITEUR",
+          compteParentId: compteParentId ? Number(compteParentId) : null,
+          tiersType: tiersType || null,
+          tiersNom: tiersNom || null,
+        },
+      });
+      await auditLog(tx, userId, "CREATION_COMPTE_COMPTABLE", "CompteComptable", c.id, { numero: c.numero, libelle: c.libelle }, meta);
+      return c;
     });
     return NextResponse.json({ data: compte }, { status: 201 });
   } catch (e: unknown) {
@@ -268,15 +390,21 @@ export async function PATCH(req: Request) {
     const { id, ...data } = await req.json();
     if (!id) return NextResponse.json({ error: "ID manquant" }, { status: 400 });
 
-    const compte = await prisma.compteComptable.update({
-      where: { id: Number(id) },
-      data: {
-        ...(data.libelle   !== undefined && { libelle: data.libelle }),
-        ...(data.actif     !== undefined && { actif: Boolean(data.actif) }),
-        ...(data.tiersType !== undefined && { tiersType: data.tiersType }),
-        ...(data.tiersNom  !== undefined && { tiersNom: data.tiersNom }),
-        ...(data.nature    !== undefined && { nature: data.nature }),
-      },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const compte = await prisma.$transaction(async (tx) => {
+      const c = await tx.compteComptable.update({
+        where: { id: Number(id) },
+        data: {
+          ...(data.libelle   !== undefined && { libelle: data.libelle }),
+          ...(data.actif     !== undefined && { actif: Boolean(data.actif) }),
+          ...(data.tiersType !== undefined && { tiersType: data.tiersType }),
+          ...(data.tiersNom  !== undefined && { tiersNom: data.tiersNom }),
+          ...(data.nature    !== undefined && { nature: data.nature }),
+        },
+      });
+      await auditLog(tx, userId, "MODIFICATION_COMPTE_COMPTABLE", "CompteComptable", c.id, { libelle: data.libelle, actif: data.actif }, meta);
+      return c;
     });
     return NextResponse.json({ data: compte });
   } catch (e) {

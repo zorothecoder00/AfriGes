@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { lignesNonLettrees, proposerLettrage, appliquerLettrage } from "@/lib/comptabilite/lettrage";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 const MESSAGES: Record<string, [string, number]> = {
   LETTRAGE_MIN_2_LIGNES: ["Un lettrage nécessite au moins 2 lignes", 400],
@@ -48,7 +50,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const ligneIds = Array.isArray(body?.ligneIds) ? body.ligneIds.map(Number) : [];
 
-    const code = await prisma.$transaction((tx) => appliquerLettrage(tx, ligneIds));
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const code = await prisma.$transaction(async (tx) => {
+      const c = await appliquerLettrage(tx, ligneIds);
+      await auditLog(tx, userId, "APPLICATION_LETTRAGE", "LigneEcriture", undefined, { code: c, ligneIds }, meta);
+      return c;
+    });
     return NextResponse.json({ data: { code } }, { status: 201 });
   } catch (error) {
     console.error("POST /api/comptable/lettrage", error);

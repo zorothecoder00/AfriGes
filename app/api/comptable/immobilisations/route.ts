@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { ecritureAcquisitionImmobilisation } from "@/lib/comptabilite/immobilisations";
 import { obtenirOuCreerCompteAuxiliaireFournisseur } from "@/lib/comptabilite/auxiliaire";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 // Comptes par défaut par catégorie (plan SYSCOHADA de base — CDC §22). Les terrains
 // ne se déprécient pas comptablement en pratique ; le compte d'amortissement leur
@@ -113,6 +115,7 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
     const numeroInventaire = await genererNumeroInventaire();
     const montant = Number(coutAcquisition);
     const dateAcq = new Date(dateAcquisition);
@@ -158,6 +161,8 @@ export async function POST(req: NextRequest) {
       if (ecritureId) {
         await tx.immobilisation.update({ where: { id: immo.id }, data: { ecritureAcquisitionId: ecritureId } });
       }
+
+      await auditLog(tx, userId, "CREATION_IMMOBILISATION", "Immobilisation", immo.id, { numeroInventaire, designation, coutAcquisition: montant }, meta);
 
       return immo;
     });

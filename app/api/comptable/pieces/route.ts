@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { getAuditeurInterneSession } from "@/lib/authAuditeurInterne";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 const ARCHIVE_YEARS = 10;
 
@@ -101,20 +103,26 @@ export async function POST(req: Request) {
     const archiverJusquau = new Date();
     archiverJusquau.setFullYear(archiverJusquau.getFullYear() + ARCHIVE_YEARS);
 
-    const piece = await prisma.pieceJustificative.create({
-      data: {
-        nom,
-        url,
-        uploadthingKey,
-        type,
-        taille:         Number(taille),
-        sourceType,
-        sourceId:       Number(sourceId),
-        description:    typeof description === "string" && description.trim() ? description.trim() : null,
-        uploadePar:     Number(session.user.id),
-        archiverJusquau,
-      },
-      include: { uploadeUser: { select: { nom: true, prenom: true } } },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const piece = await prisma.$transaction(async (tx) => {
+      const p = await tx.pieceJustificative.create({
+        data: {
+          nom,
+          url,
+          uploadthingKey,
+          type,
+          taille:         Number(taille),
+          sourceType,
+          sourceId:       Number(sourceId),
+          description:    typeof description === "string" && description.trim() ? description.trim() : null,
+          uploadePar:     userId,
+          archiverJusquau,
+        },
+        include: { uploadeUser: { select: { nom: true, prenom: true } } },
+      });
+      await auditLog(tx, userId, "AJOUT_PIECE_JUSTIFICATIVE", "PieceJustificative", p.id, { sourceType, sourceId: Number(sourceId), nom }, meta);
+      return p;
     });
 
     return NextResponse.json({ success: true, data: piece }, { status: 201 });

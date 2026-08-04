@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { parserReleveCsv, parserReleveXlsx, parserReleveOfx, importerLignesReleve } from "@/lib/comptabilite/rapprochementImport";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * POST /api/comptable/rapprochement/import
@@ -35,7 +37,12 @@ export async function POST(req: Request) {
     }
 
     const userId = Number(session.user.id);
-    const nbImportees = await prisma.$transaction((tx) => importerLignesReleve(tx, compteNumero, lignes, userId));
+    const meta = getRequestMeta(req);
+    const nbImportees = await prisma.$transaction(async (tx) => {
+      const n = await importerLignesReleve(tx, compteNumero, lignes, userId);
+      await auditLog(tx, userId, "IMPORT_RELEVE_BANCAIRE", "LigneReleveBancaire", undefined, { compteNumero, format: fmt, nbImportees: n, erreurs: erreurs.length }, meta);
+      return n;
+    });
 
     return NextResponse.json({
       success: true,

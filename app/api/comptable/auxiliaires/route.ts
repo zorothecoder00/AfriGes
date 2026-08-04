@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { obtenirOuCreerCompteAuxiliaireClient, obtenirOuCreerCompteAuxiliaireFournisseur } from "@/lib/comptabilite/auxiliaire";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * GET /api/comptable/auxiliaires?type=CLIENT|FOURNISSEUR&search=...
@@ -61,11 +63,15 @@ export async function POST(req: NextRequest) {
     const { type, id } = body as { type?: string; id?: number };
     if (!type || !id) return NextResponse.json({ error: "type et id requis" }, { status: 400 });
 
-    const compte = await prisma.$transaction((tx) =>
-      type === "FOURNISSEUR"
-        ? obtenirOuCreerCompteAuxiliaireFournisseur(tx, Number(id))
-        : obtenirOuCreerCompteAuxiliaireClient(tx, Number(id)),
-    );
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const compte = await prisma.$transaction(async (tx) => {
+      const c = type === "FOURNISSEUR"
+        ? await obtenirOuCreerCompteAuxiliaireFournisseur(tx, Number(id))
+        : await obtenirOuCreerCompteAuxiliaireClient(tx, Number(id));
+      await auditLog(tx, userId, "OBTENTION_COMPTE_AUXILIAIRE", "CompteComptable", c.id, { type, tiersId: Number(id), numero: c.numero }, meta);
+      return c;
+    });
 
     return NextResponse.json({ data: compte }, { status: 201 });
   } catch (e) {

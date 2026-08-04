@@ -71,7 +71,7 @@ export async function cloturerExercice(tx: TxClient, annee: number, userId: numb
   let ecritureClotureId: number | null = null;
   if (lignesCloture.length > 0) {
     ecritureClotureId = await creerEcriture(tx, {
-      journal: "OD",
+      journal: "CLOTURE",
       date: exercice.dateFin,
       libelle: `Clôture de l'exercice ${annee} — détermination du résultat`,
       userId,
@@ -85,7 +85,7 @@ export async function cloturerExercice(tx: TxClient, annee: number, userId: numb
   let ecritureReportId: number | null = null;
   if (Math.abs(resultatNet) > 0.01) {
     ecritureReportId = await creerEcriture(tx, {
-      journal: "OD",
+      journal: "CLOTURE",
       date: exercice.dateFin,
       libelle: `Report à nouveau — résultat ${annee}`,
       userId,

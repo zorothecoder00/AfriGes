@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { genererEcheancesDues } from "@/lib/comptabilite/recurrentes";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * POST /api/comptable/recurrentes/generer
@@ -16,8 +18,13 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const dateReference = body?.date ? new Date(body.date) : new Date();
     const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
 
-    const result = await prisma.$transaction((tx) => genererEcheancesDues(tx, dateReference, userId));
+    const result = await prisma.$transaction(async (tx) => {
+      const r = await genererEcheancesDues(tx, dateReference, userId);
+      await auditLog(tx, userId, "GENERATION_ECHEANCES_RECURRENTES", "EcritureRecurrente", undefined, { date: dateReference.toISOString(), created: r.created, skipped: r.skipped }, meta);
+      return r;
+    });
 
     return NextResponse.json({
       success: true,

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { contrepasserEcriture } from "@/lib/comptabilite/moteur";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -18,7 +20,7 @@ const MESSAGES: Record<string, [string, number]> = {
  * Génère l'écriture inverse d'une écriture validée (CDC §13) — n'annule ni ne
  * modifie jamais l'écriture d'origine, dont l'historique reste intact.
  */
-export async function POST(_req: Request, { params }: Ctx) {
+export async function POST(req: Request, { params }: Ctx) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -28,8 +30,13 @@ export async function POST(_req: Request, { params }: Ctx) {
     if (isNaN(ecritureId)) return NextResponse.json({ error: "ID invalide" }, { status: 400 });
 
     const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
 
-    const nouvelleId = await prisma.$transaction((tx) => contrepasserEcriture(tx, ecritureId, userId));
+    const nouvelleId = await prisma.$transaction(async (tx) => {
+      const newId = await contrepasserEcriture(tx, ecritureId, userId);
+      await auditLog(tx, userId, "CONTREPASSATION_ECRITURE", "EcritureComptable", ecritureId, { nouvelleEcritureId: newId }, meta);
+      return newId;
+    });
 
     const nouvelle = await prisma.ecritureComptable.findUnique({
       where: { id: nouvelleId },

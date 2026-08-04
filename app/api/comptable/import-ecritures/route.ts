@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { parserImportCsv, confirmerImport } from "@/lib/comptabilite/importEcritures";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * POST /api/comptable/import-ecritures
@@ -22,7 +24,12 @@ export async function POST(req: Request) {
     if (lignes.length === 0) return NextResponse.json({ error: "Aucune ligne détectée" }, { status: 422 });
 
     const userId = Number(session.user.id);
-    const result = await prisma.$transaction((tx) => confirmerImport(tx, lignes, userId));
+    const meta = getRequestMeta(req);
+    const result = await prisma.$transaction(async (tx) => {
+      const r = await confirmerImport(tx, lignes, userId);
+      await auditLog(tx, userId, "IMPORT_ECRITURES", "EcritureComptable", undefined, { ecrituresCreees: r.ecrituresCreees, groupesIgnores: r.groupesIgnores.length }, meta);
+      return r;
+    });
 
     return NextResponse.json({
       success: true,

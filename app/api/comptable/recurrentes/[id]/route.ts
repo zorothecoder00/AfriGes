@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -17,7 +19,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
       return NextResponse.json({ error: "statut doit être ACTIF ou SUSPENDU" }, { status: 400 });
     }
 
-    const updated = await prisma.ecritureRecurrente.update({ where: { id: Number(id) }, data: { statut } });
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const updated = await prisma.$transaction(async (tx) => {
+      const u = await tx.ecritureRecurrente.update({ where: { id: Number(id) }, data: { statut } });
+      await auditLog(tx, userId, statut === "SUSPENDU" ? "SUSPENSION_ECRITURE_RECURRENTE" : "REPRISE_ECRITURE_RECURRENTE", "EcritureRecurrente", u.id, { statut }, meta);
+      return u;
+    });
     return NextResponse.json({ data: updated });
   } catch (e) {
     console.error(e);

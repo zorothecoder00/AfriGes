@@ -4,6 +4,8 @@ import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
 import { resolveViewAs } from "@/lib/viewAs";
 import { creerEcriture } from "@/lib/comptabilite/moteur";
 import { creerEcritureAchatDepuisMouvement } from "@/lib/ecritureAchatServer";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * POST /api/comptable/sync-journals
@@ -372,6 +374,12 @@ export async function POST(req: NextRequest) {
 
     const totalCreated = Object.values(resultats).reduce((s, r) => s + r.created, 0);
     const totalSkipped = Object.values(resultats).reduce((s, r) => s + r.skipped, 0);
+
+    // Note : la synchronisation combine plusieurs générateurs indépendants (chacun
+    // idempotent par référence) sans transaction englobante — l'envelopper changerait
+    // la sémantique (rollback total sur un seul échec, risque de timeout sur gros volumes).
+    // On journalise donc l'action globale hors transaction, après son exécution.
+    await auditLog(prisma, userId, "SYNCHRONISATION_JOURNAUX", "EcritureComptable", undefined, { action, totalCreated, totalSkipped }, getRequestMeta(req));
 
     return NextResponse.json({
       success: true,

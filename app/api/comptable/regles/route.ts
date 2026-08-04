@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * GET /api/comptable/regles
@@ -49,21 +51,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const regle = await prisma.regleComptable.create({
-      data: {
-        evenement: String(evenement).trim(),
-        moduleSource: String(moduleSource).trim(),
-        compteDebitNumero: String(compteDebitNumero).trim(),
-        compteCreditNumero: String(compteCreditNumero).trim(),
-        journal,
-        conditionProduit: conditionProduit || null,
-        conditionFamille: conditionFamille || null,
-        conditionModePaiement: conditionModePaiement || null,
-        priorite: priorite != null ? Number(priorite) : 0,
-        actif: actif != null ? Boolean(actif) : true,
-        mode: mode || "AUTOMATIQUE",
-        notes: notes || null,
-      },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const regle = await prisma.$transaction(async (tx) => {
+      const r = await tx.regleComptable.create({
+        data: {
+          evenement: String(evenement).trim(),
+          moduleSource: String(moduleSource).trim(),
+          compteDebitNumero: String(compteDebitNumero).trim(),
+          compteCreditNumero: String(compteCreditNumero).trim(),
+          journal,
+          conditionProduit: conditionProduit || null,
+          conditionFamille: conditionFamille || null,
+          conditionModePaiement: conditionModePaiement || null,
+          priorite: priorite != null ? Number(priorite) : 0,
+          actif: actif != null ? Boolean(actif) : true,
+          mode: mode || "AUTOMATIQUE",
+          notes: notes || null,
+        },
+      });
+      await auditLog(tx, userId, "CREATION_REGLE_COMPTABLE", "RegleComptable", r.id, { evenement: r.evenement, moduleSource: r.moduleSource }, meta);
+      return r;
     });
 
     return NextResponse.json({ data: regle }, { status: 201 });

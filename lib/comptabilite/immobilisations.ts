@@ -17,6 +17,38 @@ export function calculerDotationMensuelle(coutAcquisition: number, valeurResidue
   return Math.round((base / mois) * 100) / 100;
 }
 
+/** Coefficient fiscal dégressif OHADA selon la durée normale d'amortissement. */
+function coefficientDegressif(dureeAnnees: number): number {
+  if (dureeAnnees <= 4) return 1.5;
+  if (dureeAnnees <= 6) return 2;
+  return 2.5;
+}
+
+/**
+ * Dotation mensuelle théorique (méthode dégressive, règle fiscale OHADA) : le taux
+ * dégressif (1/durée × coefficient selon la durée) s'applique à la VNC de DÉBUT
+ * D'EXERCICE — avec bascule automatique et définitive sur le linéaire résiduel dès
+ * que celui-ci dépasse le dégressif (croisement classique dégressif/linéaire),
+ * puis répartition de la dotation annuelle retenue sur les mois restants de
+ * l'exercice courant (12, sauf première/dernière année partielle).
+ */
+export function calculerDotationDegressive(
+  valeurResiduelle: number,
+  dureeAnnees: number,
+  vncDebutExercice: number,
+  moisRestantsTotal: number,
+  moisRestantsExerciceCourant: number,
+): number {
+  const base = vncDebutExercice - valeurResiduelle;
+  if (base <= 0 || moisRestantsTotal <= 0 || moisRestantsExerciceCourant <= 0) return 0;
+  const tauxDegressif = (1 / dureeAnnees) * coefficientDegressif(dureeAnnees);
+  const dotationDegressive = vncDebutExercice * tauxDegressif;
+  const dotationLineaireResiduelle = base / (moisRestantsTotal / 12);
+  const dotationAnnuelleRetenue = Math.max(dotationDegressive, dotationLineaireResiduelle);
+  const dotationMensuelle = dotationAnnuelleRetenue / Math.min(12, moisRestantsExerciceCourant);
+  return Math.round(dotationMensuelle * 100) / 100;
+}
+
 /** Écriture d'acquisition : Dr compte immobilisation / Cr Fournisseur ou Trésorerie. */
 export async function ecritureAcquisitionImmobilisation(
   tx: TxClient,
@@ -90,7 +122,27 @@ export async function genererDotationPeriode(
   const amortissable = coutAcquisition - valeurResiduelle;
   const restant = Math.max(0, amortissable - cumulAvant);
 
-  const dotationTheorique = calculerDotationMensuelle(coutAcquisition, valeurResiduelle, immo.dureeAnnees);
+  let dotationTheorique: number;
+  if (immo.methode === "DEGRESSIF") {
+    // VNC et mois restants au début de l'exercice `annee` (pas du mois courant) —
+    // le taux dégressif s'applique une fois par exercice, réparti ensuite sur ses mois.
+    const dernierePeriodeAvantAnnee = await tx.ligneAmortissement.findFirst({
+      where: { immobilisationId, periode: { lt: `${annee}-01` } },
+      orderBy: { periode: "desc" },
+      select: { cumulApres: true },
+    });
+    const cumulDebutExercice = dernierePeriodeAvantAnnee ? Number(dernierePeriodeAvantAnnee.cumulApres) : 0;
+    const vncDebutExercice = coutAcquisition - cumulDebutExercice;
+    const moisEcoulesTotal = await tx.ligneAmortissement.count({ where: { immobilisationId, periode: { lt: `${annee}-01` } } });
+    const moisRestantsTotal = immo.dureeAnnees * 12 - moisEcoulesTotal;
+    const moisEcoulesExerciceCourant = await tx.ligneAmortissement.count({
+      where: { immobilisationId, periode: { gte: `${annee}-01`, lt: periode } },
+    });
+    const moisRestantsExerciceCourant = 12 - moisEcoulesExerciceCourant;
+    dotationTheorique = calculerDotationDegressive(valeurResiduelle, immo.dureeAnnees, vncDebutExercice, moisRestantsTotal, moisRestantsExerciceCourant);
+  } else {
+    dotationTheorique = calculerDotationMensuelle(coutAcquisition, valeurResiduelle, immo.dureeAnnees);
+  }
   const montant = Math.min(dotationTheorique, restant);
   if (montant <= 0) return { created: false, montant: 0 };
 
@@ -98,7 +150,7 @@ export async function genererDotationPeriode(
   const vncApres = coutAcquisition - cumulApres;
 
   const ecritureId = await creerEcriture(tx, {
-    journal: "OD",
+    journal: "IMMOBILISATIONS",
     date: periodeDate,
     libelle: `Dotation amortissement ${periode} — ${immo.designation}`,
     userId,
@@ -173,7 +225,7 @@ export async function ecritureSortieImmobilisation(
   lignes.push({ numero: immo.compte.numero, credit: cout, libelle: `Sortie — ${immo.designation}` });
 
   await creerEcriture(tx, {
-    journal: "OD",
+    journal: "IMMOBILISATIONS",
     date: new Date(),
     libelle: `Sortie immobilisation — ${immo.designation}`,
     userId,
@@ -183,7 +235,7 @@ export async function ecritureSortieImmobilisation(
 
   if (prixCession != null && prixCession > 0) {
     await creerEcriture(tx, {
-      journal: "OD",
+      journal: "IMMOBILISATIONS",
       date: new Date(),
       libelle: `Cession immobilisation — ${immo.designation}`,
       userId,

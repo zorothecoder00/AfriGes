@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { ecritureSortieImmobilisation } from "@/lib/comptabilite/immobilisations";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -26,8 +28,12 @@ export async function POST(req: Request, { params }: Ctx) {
     const body = await req.json().catch(() => ({}));
     const prixCession = body?.prixCession != null ? Number(body.prixCession) : undefined;
     const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
 
-    await prisma.$transaction((tx) => ecritureSortieImmobilisation(tx, immobilisationId, userId, prixCession));
+    await prisma.$transaction(async (tx) => {
+      await ecritureSortieImmobilisation(tx, immobilisationId, userId, prixCession);
+      await auditLog(tx, userId, "CESSION_IMMOBILISATION", "Immobilisation", immobilisationId, { prixCession }, meta);
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

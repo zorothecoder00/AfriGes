@@ -726,6 +726,9 @@ model User {
   ecrituresRecurrentes       EcritureRecurrente[]
   exercicesClotures          ExerciceComptable[]
   lignesReleveBancaire       LigneReleveBancaire[]
+  provisionsCreees           ProvisionDepreciation[] @relation("ProvisionCreateur")
+  mouvementsProvision        MouvementProvision[]
+  regularisationsCreees      RegularisationAvance[]  @relation("RegulCreateur")
 
   // Points de vente — cet user est RPV d'un PDV (1-1)
   pointDeVenteRPV      PointDeVente?        @relation("RPVPointDeVente")
@@ -1061,6 +1064,7 @@ model Client {
   // Compte auxiliaire comptable réel (CDC Comptabilité §16) — sous-compte 411xxx
   // rattaché par FK, auto-provisionné par lib/comptabilite/auxiliaire.ts.
   compteAuxiliaire CompteComptable?
+  provisionsDepreciation ProvisionDepreciation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1574,6 +1578,7 @@ model Fournisseur {
   // rattaché par FK, auto-provisionné par lib/comptabilite/auxiliaire.ts.
   compteAuxiliaire CompteComptable?
   immobilisations  Immobilisation[]
+  provisionsDepreciation ProvisionDepreciation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2637,6 +2642,10 @@ model InventaireSite {
   dateInventaire DateTime         @default(now())
   notes          String?
 
+  // Comptabilisation de l'écart d'inventaire (lib/comptabilite/ecrituresInventaire.ts) —
+  // renseigné une fois l'écriture générée, pour empêcher une double comptabilisation.
+  ecritureRegularisationId Int?
+
   realiseParId Int
   realisePar   User  @relation("RealisateurInventaire", fields: [realiseParId], references: [id])
   valideParId  Int?
@@ -3552,6 +3561,11 @@ model CompteComptable {
   lignesBudget   LigneBudget[]
   immobilisationsActif         Immobilisation[] @relation("ImmobilisationCompte")
   immobilisationsAmortissement Immobilisation[] @relation("ImmobilisationCompteAmortissement")
+  provisionsCompteProvision ProvisionDepreciation[] @relation("ProvisionCompteProvision")
+  provisionsCompteDotation  ProvisionDepreciation[] @relation("ProvisionCompteDotation")
+  provisionsCompteReprise   ProvisionDepreciation[] @relation("ProvisionCompteReprise")
+  regularisationsOrigine    RegularisationAvance[]  @relation("RegulCompteOrigine")
+  regularisationsRegul      RegularisationAvance[]  @relation("RegulCompteRegul")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3808,6 +3822,7 @@ model Immobilisation {
   createur User @relation("ImmobilisationCreateur", fields: [creePar], references: [id])
 
   lignesAmortissement LigneAmortissement[]
+  provisionsDepreciation ProvisionDepreciation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3831,6 +3846,152 @@ model LigneAmortissement {
   createdAt DateTime @default(now())
 
   @@unique([immobilisationId, periode])
+}
+
+// ============================================================
+// PROVISIONS / DÉPRÉCIATIONS & RÉGULARISATIONS D'AVANCE (CCA/PCA)
+// (CDC Comptabilité — écritures d'inventaire et de régularisation)
+// ============================================================
+
+enum TypeProvision {
+  PROVISION_RISQUE_CHARGE
+  DEPRECIATION_STOCK
+  DEPRECIATION_CLIENT
+  DEPRECIATION_IMMOBILISATION
+}
+
+enum StatutProvision {
+  ACTIVE
+  PARTIELLEMENT_REPRISE
+  SOLDEE
+}
+
+/// Provision pour risque/charge ou dépréciation d'actif (stock/client/immobilisation) —
+/// dotée et reprise via lib/comptabilite/provisions.ts (toujours par écriture, jamais
+/// de simple modification de solde).
+model ProvisionDepreciation {
+  id      Int            @id @default(autoincrement())
+  libelle String
+  type    TypeProvision
+
+  compteProvisionId Int // compte 19x/29x/39x/49x — crédité à la dotation
+  compteProvision   CompteComptable @relation("ProvisionCompteProvision", fields: [compteProvisionId], references: [id])
+  compteDotationId  Int // compte 68x — débité à la dotation
+  compteDotation    CompteComptable @relation("ProvisionCompteDotation", fields: [compteDotationId], references: [id])
+  compteRepriseId   Int // compte 78x/79x — crédité à la reprise
+  compteReprise     CompteComptable @relation("ProvisionCompteReprise", fields: [compteRepriseId], references: [id])
+
+  montantInitial   Decimal
+  montantActuel    Decimal
+  motif            String
+  dateConstitution DateTime
+  statut           StatutProvision @default(ACTIVE)
+
+  clientId         Int?
+  client           Client?         @relation(fields: [clientId], references: [id])
+  fournisseurId    Int?
+  fournisseur      Fournisseur?    @relation(fields: [fournisseurId], references: [id])
+  immobilisationId Int?
+  immobilisation   Immobilisation? @relation(fields: [immobilisationId], references: [id])
+
+  societeId Int?
+  societe   Societe? @relation(fields: [societeId], references: [id])
+
+  creePar  Int
+  createur User @relation("ProvisionCreateur", fields: [creePar], references: [id])
+
+  mouvements MouvementProvision[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([type])
+}
+
+enum TypeMouvementProvision {
+  DOTATION
+  REPRISE
+}
+
+/// Historique des dotations/reprises d'une provision — une ligne par écriture générée.
+model MouvementProvision {
+  id          Int                   @id @default(autoincrement())
+  provisionId Int
+  provision   ProvisionDepreciation @relation(fields: [provisionId], references: [id], onDelete: Cascade)
+  type        TypeMouvementProvision
+  montant     Decimal
+  date        DateTime
+  ecritureId  Int?
+  userId      Int
+  user        User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([provisionId])
+}
+
+enum TypeRegularisation {
+  CHARGE_CONSTATEE_AVANCE
+  PRODUIT_CONSTATE_AVANCE
+}
+
+enum StatutRegularisation {
+  ACTIVE
+  SOLDEE
+}
+
+/// Charge ou produit constaté d'avance (CCA/PCA) — la part hors-exercice d'une
+/// charge/produit est sortie immédiatement vers 4786/4787 (476/477 sont déjà pris
+/// par les écarts de conversion actif/passif dans le plan comptable livré), puis
+/// réimputée mois par mois via ses EcheanceRegularisation
+/// (lib/comptabilite/regularisationsAvance.ts).
+model RegularisationAvance {
+  id      Int                @id @default(autoincrement())
+  libelle String
+  type    TypeRegularisation
+
+  compteChargeOuProduitId Int // compte 6x (CCA) ou 7x (PCA) d'origine
+  compteChargeOuProduit   CompteComptable @relation("RegulCompteOrigine", fields: [compteChargeOuProduitId], references: [id])
+  compteRegularisationId  Int // 4786 (CCA) ou 4787 (PCA)
+  compteRegularisation    CompteComptable @relation("RegulCompteRegul", fields: [compteRegularisationId], references: [id])
+
+  montantTotal Decimal
+  dateDebut    DateTime // début de la période à étaler
+  dateFin      DateTime // fin de la période à étaler
+
+  ecritureConstatationId Int? // écriture initiale de sortie du 6x/7x vers 4786/4787
+  statut                 StatutRegularisation @default(ACTIVE)
+
+  societeId Int?
+  societe   Societe? @relation(fields: [societeId], references: [id])
+
+  creePar  Int
+  createur User @relation("RegulCreateur", fields: [creePar], references: [id])
+
+  echeances EcheanceRegularisation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([type])
+}
+
+/// Échéance mensuelle d'une régularisation d'avance — comptabilisée une à une
+/// (ou en lot depuis l'assistant de clôture) au fil des mois concernés.
+model EcheanceRegularisation {
+  id               Int                   @id @default(autoincrement())
+  regularisationId Int
+  regularisation   RegularisationAvance  @relation(fields: [regularisationId], references: [id], onDelete: Cascade)
+  periode          String // "YYYY-MM"
+  montant          Decimal
+  ecritureId       Int?
+  comptabilise     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@unique([regularisationId, periode])
 }
 
 // ============================================================
@@ -4075,6 +4236,8 @@ model Societe {
   exercices ExerciceComptable[]
   journaux  JournalComptable[]
   ecritures EcritureComptable[]
+  provisionsDepreciation ProvisionDepreciation[]
+  regularisationsAvance  RegularisationAvance[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

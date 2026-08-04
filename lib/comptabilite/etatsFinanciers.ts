@@ -10,6 +10,7 @@
 // métier ; celui-ci est la version comptable officielle, traçable jusqu'à
 // l'écriture.
 import type { Prisma } from "@prisma/client";
+import { genererBalanceAgee } from "@/lib/comptabilite/balanceAgee";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -146,29 +147,103 @@ export async function genererTableauFlux(tx: TxClient, dateDebut: Date, dateFin:
   return { encaissements, decaissements, fluxNet: encaissements - decaissements, parJournal };
 }
 
-/** Notes annexes (CDC §39) : synthèse des postes-clés, tous dérivés des écritures/immobilisations. */
-export async function genererNotesAnnexes(tx: TxClient, dateFin: Date) {
+/**
+ * Notes annexes (CDC §39) : jeu de notes structurées, toutes dérivées des
+ * écritures/immobilisations/provisions/régularisations — jamais saisies à la main.
+ * `dateDebut` sert à ventiler les mouvements de la période (immobilisations,
+ * provisions, variation des capitaux propres) ; `dateFin` reste la date de
+ * situation pour les soldes et échéanciers (créances/dettes).
+ */
+export async function genererNotesAnnexes(tx: TxClient, dateDebut: Date, dateFin: Date) {
   const soldes = await soldesParCompte(tx, null, dateFin);
   const sumClasse = (classe: number) =>
     [...soldes.values()].filter((c) => c.classe === classe).reduce((s, c) => s + Math.abs(c.solde), 0);
   const sumPrefixe = (prefixe: string) =>
     [...soldes.values()].filter((c) => c.numero.startsWith(prefixe)).reduce((s, c) => s + Math.max(0, c.solde), 0);
 
-  const immobilisations = await tx.immobilisation.aggregate({
-    _sum: { coutAcquisition: true, amortissementCumule: true, valeurNetteComptable: true },
+  // Immobilisations par catégorie, avec mouvements de la période (CDC §22/§39).
+  const immobilisations = await tx.immobilisation.findMany({
+    select: {
+      categorie: true, coutAcquisition: true, amortissementCumule: true, valeurNetteComptable: true,
+      dateAcquisition: true, dateCession: true, statut: true,
+    },
   });
+  type MouvementCategorie = { brutDebut: number; acquisitionsPeriode: number; cessionsPeriode: number; brutFin: number; amortissementCumule: number; net: number };
+  const parCategorie = new Map<string, MouvementCategorie>();
+  for (const immo of immobilisations) {
+    const cat = immo.categorie;
+    if (!parCategorie.has(cat)) parCategorie.set(cat, { brutDebut: 0, acquisitionsPeriode: 0, cessionsPeriode: 0, brutFin: 0, amortissementCumule: 0, net: 0 });
+    const entry = parCategorie.get(cat)!;
+    const cout = Number(immo.coutAcquisition);
+    if (immo.dateAcquisition < dateDebut) entry.brutDebut += cout;
+    else if (immo.dateAcquisition <= dateFin) entry.acquisitionsPeriode += cout;
+    if (immo.dateCession && immo.dateCession >= dateDebut && immo.dateCession <= dateFin) entry.cessionsPeriode += cout;
+    const detenueADateFin = immo.statut !== "CEDEE" || (immo.dateCession != null && immo.dateCession > dateFin);
+    if (detenueADateFin) {
+      entry.brutFin += cout;
+      entry.amortissementCumule += Number(immo.amortissementCumule);
+      entry.net += Number(immo.valeurNetteComptable);
+    }
+  }
+
+  // Échéancier créances/dettes par tranche d'ancienneté (réutilise la balance âgée CDC §16-17).
+  const [balanceClients, balanceFournisseurs] = await Promise.all([
+    genererBalanceAgee(tx, "CLIENT", dateFin),
+    genererBalanceAgee(tx, "FOURNISSEUR", dateFin),
+  ]);
+
+  // Mouvements de provisions/dépréciations de la période, groupés par type.
+  const mouvementsProvisions = await tx.mouvementProvision.findMany({
+    where: { date: { gte: dateDebut, lte: dateFin } },
+    include: { provision: { select: { type: true } } },
+  });
+  const provisionsParType = new Map<string, { dotations: number; reprises: number }>();
+  for (const m of mouvementsProvisions) {
+    const type = m.provision.type;
+    if (!provisionsParType.has(type)) provisionsParType.set(type, { dotations: 0, reprises: 0 });
+    const entry = provisionsParType.get(type)!;
+    if (m.type === "DOTATION") entry.dotations += Number(m.montant);
+    else entry.reprises += Number(m.montant);
+  }
+
+  // Charges/produits constatés d'avance encore actifs, avec solde restant à étaler.
+  const regularisationsActives = await tx.regularisationAvance.findMany({
+    where: { statut: "ACTIVE" },
+    include: { echeances: { select: { montant: true, comptabilise: true } } },
+  });
+  const chargesProduitsConstatesAvance = regularisationsActives.map((r) => ({
+    id: r.id,
+    libelle: r.libelle,
+    type: r.type,
+    montantTotal: Number(r.montantTotal),
+    soldeRestant: r.echeances.filter((e) => !e.comptabilise).reduce((s, e) => s + Number(e.montant), 0),
+  }));
+
+  // Variation des capitaux propres de la période (résultat + mouvements classe 1).
+  const { resultatNet } = await genererCompteResultat(tx, dateDebut, dateFin);
+  const mouvementsCapitaux = await tx.ligneEcriture.groupBy({
+    by: ["compteId"],
+    where: { compte: { classe: 1 }, ecriture: { statut: { in: ["VALIDE", "CLOTURE"] }, date: { gte: dateDebut, lte: dateFin } } },
+    _sum: { debit: true, credit: true },
+  });
+  const variationCapitauxPropres = mouvementsCapitaux.reduce((s, l) => s + (Number(l._sum.credit ?? 0) - Number(l._sum.debit ?? 0)), 0);
 
   return {
     immobilisations: {
-      brut: Number(immobilisations._sum.coutAcquisition ?? 0),
-      amortissementCumule: Number(immobilisations._sum.amortissementCumule ?? 0),
-      net: Number(immobilisations._sum.valeurNetteComptable ?? 0),
+      parCategorie: [...parCategorie.entries()].map(([categorie, v]) => ({ categorie, ...v })),
+      brut: [...parCategorie.values()].reduce((s, v) => s + v.brutFin, 0),
+      amortissementCumule: [...parCategorie.values()].reduce((s, v) => s + v.amortissementCumule, 0),
+      net: [...parCategorie.values()].reduce((s, v) => s + v.net, 0),
     },
+    creances: { total: sumPrefixe("41"), echeancier: balanceClients },
+    dettes: { total: sumPrefixe("40"), echeancier: balanceFournisseurs },
+    provisions: [...provisionsParType.entries()].map(([type, v]) => ({ type, ...v })),
+    chargesProduitsConstatesAvance,
     stocks: sumClasse(3),
-    creances: sumPrefixe("41"),
-    dettes: sumPrefixe("40"),
     tresorerie: sumClasse(5),
     capitauxPropres: sumClasse(1),
+    variationCapitauxPropres,
+    resultatNetPeriode: resultatNet,
     charges: sumClasse(6),
     produits: sumClasse(7),
   };

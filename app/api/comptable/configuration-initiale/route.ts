@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { chargerConfigurationInitiale, calculerEtapesConfiguration } from "@/lib/comptabilite/configurationInitiale";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * GET /api/comptable/configuration-initiale
@@ -38,14 +40,20 @@ export async function PATCH(req: Request) {
     const { pays, devise, referentiel, typeEntite } = body;
 
     await chargerConfigurationInitiale(prisma);
-    const updated = await prisma.configurationComptableInitiale.update({
-      where: { id: 1 },
-      data: {
-        ...(pays !== undefined && { pays }),
-        ...(devise !== undefined && { devise }),
-        ...(referentiel !== undefined && { referentiel }),
-        ...(typeEntite !== undefined && { typeEntite }),
-      },
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
+    const updated = await prisma.$transaction(async (tx) => {
+      const u = await tx.configurationComptableInitiale.update({
+        where: { id: 1 },
+        data: {
+          ...(pays !== undefined && { pays }),
+          ...(devise !== undefined && { devise }),
+          ...(referentiel !== undefined && { referentiel }),
+          ...(typeEntite !== undefined && { typeEntite }),
+        },
+      });
+      await auditLog(tx, userId, "MODIFICATION_CONFIGURATION_INITIALE", "ConfigurationComptableInitiale", u.id, { pays, devise, referentiel, typeEntite }, meta);
+      return u;
     });
 
     return NextResponse.json({ data: updated });

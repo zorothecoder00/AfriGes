@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { auditLog } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -82,6 +84,8 @@ export async function PUT(req: Request, { params }: Ctx) {
     }
 
     // Mise à jour dans une transaction si les lignes sont modifiées
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
     const updated = await prisma.$transaction(async (tx) => {
       if (lignes && Array.isArray(lignes)) {
         // Supprimer les anciennes lignes et recréer
@@ -108,7 +112,7 @@ export async function PUT(req: Request, { params }: Ctx) {
         });
       }
 
-      return tx.ecritureComptable.update({
+      const u = await tx.ecritureComptable.update({
         where: { id: Number(id) },
         data: {
           ...(statut  !== undefined && { statut }),
@@ -121,6 +125,11 @@ export async function PUT(req: Request, { params }: Ctx) {
           },
         },
       });
+
+      const action = estValidation ? "VALIDATION_ECRITURE" : "MODIFICATION_ECRITURE";
+      await auditLog(tx, userId, action, "EcritureComptable", u.id, { statutAvant: existing.statut, statutApres: u.statut }, meta);
+
+      return u;
     });
 
     return NextResponse.json({ data: updated });
@@ -130,7 +139,7 @@ export async function PUT(req: Request, { params }: Ctx) {
   }
 }
 
-export async function DELETE(_req: Request, { params }: Ctx) {
+export async function DELETE(req: Request, { params }: Ctx) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -143,9 +152,12 @@ export async function DELETE(_req: Request, { params }: Ctx) {
       return NextResponse.json({ error: "Seules les écritures en brouillon peuvent être supprimées" }, { status: 400 });
     }
 
+    const userId = Number(session.user.id);
+    const meta = getRequestMeta(req);
     await prisma.$transaction(async (tx) => {
       await tx.ligneEcriture.deleteMany({ where: { ecritureId: Number(id) } });
       await tx.ecritureComptable.delete({ where: { id: Number(id) } });
+      await auditLog(tx, userId, "SUPPRESSION_ECRITURE_BROUILLON", "EcritureComptable", Number(id), { reference: existing.reference, libelle: existing.libelle }, meta);
     });
 
     return NextResponse.json({ success: true });
