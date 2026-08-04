@@ -7,6 +7,7 @@
 // compte de résultat plutôt que de recalculer une seconde fois les soldes.
 import type { Prisma } from "@prisma/client";
 import { genererBilan, genererCompteResultat } from "@/lib/comptabilite/etatsFinanciers";
+import { genererEcrituresAttente, type EcritureAttente } from "@/lib/comptabilite/comptesAttente";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -29,6 +30,8 @@ export interface KpisDashboardComptable {
   resultatProvisoire: number;
   nombreEcritures: number; ecrituresEnAttente: number; ecrituresNonEquilibrees: number;
   rapprochementsEnAttente: number;
+  /** CDC §41 — nombre de lignes du compte d'attente (471) non résolues. */
+  ecrituresCompteAttente: number;
 }
 
 /** Les 20 KPI du CDC §4, calculés sur l'exercice en cours (1er janvier → maintenant) pour les flux, et « à date » pour les soldes de bilan. */
@@ -37,7 +40,7 @@ export async function genererKpisDashboard(tx: TxClient): Promise<KpisDashboardC
   const debutExercice = new Date(now.getFullYear(), 0, 1);
   const debutMois = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [bilan, compteResultat, immosAgg, nombreEcritures, ecrituresEnAttente, balancesEcritures, rapprochementsEnAttente, lignesTvaMois] = await Promise.all([
+  const [bilan, compteResultat, immosAgg, nombreEcritures, ecrituresEnAttente, balancesEcritures, rapprochementsEnAttente, lignesTvaMois, ecrituresAttente] = await Promise.all([
     genererBilan(tx, now),
     genererCompteResultat(tx, debutExercice, now),
     tx.immobilisation.aggregate({ _sum: { coutAcquisition: true, amortissementCumule: true, valeurNetteComptable: true } }),
@@ -53,6 +56,7 @@ export async function genererKpisDashboard(tx: TxClient): Promise<KpisDashboardC
       where: { isTva: true, ecriture: { statut: "VALIDE", date: { gte: debutMois, lte: now } } },
       select: { debit: true, credit: true, compte: { select: { numero: true } } },
     }),
+    genererEcrituresAttente(tx),
   ]);
 
   const ecrituresNonEquilibrees = balancesEcritures.filter(
@@ -103,8 +107,12 @@ export async function genererKpisDashboard(tx: TxClient): Promise<KpisDashboardC
     ecrituresEnAttente,
     ecrituresNonEquilibrees,
     rapprochementsEnAttente,
+    ecrituresCompteAttente: ecrituresAttente.length,
   };
 }
+
+export type { EcritureAttente };
+export { genererEcrituresAttente };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Graphiques (CDC §4) — séries mensuelles glissantes sur 12 mois (24 mois pour

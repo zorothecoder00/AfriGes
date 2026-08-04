@@ -65,9 +65,22 @@ export interface EtatsFinanciersReelsData {
     decaissements: number;
     fluxNet: number;
     parJournal: Record<string, number>;
+    // Méthode indirecte complète (CDC §38) — genererTableauFluxDetaille.
+    resultatNet: number;
+    dotationsAmortissementsProvisions: number;
+    reprisesAmortissementsProvisions: number;
+    cafg: number;
+    variationBFR: { stocks: number; creances: number; dettesFournisseurs: number; total: number };
+    fluxActiviteOperationnelle: number;
+    investissement: { acquisitionsImmobilisations: number; cessionsImmobilisations: number; total: number };
+    financement: { variationCapitauxPropres: number; variationEmprunts: number; total: number };
+    fluxNetTotal: number;
+    variationTresorerieReelle: number;
+    ecartReconciliation: number;
   };
   notesAnnexes: {
     effectifs: { total: number; parDepartement: { departement: string; effectif: number }[] };
+    engagements: { total: number; parType: { type: string; montant: number }[] };
     immobilisations: { parCategorie: ImmobilisationCategorieMouvement[]; brut: number; amortissementCumule: number; net: number };
     creances: { total: number; echeancier: LigneBalanceAgeeEntry[] };
     dettes: { total: number; echeancier: LigneBalanceAgeeEntry[] };
@@ -81,6 +94,16 @@ export interface EtatsFinanciersReelsData {
     charges: number;
     produits: number;
   };
+  // CDC §48 — genererResultatParPointDeVente : produits/charges/résultat de la
+  // période ventilés par point de vente ("Non affecté" si pointDeVenteId absent).
+  resultatParPointDeVente: {
+    pointDeVenteId: number | null;
+    nom: string;
+    code: string | null;
+    produits: number;
+    charges: number;
+    resultat: number;
+  }[];
 }
 
 export interface EtatsFinanciersReelsResponse { data: EtatsFinanciersReelsData }

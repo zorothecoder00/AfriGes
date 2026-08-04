@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, ShieldAlert, CalendarClock, Lock } from "lucide-react";
+import { ClipboardCheck, ShieldAlert, CalendarClock, Lock, Hourglass, ShieldCheck } from "lucide-react";
 
 const BASE = "/dashboard/user/comptables/inventaire-cloture";
 
@@ -11,6 +11,8 @@ const NAV_ITEMS = [
   { href: BASE,                        exact: true, label: "Écritures d'inventaire",              icon: ClipboardCheck },
   { href: `${BASE}/provisions`,        label: "Provisions & dépréciations",                        icon: ShieldAlert },
   { href: `${BASE}/regularisations`,   label: "Charges/produits constatés d'avance",               icon: CalendarClock },
+  { href: `${BASE}/charges-produits-attente`, label: "Charges à payer / Produits à recevoir",       icon: Hourglass },
+  { href: `${BASE}/engagements-hors-bilan`, label: "Engagements hors-bilan",                        icon: ShieldCheck },
   { href: `${BASE}/exercices`,         label: "Exercices & clôture",                               icon: Lock },
 ];
 

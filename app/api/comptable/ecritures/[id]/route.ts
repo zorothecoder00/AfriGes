@@ -30,6 +30,7 @@ export async function GET(_req: Request, { params }: Ctx) {
         },
         user: { select: { id: true, nom: true, prenom: true } },
         validePar: { select: { id: true, nom: true, prenom: true } },
+        controlePar: { select: { id: true, nom: true, prenom: true } },
       },
     });
 
@@ -63,15 +64,25 @@ export async function PUT(req: Request, { params }: Ctx) {
       );
     }
 
-    // Séparation des tâches (CDC §43-44) : celui qui a saisi une écriture ne peut
-    // pas la valider lui-même — un autre comptable, ou l'admin/superadmin (rôle
-    // de supervision transverse déjà reconnu ailleurs dans AfriGes, ex. Paie
-    // "Validation Direction"), doit le faire.
-    const estValidation = statut === "VALIDE" || statut === "A_CONTROLER";
+    // Séparation des fonctions (CDC §43-44) : Saisie → Contrôle → Validation,
+    // par des personnes distinctes (Agent → Comptable → Chef comptable). Le
+    // créateur ne peut ni contrôler ni valider sa propre écriture ; si un
+    // contrôle intermédiaire a eu lieu (A_CONTROLER), le contrôleur ne peut
+    // pas non plus être celui qui valide — 3 acteurs distincts sur ce chemin.
+    // La transition directe BROUILLON→VALIDE (2 acteurs) reste autorisée.
+    const estControle = statut === "A_CONTROLER";
+    const estValidationFinale = statut === "VALIDE";
     const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
-    if (estValidation && !isAdmin && existing.userId === Number(session.user.id)) {
+    const currentUserId = Number(session.user.id);
+    if ((estControle || estValidationFinale) && !isAdmin && existing.userId === currentUserId) {
       return NextResponse.json(
-        { error: "Vous ne pouvez pas valider une écriture que vous avez vous-même saisie — faites-la valider par un autre comptable ou un administrateur" },
+        { error: "Vous ne pouvez pas contrôler ou valider une écriture que vous avez vous-même saisie — faites-la traiter par un autre comptable ou un administrateur" },
+        { status: 403 },
+      );
+    }
+    if (estValidationFinale && !isAdmin && existing.controleParId && existing.controleParId === currentUserId) {
+      return NextResponse.json(
+        { error: "Vous avez déjà contrôlé cette écriture — la validation finale doit venir d'un 3e utilisateur (Chef comptable)" },
         { status: 403 },
       );
     }
@@ -94,8 +105,19 @@ export async function PUT(req: Request, { params }: Ctx) {
     // Mise à jour dans une transaction si les lignes sont modifiées
     const userId = Number(session.user.id);
     const meta = getRequestMeta(req);
+    let lignesAvant: { compteId: number; libelle: string; debit: number; credit: number }[] | null = null;
     const updated = await prisma.$transaction(async (tx) => {
       if (lignes && Array.isArray(lignes)) {
+        // CDC §45 — piste d'audit : capture l'état des lignes AVANT suppression,
+        // pour que le diff avant/après reste consultable dans AuditLog.details
+        // même si les lignes elles-mêmes sont remplacées (une écriture BROUILLON
+        // se modifie librement — seule VALIDE/CLOTURE est verrouillée ci-dessus).
+        const ancienneLignes = await tx.ligneEcriture.findMany({
+          where: { ecritureId: Number(id) },
+          select: { compteId: true, libelle: true, debit: true, credit: true },
+        });
+        lignesAvant = ancienneLignes.map((l) => ({ compteId: l.compteId, libelle: l.libelle, debit: Number(l.debit), credit: Number(l.credit) }));
+
         // Supprimer les anciennes lignes et recréer
         await tx.ligneEcriture.deleteMany({ where: { ecritureId: Number(id) } });
         await tx.ligneEcriture.createMany({
@@ -130,6 +152,7 @@ export async function PUT(req: Request, { params }: Ctx) {
           // précis où l'écriture devient VALIDE (jamais réécrite ensuite, une
           // écriture VALIDE ne se modifiant plus directement — CDC §13).
           ...(statut === "VALIDE" && existing.statut !== "VALIDE" && { dateValidation: new Date(), valideParId: userId }),
+          ...(statut === "A_CONTROLER" && existing.statut !== "A_CONTROLER" && { dateControle: new Date(), controleParId: userId }),
         },
         include: {
           lignes: {
@@ -138,8 +161,12 @@ export async function PUT(req: Request, { params }: Ctx) {
         },
       });
 
-      const action = estValidation ? "VALIDATION_ECRITURE" : "MODIFICATION_ECRITURE";
-      await auditLog(tx, userId, action, "EcritureComptable", u.id, { statutAvant: existing.statut, statutApres: u.statut }, meta);
+      const action = estValidationFinale ? "VALIDATION_ECRITURE" : estControle ? "CONTROLE_ECRITURE" : "MODIFICATION_ECRITURE";
+      await auditLog(tx, userId, action, "EcritureComptable", u.id, {
+        statutAvant: existing.statut, statutApres: u.statut,
+        libelleAvant: existing.libelle, libelleApres: u.libelle,
+        ...(lignesAvant && { lignesAvant, lignesApres: u.lignes.map((l) => ({ compteId: l.compte.id, libelle: l.libelle, debit: Number(l.debit), credit: Number(l.credit) })) }),
+      }, meta);
 
       return u;
     });

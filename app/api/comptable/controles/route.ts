@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getComptableSession } from "@/lib/authComptable";
+import { getComptableLectureSession } from "@/lib/authComptable";
 import { executerControles } from "@/lib/comptabilite/controles";
 
 /**
  * GET /api/comptable/controles
  * Contrôles de cohérence comptable (CDC §40-42) : erreurs bloquantes, anomalies,
- * comptes d'attente, doublons potentiels.
+ * comptes d'attente, doublons potentiels. Lecture seule — ouvert aux rôles de
+ * consultation (Directeur, Auditeur, Actionnaire) via getComptableLectureSession (CDC §43).
  */
 export async function GET() {
   try {
-    const session = await getComptableSession();
+    const session = await getComptableLectureSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const constats = await executerControles(prisma);

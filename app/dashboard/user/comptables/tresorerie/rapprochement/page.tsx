@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, Upload, ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Building2, Upload, ChevronsUpDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort } from "@/lib/format";
 import AideComptable from "@/components/AideComptable";
 import { AIDE_COMPTABLE } from "@/lib/aideComptableContenu";
+import { exportToXlsx, type XlsxColumn } from "@/lib/exportXlsx";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,16 @@ interface LigneReleveEntry {
   debit: number; credit: number; statut: string; ligneEcritureId: number | null;
 }
 interface PropositionRapprochementEntry { ligneReleveId: number; ligneEcritureId: number; montant: number; ecartJours: number }
+
+interface LigneReleveExport { date: string; libelle: string; reference: string; debit: number; credit: number; statut: string }
+const COLONNES_RELEVE: XlsxColumn<LigneReleveExport>[] = [
+  { label: "Date", key: "date", type: "date" },
+  { label: "Libellé", key: "libelle", width: 40 },
+  { label: "Référence", key: "reference", width: 20 },
+  { label: "Débit", key: "debit", type: "currency" },
+  { label: "Crédit", key: "credit", type: "currency" },
+  { label: "Statut", key: "statut", width: 16 },
+];
 
 export default function RapprochementPage() {
   // ── État Rapprochement ───────────────────────────────────────────────
@@ -87,6 +98,19 @@ export default function RapprochementPage() {
   async function handleConfirmerRapprochement(ligneReleveId: number, ligneEcritureId: number) {
     const res = await confirmerRapprochementApi({ ligneReleveId, ligneEcritureId });
     if (res) refetchReleve();
+  }
+
+  async function handleExportReleve() {
+    const lignes = releveData?.data.lignes ?? [];
+    if (lignes.length === 0) return;
+    await exportToXlsx(
+      lignes.map((l): LigneReleveExport => ({
+        date: l.date, libelle: l.libelle, reference: l.reference ?? "", debit: l.debit, credit: l.credit, statut: l.statut,
+      })),
+      COLONNES_RELEVE,
+      `rapprochement-${releveCompteNumero}.xlsx`,
+      { title: `Rapprochement bancaire — compte ${releveCompteNumero}` }
+    );
   }
 
   return (
@@ -177,9 +201,17 @@ export default function RapprochementPage() {
 
         {/* Rapprochement ligne à ligne (import CSV) */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
-          <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-1">
-            <Upload className="text-violet-600" size={20} /> Rapprochement ligne à ligne
-          </h3>
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-1">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <Upload className="text-violet-600" size={20} /> Rapprochement ligne à ligne
+            </h3>
+            {(releveData?.data.lignes.length ?? 0) > 0 && (
+              <button onClick={handleExportReleve}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-xl text-xs text-slate-600 hover:bg-slate-50">
+                <Download size={13} /> Excel
+              </button>
+            )}
+          </div>
           <p className="text-xs text-slate-500 mb-4">
             Importez le relevé bancaire — CSV/Excel (Date, Libelle, Debit, Credit, Reference) ou OFX — le système propose des
             correspondances exactes (montant + date ±10 j) avec les écritures déjà passées sur le compte ; vous confirmez chaque rapprochement.

@@ -26,6 +26,11 @@ const TYPE_REGUL_LABELS: Record<string, string> = {
   CHARGE_CONSTATEE_AVANCE: "CCA",
   PRODUIT_CONSTATE_AVANCE: "PCA",
 };
+const TYPE_ENGAGEMENT_LABELS: Record<string, string> = {
+  CAUTION_DONNEE: "Caution donnée", CAUTION_RECUE: "Caution reçue",
+  GARANTIE_DONNEE: "Garantie donnée", GARANTIE_RECUE: "Garantie reçue",
+  CREDIT_BAIL: "Crédit-bail", LITIGE_EN_COURS: "Litige en cours", AUTRE: "Autre",
+};
 
 export default function NotesAnnexesPage() {
   const [annee, setAnnee] = useState(() => String(new Date().getFullYear()));
@@ -65,6 +70,7 @@ export default function NotesAnnexesPage() {
               <div><p className="text-xs text-slate-400">Capitaux propres</p><p className="font-semibold text-slate-800">{formatCurrency(notes.capitauxPropres)}</p></div>
               <div><p className="text-xs text-slate-400">Charges / Produits</p><p className="font-semibold text-slate-800">{formatCurrency(notes.charges)} / {formatCurrency(notes.produits)}</p></div>
               <div><p className="text-xs text-slate-400">Effectifs</p><p className="font-semibold text-slate-800">{notes.effectifs.total} collaborateur(s)</p></div>
+              <div><p className="text-xs text-slate-400">Engagements hors-bilan</p><p className="font-semibold text-violet-700">{formatCurrency(notes.engagements.total)}</p></div>
             </div>
           </div>
 
@@ -76,6 +82,20 @@ export default function NotesAnnexesPage() {
                 {notes.effectifs.parDepartement.map((e) => (
                   <span key={e.departement} className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium">
                     {e.departement} — <strong>{e.effectif}</strong>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Engagements hors-bilan actifs */}
+          {notes.engagements.parType.length > 0 && (
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <h4 className="font-semibold text-slate-800 mb-3">Engagements hors-bilan — actifs à ce jour</h4>
+              <div className="flex flex-wrap gap-2">
+                {notes.engagements.parType.map((e) => (
+                  <span key={e.type} className="text-xs bg-violet-50 text-violet-700 px-3 py-1.5 rounded-full font-medium">
+                    {TYPE_ENGAGEMENT_LABELS[e.type] ?? e.type} — <strong>{formatCurrency(e.montant)}</strong>
                   </span>
                 ))}
               </div>

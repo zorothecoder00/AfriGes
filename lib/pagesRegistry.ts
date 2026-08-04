@@ -132,6 +132,8 @@ export const PAGES_REGISTRY: RoleRegistry[] = [
       { key: "taxes",           label: "Taxes",                 defaultAllowed: true, module: "comptabilite" },
       { key: "provisions",      label: "Provisions & Dépréciations", defaultAllowed: true, module: "comptabilite" },
       { key: "regularisations", label: "Charges/Produits constatés d'avance", defaultAllowed: true, module: "comptabilite" },
+      { key: "chargesProduitsAttente", label: "Charges à payer / Produits à recevoir", defaultAllowed: true, module: "comptabilite" },
+      { key: "engagementsHorsBilan", label: "Engagements hors-bilan", defaultAllowed: true, module: "comptabilite" },
       { key: "inventaire",      label: "Écritures d'inventaire", defaultAllowed: true, module: "comptabilite" },
     ],
   },

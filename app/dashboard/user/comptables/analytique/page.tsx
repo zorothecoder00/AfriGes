@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { TrendingUp, PlusCircle, ToggleLeft, ToggleRight, Calculator, Save, RefreshCw } from "lucide-react";
+import { TrendingUp, PlusCircle, ToggleLeft, ToggleRight, Calculator, Save, RefreshCw, Download } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
 import AideComptable from "@/components/AideComptable";
 import { AIDE_COMPTABLE } from "@/lib/aideComptableContenu";
+import { exportToXlsx, type XlsxColumn } from "@/lib/exportXlsx";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,16 @@ interface LigneBudgetEntry {
 
 const AXE_LABELS: Record<string, string> = { ACTIVITE: "Activité", PROJET: "Projet", DEPARTEMENT: "Département" };
 const MOIS_LABELS = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"];
+
+interface LigneBudgetExport { compte: string; mois: string; section: string; montantPrevu: number; realise: number; ecart: number }
+const COLONNES_BUDGET: XlsxColumn<LigneBudgetExport>[] = [
+  { label: "Compte", key: "compte", width: 30 },
+  { label: "Mois", key: "mois", width: 10 },
+  { label: "Section analytique", key: "section", width: 24 },
+  { label: "Budget", key: "montantPrevu", type: "currency" },
+  { label: "Réalisé", key: "realise", type: "currency" },
+  { label: "Écart", key: "ecart", type: "currency" },
+];
 
 export default function AnalytiquePage() {
   // ── État Analytique & Budget ───────────────────────────────────────────
@@ -84,6 +95,22 @@ export default function AnalytiquePage() {
       sectionAnalytiqueId: nouvelleLigneBudget.sectionAnalytiqueId ? Number(nouvelleLigneBudget.sectionAnalytiqueId) : undefined,
     });
     if (res) { refetchLignesBudget(); setNouvelleLigneBudget({ ...NOUVELLE_LIGNE_BUDGET, mois: nouvelleLigneBudget.mois }); }
+  }
+
+  async function handleExportBudget() {
+    const lignes = lignesBudgetData?.data ?? [];
+    if (lignes.length === 0) return;
+    await exportToXlsx(
+      lignes.map((l): LigneBudgetExport => ({
+        compte: `${l.compte.numero} ${l.compte.libelle}`,
+        mois: MOIS_LABELS[l.mois - 1],
+        section: l.sectionAnalytique ? `${AXE_LABELS[l.sectionAnalytique.axe] ?? l.sectionAnalytique.axe} — ${l.sectionAnalytique.libelle}` : "—",
+        montantPrevu: l.montantPrevu, realise: l.realise, ecart: l.ecart,
+      })),
+      COLONNES_BUDGET,
+      `budget-analytique-${budgetAnnee}.xlsx`,
+      { title: `Budget analytique ${budgetAnnee}` }
+    );
   }
 
   return (
@@ -163,6 +190,12 @@ export default function AnalytiquePage() {
                 <button onClick={handleCreerBudget} disabled={creatingBudget}
                   className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
                   <PlusCircle size={15} /> Créer le budget {budgetAnnee}
+                </button>
+              )}
+              {budgetData?.data && (lignesBudgetData?.data?.length ?? 0) > 0 && (
+                <button onClick={handleExportBudget}
+                  className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">
+                  <Download size={14} /> Excel
                 </button>
               )}
             </div>

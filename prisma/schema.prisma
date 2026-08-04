@@ -43,6 +43,9 @@ enum RoleGestionnaire {
   COMMERCIAL
   DIRECTEUR_COMMERCIAL               // vue commerciale complète cross-agence (Catalogue §21.B)
   COMPTABLE
+  CHEF_COMPTABLE                      // CDC comptabilité §43 : saisie + contrôle + validation
+  DIRECTEUR_GENERAL                   // CDC comptabilité §43 : consultation globale + validation selon autorisation
+  RESPONSABLE_ACHATS                  // CDC comptabilité §43 : achats + consultation comptable limitée
   AUDITEUR_INTERNE
   RESPONSABLE_VENTE_CREDIT
   CONTROLEUR_TERRAIN
@@ -739,6 +742,7 @@ model User {
   cloturesComptables   ClotureComptable[]
   ecrituresComptables  EcritureComptable[]
   ecrituresValidees    EcritureComptable[] @relation("EcritureValidateur")
+  ecrituresControlees  EcritureComptable[] @relation("EcritureControleur")
   rapprochements       RapprochementBancaire[]
   declarationsTVA      DeclarationTVA[]
   journalValidations   JournalValidation[]
@@ -756,6 +760,8 @@ model User {
   litigesClientsCrees        LitigeClient[]          @relation("LitigeClientCreateur")
   avoirsFournisseursCrees    AvoirFournisseur[]      @relation("AvoirFournisseurCreateur")
   avancesFournisseursCrees   AvanceFournisseur[]     @relation("AvanceFournisseurCreateur")
+  chargesProduitsAttenteCrees ChargeProduitAttente[] @relation("ChargeProduitAttenteCreateur")
+  engagementsHorsBilanCrees   EngagementHorsBilan[]  @relation("EngagementHorsBilanCreateur")
 
   // Points de vente — cet user est RPV d'un PDV (1-1)
   pointDeVenteRPV      PointDeVente?        @relation("RPVPointDeVente")
@@ -3765,6 +3771,8 @@ model CompteComptable {
   provisionsCompteReprise   ProvisionDepreciation[] @relation("ProvisionCompteReprise")
   regularisationsOrigine    RegularisationAvance[]  @relation("RegulCompteOrigine")
   regularisationsRegul      RegularisationAvance[]  @relation("RegulCompteRegul")
+  chargesProduitsAttenteOrigine ChargeProduitAttente[] @relation("AttenteCompteChargeOuProduit")
+  chargesProduitsAttenteCompte  ChargeProduitAttente[] @relation("AttenteCompteAttente")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3792,6 +3800,17 @@ model EcritureComptable {
   dateValidation DateTime?
   valideParId    Int?
   validePar      User?     @relation("EcritureValidateur", fields: [valideParId], references: [id])
+
+  // Séparation des fonctions (CDC §44) : étape intermédiaire optionnelle
+  // "contrôle" (Agent → Comptable → Chef comptable) — un utilisateur distinct
+  // du créateur passe l'écriture en A_CONTROLER ; la validation finale (VALIDE)
+  // doit alors venir d'un 3e utilisateur, distinct du créateur ET du
+  // contrôleur (lib/api : app/api/comptable/ecritures/[id]/route.ts). La
+  // transition directe BROUILLON→VALIDE (2 acteurs) reste possible pour ne
+  // pas casser le flux existant plus léger.
+  dateControle DateTime?
+  controleParId Int?
+  controlePar   User?     @relation("EcritureControleur", fields: [controleParId], references: [id])
 
   // Multi-société (CDC §50) : null = société principale (résolu par le moteur).
   societeId Int?
@@ -4324,6 +4343,94 @@ model TaxeConfig {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum TypeChargeProduitAttente {
+  CHARGE_A_PAYER
+  PRODUIT_A_RECEVOIR
+}
+
+enum StatutChargeProduitAttente {
+  EN_ATTENTE
+  EXTOURNEE
+}
+
+/// Charge à payer / produit à recevoir (CDC Comptabilité §27) — distinct des
+/// CCA/PCA (RegularisationAvance, étalement d'une charge/produit déjà connu
+/// sur plusieurs mois) : ici, la charge/le produit appartient à l'exercice en
+/// cours mais la facture n'est pas encore reçue/établie. Constatation
+/// immédiate Dr 6x/Cr 408 (charge à payer) ou Dr 418/Cr 7x (produit à
+/// recevoir), extournée (écriture inverse) dès réception/émission de la
+/// facture réelle — jamais les deux écritures simultanément en compte.
+model ChargeProduitAttente {
+  id     Int                      @id @default(autoincrement())
+  libelle String
+  type   TypeChargeProduitAttente
+
+  compteChargeOuProduitId Int // compte 6x (charge à payer) ou 7x (produit à recevoir)
+  compteChargeOuProduit   CompteComptable @relation("AttenteCompteChargeOuProduit", fields: [compteChargeOuProduitId], references: [id])
+  compteAttenteId         Int // 408 (charge à payer) ou 418 (produit à recevoir) par défaut
+  compteAttente           CompteComptable @relation("AttenteCompteAttente", fields: [compteAttenteId], references: [id])
+
+  montant          Decimal
+  dateConstatation DateTime
+  statut           StatutChargeProduitAttente @default(EN_ATTENTE)
+
+  ecritureConstatationId Int?
+  ecritureExtourneId     Int?
+  dateExtourne           DateTime?
+  notes                  String?
+
+  creeParId Int
+  creePar   User @relation("ChargeProduitAttenteCreateur", fields: [creeParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([type])
+}
+
+enum TypeEngagementHorsBilan {
+  CAUTION_DONNEE
+  CAUTION_RECUE
+  GARANTIE_DONNEE
+  GARANTIE_RECUE
+  CREDIT_BAIL
+  LITIGE_EN_COURS
+  AUTRE
+}
+
+enum StatutEngagementHorsBilan {
+  ACTIF
+  LEVE
+}
+
+/// Engagement hors-bilan (CDC Comptabilité §39 — notes annexes : "engagements")
+/// — cautions, garanties, crédit-bail, litiges en cours dont le montant
+/// n'apparaît jamais au bilan mais doit être mentionné en annexe. Suivi pur,
+/// ne génère aucune écriture (par nature hors-bilan).
+model EngagementHorsBilan {
+  id            Int                        @id @default(autoincrement())
+  reference     String                     @unique
+  type          TypeEngagementHorsBilan
+  libelle       String
+  montant       Decimal
+  beneficiaire  String? // tiers concerné (texte libre — pas toujours un client/fournisseur du système)
+  dateDebut     DateTime
+  dateFin       DateTime?
+  statut        StatutEngagementHorsBilan  @default(ACTIF)
+  dateLevee     DateTime?
+  notes         String?
+
+  creeParId Int
+  creePar   User @relation("EngagementHorsBilanCreateur", fields: [creeParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([type])
 }
 
 enum FrequenceRecurrente {

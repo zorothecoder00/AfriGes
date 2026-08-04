@@ -21,7 +21,30 @@ const gestionnaireDashboardMap: Record<string, string> = {
   // Membres stricts de commission de gouvernance → portail gouvernance uniquement
   PRESIDENT_COMMISSION_RIA: "/dashboard/user/gouvernance",
   RAPPORTEUR_COMMISSION_RIA: "/dashboard/user/gouvernance",
+  // CDC comptabilité §43 — CHEF_COMPTABLE a la même surface d'écran que COMPTABLE
+  // (voir aussi lib/authComptable.ts::getComptableSession) ; DIRECTEUR_GENERAL
+  // ("consultation globale + validation selon autorisation") a le module
+  // comptable pour port d'attache ; RESPONSABLE_ACHATS réutilise le dashboard
+  // appro/logistique déjà existant (le CDC ne prévoit pas de portail "achats"
+  // séparé), avec un accès lecture au comptable via sharedUserPaths ci-dessous.
+  CHEF_COMPTABLE: "/dashboard/user/comptables",
+  DIRECTEUR_GENERAL: "/dashboard/user/comptables",
+  RESPONSABLE_ACHATS: "/dashboard/user/logistiquesApprovisionnements",
 }
+
+// Sous-arbres de /dashboard/user ouverts en LECTURE à des gestionnaires dont ce
+// n'est pas le dashboard principal (CDC comptabilité §43 : Auditeur "lecture +
+// audit", Investisseur/actionnaire "tableaux de bord financiers autorisés",
+// Responsable achats "consultation comptable limitée"). Même doctrine que
+// `sharedAdminPaths` : le proxy n'autorise que la NAVIGATION, l'autorisation
+// fine reste appliquée en aval par lib/authComptable.ts::getComptableLectureSession
+// (lecture seule — jamais getComptableSession, réservé à la saisie/validation).
+const sharedUserPaths: { prefix: string; roles: string[] }[] = [
+  {
+    prefix: "/dashboard/user/comptables",
+    roles: ["AUDITEUR_INTERNE", "ACTIONNAIRE", "RESPONSABLE_ACHATS"],
+  },
+]
 
 // Pages du dashboard admin ouvertes à certains gestionnaires (double casquette).
 // Le proxy n'autorise QUE la navigation ; l'autorisation fine reste appliquée en
@@ -156,8 +179,13 @@ export async function proxy(request: NextRequest) {
     ];
     const isCommonPath = commonPaths.some(p => pathname.startsWith(p));
 
+    // Portails partagés en lecture (CDC comptabilité §43) — ex. un auditeur
+    // consultant le module comptable sans que ce soit son dashboard principal.
+    const shared = sharedUserPaths.find((s) => pathname.startsWith(s.prefix));
+    const isSharedPath = !!shared && !!gestionnaireRole && shared.roles.includes(gestionnaireRole);
+
     // Si le user tente d'accéder à un dashboard qui n'est pas le sien → redirection
-    if (allowedPath && !isCommonPath && !pathname.startsWith(allowedPath)) {
+    if (allowedPath && !isCommonPath && !isSharedPath && !pathname.startsWith(allowedPath)) {
       return NextResponse.redirect(new URL(allowedPath, request.url));
     }
   }

@@ -380,7 +380,7 @@ export async function ecritureVenteCreditValidee(
  */
 export async function ecritureAvoirClient(
   tx: TxClient,
-  params: { montant: number; reference: string; clientNom: string; clientId?: number; userId: number; date?: Date },
+  params: { montant: number; reference: string; clientNom: string; clientId?: number; userId: number; date?: Date; pointDeVenteId?: number | null },
 ): Promise<number | null> {
   const regle = await resoudreRegleComptable(tx, "AVOIR_CLIENT_EMIS");
   if (!regle) return null;
@@ -392,8 +392,8 @@ export async function ecritureAvoirClient(
     userId: params.userId,
     reference: `SYNC-AVR-${params.reference}`,
     lignes: [
-      { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Avoir ${params.reference}` },
-      { numero: compteCredit, credit: params.montant, libelle: `Avoir ${params.reference}` },
+      { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Avoir ${params.reference}`, pointDeVenteId: params.pointDeVenteId },
+      { numero: compteCredit, credit: params.montant, libelle: `Avoir ${params.reference}`, pointDeVenteId: params.pointDeVenteId },
     ],
   });
 }
@@ -475,7 +475,7 @@ export async function ecripturePaiementFournisseur(
  */
 export async function ecritureAvoirFournisseur(
   tx: TxClient,
-  params: { montant: number; reference: string; fournisseurNom: string; fournisseurId?: number; userId: number; date?: Date },
+  params: { montant: number; reference: string; fournisseurNom: string; fournisseurId?: number; userId: number; date?: Date; pointDeVenteId?: number | null },
 ): Promise<number | null> {
   const regle = await resoudreRegleComptable(tx, "AVOIR_FOURNISSEUR_RECU");
   if (!regle) return null;
@@ -487,8 +487,8 @@ export async function ecritureAvoirFournisseur(
     userId: params.userId,
     reference: `SYNC-AVF-${params.reference}`,
     lignes: [
-      { numero: compteDebit, debit: params.montant, libelle: `Avoir ${params.reference}` },
-      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Avoir ${params.reference}` },
+      { numero: compteDebit, debit: params.montant, libelle: `Avoir ${params.reference}`, pointDeVenteId: params.pointDeVenteId },
+      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Avoir ${params.reference}`, pointDeVenteId: params.pointDeVenteId },
     ],
   });
 }
@@ -496,7 +496,7 @@ export async function ecritureAvoirFournisseur(
 /** Avance/acompte versé à un fournisseur (CDC §17) : Dr 402 / Cr Trésorerie. */
 export async function ecritureAvanceFournisseur(
   tx: TxClient,
-  params: { montant: number; reference: string; fournisseurNom: string; modePaiement?: string | null; userId: number; date?: Date },
+  params: { montant: number; reference: string; fournisseurNom: string; modePaiement?: string | null; userId: number; date?: Date; pointDeVenteId?: number | null },
 ): Promise<number | null> {
   const regle = await resoudreRegleComptable(tx, "AVANCE_FOURNISSEUR_VERSEE", { modePaiement: params.modePaiement });
   if (!regle) return null;
@@ -507,8 +507,8 @@ export async function ecritureAvanceFournisseur(
     userId: params.userId,
     reference: `SYNC-AVF2-${params.reference}`,
     lignes: [
-      { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Avance ${params.reference}` },
-      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Avance ${params.reference}` },
+      { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Avance ${params.reference}`, pointDeVenteId: params.pointDeVenteId },
+      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Avance ${params.reference}`, pointDeVenteId: params.pointDeVenteId },
     ],
   });
 }
@@ -523,6 +523,7 @@ export async function ecripturePaieVersee(
     modePaiement?: string | null;
     userId: number;
     date?: Date;
+    pointDeVenteId?: number | null;
   },
 ): Promise<number | null> {
   const regle = await resoudreRegleComptable(tx, "PAIE_VERSEE", { modePaiement: params.modePaiement });
@@ -534,8 +535,8 @@ export async function ecripturePaieVersee(
     userId: params.userId,
     reference: `SYNC-PAIE-${params.reference}`,
     lignes: [
-      { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Rémunération ${params.profilNom}` },
-      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Paiement ${params.reference}` },
+      { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Rémunération ${params.profilNom}`, pointDeVenteId: params.pointDeVenteId },
+      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Paiement ${params.reference}`, pointDeVenteId: params.pointDeVenteId },
     ],
   });
 }

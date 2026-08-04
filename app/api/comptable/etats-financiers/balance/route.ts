@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getComptableSession } from "@/lib/authComptable";
+import { getComptableLectureSession } from "@/lib/authComptable";
 import { genererBalanceGenerale } from "@/lib/comptabilite/grandLivreBalance";
 
 /**
@@ -12,7 +12,7 @@ import { genererBalanceGenerale } from "@/lib/comptabilite/grandLivreBalance";
  */
 export async function GET(req: Request) {
   try {
-    const session = await getComptableSession();
+    const session = await getComptableLectureSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { searchParams } = new URL(req.url);

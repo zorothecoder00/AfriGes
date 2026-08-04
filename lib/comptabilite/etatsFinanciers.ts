@@ -173,11 +173,10 @@ export async function genererCompteResultatDetaille(tx: TxClient, dateDebut: Dat
 }
 
 /**
- * Tableau des flux de trésorerie simplifié (CDC §38) : mouvements nets des
- * comptes de trésorerie (classe 5) sur la période, ventilés par journal
- * d'origine. Une méthode indirecte complète (retraitement par masse
- * exploitation/investissement/financement) reste un développement futur ;
- * ceci reste entièrement dérivé des écritures, pas d'un module opérationnel.
+ * Tableau des flux de trésorerie simplifié : mouvements nets des comptes de
+ * trésorerie (classe 5) sur la période, ventilés par journal d'origine.
+ * Conservé tel quel comme brique de `genererTableauFluxDetaille` (vue "par
+ * journal" toujours utile en diagnostic) et pour tout appelant existant.
  */
 export async function genererTableauFlux(tx: TxClient, dateDebut: Date, dateFin: Date) {
   const lignesTresorerie = await tx.ligneEcriture.findMany({
@@ -197,6 +196,149 @@ export async function genererTableauFlux(tx: TxClient, dateDebut: Date, dateFin:
     parJournal[l.ecriture.journal] = (parJournal[l.ecriture.journal] ?? 0) + net;
   }
   return { encaissements, decaissements, fluxNet: encaissements - decaissements, parJournal };
+}
+
+/**
+ * Tableau des flux de trésorerie — méthode indirecte complète (CDC §38,
+ * modèle SYSCOHADA) : à partir du résultat net, retraité des charges/produits
+ * non décaissables (dotations/reprises) pour obtenir la CAFG, puis de la
+ * variation du BFR (stocks classe 3, créances 41x, dettes fournisseurs 40x)
+ * pour obtenir le flux d'exploitation ; flux d'investissement = cessions −
+ * acquisitions d'immobilisations (classe 2) ; flux de financement = variation
+ * des capitaux propres (classe 1, hors résultat de la période, qui n'y est
+ * jamais affecté avant clôture) + variation des emprunts (classe 16). La
+ * somme des 3 masses doit se rapprocher de la variation réelle de trésorerie
+ * (classe 5) — `ecartReconciliation` sert de garde-fou de cohérence.
+ */
+export async function genererTableauFluxDetaille(tx: TxClient, dateDebut: Date, dateFin: Date) {
+  const simplifie = await genererTableauFlux(tx, dateDebut, dateFin);
+
+  const { resultatNet, charges, produits } = await genererCompteResultat(tx, dateDebut, dateFin);
+  const dotations = sommePrefixes(charges, ["68", "69"]);
+  const reprises = sommePrefixes(produits, ["78", "79"]);
+  const cafg = resultatNet + dotations - reprises;
+
+  // Soldes de bilan à la borne de début (instant précédent dateDebut) et à dateFin,
+  // pour dériver la variation du BFR sur la période.
+  const dateAvantDebut = new Date(dateDebut.getTime() - 1);
+  const [soldesDebut, soldesFin] = await Promise.all([
+    soldesParCompte(tx, null, dateAvantDebut),
+    soldesParCompte(tx, null, dateFin),
+  ]);
+  const sumClasseSoldes = (soldes: Map<number, CompteSolde>, classe: number) =>
+    [...soldes.values()].filter((c) => c.classe === classe).reduce((s, c) => s + c.solde, 0);
+  const sumPrefixeSoldes = (soldes: Map<number, CompteSolde>, prefixe: string) =>
+    [...soldes.values()].filter((c) => c.numero.startsWith(prefixe)).reduce((s, c) => s + c.solde, 0);
+
+  const stockDebut = sumClasseSoldes(soldesDebut, 3);
+  const stockFin = sumClasseSoldes(soldesFin, 3);
+  const creancesDebut = sumPrefixeSoldes(soldesDebut, "41");
+  const creancesFin = sumPrefixeSoldes(soldesFin, "41");
+  const dettesDebut = sumPrefixeSoldes(soldesDebut, "40");
+  const dettesFin = sumPrefixeSoldes(soldesFin, "40");
+
+  const variationStocks = stockFin - stockDebut;
+  const variationCreances = creancesFin - creancesDebut;
+  const variationDettesFournisseurs = dettesFin - dettesDebut;
+  // Une hausse de stock/créances consomme de la trésorerie ; une hausse de
+  // dettes fournisseurs en libère (paiement différé) — convention SYSCOHADA.
+  const variationBFR = variationStocks + variationCreances - variationDettesFournisseurs;
+  const fluxActiviteOperationnelle = cafg - variationBFR;
+
+  // Investissement : acquisitions/cessions d'immobilisations de la période (classe 2).
+  const immobilisationsPeriode = await tx.immobilisation.findMany({
+    where: { OR: [{ dateAcquisition: { gte: dateDebut, lte: dateFin } }, { dateCession: { gte: dateDebut, lte: dateFin } }] },
+    select: { dateAcquisition: true, coutAcquisition: true, dateCession: true, prixCession: true },
+  });
+  let acquisitionsImmobilisations = 0;
+  let cessionsImmobilisations = 0;
+  for (const immo of immobilisationsPeriode) {
+    if (immo.dateAcquisition >= dateDebut && immo.dateAcquisition <= dateFin) acquisitionsImmobilisations += Number(immo.coutAcquisition);
+    if (immo.dateCession && immo.dateCession >= dateDebut && immo.dateCession <= dateFin) cessionsImmobilisations += Number(immo.prixCession ?? 0);
+  }
+  const fluxInvestissement = cessionsImmobilisations - acquisitionsImmobilisations;
+
+  // Financement : variation des capitaux propres (classe 1, hors résultat — non
+  // encore affecté en cours d'exercice) et des emprunts (classe 16), sur la période.
+  const [mouvementsCapitaux, mouvementsEmprunts] = await Promise.all([
+    tx.ligneEcriture.groupBy({
+      by: ["compteId"],
+      where: { compte: { classe: 1 }, ecriture: { statut: { in: ["VALIDE", "CLOTURE"] }, date: { gte: dateDebut, lte: dateFin } } },
+      _sum: { debit: true, credit: true },
+    }),
+    tx.ligneEcriture.groupBy({
+      by: ["compteId"],
+      where: { compte: { numero: { startsWith: "16" } }, ecriture: { statut: { in: ["VALIDE", "CLOTURE"] }, date: { gte: dateDebut, lte: dateFin } } },
+      _sum: { debit: true, credit: true },
+    }),
+  ]);
+  const variationCapitauxPropres = mouvementsCapitaux.reduce((s, l) => s + (Number(l._sum.credit ?? 0) - Number(l._sum.debit ?? 0)), 0);
+  const variationEmprunts = mouvementsEmprunts.reduce((s, l) => s + (Number(l._sum.credit ?? 0) - Number(l._sum.debit ?? 0)), 0);
+  const fluxFinancement = variationCapitauxPropres + variationEmprunts;
+
+  const fluxNetTotal = fluxActiviteOperationnelle + fluxInvestissement + fluxFinancement;
+  const variationTresorerieReelle = sumClasseSoldes(soldesFin, 5) - sumClasseSoldes(soldesDebut, 5);
+
+  return {
+    ...simplifie,
+    resultatNet,
+    dotationsAmortissementsProvisions: dotations,
+    reprisesAmortissementsProvisions: reprises,
+    cafg,
+    variationBFR: { stocks: variationStocks, creances: variationCreances, dettesFournisseurs: variationDettesFournisseurs, total: variationBFR },
+    fluxActiviteOperationnelle,
+    investissement: { acquisitionsImmobilisations, cessionsImmobilisations, total: fluxInvestissement },
+    financement: { variationCapitauxPropres, variationEmprunts, total: fluxFinancement },
+    fluxNetTotal,
+    variationTresorerieReelle,
+    ecartReconciliation: fluxNetTotal - variationTresorerieReelle,
+  };
+}
+
+/**
+ * Résultat par point de vente (CDC §48) : produits/charges de la période,
+ * ventilés par `LigneEcriture.pointDeVenteId` — dérivé exclusivement des
+ * écritures comptables (contrairement à `rapportsGestion.ts::rentabiliteParAgence`,
+ * qui lit les modules opérationnels ventes/crédits et ne reflète pas les
+ * charges de structure). Les lignes sans PDV renseigné (saisies globales,
+ * siège) sont regroupées sous "Non affecté".
+ */
+export async function genererResultatParPointDeVente(tx: TxClient, dateDebut: Date, dateFin: Date) {
+  const lignes = await tx.ligneEcriture.groupBy({
+    by: ["pointDeVenteId", "compteId"],
+    where: {
+      compte: { classe: { in: [6, 7] } },
+      ecriture: { statut: { in: ["VALIDE", "CLOTURE"] }, date: { gte: dateDebut, lte: dateFin } },
+    },
+    _sum: { debit: true, credit: true },
+  });
+  if (lignes.length === 0) return [];
+
+  const compteIds = [...new Set(lignes.map((l) => l.compteId))];
+  const comptes = await tx.compteComptable.findMany({ where: { id: { in: compteIds } }, select: { id: true, classe: true } });
+  const classeParCompte = new Map(comptes.map((c) => [c.id, c.classe]));
+
+  const pdvIds = [...new Set(lignes.map((l) => l.pointDeVenteId).filter((id): id is number => id != null))];
+  const pdvs = pdvIds.length ? await tx.pointDeVente.findMany({ where: { id: { in: pdvIds } }, select: { id: true, nom: true, code: true } }) : [];
+  const pdvParId = new Map(pdvs.map((p) => [p.id, p]));
+
+  interface Bucket { pointDeVenteId: number | null; nom: string; code: string | null; produits: number; charges: number }
+  const buckets = new Map<string, Bucket>();
+  for (const l of lignes) {
+    const classe = classeParCompte.get(l.compteId);
+    const cle = String(l.pointDeVenteId ?? "NULL");
+    if (!buckets.has(cle)) {
+      const pdv = l.pointDeVenteId != null ? pdvParId.get(l.pointDeVenteId) : null;
+      buckets.set(cle, { pointDeVenteId: l.pointDeVenteId, nom: pdv?.nom ?? "Non affecté", code: pdv?.code ?? null, produits: 0, charges: 0 });
+    }
+    const b = buckets.get(cle)!;
+    if (classe === 7) b.produits += Number(l._sum.credit ?? 0) - Number(l._sum.debit ?? 0);
+    if (classe === 6) b.charges += Number(l._sum.debit ?? 0) - Number(l._sum.credit ?? 0);
+  }
+
+  return [...buckets.values()]
+    .map((b) => ({ ...b, resultat: b.produits - b.charges }))
+    .sort((a, b) => b.produits - a.produits);
 }
 
 /**
@@ -293,8 +435,24 @@ export async function genererNotesAnnexes(tx: TxClient, dateDebut: Date, dateFin
     parDepartement: effectifsParDepartement.map((e) => ({ departement: e.departement ?? "Non renseigné", effectif: e._count })),
   };
 
+  // Engagements hors-bilan actifs (CDC §39) — cautions, garanties, crédit-bail,
+  // litiges en cours : n'affectent pas le bilan mais doivent y être divulgués.
+  const engagementsActifs = await tx.engagementHorsBilan.findMany({
+    where: { statut: "ACTIF" },
+    select: { type: true, montant: true },
+  });
+  const engagementsParType = new Map<string, number>();
+  for (const e of engagementsActifs) {
+    engagementsParType.set(e.type, (engagementsParType.get(e.type) ?? 0) + Number(e.montant));
+  }
+  const engagements = {
+    total: engagementsActifs.reduce((s, e) => s + Number(e.montant), 0),
+    parType: [...engagementsParType.entries()].map(([type, montant]) => ({ type, montant })),
+  };
+
   return {
     effectifs,
+    engagements,
     immobilisations: {
       parCategorie: [...parCategorie.entries()].map(([categorie, v]) => ({ categorie, ...v })),
       brut: [...parCategorie.values()].reduce((s, v) => s + v.brutFin, 0),

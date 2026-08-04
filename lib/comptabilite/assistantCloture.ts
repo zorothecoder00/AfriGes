@@ -9,6 +9,7 @@
 import type { Prisma } from "@prisma/client";
 import { executerControles } from "@/lib/comptabilite/controles";
 import { genererCompteResultat } from "@/lib/comptabilite/etatsFinanciers";
+import { genererEcartsChangeCloture } from "@/lib/comptabilite/ecartsChange";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -26,7 +27,7 @@ export interface EtatPreCloture {
   resultatNetPrevisionnel: number;
 }
 
-export async function verifierPreCloture(tx: TxClient, annee: number): Promise<EtatPreCloture> {
+export async function verifierPreCloture(tx: TxClient, annee: number, userId: number = 0): Promise<EtatPreCloture> {
   const dateDebut = new Date(annee, 0, 1);
   const dateFin = new Date(annee, 11, 31, 23, 59, 59, 999);
   const items: ItemPreCloture[] = [];
@@ -143,6 +144,33 @@ export async function verifierPreCloture(tx: TxClient, annee: number): Promise<E
     ok: nbEcheancesRegulEnAttente === 0,
     bloquant: false,
     detail: nbEcheancesRegulEnAttente === 0 ? "Aucune échéance en attente" : `${nbEcheancesRegulEnAttente} échéance(s) CCA/PCA non comptabilisée(s)`,
+  });
+
+  // Charges à payer / produits à recevoir non extournées (CDC §27) — informatif :
+  // certaines resteront légitimement ouvertes tant que la facture réelle n'est
+  // pas reçue/établie, mais le comptable doit les avoir en tête avant clôture.
+  const nbChargesProduitsAttente = await tx.chargeProduitAttente.count({ where: { statut: "EN_ATTENTE" } });
+  items.push({
+    cle: "charges_produits_attente",
+    label: "Charges à payer / Produits à recevoir",
+    ok: nbChargesProduitsAttente === 0,
+    bloquant: false,
+    detail: nbChargesProduitsAttente === 0 ? "Aucune en attente" : `${nbChargesProduitsAttente} constatation(s) non extournée(s)`,
+  });
+
+  // Écarts de change à la clôture (CDC §27) — informatif : présent uniquement si
+  // une devise étrangère est active et porte des soldes de bilan non nuls ; le
+  // comptable doit vérifier le taux de clôture puis les comptabiliser (476/477)
+  // via l'onglet dédié avant de considérer l'exercice réellement clos.
+  const ecartsChange = await genererEcartsChangeCloture(tx, annee, userId, { dryRun: true });
+  items.push({
+    cle: "ecarts_change",
+    label: "Écarts de change à la clôture",
+    ok: ecartsChange.lignes.length === 0,
+    bloquant: false,
+    detail: ecartsChange.lignes.length === 0
+      ? "Aucun solde en devise étrangère à réévaluer"
+      : `${ecartsChange.lignes.length} compte(s) à réévaluer — gains ${ecartsChange.totalGains.toFixed(0)} / pertes ${ecartsChange.totalPertes.toFixed(0)}`,
   });
 
   // Caisse, clients, fournisseurs — nommés individuellement (CDC §30 les liste

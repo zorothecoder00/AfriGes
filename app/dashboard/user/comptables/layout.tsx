@@ -61,6 +61,8 @@ const PATH_TO_KEY: { prefix: string; key: string }[] = [
   { prefix: `${BASE}/analytique`, key: "analytique" },
   { prefix: `${BASE}/inventaire-cloture/provisions`, key: "provisions" },
   { prefix: `${BASE}/inventaire-cloture/regularisations`, key: "regularisations" },
+  { prefix: `${BASE}/inventaire-cloture/charges-produits-attente`, key: "chargesProduitsAttente" },
+  { prefix: `${BASE}/inventaire-cloture/engagements-hors-bilan`, key: "engagementsHorsBilan" },
   { prefix: `${BASE}/inventaire-cloture/exercices`, key: "exercices" },
   { prefix: `${BASE}/inventaire-cloture`, key: "inventaire" },
   { prefix: `${BASE}/etats-financiers/balance`, key: "balance" },

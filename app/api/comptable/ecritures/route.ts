@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { genererReferenceEcriture, periodeClôturée } from "@/lib/comptabilite/moteur";
+import { detecterDoublonPotentiel } from "@/lib/comptabilite/detectionDoublons";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 
@@ -59,6 +60,7 @@ export async function GET(req: Request) {
           },
           user: { select: { id: true, nom: true, prenom: true } },
           validePar: { select: { id: true, nom: true, prenom: true } },
+          controlePar: { select: { id: true, nom: true, prenom: true } },
         },
         orderBy: { date: "desc" },
         skip,
@@ -93,7 +95,7 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { date, libelle, journal, notes, lignes, devise, tauxChange, derogationJustification } = body;
+    const { date, libelle, journal, notes, lignes, devise, tauxChange, derogationJustification, confirmerDoublon } = body;
 
     // Validations de base
     if (!date || !libelle || !journal) {
@@ -141,6 +143,23 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
+    // CDC §42 — détection de doublons potentiels avant validation : journal +
+    // date + montant + recoupement référence/libellé. Non bloquant en soi —
+    // l'utilisateur doit explicitement confirmer (`confirmerDoublon: true`)
+    // pour passer outre, comme pour la dérogation période fermée ci-dessus.
+    if (!confirmerDoublon) {
+      const doublons = await detecterDoublonPotentiel(prisma, {
+        journal, date: dateEcriture, montant: totalDebit, reference: body.reference, libelle,
+      });
+      if (doublons.length > 0) {
+        return NextResponse.json({
+          error: "DOUBLON_POTENTIEL",
+          message: `Une écriture similaire existe déjà (${doublons.map((d) => d.reference).join(", ")}) — confirmez pour créer quand même.`,
+          doublons,
+        }, { status: 409 });
+      }
+    }
+
     const userId = Number(session.user.id);
     const meta = getRequestMeta(req);
 
@@ -168,6 +187,7 @@ export async function POST(req: Request) {
               isTva?: boolean;
               tauxTva?: number;
               montantTva?: number;
+              pointDeVenteId?: number;
             }) => ({
               compteId:   Number(l.compteId),
               libelle:    l.libelle || libelle,
@@ -176,6 +196,8 @@ export async function POST(req: Request) {
               isTva:      Boolean(l.isTva),
               tauxTva:    l.tauxTva    != null ? Number(l.tauxTva)    : null,
               montantTva: l.montantTva != null ? Number(l.montantTva) : null,
+              // CDC §48 — imputation multi-PDV disponible en saisie manuelle.
+              pointDeVenteId: l.pointDeVenteId != null ? Number(l.pointDeVenteId) : null,
             })),
           },
         },
@@ -188,6 +210,9 @@ export async function POST(req: Request) {
       await auditLog(tx, userId, "CREATION_ECRITURE", "EcritureComptable", e.id, { reference: e.reference, libelle: e.libelle, journal: e.journal }, meta);
       if (derogationJustification?.trim()) {
         await auditLog(tx, userId, "DEROGATION_PERIODE_FERMEE", "EcritureComptable", e.id, { reference: e.reference, justification: derogationJustification.trim() }, meta);
+      }
+      if (confirmerDoublon) {
+        await auditLog(tx, userId, "DOUBLON_CONFIRME", "EcritureComptable", e.id, { reference: e.reference }, meta);
       }
       return e;
     });

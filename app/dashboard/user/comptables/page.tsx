@@ -16,10 +16,10 @@ import {
   Users, Building2, Wallet, PiggyBank, CreditCard,
   Percent, ArrowDownToLine, ArrowUpFromLine,
   Boxes, Gauge, FileStack, ListChecks, AlertTriangle, Building,
-  RefreshCw,
+  RefreshCw, PauseCircle, Paperclip,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDateShort } from "@/lib/format";
 import { getStatCardHue } from "@/components/ui/statCardTheme";
 import AideComptable from "@/components/AideComptable";
 import { AIDE_COMPTABLE } from "@/lib/aideComptableContenu";
@@ -35,6 +35,11 @@ interface KpisDashboard {
   resultatProvisoire: number;
   nombreEcritures: number; ecrituresEnAttente: number; ecrituresNonEquilibrees: number;
   rapprochementsEnAttente: number;
+  ecrituresCompteAttente: number;
+}
+interface EcritureAttente {
+  ligneId: number; ecritureId: number; reference: string; montant: number; date: string;
+  origine: string; libelle: string; utilisateur: string | null; aPiece: boolean; delaiJours: number;
 }
 interface PointSerie { mois: string; label: string; valeur: number }
 interface PointResultatMensuel { mois: string; label: string; produits: number; charges: number; resultat: number }
@@ -54,7 +59,7 @@ interface GraphiquesDashboard {
     anneePrecedente: { annee: number; valeurs: number[] };
   };
 }
-interface DashboardResponse { data: { kpis: KpisDashboard; graphiques: GraphiquesDashboard } }
+interface DashboardResponse { data: { kpis: KpisDashboard; graphiques: GraphiquesDashboard; ecrituresAttente: EcritureAttente[] } }
 
 // ── Helpers chart SVG (mêmes conventions que l'ancien chart évolution) ─────
 
@@ -236,6 +241,56 @@ function ComparaisonNN1Chart({ data }: { data: GraphiquesDashboard["comparaisonN
   );
 }
 
+/** Surveillance des comptes d'attente (CDC §41) : détail des lignes du compte 471 non résolues. */
+function ComptesAttenteWidget({ items }: { items: EcritureAttente[] }) {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+          <PauseCircle size={16} className={items.length > 0 ? "text-red-500" : "text-emerald-600"} />
+          {items.length > 0 ? "🔴" : "🟢"} {items.length} écriture{items.length !== 1 ? "s" : ""} en attente d&apos;imputation (compte 471)
+        </h4>
+      </div>
+      {items.length === 0 ? (
+        <p className="text-slate-400 text-sm text-center py-8">Aucune écriture en attente sur le compte d&apos;attente 471.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="text-left px-4 py-2.5 font-semibold text-slate-600 uppercase">Référence</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-slate-600 uppercase">Origine</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-slate-600 uppercase">Date</th>
+                <th className="text-right px-4 py-2.5 font-semibold text-slate-600 uppercase">Montant</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-slate-600 uppercase">Utilisateur</th>
+                <th className="text-center px-4 py-2.5 font-semibold text-slate-600 uppercase">Pièce</th>
+                <th className="text-right px-4 py-2.5 font-semibold text-slate-600 uppercase">Délai</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {items.map((it) => (
+                <tr key={it.ligneId} className="hover:bg-slate-50">
+                  <td className="px-4 py-2.5 font-mono text-slate-700">{it.reference}</td>
+                  <td className="px-4 py-2.5 text-slate-500">{it.origine}</td>
+                  <td className="px-4 py-2.5 text-slate-500">{formatDateShort(it.date)}</td>
+                  <td className="px-4 py-2.5 text-right font-semibold text-slate-800">{formatCurrency(it.montant)}</td>
+                  <td className="px-4 py-2.5 text-slate-500">{it.utilisateur ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-center">
+                    {it.aPiece ? <Paperclip size={13} className="text-emerald-600 inline" /> : <span className="text-slate-300">—</span>}
+                  </td>
+                  <td className={`px-4 py-2.5 text-right font-semibold ${it.delaiJours > 30 ? "text-red-600" : it.delaiJours > 7 ? "text-amber-600" : "text-slate-500"}`}>
+                    {it.delaiJours} j
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function ComptableTableauBordPage() {
@@ -316,7 +371,12 @@ export default function ComptableTableauBordPage() {
         <KpiCard label="Écritures en attente" value={String(k?.ecrituresEnAttente ?? 0)} icon={ListChecks} color="text-amber-600" bg="bg-amber-50" alerte={(k?.ecrituresEnAttente ?? 0) > 0} />
         <KpiCard label="Écritures non équilibrées" value={String(k?.ecrituresNonEquilibrees ?? 0)} icon={AlertTriangle} color="text-red-500" bg="bg-red-50" alerte={(k?.ecrituresNonEquilibrees ?? 0) > 0} />
         <KpiCard label="Rapprochements en attente" value={String(k?.rapprochementsEnAttente ?? 0)} icon={CreditCard} color="text-amber-600" bg="bg-amber-50" alerte={(k?.rapprochementsEnAttente ?? 0) > 0} />
+        <KpiCard label="Comptes d'attente (471)" value={String(k?.ecrituresCompteAttente ?? 0)} icon={PauseCircle} color="text-amber-600" bg="bg-amber-50" alerte={(k?.ecrituresCompteAttente ?? 0) > 0} />
       </div>
+
+      {/* ── Comptes d'attente (CDC §41) ── */}
+      <SectionTitle>Surveillance des comptes d&apos;attente</SectionTitle>
+      <ComptesAttenteWidget items={data?.data.ecrituresAttente ?? []} />
 
       {/* ── Graphiques ── */}
       <SectionTitle>Graphiques</SectionTitle>

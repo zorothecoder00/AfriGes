@@ -16,7 +16,7 @@ import Link from "next/link";
 import {
   Edit2, PlusCircle, Download, ChevronLeft, ChevronRight,
   RefreshCw, Wallet, TrendingUp, Package, BadgeCheck, Trash2,
-  Paperclip, Upload, ExternalLink, X, Printer,
+  Paperclip, Upload, ExternalLink, X, Printer, Eye,
 } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort } from "@/lib/format";
@@ -51,8 +51,10 @@ interface EcritureComptable {
   id: number; reference: string; date: string; libelle: string;
   journal: string; statut: string; notes: string | null;
   dateValidation: string | null;
+  dateControle: string | null;
   user?: { id: number; nom: string; prenom: string };
   validePar?: { id: number; nom: string; prenom: string } | null;
+  controlePar?: { id: number; nom: string; prenom: string } | null;
   lignes: LigneEcritureData[];
 }
 interface EcrituresResponse {
@@ -183,6 +185,14 @@ export default function SaisieEcrituresPage() {
   async function handleValider(id: number) {
     ecritureActionIdRef.current = id;
     const res = await validerEcriture({ statut: "VALIDE" });
+    if (res) refetchEcritures();
+  }
+  // CDC §44 — étape intermédiaire "contrôle" (Agent → Comptable → Chef
+  // comptable) : passe BROUILLON → A_CONTROLER, par un utilisateur distinct du
+  // créateur ; la validation finale devra ensuite venir d'un 3e utilisateur.
+  async function handleControler(id: number) {
+    ecritureActionIdRef.current = id;
+    const res = await validerEcriture({ statut: "A_CONTROLER" });
     if (res) refetchEcritures();
   }
   async function handleSupprimerEcriture(id: number) {
@@ -387,6 +397,11 @@ export default function SaisieEcrituresPage() {
                     <span className="text-xs bg-blue-50 text-blue-700 font-medium px-2 py-0.5 rounded-full">{JOURNAL_LABELS[e.journal] ?? e.journal}</span>
                     <span className="text-xs text-slate-400">{formatDateShort(e.date)}</span>
                     {e.user && <span className="text-xs text-slate-400" title="Saisie par">{e.user.prenom} {e.user.nom}</span>}
+                    {e.controlePar && e.dateControle && (
+                      <span className="text-xs text-blue-600" title="Contrôlée par">
+                        👁 {e.controlePar.prenom} {e.controlePar.nom} le {formatDateShort(e.dateControle)}
+                      </span>
+                    )}
                     {e.validePar && e.dateValidation && (
                       <span className="text-xs text-emerald-600" title="Validée par">
                         ✓ {e.validePar.prenom} {e.validePar.nom} le {formatDateShort(e.dateValidation)}
@@ -401,6 +416,11 @@ export default function SaisieEcrituresPage() {
                     </button>
                     {e.statut === "BROUILLON" && (
                       <>
+                        <button onClick={() => handleControler(e.id)}
+                          title="Étape intermédiaire de contrôle (CDC §44), par un utilisateur distinct du créateur"
+                          className="flex items-center gap-1 px-2.5 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-50">
+                          <Eye size={13} /> Contrôler
+                        </button>
                         <button onClick={() => handleValider(e.id)}
                           className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">
                           <BadgeCheck size={13} /> Valider
@@ -408,6 +428,13 @@ export default function SaisieEcrituresPage() {
                         <button onClick={() => handleSupprimerEcriture(e.id)}
                           className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
                       </>
+                    )}
+                    {e.statut === "A_CONTROLER" && (
+                      <button onClick={() => handleValider(e.id)}
+                        title="Validation finale (CDC §44), par un 3e utilisateur distinct du créateur et du contrôleur"
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">
+                        <BadgeCheck size={13} /> Valider
+                      </button>
                     )}
                     {e.statut === "VALIDE" && (
                       // CDC §13 — une écriture validée ne se modifie/annule jamais

@@ -5,6 +5,13 @@
 // Modèle de résolution (cf. lib/permissions.ts) :
 //   défaut registry  →  override rôle (RolePermission)  →  override utilisateur (UserPermission)
 // L'admin/superadmin possède tout, sans passer par la matrice.
+//
+// Module "comptabilite" (CDC comptabilité §43) : entrées enregistrées ici pour
+// que la matrice reflète les 9 rôles du CDC, mais PAS ENCORE branchées comme
+// garde d'accès sur `app/api/comptable/**` (celles-ci restent gated par
+// lib/authComptable.ts::getComptableSession — binaire COMPTABLE/CHEF_COMPTABLE/
+// ADMIN). L'enforcement fin route par route reste un chantier à part (déjà
+// noté comme tel pour les autres modules avant celui-ci).
 
 /** Les 6 actions granulaires exigées (administration système). */
 export const PERMISSION_ACTIONS = [
@@ -39,6 +46,7 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   { key: "ventes",         label: "Ventes" },
   { key: "caisse",         label: "Caisse" },
   { key: "factures",       label: "Factures" },
+  { key: "comptabilite",   label: "Comptabilité générale" },
 ];
 
 export const MODULE_KEYS = PERMISSION_MODULES.map((m) => m.key);
@@ -74,6 +82,31 @@ export const DEFAULT_MATRIX: Record<string, Partial<Record<string, PermissionAct
   },
   COMPTABLE: {
     caisse: ROE, ventes: ROE, credits: ROE, compte_courant: ROE, paie: ROE, stock: ROE,
+    comptabilite: [L, C, M, V, E],
+  },
+  // CDC comptabilité §43 — "Chef comptable" (saisie + contrôle + validation,
+  // séparation des fonctions §44) : parité d'accès module comptable avec
+  // COMPTABLE (voir lib/authComptable.ts::getComptableSession, qui accepte
+  // aussi ce rôle) + droit de suppression logique réservé à ce niveau.
+  CHEF_COMPTABLE: {
+    caisse: ROE, ventes: ROE, credits: ROE, compte_courant: ROE, paie: ROE, stock: ROE,
+    comptabilite: FULL,
+  },
+  // CDC §43 — "Directeur / Gérant" (consultation globale + validation selon
+  // autorisation) : lecture large + validation, jamais de saisie/suppression.
+  DIRECTEUR_GENERAL: {
+    caisse: ROE, ventes: ROE, credits: ROE, compte_courant: ROE, paie: ROE, stock: ROE, rh: ROE,
+    comptabilite: [L, V, E],
+  },
+  // CDC §43 — "Responsable achats" (achats + consultation comptable limitée).
+  RESPONSABLE_ACHATS: {
+    stock: [L, C, M, E],
+    comptabilite: RO,
+  },
+  // CDC §43 — "Investisseur / actionnaire" : uniquement tableaux de bord
+  // financiers autorisés (lecture seule, jamais de saisie).
+  ACTIONNAIRE: {
+    comptabilite: RO,
   },
   MAGAZINIER: {
     stock: [L, C, M, E, S],
@@ -89,6 +122,7 @@ export const DEFAULT_MATRIX: Record<string, Partial<Record<string, PermissionAct
   },
   AUDITEUR_INTERNE: {
     credits: ROE, compte_courant: ROE, rh: ROE, paie: ROE, stock: ROE, ventes: ROE, caisse: ROE,
+    comptabilite: ROE,
   },
 };
 

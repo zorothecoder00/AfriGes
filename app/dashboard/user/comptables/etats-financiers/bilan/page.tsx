@@ -8,19 +8,35 @@
 import { useState } from "react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
-import { Landmark } from "lucide-react";
+import { Landmark, Download, Printer } from "lucide-react";
 import type { EtatsFinanciersReelsResponse } from "@/lib/comptabilite/etatsFinanciersReelsTypes";
 import AideComptable from "@/components/AideComptable";
 import { AIDE_COMPTABLE } from "@/lib/aideComptableContenu";
+import { exportMultiSheetXlsx, type XlsxColumn } from "@/lib/exportXlsx";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const COLONNES_BILAN: XlsxColumn<Record<string, any>>[] = [
+  { label: "Compte", key: "compteNumero", width: 12 },
+  { label: "Libellé", key: "libelle", width: 40 },
+  { label: "Montant", key: "montant", type: "currency" },
+];
 
 export default function BilanPage() {
   const [annee, setAnnee] = useState(() => String(new Date().getFullYear()));
   const { data, loading } = useApi<EtatsFinanciersReelsResponse>(`/api/comptable/etats-financiers-reels?annee=${annee}`);
   const bilan = data?.data.bilan;
 
+  async function handleExport() {
+    if (!bilan) return;
+    await exportMultiSheetXlsx([
+      { sheetName: "Actif", kind: "object", rows: bilan.actif, columns: COLONNES_BILAN, title: `Bilan — Actif ${annee}` },
+      { sheetName: "Passif", kind: "object", rows: bilan.passif, columns: COLONNES_BILAN, title: `Bilan — Passif ${annee}` },
+    ], `bilan-${annee}.xlsx`);
+  }
+
   return (
     <main className="flex-1 max-w-[1400px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-5">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-4 print:hidden">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Landmark className="text-emerald-600" size={22} /> Bilan
@@ -30,6 +46,14 @@ export default function BilanPage() {
         <div className="flex items-center gap-2">
           <input type="number" value={annee} onChange={(e) => setAnnee(e.target.value)}
             className="w-24 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 [appearance:textfield]" />
+          <button onClick={handleExport} disabled={!bilan}
+            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+            <Download size={14} /> Excel
+          </button>
+          <button onClick={() => window.print()} disabled={!bilan}
+            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+            <Printer size={14} /> PDF
+          </button>
           {AIDE_COMPTABLE.etatsReels && <AideComptable contenu={AIDE_COMPTABLE.etatsReels} />}
         </div>
       </div>

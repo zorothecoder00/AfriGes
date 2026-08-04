@@ -20,7 +20,7 @@ export async function GET(_req: Request, { params }: Ctx) {
     const exercice = await prisma.exerciceComptable.findUnique({ where: { id: Number(id) } });
     if (!exercice) return NextResponse.json({ error: "Exercice introuvable" }, { status: 404 });
 
-    const etat = await verifierPreCloture(prisma, exercice.annee);
+    const etat = await verifierPreCloture(prisma, exercice.annee, Number(session.user.id));
     return NextResponse.json({ data: etat });
   } catch (error) {
     console.error("GET /api/comptable/exercices/[id]/pre-cloture", error);

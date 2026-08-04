@@ -9,12 +9,20 @@
 import { useRef, useState } from "react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort } from "@/lib/format";
-import { Lock, PlusCircle, ListChecks, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Lock, PlusCircle, ListChecks, X, CheckCircle, AlertCircle, ArrowLeftRight } from "lucide-react";
 import AideComptable from "@/components/AideComptable";
 import { AIDE_COMPTABLE } from "@/lib/aideComptableContenu";
 
 interface ExerciceEntry {
   id: number; annee: number; dateDebut: string; dateFin: string; statut: string; dateCloture: string | null;
+}
+interface EcartChangeLigne {
+  compteNumero: string; compteLibelle: string; devise: string;
+  soldeDeviseUnites: number; soldeComptabilise: number; tauxCloture: number; soldeReevalue: number;
+  ecart: number; ecritureId: number | null;
+}
+interface EtatEcartsChange {
+  annee: number; dateCloture: string; lignes: EcartChangeLigne[]; totalGains: number; totalPertes: number;
 }
 const STATUT_EXERCICE_COLORS: Record<string, string> = {
   PREPARATION: "bg-slate-100 text-slate-600", OUVERT: "bg-emerald-50 text-emerald-700",
@@ -64,6 +72,22 @@ export default function ExercicesPage() {
     if (res) { setAssistantClotureId(null); refetchExercices(); }
   }
 
+  // ── Écarts de change à la clôture (CDC §27) ──────────────────────────────
+  const [ecartsChangeId, setEcartsChangeId] = useState<number | null>(null);
+  const { data: ecartsChangeData, loading: ecartsChangeLoading, refetch: refetchEcartsChange } =
+    useApi<{ data: EtatEcartsChange }>(ecartsChangeId ? `/api/comptable/exercices/${ecartsChangeId}/ecarts-change` : null);
+  const { mutate: comptabiliserEcartsChangeApi, loading: comptabilisantEcartsChange } = useMutation<{ data: EtatEcartsChange }, object>(
+    () => `/api/comptable/exercices/${ecartsChangeId}/ecarts-change`, "POST",
+    { successMessage: "Écarts de change comptabilisés" }
+  );
+  function handleOuvrirEcartsChange(id: number) {
+    setEcartsChangeId(id);
+  }
+  async function handleComptabiliserEcartsChange() {
+    const res = await comptabiliserEcartsChangeApi({});
+    if (res) refetchEcartsChange();
+  }
+
   return (
     <main className="flex-1 max-w-[1400px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -97,10 +121,16 @@ export default function ExercicesPage() {
                 {ex.dateCloture && <span className="text-xs text-slate-400">Clôturé le {formatDateShort(ex.dateCloture)}</span>}
               </div>
               {ex.statut !== "CLOTURE" && ex.statut !== "ARCHIVE" && (
-                <button onClick={() => handleCloturerExercice(ex.id)} disabled={cloturantExercice}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50">
-                  <Lock size={13} /> Clôturer définitivement
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleOuvrirEcartsChange(ex.id)}
+                    className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-50">
+                    <ArrowLeftRight size={13} /> Écarts de change
+                  </button>
+                  <button onClick={() => handleCloturerExercice(ex.id)} disabled={cloturantExercice}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50">
+                    <Lock size={13} /> Clôturer définitivement
+                  </button>
+                </div>
               )}
               {ex.statut === "CLOTURE" && (
                 <button onClick={() => handleArchiverExercice(ex.id)}
@@ -168,6 +198,77 @@ export default function ExercicesPage() {
                   >
                     {cloturantExercice ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Lock size={15} />}
                     Confirmer la clôture
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {ecartsChangeId && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <ArrowLeftRight size={18} className="text-emerald-600" /> Écarts de change à la clôture
+              </h3>
+              <button onClick={() => setEcartsChangeId(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><X size={16} /></button>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Réévalue les soldes de bilan en devise étrangère au taux de clôture (Devise.tauxVersFonctionnelle) et
+              constate l&apos;écart en 476 (perte latente) / 477 (gain latent) — CDC §27. Vérifiez le taux avant de comptabiliser.
+            </p>
+
+            {ecartsChangeLoading ? (
+              <div className="flex items-center justify-center p-8"><div className="w-7 h-7 border-3 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" /></div>
+            ) : ecartsChangeData ? (
+              <>
+                {ecartsChangeData.data.lignes.length === 0 ? (
+                  <p className="text-center text-slate-400 text-sm py-6">Aucun écart de change — pas de devise étrangère active ou aucun solde concerné.</p>
+                ) : (
+                  <div className="overflow-x-auto mb-4">
+                    <table className="w-full text-xs">
+                      <thead className="border-b border-slate-100"><tr>
+                        <th className="text-left py-1.5 pr-3 text-slate-500">Compte</th>
+                        <th className="text-left py-1.5 px-3 text-slate-500">Devise</th>
+                        <th className="text-right py-1.5 px-3 text-slate-500">Solde comptabilisé</th>
+                        <th className="text-right py-1.5 px-3 text-slate-500">Taux clôture</th>
+                        <th className="text-right py-1.5 px-3 text-slate-500">Solde réévalué</th>
+                        <th className="text-right py-1.5 pl-3 text-slate-500">Écart</th>
+                      </tr></thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {ecartsChangeData.data.lignes.map((l) => (
+                          <tr key={`${l.compteNumero}-${l.devise}`}>
+                            <td className="py-1.5 pr-3 text-slate-700">{l.compteNumero} {l.compteLibelle}</td>
+                            <td className="py-1.5 px-3 text-slate-500">{l.devise}</td>
+                            <td className="py-1.5 px-3 text-right text-slate-700">{formatCurrency(l.soldeComptabilise)}</td>
+                            <td className="py-1.5 px-3 text-right text-slate-500">{l.tauxCloture}</td>
+                            <td className="py-1.5 px-3 text-right text-slate-700">{formatCurrency(l.soldeReevalue)}</td>
+                            <td className={`py-1.5 pl-3 text-right font-semibold ${l.ecart > 0 ? "text-emerald-600" : "text-red-600"}`}>
+                              {l.ecart > 0 ? "+" : ""}{formatCurrency(l.ecart)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="p-3 bg-emerald-50 rounded-xl"><p className="text-xs text-emerald-600">Gains latents (477)</p><p className="font-bold text-emerald-700">{formatCurrency(ecartsChangeData.data.totalGains)}</p></div>
+                  <div className="p-3 bg-red-50 rounded-xl"><p className="text-xs text-red-600">Pertes latentes (476)</p><p className="font-bold text-red-600">{formatCurrency(ecartsChangeData.data.totalPertes)}</p></div>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setEcartsChangeId(null)} className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 text-sm font-medium">
+                    Fermer
+                  </button>
+                  <button
+                    onClick={handleComptabiliserEcartsChange}
+                    disabled={ecartsChangeData.data.lignes.length === 0 || comptabilisantEcartsChange}
+                    className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-40 flex items-center justify-center gap-2"
+                  >
+                    {comptabilisantEcartsChange ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <ArrowLeftRight size={15} />}
+                    Comptabiliser
                   </button>
                 </div>
               </>
