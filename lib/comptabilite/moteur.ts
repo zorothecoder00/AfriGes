@@ -87,17 +87,23 @@ export async function journalValide(tx: TxClient, journal: string): Promise<bool
   return !!j?.actif;
 }
 
-/** Référence par journal, ex. "VT-202607-00001" (CDC §15) — préfixe du journal personnalisé si non-builtin. */
+/**
+ * Référence par journal, ex. "VT-2026-000001" (CDC §15 : "VT-2026-000001",
+ * "AC-2026-000001"…) — préfixe du journal personnalisé si non-builtin.
+ * Séquence propre à chaque journal, remise à zéro chaque année civile (comptée
+ * par préfixe de référence, qui encode déjà journal + année) — jamais de
+ * doublon puisque `reference` est une colonne unique.
+ */
 export async function genererReferenceEcriture(tx: TxClient, journal: string): Promise<string> {
   let prefix = PREFIXES_JOURNAL[journal];
   if (!prefix) {
     const j = await tx.journalComptable.findUnique({ where: { code: journal }, select: { prefixe: true } });
     prefix = j?.prefixe ?? journal.slice(0, 2).toUpperCase();
   }
-  const now = new Date();
-  const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const count = await tx.ecritureComptable.count();
-  return `${prefix}-${ym}-${String(count + 1).padStart(5, "0")}`;
+  const annee = new Date().getFullYear();
+  const prefixeComplet = `${prefix}-${annee}-`;
+  const count = await tx.ecritureComptable.count({ where: { reference: { startsWith: prefixeComplet } } });
+  return `${prefixeComplet}${String(count + 1).padStart(6, "0")}`;
 }
 
 async function periodeClôturée(tx: TxClient, date: Date): Promise<boolean> {
@@ -215,6 +221,8 @@ const REGLES_PAR_DEFAUT: Record<string, (ctx: ContexteEvenement) => ComptesRegle
   // (la contrepartie déjà débitée est 411, cf. ecritureVenteCreditValidee).
   INTERET_CREDIT_CLIENT: () => ({ journal: "VENTES", compteDebitNumero: "411", compteCreditNumero: "771" }),
   FRAIS_CREDIT_CLIENT: () => ({ journal: "VENTES", compteDebitNumero: "411", compteCreditNumero: "758" }),
+  // Avoir client (CDC §16) : inverse d'une vente — Dr 701 Ventes (réduit le CA) / Cr 411 Client (réduit la créance).
+  AVOIR_CLIENT_EMIS: () => ({ journal: "VENTES", compteDebitNumero: "701", compteCreditNumero: "411" }),
   REMBOURSEMENT_CREDIT_CONFIRME: (ctx) => {
     const tr = compteTresorerie(ctx.modePaiement);
     return { journal: tr.journal, compteDebitNumero: tr.numero, compteCreditNumero: "411" };
@@ -340,6 +348,33 @@ export async function ecritureVenteCreditValidee(
     userId: params.userId,
     reference: `SYNC-CRD-${params.reference}`,
     lignes,
+  });
+}
+
+/**
+ * Avoir client (CDC §16) : Dr Ventes / Cr Créances client — inverse d'une
+ * vente, imputé au sous-compte auxiliaire du client si `clientId` est fourni.
+ * Pas de décomposition TVA (simplification assumée : les avoirs de ce module
+ * portent sur des corrections commerciales, la TVA collectée initiale n'est
+ * pas retraitée ligne à ligne ici).
+ */
+export async function ecritureAvoirClient(
+  tx: TxClient,
+  params: { montant: number; reference: string; clientNom: string; clientId?: number; userId: number; date?: Date },
+): Promise<number | null> {
+  const regle = await resoudreRegleComptable(tx, "AVOIR_CLIENT_EMIS");
+  if (!regle) return null;
+  const compteCredit = await compteAuxiliaireOuDefaut(tx, regle.compteCreditNumero, { clientId: params.clientId });
+  return creerEcriture(tx, {
+    journal: regle.journal,
+    date: params.date ?? new Date(),
+    libelle: `Avoir client — ${params.clientNom} — ${params.reference}`,
+    userId: params.userId,
+    reference: `SYNC-AVR-${params.reference}`,
+    lignes: [
+      { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Avoir ${params.reference}` },
+      { numero: compteCredit, credit: params.montant, libelle: `Avoir ${params.reference}` },
+    ],
   });
 }
 

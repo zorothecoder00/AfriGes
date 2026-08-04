@@ -28,6 +28,7 @@ interface PieceEntry {
   uploadthingKey: string;
   type:           string;
   taille:         number;
+  nature:         string;
   sourceType:     string;
   sourceId:       number;
   description:    string | null;
@@ -49,6 +50,16 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   MOUVEMENT_STOCK:     "Mouvement stock",
   CLOTURE_COMPTABLE:   "Clôture comptable",
   VENTE_DIRECTE:       "Vente directe",
+  ECRITURE_COMPTABLE:  "Écriture comptable",
+  RECEPTION_APPRO:     "Réception approvisionnement",
+  TRANSFERT_STOCK:     "Transfert stock",
+};
+
+// CDC §14 — nature du document (distincte du type MIME du fichier).
+const NATURE_DOCUMENT_LABELS: Record<string, string> = {
+  FACTURE: "Facture", RECU: "Reçu", BON_COMMANDE: "Bon de commande",
+  BON_LIVRAISON: "Bon de livraison", CONTRAT: "Contrat", RELEVE_BANCAIRE: "Relevé bancaire",
+  PIECE_CAISSE: "Pièce de caisse", DOCUMENT_FISCAL: "Document fiscal", AUTRE: "Autre",
 };
 
 export default function PiecesJustificativesPage() {
@@ -56,6 +67,7 @@ export default function PiecesJustificativesPage() {
   const [piecesSearch, setPiecesSearch]         = useState("");
   const [piecesSearchDebounced, setPiecesSearchDebounced] = useState("");
   const [piecesSourceType, setPiecesSourceType] = useState("");
+  const [piecesNature, setPiecesNature]         = useState("");
   const [piecesDateDebut, setPiecesDateDebut]   = useState("");
   const [piecesDateFin, setPiecesDateFin]       = useState("");
   const [piecesSuppLoading, setPiecesSuppLoading] = useState<number | null>(null);
@@ -69,10 +81,11 @@ export default function PiecesJustificativesPage() {
     const p = new URLSearchParams({ all: "1", page: String(piecesPage), limit: "20" });
     if (piecesSearchDebounced) p.set("search",     piecesSearchDebounced);
     if (piecesSourceType)      p.set("sourceType", piecesSourceType);
+    if (piecesNature)          p.set("nature",     piecesNature);
     if (piecesDateDebut)       p.set("dateDebut",  piecesDateDebut);
     if (piecesDateFin)         p.set("dateFin",    piecesDateFin);
     return `/api/comptable/pieces?${p.toString()}`;
-  }, [piecesPage, piecesSearchDebounced, piecesSourceType, piecesDateDebut, piecesDateFin]);
+  }, [piecesPage, piecesSearchDebounced, piecesSourceType, piecesNature, piecesDateDebut, piecesDateFin]);
 
   const { data: piecesAllData, loading: piecesAllLoading, refetch: refetchPiecesAll } =
     useApi<PiecesAllResponse>(piecesAllUrl);
@@ -111,7 +124,7 @@ export default function PiecesJustificativesPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               <input type="text" placeholder="Rechercher un fichier…" value={piecesSearch}
@@ -127,13 +140,21 @@ export default function PiecesJustificativesPage() {
               ))}
             </select>
 
+            <select value={piecesNature} onChange={(e) => { setPiecesNature(e.target.value); setPiecesPage(1); }}
+              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500">
+              <option value="">Toutes natures</option>
+              {Object.entries(NATURE_DOCUMENT_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+
             <input type="date" value={piecesDateDebut} onChange={(e) => { setPiecesDateDebut(e.target.value); setPiecesPage(1); }}
               className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500" />
             <div className="flex gap-2">
               <input type="date" value={piecesDateFin} onChange={(e) => { setPiecesDateFin(e.target.value); setPiecesPage(1); }}
                 className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500" />
-              {(piecesSearch || piecesSourceType || piecesDateDebut || piecesDateFin) && (
-                <button onClick={() => { setPiecesSearch(""); setPiecesSearchDebounced(""); setPiecesSourceType(""); setPiecesDateDebut(""); setPiecesDateFin(""); setPiecesPage(1); }}
+              {(piecesSearch || piecesSourceType || piecesNature || piecesDateDebut || piecesDateFin) && (
+                <button onClick={() => { setPiecesSearch(""); setPiecesSearchDebounced(""); setPiecesSourceType(""); setPiecesNature(""); setPiecesDateDebut(""); setPiecesDateFin(""); setPiecesPage(1); }}
                   className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl">
                   <X size={16} />
                 </button>
@@ -154,6 +175,7 @@ export default function PiecesJustificativesPage() {
                     <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Date dépôt</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Fichier</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Source</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Nature</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Type</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Taille</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Déposé par</th>
@@ -174,6 +196,11 @@ export default function PiecesJustificativesPage() {
                           {SOURCE_TYPE_LABELS[piece.sourceType] ?? piece.sourceType}
                         </span>
                         <p className="text-xs text-slate-400 mt-0.5">#{piece.sourceId}</p>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-medium">
+                          {NATURE_DOCUMENT_LABELS[piece.nature] ?? piece.nature}
+                        </span>
                       </td>
                       <td className="px-5 py-3 text-xs text-slate-500">
                         {piece.type.includes("pdf") ? "📄 PDF" : piece.type.includes("image") ? "🖼️ Image" : piece.type}
@@ -199,7 +226,7 @@ export default function PiecesJustificativesPage() {
                     </tr>
                   ))}
                   {(piecesAllData?.data ?? []).length === 0 && !piecesAllLoading && (
-                    <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-400">Aucune pièce justificative trouvée</td></tr>
+                    <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-400">Aucune pièce justificative trouvée</td></tr>
                   )}
                 </tbody>
               </table>

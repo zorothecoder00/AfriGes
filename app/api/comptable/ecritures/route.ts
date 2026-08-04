@@ -1,17 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { genererReferenceEcriture } from "@/lib/comptabilite/moteur";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
-
-// Génère une référence unique : JNL-YYYYMM-XXXXX
-async function generateReference(journal: string): Promise<string> {
-  const prefix = journal.slice(0, 3).toUpperCase();
-  const now = new Date();
-  const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const count = await prisma.ecritureComptable.count();
-  return `${prefix}-${ym}-${String(count + 1).padStart(5, "0")}`;
-}
 
 export async function GET(req: Request) {
   try {
@@ -131,11 +123,11 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    const reference = await generateReference(journal);
     const userId = Number(session.user.id);
     const meta = getRequestMeta(req);
 
     const ecriture = await prisma.$transaction(async (tx) => {
+      const reference = await genererReferenceEcriture(tx, journal);
       const e = await tx.ecritureComptable.create({
         data: {
           reference,

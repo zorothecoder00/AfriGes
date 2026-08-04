@@ -53,10 +53,13 @@ export const ourFileRouter = {
       };
     }),
 
-  // Endpoint pièces justificatives comptables
+  // Endpoint pièces justificatives comptables — CDC §14 : PDF, JPG, PNG, "Excel
+  // si nécessaire" (uploadthing n'a pas de catégorie xlsx dédiée, `blob` couvre
+  // les autres formats de document, Excel compris, par type MIME).
   justificatif: f({
     pdf:   { maxFileSize: "16MB", maxFileCount: 5 },
     image: { maxFileSize: "8MB",  maxFileCount: 5 },
+    blob:  { maxFileSize: "16MB", maxFileCount: 5 },
   })
     .middleware(async () => {
       const session = await getAuthSession();

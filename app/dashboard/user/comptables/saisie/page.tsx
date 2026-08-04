@@ -71,10 +71,17 @@ interface SyncApercuResponse { apercu: SyncApercu }
 
 interface PieceEntry {
   id: number; nom: string; url: string; uploadthingKey: string; type: string; taille: number;
-  sourceType: string; sourceId: number; description: string | null; archiverJusquau: string;
+  nature: string; sourceType: string; sourceId: number; description: string | null; archiverJusquau: string;
   createdAt: string; uploadeUser: { nom: string; prenom: string };
 }
 interface PiecesResponse { success: boolean; data: PieceEntry[] }
+
+// CDC §14 — nature du document (distincte du type MIME du fichier).
+const NATURE_DOCUMENT_LABELS: Record<string, string> = {
+  FACTURE: "Facture", RECU: "Reçu", BON_COMMANDE: "Bon de commande",
+  BON_LIVRAISON: "Bon de livraison", CONTRAT: "Contrat", RELEVE_BANCAIRE: "Relevé bancaire",
+  PIECE_CAISSE: "Pièce de caisse", DOCUMENT_FISCAL: "Document fiscal", AUTRE: "Autre",
+};
 
 function formatTaille(octets: number): string {
   if (octets >= 1024 * 1024) return `${(octets / (1024 * 1024)).toFixed(1)} Mo`;
@@ -143,6 +150,7 @@ export default function SaisieEcrituresPage() {
   const [piecesLocalList, setPiecesLocalList] = useState<PieceEntry[]>([]);
   const [piecesLoading, setPiecesLoading] = useState(false);
   const [piecesSuppLoading, setPiecesSuppLoading] = useState<number | null>(null);
+  const [pieceNatureChoisie, setPieceNatureChoisie] = useState("AUTRE");
 
   const fetchPiecesModal = useCallback(async (ecritureId: number) => {
     setPiecesLoading(true);
@@ -495,7 +503,8 @@ export default function SaisieEcrituresPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-800 truncate">{piece.nom}</p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-slate-400 flex items-center gap-1.5 flex-wrap">
+                      <span className="px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded-full font-medium">{NATURE_DOCUMENT_LABELS[piece.nature] ?? piece.nature}</span>
                       {formatTaille(piece.taille)} · {piece.uploadeUser.prenom} {piece.uploadeUser.nom} · {formatDateShort(piece.createdAt)}
                     </p>
                     {piece.description && <p className="text-xs text-slate-500 italic mt-0.5">{piece.description}</p>}
@@ -519,9 +528,13 @@ export default function SaisieEcrituresPage() {
           </div>
 
           <div className="px-6 py-4 border-t border-slate-100 flex-shrink-0">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-              <Upload size={12} />Ajouter un document (PDF ou image, max 16 Mo)
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <Upload size={12} />Ajouter un document (PDF, image ou Excel, max 16 Mo)
             </p>
+            <select value={pieceNatureChoisie} onChange={(e) => setPieceNatureChoisie(e.target.value)}
+              className="w-full mb-3 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+              {Object.entries(NATURE_DOCUMENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
             <UploadButton
               endpoint="justificatif"
               onClientUploadComplete={async (res) => {
@@ -537,6 +550,7 @@ export default function SaisieEcrituresPage() {
                       uploadthingKey: file.key,
                       type:           file.type ?? "application/octet-stream",
                       taille:         file.size,
+                      nature:         pieceNatureChoisie,
                     }),
                   });
                 }

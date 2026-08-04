@@ -31,11 +31,13 @@ export async function GET(req: Request) {
       const limit      = Math.min(50, Math.max(10, Number(searchParams.get("limit") ?? "20")));
       const search     = (( searchParams.get("search") ?? "" ).trim()).trim();
       const srcType    = searchParams.get("sourceType") ?? "";
+      const nature     = searchParams.get("nature") ?? "";
       const dateDebut  = searchParams.get("dateDebut");
       const dateFin    = searchParams.get("dateFin");
 
       const where: Record<string, unknown> = {};
       if (srcType)   where.sourceType = srcType;
+      if (nature)    where.nature = nature;
       if (search)    where.nom = { contains: search, mode: "insensitive" };
       if (dateDebut || dateFin) {
         where.createdAt = {
@@ -94,10 +96,14 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { sourceType, sourceId, nom, url, uploadthingKey, type, taille, description } = body;
+    const { sourceType, sourceId, nom, url, uploadthingKey, type, taille, description, nature } = body;
 
     if (!sourceType || !sourceId || !nom || !url || !uploadthingKey || !type || !taille) {
       return NextResponse.json({ success: false, message: "Champs obligatoires manquants" }, { status: 400 });
+    }
+    const NATURES_VALIDES = ["FACTURE", "RECU", "BON_COMMANDE", "BON_LIVRAISON", "CONTRAT", "RELEVE_BANCAIRE", "PIECE_CAISSE", "DOCUMENT_FISCAL", "AUTRE"];
+    if (nature !== undefined && !NATURES_VALIDES.includes(nature)) {
+      return NextResponse.json({ success: false, message: "Nature de document invalide" }, { status: 400 });
     }
 
     const archiverJusquau = new Date();
@@ -113,6 +119,7 @@ export async function POST(req: Request) {
           uploadthingKey,
           type,
           taille:         Number(taille),
+          nature:         nature || "AUTRE",
           sourceType,
           sourceId:       Number(sourceId),
           description:    typeof description === "string" && description.trim() ? description.trim() : null,

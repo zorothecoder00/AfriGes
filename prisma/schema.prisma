@@ -752,6 +752,8 @@ model User {
   mouvementsProvision        MouvementProvision[]
   regularisationsCreees      RegularisationAvance[]  @relation("RegulCreateur")
   comptesComptablesCrees     CompteComptable[]       @relation("CompteComptableCreateur")
+  avoirsClientsCrees         AvoirClient[]           @relation("AvoirClientCreateur")
+  litigesClientsCrees        LitigeClient[]          @relation("LitigeClientCreateur")
 
   // Points de vente — cet user est RPV d'un PDV (1-1)
   pointDeVenteRPV      PointDeVente?        @relation("RPVPointDeVente")
@@ -1040,6 +1042,7 @@ model Client {
   typeClient         TypeClient?       // COMPTANT ou CREDIT
   limiteCredit       Decimal?          // plafond de crédit accordé
   soldeActuel        Decimal?          @default(0) // solde en cours (mis à jour automatiquement)
+  delaiPaiementJours Int               @default(0) // "conditions de paiement" (CDC Comptabilité §16) — 0 = comptant
 
   // ── Scoring (calculé automatiquement) ─────────────────────
   niveauRisque       NiveauRisque?     // FAIBLE / MOYEN / ELEVE / CRITIQUE
@@ -1088,6 +1091,8 @@ model Client {
   // rattaché par FK, auto-provisionné par lib/comptabilite/auxiliaire.ts.
   compteAuxiliaire CompteComptable?
   provisionsDepreciation ProvisionDepreciation[]
+  avoirs           AvoirClient[]
+  litiges          LitigeClient[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1097,6 +1102,71 @@ model Client {
   @@index([niveauRisque])
   @@index([ville])
   @@index([commune])
+}
+
+// ============================================================
+// AVOIRS & LITIGES CLIENTS (CDC Comptabilité §16)
+// ============================================================
+
+enum StatutAvoirClient {
+  EMIS
+  UTILISE
+  ANNULE
+}
+
+/// Avoir client (note de crédit) — réduit la créance 411xxx du client. Génère
+/// une écriture Dr 701 Ventes / Cr 411 Client (inverse d'une vente), via le
+/// moteur central (evenement AVOIR_CLIENT_EMIS, lib/comptabilite/moteur.ts).
+model AvoirClient {
+  id           Int               @id @default(autoincrement())
+  reference    String            @unique
+  clientId     Int
+  client       Client            @relation(fields: [clientId], references: [id])
+  montant      Decimal
+  motif        String
+  statut       StatutAvoirClient @default(EMIS)
+  dateEmission DateTime          @default(now())
+  ecritureId   Int?
+  notes        String?
+  creeParId    Int
+  creePar      User              @relation("AvoirClientCreateur", fields: [creeParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([statut])
+}
+
+enum StatutLitigeClient {
+  OUVERT
+  EN_COURS
+  RESOLU
+  CLOTURE
+}
+
+/// Litige client (CDC Comptabilité §16) — suivi pur, ne génère aucune écriture
+/// (contrairement à l'avoir) : sert à documenter/tracer un désaccord tant qu'il
+/// n'est pas résolu par une autre action comptable (avoir, régularisation…).
+model LitigeClient {
+  id              Int                @id @default(autoincrement())
+  reference       String             @unique
+  clientId        Int
+  client          Client             @relation(fields: [clientId], references: [id])
+  motif           String
+  montantConteste Decimal?
+  statut          StatutLitigeClient @default(OUVERT)
+  dateOuverture   DateTime           @default(now())
+  dateResolution  DateTime?
+  notes           String?
+  creeParId       Int
+  creePar         User               @relation("LitigeClientCreateur", fields: [creeParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([statut])
 }
 
 // ============================================================
@@ -3454,6 +3524,20 @@ model MessageChat {
 // PIÈCES JUSTIFICATIVES
 // ============================================================
 
+/// Nature du document (CDC Comptabilité §14) — distincte de `type` (type MIME
+/// du fichier). Ne conditionne rien dans le moteur, purement classificatoire.
+enum NatureDocumentJustificatif {
+  FACTURE
+  RECU
+  BON_COMMANDE
+  BON_LIVRAISON
+  CONTRAT
+  RELEVE_BANCAIRE
+  PIECE_CAISSE
+  DOCUMENT_FISCAL
+  AUTRE
+}
+
 model PieceJustificative {
   id             Int      @id @default(autoincrement())
   nom            String
@@ -3461,6 +3545,7 @@ model PieceJustificative {
   uploadthingKey String
   type           String
   taille         Int
+  nature         NatureDocumentJustificatif @default(AUTRE)
   // Association polymorphique
   sourceType     String   // VERSEMENT_PACK | OPERATION_CAISSE | MOUVEMENT_STOCK | CLOTURE_COMPTABLE | RECEPTION_APPRO | TRANSFERT_STOCK | ECRITURE_COMPTABLE
   sourceId       Int

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useRef } from "react";
-import { Users, Search, PlusCircle, Download, X, BadgeCheck } from "lucide-react";
+import Link from "next/link";
+import { Users, Search, PlusCircle, Download, X, BadgeCheck, FileText } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort } from "@/lib/format";
 import { exportToXlsx } from "@/lib/exportXlsx";
@@ -162,19 +163,28 @@ export default function AuxiliairePage() {
                       <p className="text-sm font-medium text-slate-800">{nom}</p>
                       {code && <p className="text-xs text-slate-400">{code}</p>}
                     </div>
-                    {entry.compteAuxiliaire ? (
-                      <button
-                        onClick={() => { setAuxSelectedCompte({ id: entry.compteAuxiliaire!.id, numero: entry.compteAuxiliaire!.numero, nom }); setLettrageSelection([]); }}
-                        className={`font-mono text-xs px-3 py-1.5 rounded-lg border ${auxSelectedCompte?.id === entry.compteAuxiliaire.id ? "bg-violet-600 text-white border-violet-600" : "border-violet-200 text-violet-700 hover:bg-violet-50"}`}
-                      >
-                        {entry.compteAuxiliaire.numero}
-                      </button>
-                    ) : (
-                      <button onClick={() => handleCreerCompteAux(entry)} disabled={creatingCompteAux}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 disabled:opacity-50">
-                        <PlusCircle size={13} /> Créer compte
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {auxType === "CLIENT" && (
+                        <Link href={`/dashboard/user/comptables/auxiliaire/clients/${entry.id}`}
+                          title="Fiche client comptable (grand livre, créances, avoirs, litiges)"
+                          className="p-1.5 text-violet-500 hover:bg-violet-50 rounded-lg">
+                          <FileText size={15} />
+                        </Link>
+                      )}
+                      {entry.compteAuxiliaire ? (
+                        <button
+                          onClick={() => { setAuxSelectedCompte({ id: entry.compteAuxiliaire!.id, numero: entry.compteAuxiliaire!.numero, nom }); setLettrageSelection([]); }}
+                          className={`font-mono text-xs px-3 py-1.5 rounded-lg border ${auxSelectedCompte?.id === entry.compteAuxiliaire.id ? "bg-violet-600 text-white border-violet-600" : "border-violet-200 text-violet-700 hover:bg-violet-50"}`}
+                        >
+                          {entry.compteAuxiliaire.numero}
+                        </button>
+                      ) : (
+                        <button onClick={() => handleCreerCompteAux(entry)} disabled={creatingCompteAux}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 disabled:opacity-50">
+                          <PlusCircle size={13} /> Créer compte
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
