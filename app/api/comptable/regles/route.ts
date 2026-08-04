@@ -29,8 +29,9 @@ export async function GET() {
  * donné prend le pas sur la règle par défaut câblée dans lib/comptabilite/moteur.ts.
  *
  * Body: { evenement, moduleSource, compteDebitNumero, compteCreditNumero, journal,
- *         conditionProduit?, conditionFamille?, conditionModePaiement?,
- *         priorite?, actif?, mode?, notes? }
+ *         conditionProduit?, conditionFamille?, conditionCategorie?, conditionModePaiement?,
+ *         compteTvaNumero?, sectionAnalytiqueId?, centreCoutId?, devise?,
+ *         dateDebutValidite?, dateFinValidite?, priorite?, actif?, mode?, notes? }
  */
 export async function POST(req: NextRequest) {
   try {
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
     const {
       evenement, moduleSource, compteDebitNumero, compteCreditNumero, journal,
       conditionProduit, conditionFamille, conditionCategorie, conditionModePaiement,
+      compteTvaNumero, sectionAnalytiqueId, centreCoutId, devise, dateDebutValidite, dateFinValidite,
       priorite, actif, mode, notes,
     } = body;
 
@@ -65,6 +67,12 @@ export async function POST(req: NextRequest) {
           conditionFamille: conditionFamille || null,
           conditionCategorie: conditionCategorie || null,
           conditionModePaiement: conditionModePaiement || null,
+          compteTvaNumero: compteTvaNumero || null,
+          sectionAnalytiqueId: sectionAnalytiqueId ? Number(sectionAnalytiqueId) : null,
+          centreCoutId: centreCoutId ? Number(centreCoutId) : null,
+          devise: devise || null,
+          dateDebutValidite: dateDebutValidite ? new Date(dateDebutValidite) : null,
+          dateFinValidite: dateFinValidite ? new Date(dateFinValidite) : null,
           priorite: priorite != null ? Number(priorite) : 0,
           actif: actif != null ? Boolean(actif) : true,
           mode: mode || "AUTOMATIQUE",

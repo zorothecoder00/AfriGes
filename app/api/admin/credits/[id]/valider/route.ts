@@ -125,6 +125,9 @@ export async function POST(_req: Request, { params }: Ctx) {
       });
 
       // ── 9a. Écriture comptable — vente à crédit (moteur central, CDC §7/§8) ─
+      // Intérêts/frais décomposés de la marchandise (CDC §8) plutôt que noyés
+      // dans le chiffre d'affaires — cf. lib/comptabilite/moteur.ts::ecritureVenteCreditValidee.
+      const montantFraisCredit = Number(credit.fraisDossier) + Number(credit.assurance) + Number(credit.autresFrais) + Number(credit.fraisLivraison);
       await ecritureVenteCreditValidee(tx, {
         montant: montantTotal,
         reference: credit.reference,
@@ -132,6 +135,8 @@ export async function POST(_req: Request, { params }: Ctx) {
         clientId: credit.clientId,
         userId: Number(session.user.id),
         pointDeVenteId: credit.pointDeVenteId,
+        montantInteret: Number(credit.montantInteret),
+        montantFrais: montantFraisCredit,
       });
 
       // ── 9b. Hook RIA — pour chaque affectation active du client ──────────

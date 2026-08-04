@@ -69,7 +69,7 @@ export async function creerRegularisation(tx: TxClient, opts: CreerRegularisatio
 
   const estCCA = opts.type === "CHARGE_CONSTATEE_AVANCE";
   const ecritureConstatationId = await creerEcriture(tx, {
-    journal: "OD",
+    journal: "REGULARISATION",
     date: opts.dateDebut,
     libelle: `Constatation ${estCCA ? "CCA" : "PCA"} — ${opts.libelle}`,
     userId,
@@ -128,7 +128,7 @@ export async function comptabiliserEcheance(tx: TxClient, echeanceId: number, us
   const montant = Number(echeance.montant);
 
   const ecritureId = await creerEcriture(tx, {
-    journal: "OD",
+    journal: "REGULARISATION",
     date: new Date(`${echeance.periode}-01`),
     libelle: `Échéance ${estCCA ? "CCA" : "PCA"} ${echeance.periode} — ${regul.libelle}`,
     userId,

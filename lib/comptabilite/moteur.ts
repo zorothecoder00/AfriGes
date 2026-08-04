@@ -28,6 +28,8 @@ export interface LigneMoteur {
   montantTva?: number;
   /** Imputation analytique (CDC §24) — PDV/agence porteur de la ligne, quand l'appelant le connaît. */
   pointDeVenteId?: number | null;
+  /** Imputation analytique (CDC §7/§24) — section analytique (activité/projet/département/centre de coût) résolue par la RegleComptable. */
+  sectionAnalytiqueId?: number | null;
 }
 
 export interface CreerEcritureOpts {
@@ -58,8 +60,8 @@ export interface CreerEcritureOpts {
   tauxChange?: number;
 }
 
-/** Journaux toujours disponibles, câblés dans le code (utilisés partout dans AfriGes). */
-export const JOURNAUX_BUILTIN = ["CAISSE", "BANQUE", "VENTES", "ACHATS", "OD", "PAIE", "IMMOBILISATIONS", "CLOTURE"] as const;
+/** Journaux toujours disponibles, câblés dans le code (utilisés partout dans AfriGes) — CDC §9 : les 10 journaux par défaut. */
+export const JOURNAUX_BUILTIN = ["CAISSE", "BANQUE", "VENTES", "ACHATS", "OD", "PAIE", "IMMOBILISATIONS", "CLOTURE", "OUVERTURE", "REGULARISATION"] as const;
 const BUILTIN_SET = new Set<string>(JOURNAUX_BUILTIN);
 
 const PREFIXES_JOURNAL: Record<string, string> = {
@@ -71,6 +73,8 @@ const PREFIXES_JOURNAL: Record<string, string> = {
   PAIE: "PA",
   IMMOBILISATIONS: "IM",
   CLOTURE: "CL",
+  OUVERTURE: "OU",
+  REGULARISATION: "RV",
 };
 
 /**
@@ -158,6 +162,7 @@ export async function creerEcriture(tx: TxClient, opts: CreerEcritureOpts): Prom
           tauxTva: l.tauxTva ?? null,
           montantTva: l.montantTva ?? null,
           pointDeVenteId: l.pointDeVenteId ?? null,
+          sectionAnalytiqueId: l.sectionAnalytiqueId ?? null,
         })),
       },
     },
@@ -182,6 +187,13 @@ export interface ComptesRegle {
   journal: string;
   compteDebitNumero: string;
   compteCreditNumero: string;
+  /** CDC §7 — "taxe" : compte de TVA porté par la règle elle-même (indépendant du paramétrage TVA global). */
+  compteTvaNumero?: string | null;
+  /** CDC §7 — "analytique" / "centre de coût" : imputés sur chaque ligne d'écriture si l'appelant les relaie (LigneMoteur.sectionAnalytiqueId). */
+  sectionAnalytiqueId?: number | null;
+  centreCoutId?: number | null;
+  /** CDC §7 — "devise" : purement informative (CreerEcritureOpts.devise), les montants restent en devise fonctionnelle. */
+  devise?: string | null;
 }
 
 export function compteTresorerie(modePaiement?: string | null): { numero: string; journal: string } {
@@ -196,6 +208,13 @@ export function compteTresorerie(modePaiement?: string | null): { numero: string
 // RegleComptable active pour le même `evenement` (priorité DB > défaut code).
 const REGLES_PAR_DEFAUT: Record<string, (ctx: ContexteEvenement) => ComptesRegle> = {
   VENTE_CREDIT_VALIDEE: () => ({ journal: "VENTES", compteDebitNumero: "411", compteCreditNumero: "701" }),
+  // Intérêts/frais de crédit (CDC §8 — "intérêts/frais si applicable → écriture
+  // comptable") : avant, noyés dans 701 Ventes avec la marchandise, faussant le
+  // compte de résultat (produit financier compté comme chiffre d'affaires
+  // commercial). compteDebitNumero n'est jamais utilisé pour ces 2 événements
+  // (la contrepartie déjà débitée est 411, cf. ecritureVenteCreditValidee).
+  INTERET_CREDIT_CLIENT: () => ({ journal: "VENTES", compteDebitNumero: "411", compteCreditNumero: "771" }),
+  FRAIS_CREDIT_CLIENT: () => ({ journal: "VENTES", compteDebitNumero: "411", compteCreditNumero: "758" }),
   REMBOURSEMENT_CREDIT_CONFIRME: (ctx) => {
     const tr = compteTresorerie(ctx.modePaiement);
     return { journal: tr.journal, compteDebitNumero: tr.numero, compteCreditNumero: "411" };
@@ -235,8 +254,15 @@ export async function resoudreRegleComptable(
   evenement: string,
   ctx: ContexteEvenement = {},
 ): Promise<ComptesRegle | null> {
+  const maintenant = new Date();
   const regles = await tx.regleComptable.findMany({
-    where: { evenement, actif: true },
+    where: {
+      evenement, actif: true,
+      // CDC §7 — "date de validité" : une règle hors de sa fenêtre n'est jamais
+      // candidate, exactement comme si elle était inactive.
+      OR: [{ dateDebutValidite: null }, { dateDebutValidite: { lte: maintenant } }],
+      AND: [{ OR: [{ dateFinValidite: null }, { dateFinValidite: { gte: maintenant } }] }],
+    },
     orderBy: { priorite: "desc" },
   });
   for (const r of regles) {
@@ -244,7 +270,10 @@ export async function resoudreRegleComptable(
     if (r.conditionFamille && r.conditionFamille !== ctx.famille) continue;
     if (r.conditionCategorie && r.conditionCategorie !== ctx.categorie) continue;
     if (r.conditionModePaiement && r.conditionModePaiement !== (ctx.modePaiement ?? null)) continue;
-    return { journal: r.journal, compteDebitNumero: r.compteDebitNumero, compteCreditNumero: r.compteCreditNumero };
+    return {
+      journal: r.journal, compteDebitNumero: r.compteDebitNumero, compteCreditNumero: r.compteCreditNumero,
+      compteTvaNumero: r.compteTvaNumero, sectionAnalytiqueId: r.sectionAnalytiqueId, centreCoutId: r.centreCoutId, devise: r.devise,
+    };
   }
   return REGLES_PAR_DEFAUT[evenement]?.(ctx) ?? null;
 }
@@ -254,36 +283,55 @@ export async function resoudreRegleComptable(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Vente à crédit validée : Dr Créances client / Cr Ventes. Si `clientId` est
- * fourni, la créance est imputée au sous-compte auxiliaire du client (CDC §16),
- * auto-créé si besoin, plutôt qu'au seul compte collectif 411.
+ * Vente à crédit validée : Dr Créances client (montant total, y compris
+ * intérêts/frais) / Cr Ventes — décomposé en 3 lignes de crédit distinctes
+ * quand `montantInteret`/`montantFrais` sont fournis (CDC §8 : "intérêts/frais
+ * si applicable → écriture comptable"), plutôt que noyés dans le chiffre
+ * d'affaires marchandise. Si `clientId` est fourni, la créance est imputée au
+ * sous-compte auxiliaire du client (CDC §16), auto-créé si besoin, plutôt que
+ * le seul compte collectif 411. La TVA (CDC §21) ne s'applique qu'à la part
+ * marchandise — intérêts et frais de dossier sont des produits financiers hors
+ * champ de la TVA collectée sur ventes.
  */
 export async function ecritureVenteCreditValidee(
   tx: TxClient,
-  params: { montant: number; reference: string; clientNom: string; clientId?: number; userId: number; date?: Date; pointDeVenteId?: number | null },
+  params: {
+    montant: number; reference: string; clientNom: string; clientId?: number; userId: number; date?: Date; pointDeVenteId?: number | null;
+    montantInteret?: number; montantFrais?: number;
+  },
 ): Promise<number | null> {
   const regle = await resoudreRegleComptable(tx, "VENTE_CREDIT_VALIDEE");
   if (!regle) return null;
   const compteDebit = await compteAuxiliaireOuDefaut(tx, regle.compteDebitNumero, { clientId: params.clientId });
   const pdv = params.pointDeVenteId ?? null;
 
-  // TVA (CDC §21) : si une taxe TVA est active et applicable aux ventes, le
-  // montant (TTC) est décomposé HT/TVA ; sinon comportement inchangé (montant
-  // total en Ventes, pas de TVA — cas par défaut tant qu'aucune taxe n'est configurée).
+  const montantInteret = Math.max(0, params.montantInteret ?? 0);
+  const montantFrais = Math.max(0, params.montantFrais ?? 0);
+  const montantMarchandise = Math.max(0, params.montant - montantInteret - montantFrais);
+
+  const lignes: LigneMoteur[] = [{ numero: compteDebit, debit: params.montant, libelle: `Créance ${params.clientNom}`, pointDeVenteId: pdv }];
+
+  // TVA (CDC §21) : si une taxe TVA est active et applicable aux ventes, la
+  // part marchandise (TTC) est décomposée HT/TVA ; sinon comportement inchangé.
   const tva = await resoudreTvaVente(tx);
-  const lignes = tva
-    ? (() => {
-        const { montantHT, montantTVA } = decomposerTTC(params.montant, tva.taux);
-        return [
-          { numero: compteDebit, debit: params.montant, libelle: `Créance ${params.clientNom}`, pointDeVenteId: pdv },
-          { numero: regle.compteCreditNumero, credit: montantHT, libelle: `Vente crédit ${params.reference}`, pointDeVenteId: pdv },
-          { numero: tva.compteCollecteNumero, credit: montantTVA, libelle: `TVA collectée ${params.reference}`, isTva: true, tauxTva: tva.taux, montantTva: montantTVA, pointDeVenteId: pdv },
-        ];
-      })()
-    : [
-        { numero: compteDebit, debit: params.montant, libelle: `Créance ${params.clientNom}`, pointDeVenteId: pdv },
-        { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Vente crédit ${params.reference}`, pointDeVenteId: pdv },
-      ];
+  if (tva && montantMarchandise > 0) {
+    const { montantHT, montantTVA } = decomposerTTC(montantMarchandise, tva.taux);
+    lignes.push(
+      { numero: regle.compteCreditNumero, credit: montantHT, libelle: `Vente crédit ${params.reference}`, pointDeVenteId: pdv },
+      { numero: tva.compteCollecteNumero, credit: montantTVA, libelle: `TVA collectée ${params.reference}`, isTva: true, tauxTva: tva.taux, montantTva: montantTVA, pointDeVenteId: pdv },
+    );
+  } else if (montantMarchandise > 0) {
+    lignes.push({ numero: regle.compteCreditNumero, credit: montantMarchandise, libelle: `Vente crédit ${params.reference}`, pointDeVenteId: pdv });
+  }
+
+  if (montantInteret > 0) {
+    const regleInteret = await resoudreRegleComptable(tx, "INTERET_CREDIT_CLIENT");
+    if (regleInteret) lignes.push({ numero: regleInteret.compteCreditNumero, credit: montantInteret, libelle: `Intérêts crédit ${params.reference}`, pointDeVenteId: pdv });
+  }
+  if (montantFrais > 0) {
+    const regleFrais = await resoudreRegleComptable(tx, "FRAIS_CREDIT_CLIENT");
+    if (regleFrais) lignes.push({ numero: regleFrais.compteCreditNumero, credit: montantFrais, libelle: `Frais de dossier crédit ${params.reference}`, pointDeVenteId: pdv });
+  }
 
   return creerEcriture(tx, {
     journal: regle.journal,

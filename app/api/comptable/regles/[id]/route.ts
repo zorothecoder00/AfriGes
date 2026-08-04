@@ -19,6 +19,7 @@ export async function PUT(req: Request, { params }: Ctx) {
     const {
       evenement, moduleSource, compteDebitNumero, compteCreditNumero, journal,
       conditionProduit, conditionFamille, conditionCategorie, conditionModePaiement,
+      compteTvaNumero, sectionAnalytiqueId, centreCoutId, devise, dateDebutValidite, dateFinValidite,
       priorite, actif, mode, notes,
     } = body;
 
@@ -37,6 +38,12 @@ export async function PUT(req: Request, { params }: Ctx) {
           ...(conditionFamille !== undefined && { conditionFamille: conditionFamille || null }),
           ...(conditionCategorie !== undefined && { conditionCategorie: conditionCategorie || null }),
           ...(conditionModePaiement !== undefined && { conditionModePaiement: conditionModePaiement || null }),
+          ...(compteTvaNumero !== undefined && { compteTvaNumero: compteTvaNumero || null }),
+          ...(sectionAnalytiqueId !== undefined && { sectionAnalytiqueId: sectionAnalytiqueId ? Number(sectionAnalytiqueId) : null }),
+          ...(centreCoutId !== undefined && { centreCoutId: centreCoutId ? Number(centreCoutId) : null }),
+          ...(devise !== undefined && { devise: devise || null }),
+          ...(dateDebutValidite !== undefined && { dateDebutValidite: dateDebutValidite ? new Date(dateDebutValidite) : null }),
+          ...(dateFinValidite !== undefined && { dateFinValidite: dateFinValidite ? new Date(dateFinValidite) : null }),
           ...(priorite !== undefined && { priorite: Number(priorite) }),
           ...(actif !== undefined && { actif: Boolean(actif) }),
           ...(mode !== undefined && { mode }),

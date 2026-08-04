@@ -20,6 +20,12 @@ interface RegleComptableEntry {
   compteDebitNumero: string;
   compteCreditNumero: string;
   journal: string;
+  compteTvaNumero: string | null;
+  sectionAnalytiqueId: number | null;
+  centreCoutId: number | null;
+  devise: string | null;
+  dateDebutValidite: string | null;
+  dateFinValidite: string | null;
   priorite: number;
   actif: boolean;
   mode: string;
@@ -28,18 +34,26 @@ interface RegleComptableEntry {
 interface JournalComptableEntry {
   id: number | null; code: string; libelle: string; prefixe: string | null; actif: boolean; builtin: boolean;
 }
+interface SectionAnalytiqueEntry { id: number; axe: string; code: string; libelle: string }
 const JOURNAL_LABELS: Record<string, string> = {
   CAISSE: "Caisse", BANQUE: "Banque", VENTES: "Ventes",
   ACHATS: "Achats", OD: "Opérations diverses", PAIE: "Paie",
+  IMMOBILISATIONS: "Immobilisations", CLOTURE: "Clôture",
+  OUVERTURE: "Ouverture", REGULARISATION: "Régularisation",
 };
 
 const REGLE_VIDE = {
   evenement: "", moduleSource: "", compteDebitNumero: "", compteCreditNumero: "",
-  journal: "OD", conditionProduit: "", conditionFamille: "", conditionCategorie: "", conditionModePaiement: "", priorite: "0",
+  journal: "OD", conditionProduit: "", conditionFamille: "", conditionCategorie: "", conditionModePaiement: "",
+  compteTvaNumero: "", sectionAnalytiqueId: "", centreCoutId: "", devise: "", dateDebutValidite: "", dateFinValidite: "",
+  priorite: "0",
 };
 
 export default function ReglesComptablesPage() {
   const { data: journauxData } = useApi<{ data: JournalComptableEntry[] }>("/api/comptable/journaux");
+  const { data: sectionsData } = useApi<{ data: SectionAnalytiqueEntry[] }>("/api/comptable/analytique/sections");
+  const sectionsAnalytiques = (sectionsData?.data ?? []).filter((s) => s.axe !== "CENTRE_COUT");
+  const centresCout = (sectionsData?.data ?? []).filter((s) => s.axe === "CENTRE_COUT");
 
   const { data: reglesData, loading: reglesLoading, refetch: refetchRegles } =
     useApi<{ data: RegleComptableEntry[] }>("/api/comptable/regles");
@@ -69,6 +83,12 @@ export default function ReglesComptablesPage() {
       conditionFamille: newRegle.conditionFamille || null,
       conditionCategorie: newRegle.conditionCategorie || null,
       conditionModePaiement: newRegle.conditionModePaiement || null,
+      compteTvaNumero: newRegle.compteTvaNumero || null,
+      sectionAnalytiqueId: newRegle.sectionAnalytiqueId || null,
+      centreCoutId: newRegle.centreCoutId || null,
+      devise: newRegle.devise || null,
+      dateDebutValidite: newRegle.dateDebutValidite || null,
+      dateFinValidite: newRegle.dateFinValidite || null,
     });
     if (res) { refetchRegles(); setShowAddRegle(false); setNewRegle(REGLE_VIDE); }
   }
@@ -161,6 +181,42 @@ export default function ReglesComptablesPage() {
               <input type="number" value={newRegle.priorite} onChange={(e) => setNewRegle(p => ({ ...p, priorite: e.target.value }))}
                 className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
             </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Taxe (compte TVA)</label>
+              <input value={newRegle.compteTvaNumero} onChange={(e) => setNewRegle(p => ({ ...p, compteTvaNumero: e.target.value }))}
+                placeholder="ex: 4431 (optionnel)" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Analytique</label>
+              <select value={newRegle.sectionAnalytiqueId} onChange={(e) => setNewRegle(p => ({ ...p, sectionAnalytiqueId: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="">— Aucune —</option>
+                {sectionsAnalytiques.map(s => <option key={s.id} value={s.id}>{s.libelle} ({s.axe})</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Centre de coût</label>
+              <select value={newRegle.centreCoutId} onChange={(e) => setNewRegle(p => ({ ...p, centreCoutId: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="">— Aucun —</option>
+                {centresCout.map(s => <option key={s.id} value={s.id}>{s.libelle}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Devise</label>
+              <input value={newRegle.devise} onChange={(e) => setNewRegle(p => ({ ...p, devise: e.target.value }))}
+                placeholder="ex: USD (optionnel, défaut XOF)" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Valide à partir du</label>
+              <input type="date" value={newRegle.dateDebutValidite} onChange={(e) => setNewRegle(p => ({ ...p, dateDebutValidite: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Valide jusqu&apos;au</label>
+              <input type="date" value={newRegle.dateFinValidite} onChange={(e) => setNewRegle(p => ({ ...p, dateFinValidite: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
           </div>
           <div className="flex gap-3 mt-4">
             <button onClick={() => setShowAddRegle(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">Annuler</button>
@@ -201,6 +257,13 @@ export default function ReglesComptablesPage() {
                     {r.conditionFamille && <span className="ml-2 text-xs font-sans text-slate-400">famille={r.conditionFamille}</span>}
                     {r.conditionCategorie && <span className="ml-2 text-xs font-sans text-slate-400">catégorie={r.conditionCategorie}</span>}
                     {r.conditionModePaiement && <span className="ml-2 text-xs font-sans text-slate-400">si {r.conditionModePaiement}</span>}
+                    {r.compteTvaNumero && <span className="ml-2 text-xs font-sans text-slate-400">TVA={r.compteTvaNumero}</span>}
+                    {r.devise && <span className="ml-2 text-xs font-sans text-slate-400">devise={r.devise}</span>}
+                    {(r.dateDebutValidite || r.dateFinValidite) && (
+                      <span className="ml-2 text-xs font-sans text-slate-400">
+                        valide {r.dateDebutValidite ? `du ${r.dateDebutValidite.slice(0, 10)}` : ""} {r.dateFinValidite ? `au ${r.dateFinValidite.slice(0, 10)}` : ""}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-500 hidden md:table-cell">{r.moduleSource}</td>
                   <td className="px-4 py-3 font-mono text-blue-700">{r.compteDebitNumero}</td>

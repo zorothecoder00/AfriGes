@@ -75,7 +75,7 @@ export async function doterProvision(
   if (provision.statut === "SOLDEE") throw new Error("PROVISION_SOLDEE");
 
   const ecritureId = await creerEcriture(tx, {
-    journal: "OD",
+    journal: "REGULARISATION",
     date,
     libelle: `Dotation provision — ${provision.libelle}`,
     userId,
@@ -115,7 +115,7 @@ export async function reprendreProvision(
   if (montant > Number(provision.montantActuel) + 0.01) throw new Error("MONTANT_SUPERIEUR_AU_SOLDE");
 
   const ecritureId = await creerEcriture(tx, {
-    journal: "OD",
+    journal: "REGULARISATION",
     date,
     libelle: `Reprise provision — ${provision.libelle}`,
     userId,

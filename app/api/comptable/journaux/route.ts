@@ -8,6 +8,17 @@ import { getRequestMeta } from "@/lib/requestMeta";
 const LIBELLES_BUILTIN: Record<string, string> = {
   CAISSE: "Caisse", BANQUE: "Banque", VENTES: "Ventes",
   ACHATS: "Achats", OD: "Opérations diverses", PAIE: "Paie",
+  IMMOBILISATIONS: "Immobilisations", CLOTURE: "Clôture",
+  OUVERTURE: "Opérations d'ouverture", REGULARISATION: "Régularisation",
+};
+
+// Codes courts CDC §9 (JVE/JAC/...) — purement d'affichage : le code interne
+// (clé JOURNAUX_BUILTIN, stocké tel quel sur EcritureComptable.journal depuis
+// le début du projet) n'est jamais renommé, pour ne pas casser l'historique ni
+// les nombreux `journal: "VENTES"` câblés dans le code.
+const CODES_COURTS_BUILTIN: Record<string, string> = {
+  VENTES: "JVE", ACHATS: "JAC", BANQUE: "JBN", CAISSE: "JCA", OD: "JOD",
+  PAIE: "JPA", IMMOBILISATIONS: "JIM", OUVERTURE: "JOU", CLOTURE: "JCL", REGULARISATION: "JRV",
 };
 
 /**
@@ -23,7 +34,7 @@ export async function GET() {
     const personnalises = await prisma.journalComptable.findMany({ orderBy: { code: "asc" } });
 
     const builtins = JOURNAUX_BUILTIN.map((code) => ({
-      id: null, code, libelle: LIBELLES_BUILTIN[code] ?? code, prefixe: null, actif: true, builtin: true,
+      id: null, code, libelle: LIBELLES_BUILTIN[code] ?? code, codeCourt: CODES_COURTS_BUILTIN[code] ?? code, prefixe: null, actif: true, builtin: true,
     }));
 
     return NextResponse.json({

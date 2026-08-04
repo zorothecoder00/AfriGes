@@ -10,11 +10,12 @@
 // cette table (le bloc "pieces" séparé — archive globale — n'ouvrait jamais
 // cette modale lui-même).
 //
-// Ajout CDC : la vue "Vue journal" liste maintenant les 8 journaux builtin
-// (CAISSE, BANQUE, VENTES, ACHATS, OD, PAIE, IMMOBILISATIONS, CLOTURE — les 2
-// derniers viennent d'être ajoutés à JOURNAUX_BUILTIN) ainsi que les journaux
-// additionnels actifs (/api/comptable/journaux). IMMOBILISATIONS/CLOTURE et les
-// journaux additionnels ne correspondent à aucune "source" métier suivie par
+// Ajout CDC : la vue "Vue journal" liste maintenant les 10 journaux builtin du
+// CDC §9 (CAISSE, BANQUE, VENTES, ACHATS, OD, PAIE, IMMOBILISATIONS, CLOTURE,
+// OUVERTURE, REGULARISATION) ainsi que les journaux additionnels actifs
+// (/api/comptable/journaux — l'administrateur peut en créer d'autres, CDC §9).
+// IMMOBILISATIONS/CLOTURE/OUVERTURE/REGULARISATION et les journaux
+// additionnels ne correspondent à aucune "source" métier suivie par
 // /api/comptable/journal (qui reflète des événements opérationnels — caisse,
 // ventes, achats, paie — pas les journaux comptables au sens strict) : cliquer
 // dessus affiche donc une liste vide accompagnée d'une note explicative plutôt
@@ -115,6 +116,8 @@ const JOURNAL_VIEWS_BUILTIN = [
   { key: "PAIE",   label: "Journal de Paie",     type: "DECAISSEMENT", cat: "SALAIRE",        source: "paie" },
   { key: "IMMOBILISATIONS", label: "Journal des Immobilisations", type: "TOUS", cat: SANS_OPERATION_CAT, source: "" },
   { key: "CLOTURE",         label: "Journal de Clôture",           type: "TOUS", cat: SANS_OPERATION_CAT, source: "" },
+  { key: "OUVERTURE",       label: "Journal d'Ouverture",          type: "TOUS", cat: SANS_OPERATION_CAT, source: "" },
+  { key: "REGULARISATION",  label: "Journal de Régularisation",    type: "TOUS", cat: SANS_OPERATION_CAT, source: "" },
 ];
 
 export default function JournauxPage() {

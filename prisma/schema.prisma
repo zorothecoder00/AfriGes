@@ -3789,6 +3789,17 @@ model RegleComptable {
   compteCreditNumero String
   journal            String // builtin ou JournalComptable.code (CDC §9)
 
+  // Champs CDC Comptabilité §7 (fiche règle complète) — tous additifs/nullables,
+  // sans effet sur les règles déjà paramétrées tant qu'ils ne sont pas renseignés.
+  compteTvaNumero      String? // "taxe" — ex: 4431 TVA collectée, appliquée si la ligne le permet
+  sectionAnalytiqueId  Int?    // "analytique" — n'importe quel axe (Activité/Projet/Département/Centre de coût)
+  sectionAnalytique    SectionAnalytique? @relation("RegleAnalytique", fields: [sectionAnalytiqueId], references: [id])
+  centreCoutId         Int?    // "centre de coût" — restreint en pratique à une SectionAnalytique d'axe CENTRE_COUT
+  centreCout           SectionAnalytique? @relation("RegleCentreCout", fields: [centreCoutId], references: [id])
+  devise               String? // null = devise fonctionnelle (XOF) — CDC §49
+  dateDebutValidite    DateTime?
+  dateFinValidite      DateTime?
+
   priorite Int                @default(0)
   actif    Boolean            @default(true)
   mode     ModeRegleComptable @default(AUTOMATIQUE)
@@ -4055,6 +4066,7 @@ enum AxeAnalytique {
   ACTIVITE
   PROJET
   DEPARTEMENT
+  CENTRE_COUT
 }
 
 /// Section analytique (CDC §24, axes Activité/Projet/Département) — un même
@@ -4069,6 +4081,8 @@ model SectionAnalytique {
   lignesEcriture LigneEcriture[]
   lignesBudget   LigneBudget[]
   comptesParDefaut CompteComptable[]
+  reglesAnalytique  RegleComptable[] @relation("RegleAnalytique")
+  reglesCentreCout  RegleComptable[] @relation("RegleCentreCout")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

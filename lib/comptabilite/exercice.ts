@@ -85,7 +85,9 @@ export async function cloturerExercice(tx: TxClient, annee: number, userId: numb
   let ecritureReportId: number | null = null;
   if (Math.abs(resultatNet) > 0.01) {
     ecritureReportId = await creerEcriture(tx, {
-      journal: "CLOTURE",
+      // Journal d'ouverture (CDC §9 — JOU) : distinct du journal de clôture,
+      // c'est l'écriture qui ouvre l'exercice suivant avec le solde reporté.
+      journal: "OUVERTURE",
       date: exercice.dateFin,
       libelle: `Report à nouveau — résultat ${annee}`,
       userId,
