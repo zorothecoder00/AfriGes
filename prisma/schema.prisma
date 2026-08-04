@@ -491,6 +491,27 @@ enum SensCompte {
   CREDITEUR
 }
 
+/// Classification actif circulant/immobilisé (CDC Comptabilité §5) — uniquement
+/// pertinent pour les comptes de type ACTIF ; null pour les autres types.
+enum NatureActif {
+  CIRCULANT
+  IMMOBILISE
+}
+
+/// Statut du cycle de vie d'un compte (CDC Comptabilité §5) — une fois qu'un
+/// compte a reçu une écriture, sa suppression physique est interdite : il ne
+/// peut plus qu'être désactivé, archivé ou marqué obsolète, en conservant tout
+/// son historique. Le booléen `actif` existant reste la source de vérité pour
+/// le moteur d'écriture (`creerEcriture` ne filtre que sur `actif: true`) ; ce
+/// champ ajoute la granularité du CDC sans toucher au comportement déjà livré
+/// (`statut: ACTIF` ⇔ `actif: true`, tout autre statut ⇔ `actif: false`).
+enum StatutCompte {
+  ACTIF
+  DESACTIVE
+  ARCHIVE
+  OBSOLETE
+}
+
 // Les 6 journaux ci-dessous (CAISSE/BANQUE/VENTES/ACHATS/OD/PAIE) restent les
 // journaux "de base" toujours disponibles (utilisés dans tout le code existant) ;
 // le champ `journal` des écritures/règles/récurrentes est un simple String
@@ -729,6 +750,7 @@ model User {
   provisionsCreees           ProvisionDepreciation[] @relation("ProvisionCreateur")
   mouvementsProvision        MouvementProvision[]
   regularisationsCreees      RegularisationAvance[]  @relation("RegulCreateur")
+  comptesComptablesCrees     CompteComptable[]       @relation("CompteComptableCreateur")
 
   // Points de vente — cet user est RPV d'un PDV (1-1)
   pointDeVenteRPV      PointDeVente?        @relation("RPVPointDeVente")
@@ -3543,11 +3565,38 @@ model CompteComptable {
   nature         NatureCompte     @default(DETAIL)
   sens           SensCompte       @default(DEBITEUR)
   actif          Boolean          @default(true)
+  statut         StatutCompte     @default(ACTIF)
   compteParentId Int?
   compteParent   CompteComptable?  @relation("HierarchieComptes", fields: [compteParentId], references: [id])
   sousComptes    CompteComptable[] @relation("HierarchieComptes")
   tiersType      String?
   tiersNom       String?
+
+  // Champs CDC Comptabilité §5 (fiche compte complète) — tous additifs, tous
+  // nullable/à défaut sûr pour ne rien casser sur les comptes déjà livrés.
+  categorie             String?      // classification libre (sous-catégorie SYSCOHADA), distincte de classe/type
+  estCompteCollectif    Boolean      @default(false) // compte de contrôle (ex: 401/411) par opposition à un compte de détail/auxiliaire
+  estCompteBilan        Boolean      @default(false) // dérivé du type à la création (ACTIF/PASSIF/TRESORERIE) mais éditable
+  estCompteResultat     Boolean      @default(false) // dérivé du type à la création (CHARGES/PRODUITS) mais éditable
+  autoriseLettrage      Boolean      @default(false)
+  autoriseRapprochement Boolean      @default(false)
+  natureActif           NatureActif? // circulant/immobilisé — pertinent seulement si type == ACTIF
+
+  compteTvaAssocieId Int?
+  compteTvaAssocie   CompteComptable? @relation("CompteTvaAssocie", fields: [compteTvaAssocieId], references: [id])
+  comptesUtilisantCeTva CompteComptable[] @relation("CompteTvaAssocie")
+
+  compteImmobilisationAssocieId Int?
+  compteImmobilisationAssocie   CompteComptable? @relation("CompteImmoAssocie", fields: [compteImmobilisationAssocieId], references: [id])
+  comptesUtilisantCetteImmo     CompteComptable[] @relation("CompteImmoAssocie")
+
+  sectionAnalytiqueDefautId Int?
+  sectionAnalytiqueDefaut   SectionAnalytique? @relation(fields: [sectionAnalytiqueDefautId], references: [id])
+
+  // Utilisateur créateur (CDC §5) — absent des comptes importés en masse (plan
+  // SYSCOHADA de base), renseigné pour toute création individuelle via l'API.
+  creeParId Int?
+  creePar   User? @relation("CompteComptableCreateur", fields: [creeParId], references: [id])
 
   // Compte auxiliaire réel (CDC Comptabilité §16-17) : sous-compte 411xxx/401xxx
   // rattaché à un client ou fournisseur précis par FK (et non plus seulement par
@@ -3733,6 +3782,7 @@ model RegleComptable {
   // prioritaire l'emporte ; laissée vide = s'applique à tout evenement.
   conditionProduit      String?
   conditionFamille      String?
+  conditionCategorie    String? // CategorieProduit.nom (ou Produit.categorie legacy) — CDC §6, mapping automatique par catégorie
   conditionModePaiement String?
 
   compteDebitNumero  String
@@ -4018,6 +4068,7 @@ model SectionAnalytique {
 
   lignesEcriture LigneEcriture[]
   lignesBudget   LigneBudget[]
+  comptesParDefaut CompteComptable[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

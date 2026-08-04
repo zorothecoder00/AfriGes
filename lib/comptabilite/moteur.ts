@@ -174,6 +174,8 @@ export interface ContexteEvenement {
   modePaiement?: string | null;
   produit?: string | null;
   famille?: string | null;
+  /** CategorieProduit.nom (ou Produit.categorie legacy) — CDC §6, mapping automatique par catégorie. */
+  categorie?: string | null;
 }
 
 export interface ComptesRegle {
@@ -240,6 +242,7 @@ export async function resoudreRegleComptable(
   for (const r of regles) {
     if (r.conditionProduit && r.conditionProduit !== ctx.produit) continue;
     if (r.conditionFamille && r.conditionFamille !== ctx.famille) continue;
+    if (r.conditionCategorie && r.conditionCategorie !== ctx.categorie) continue;
     if (r.conditionModePaiement && r.conditionModePaiement !== (ctx.modePaiement ?? null)) continue;
     return { journal: r.journal, compteDebitNumero: r.compteDebitNumero, compteCreditNumero: r.compteCreditNumero };
   }
@@ -417,13 +420,20 @@ export async function creerEcritureCogsLigneCreditClient(
   const produitId = ligne.produitSubstitutId ?? ligne.produitId;
   if (produitId == null) return;
 
-  const produit = await tx.produit.findUnique({ where: { id: produitId }, select: { prixAchat: true } });
+  const produit = await tx.produit.findUnique({
+    where: { id: produitId },
+    select: { prixAchat: true, categorie: true, categorieProduit: { select: { nom: true } } },
+  });
   if (!produit || produit.prixAchat == null) return;
 
   const coutTotal = ligne.quantite * Number(produit.prixAchat);
   if (coutTotal <= 0) return;
 
-  const regle = await resoudreRegleComptable(tx, "SORTIE_STOCK_VENTE");
+  // CDC §6 — mapping automatique du compte stock/variation de stock par
+  // catégorie de produit (ex: Riz → comptes spécifiques si paramétré) ; sans
+  // règle personnalisée pour cette catégorie, retombe sur 6031/311 (inchangé).
+  const categorie = produit.categorieProduit?.nom ?? produit.categorie ?? null;
+  const regle = await resoudreRegleComptable(tx, "SORTIE_STOCK_VENTE", { categorie });
   if (!regle) return;
 
   await creerEcriture(tx, {

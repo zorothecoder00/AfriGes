@@ -117,31 +117,48 @@ export async function creerEcritureCogsVenteDirecte(
 
   const produits = await tx.produit.findMany({
     where: { id: { in: produitIds } },
-    select: { id: true, prixAchat: true },
+    select: { id: true, prixAchat: true, categorie: true, categorieProduit: { select: { nom: true } } },
   });
-  const coutParProduit = new Map(produits.map((p) => [p.id, p.prixAchat != null ? Number(p.prixAchat) : null]));
+  const infoParProduit = new Map(produits.map((p) => [
+    p.id,
+    { cout: p.prixAchat != null ? Number(p.prixAchat) : null, categorie: p.categorieProduit?.nom ?? p.categorie ?? null },
+  ]));
 
-  let coutTotal = 0;
+  // CDC §6 — mapping automatique du compte stock/variation de stock par
+  // catégorie de produit : le coût est regroupé par catégorie résolue, chaque
+  // groupe résolvant ses propres comptes débit/crédit (une règle personnalisée
+  // par catégorie l'emporte ; sans règle, tous les groupes retombent sur les
+  // mêmes 6031/311, comportement inchangé).
+  const coutParCategorie = new Map<string | null, number>();
   for (const l of vente.lignes) {
     if (l.produitId == null) continue;
-    const cout = coutParProduit.get(l.produitId);
-    if (cout == null) continue;
-    coutTotal += l.quantite * cout;
+    const info = infoParProduit.get(l.produitId);
+    if (!info || info.cout == null) continue;
+    const cle = info.categorie;
+    coutParCategorie.set(cle, (coutParCategorie.get(cle) ?? 0) + l.quantite * info.cout);
   }
-  if (coutTotal <= 0) return;
+  if (coutParCategorie.size === 0) return;
 
-  const regle = await resoudreRegleComptable(tx, "SORTIE_STOCK_VENTE");
-  if (!regle) return;
+  const lignes: LigneMoteur[] = [];
+  let journal = "VENTES";
+  for (const [categorie, coutGroupe] of coutParCategorie) {
+    if (coutGroupe <= 0) continue;
+    const regle = await resoudreRegleComptable(tx, "SORTIE_STOCK_VENTE", { categorie });
+    if (!regle) continue;
+    journal = regle.journal;
+    lignes.push(
+      { numero: regle.compteDebitNumero, debit: coutGroupe, libelle: `COGS ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
+      { numero: regle.compteCreditNumero, credit: coutGroupe, libelle: `COGS ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
+    );
+  }
+  if (lignes.length === 0) return;
 
   await creerEcriture(tx, {
     reference: `SYNC-COGS-${venteDirecteId}`,
     date: vente.createdAt,
-    journal: regle.journal,
+    journal,
     libelle: `Sortie de stock — ${vente.reference}`,
     userId,
-    lignes: [
-      { numero: regle.compteDebitNumero, debit: coutTotal, libelle: `COGS ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
-      { numero: regle.compteCreditNumero, credit: coutTotal, libelle: `COGS ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
-    ],
+    lignes,
   });
 }

@@ -28,7 +28,7 @@ export default function FiscaliteTvaPage() {
   const [tvaCollecteeInput, setTvaCollecteeInput] = useState("");
   const [tvaDeductibleInput, setTvaDeductibleInput] = useState("");
   const [tvaNotes, setTvaNotes]             = useState("");
-  const [tvaCalcResult, setTvaCalcResult]   = useState<{ tvaCollectee: number; tvaDeductible: number; tvaDue: number } | null>(null);
+  const [tvaCalcResult, setTvaCalcResult]   = useState<{ tvaCollectee: number; tvaDeductible: number; tvaDue: number; tvaADecaisser: number; creditTva: number } | null>(null);
 
   // ── TVA API ───────────────────────────────────────────────────────────
   const { data: tvaData, loading: tvaLoading, refetch: refetchTva } =
@@ -47,7 +47,7 @@ export default function FiscaliteTvaPage() {
   );
 
   async function handleCalculerTva() {
-    const res = await calculerTva({ action: "calculer", periode: tvaPeriode }) as { data?: { tvaCollectee: number; tvaDeductible: number; tvaDue: number } } | null;
+    const res = await calculerTva({ action: "calculer", periode: tvaPeriode }) as { data?: { tvaCollectee: number; tvaDeductible: number; tvaDue: number; tvaADecaisser: number; creditTva: number } } | null;
     if (res?.data) {
       setTvaCalcResult(res.data);
       setTvaCollecteeInput(String(res.data.tvaCollectee));
@@ -96,7 +96,11 @@ export default function FiscaliteTvaPage() {
                   <p className="font-semibold text-indigo-800">Résultat du calcul :</p>
                   <p>TVA collectée : <strong>{formatCurrency(tvaCalcResult.tvaCollectee)}</strong></p>
                   <p>TVA déductible : <strong>{formatCurrency(tvaCalcResult.tvaDeductible)}</strong></p>
-                  <p className="font-bold text-indigo-900">TVA due : {formatCurrency(tvaCalcResult.tvaDue)}</p>
+                  {tvaCalcResult.tvaDue >= 0 ? (
+                    <p className="font-bold text-indigo-900">TVA à décaisser : {formatCurrency(tvaCalcResult.tvaADecaisser)}</p>
+                  ) : (
+                    <p className="font-bold text-blue-700">Crédit de TVA reportable : {formatCurrency(tvaCalcResult.creditTva)}</p>
+                  )}
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
@@ -143,9 +147,9 @@ export default function FiscaliteTvaPage() {
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-semibold text-slate-800">{d.periode}</span>
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${d.statut === "SOUMIS" ? "bg-emerald-50 text-emerald-700" : d.statut === "EN_ATTENTE" ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>{d.statut}</span>
-                          {d.statut === "EN_ATTENTE" && (
-                            <button onClick={() => validerTva({ id: d.id, statut: "SOUMIS" }).then(() => refetchTva())}
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${d.statut === "VALIDE" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{d.statut === "VALIDE" ? "Validée" : "Brouillon"}</span>
+                          {d.statut === "BROUILLON" && (
+                            <button onClick={() => validerTva({ id: d.id, statut: "VALIDE" }).then(() => refetchTva())}
                               className="text-xs px-2 py-0.5 bg-violet-600 text-white rounded-lg hover:bg-violet-700">Valider</button>
                           )}
                         </div>
@@ -153,7 +157,10 @@ export default function FiscaliteTvaPage() {
                       <div className="grid grid-cols-3 gap-2 text-xs text-slate-600">
                         <div><span className="text-slate-400">Collectée</span><br /><strong className="text-red-600">{formatCurrency(Number(d.tvaCollectee))}</strong></div>
                         <div><span className="text-slate-400">Déductible</span><br /><strong className="text-blue-600">{formatCurrency(Number(d.tvaDeductible))}</strong></div>
-                        <div><span className="text-slate-400">Nette due</span><br /><strong className="text-emerald-700">{formatCurrency(Number(d.tvaDue))}</strong></div>
+                        <div>
+                          <span className="text-slate-400">{Number(d.tvaDue) >= 0 ? "À décaisser" : "Crédit de TVA"}</span><br />
+                          <strong className={Number(d.tvaDue) >= 0 ? "text-emerald-700" : "text-blue-700"}>{formatCurrency(Math.abs(Number(d.tvaDue)))}</strong>
+                        </div>
                       </div>
                     </div>
                   ))}

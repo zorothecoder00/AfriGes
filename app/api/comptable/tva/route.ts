@@ -79,10 +79,17 @@ export async function POST(req: Request) {
         if (l.compte.numero.startsWith("4432")) tvaDeductible += Number(l.debit);
       }
 
-      const tvaDue = Math.max(0, tvaCollectee - tvaDeductible);
+      // tvaDue conserve son signe : positif = TVA à décaisser, négatif = crédit
+      // de TVA reportable (déductible > collectée) — ne jamais clamper à 0, sinon
+      // le crédit de TVA disparaît silencieusement (KPI dashboard §4).
+      const tvaDue = tvaCollectee - tvaDeductible;
 
       return NextResponse.json({
-        data: { periode, tvaCollectee, tvaDeductible, tvaDue },
+        data: {
+          periode, tvaCollectee, tvaDeductible, tvaDue,
+          tvaADecaisser: Math.max(0, tvaDue),
+          creditTva: Math.max(0, -tvaDue),
+        },
         message: "Calcul effectué. Appelez POST sans action pour enregistrer.",
       });
     }
@@ -96,21 +103,22 @@ export async function POST(req: Request) {
 
     const coll = Number(tvaCollectee);
     const ded  = Number(tvaDeductible);
-    const due  = Math.max(0, coll - ded);
+    // Signé : positif = à décaisser, négatif = crédit de TVA (voir calcul ci-dessus).
+    const due  = coll - ded;
 
     const userId = Number(session.user.id);
     const meta = getRequestMeta(req);
     const declaration = await prisma.$transaction(async (tx) => {
       const d = await tx.declarationTVA.upsert({
         where:  { periode },
-        update: { tvaCollectee: coll, tvaDeductible: ded, tvaDue: due, notes: notes || null, statut: "EN_ATTENTE" as import("@prisma/client").StatutTVA },
+        update: { tvaCollectee: coll, tvaDeductible: ded, tvaDue: due, notes: notes || null, statut: "BROUILLON" },
         create: {
           periode,
           tvaCollectee: coll,
           tvaDeductible: ded,
           tvaDue: due,
           notes:  notes || null,
-          statut: "EN_ATTENTE" as import("@prisma/client").StatutTVA,
+          statut: "BROUILLON",
           userId,
         },
       });
@@ -132,6 +140,9 @@ export async function PATCH(req: Request) {
 
     const { id, statut, notes } = await req.json();
     if (!id) return NextResponse.json({ error: "ID manquant" }, { status: 400 });
+    if (statut !== undefined && statut !== "BROUILLON" && statut !== "VALIDE") {
+      return NextResponse.json({ error: "Statut invalide" }, { status: 400 });
+    }
 
     const userId = Number(session.user.id);
     const meta = getRequestMeta(req);

@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       evenement, moduleSource, compteDebitNumero, compteCreditNumero, journal,
-      conditionProduit, conditionFamille, conditionModePaiement,
+      conditionProduit, conditionFamille, conditionCategorie, conditionModePaiement,
       priorite, actif, mode, notes,
     } = body;
 
@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
           journal,
           conditionProduit: conditionProduit || null,
           conditionFamille: conditionFamille || null,
+          conditionCategorie: conditionCategorie || null,
           conditionModePaiement: conditionModePaiement || null,
           priorite: priorite != null ? Number(priorite) : 0,
           actif: actif != null ? Boolean(actif) : true,

@@ -83,7 +83,9 @@ export async function POST(req: Request) {
           soldeComptable,
           ecart,
           notes:  notes || null,
-          statut: (Math.abs(ecart) < 0.01 ? "RAPPROCHE" : "EN_ATTENTE") as import("@prisma/client").StatutRapprochement,
+          // StatutRapprochement (enum Prisma) ne connaît que EN_COURS/VALIDE —
+          // VALIDE = écart nul (rapprochement soldé), EN_COURS = écart à résorber.
+          statut: Math.abs(ecart) < 0.01 ? "VALIDE" : "EN_COURS",
           userId,
         },
         create: {
@@ -92,7 +94,7 @@ export async function POST(req: Request) {
           soldeComptable,
           ecart,
           notes:  notes || null,
-          statut: (Math.abs(ecart) < 0.01 ? "RAPPROCHE" : "EN_ATTENTE") as import("@prisma/client").StatutRapprochement,
+          statut: Math.abs(ecart) < 0.01 ? "VALIDE" : "EN_COURS",
           userId,
         },
       });
@@ -114,6 +116,9 @@ export async function PATCH(req: Request) {
 
     const { id, statut, notes } = await req.json();
     if (!id) return NextResponse.json({ error: "ID manquant" }, { status: 400 });
+    if (statut !== undefined && statut !== "EN_COURS" && statut !== "VALIDE") {
+      return NextResponse.json({ error: "Statut invalide" }, { status: 400 });
+    }
 
     const userId = Number(session.user.id);
     const meta = getRequestMeta(req);

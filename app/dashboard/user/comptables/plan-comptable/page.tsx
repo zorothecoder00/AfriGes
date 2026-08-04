@@ -11,7 +11,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   BookMarked, ListChecks, PlusCircle, Search, Save, X, Edit2,
-  ToggleLeft, ToggleRight, ChevronLeft, ChevronRight, RefreshCw,
+  ChevronLeft, ChevronRight, RefreshCw,
 } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { useT } from "@/contexts/AppSettingsContext";
@@ -20,7 +20,7 @@ import { AIDE_COMPTABLE } from "@/lib/aideComptableContenu";
 
 interface CompteComptable {
   id: number; numero: string; libelle: string; classe: number;
-  type: string; nature: string; sens: string; actif: boolean;
+  type: string; nature: string; sens: string; actif: boolean; statut: string;
   tiersType: string | null; tiersNom: string | null;
   compteParent?: { numero: string; libelle: string } | null;
 }
@@ -33,6 +33,19 @@ interface ComptesResponse {
 const TYPE_COMPTE_LABELS: Record<string, string> = {
   ACTIF: "Actif", PASSIF: "Passif", CHARGES: "Charges",
   PRODUITS: "Produits", TRESORERIE: "Trésorerie",
+};
+
+// CDC §5 — une fois qu'un compte a reçu une écriture, sa suppression physique
+// est interdite : seuls ces 4 statuts (jamais une suppression) sont possibles,
+// son historique restant toujours intact.
+const STATUT_COMPTE_LABELS: Record<string, string> = {
+  ACTIF: "Actif", DESACTIVE: "Désactivé", ARCHIVE: "Archivé", OBSOLETE: "Obsolète",
+};
+const STATUT_COMPTE_STYLES: Record<string, string> = {
+  ACTIF: "bg-emerald-50 text-emerald-700",
+  DESACTIVE: "bg-slate-100 text-slate-500",
+  ARCHIVE: "bg-amber-50 text-amber-700",
+  OBSOLETE: "bg-red-50 text-red-700",
 };
 
 export default function PlanComptablePage() {
@@ -92,8 +105,9 @@ export default function PlanComptablePage() {
     const res = await createCompte({ ...newCompte, classe: Number(newCompte.classe) });
     if (res) { refetchPlan(); setShowAddCompte(false); setNewCompte({ numero: "", libelle: "", classe: "4", type: "ACTIF", nature: "DETAIL", sens: "DEBITEUR" }); }
   }
-  async function handleToggleCompte(compte: CompteComptable) {
-    await patchCompte({ id: compte.id, actif: !compte.actif });
+  async function handleChangeStatutCompte(compte: CompteComptable, statut: string) {
+    if (statut === compte.statut) return;
+    await patchCompte({ id: compte.id, statut });
     refetchPlan();
   }
   async function handleSaveEditCompte() {
@@ -247,7 +261,7 @@ export default function PlanComptablePage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {(planData?.data ?? []).map((c) => (
-                  <tr key={c.id} className={`hover:bg-slate-50 transition-colors ${!c.actif ? "opacity-50" : ""}`}>
+                  <tr key={c.id} className={`hover:bg-slate-50 transition-colors ${c.statut !== "ACTIF" ? "opacity-50" : ""}`}>
                     <td className="px-4 py-3 font-mono font-bold text-violet-700">{c.numero}</td>
                     <td className="px-4 py-3 text-slate-800">
                       {editCompte?.id === c.id ? (
@@ -267,9 +281,15 @@ export default function PlanComptablePage() {
                     </td>
                     <td className="px-4 py-3 text-slate-500 text-xs hidden lg:table-cell">{c.sens === "DEBITEUR" ? "Débiteur" : "Créditeur"}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${c.actif ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-                        {c.actif ? "Actif" : "Inactif"}
-                      </span>
+                      <select
+                        value={c.statut ?? (c.actif ? "ACTIF" : "DESACTIVE")}
+                        onChange={(e) => handleChangeStatutCompte(c, e.target.value)}
+                        disabled={patchingCompte}
+                        title="Un compte utilisé ne peut jamais être supprimé — seul son statut peut changer, son historique reste intact"
+                        className={`text-xs font-semibold px-2 py-0.5 rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer ${STATUT_COMPTE_STYLES[c.statut] ?? STATUT_COMPTE_STYLES.DESACTIVE}`}
+                      >
+                        {Object.entries(STATUT_COMPTE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
@@ -284,11 +304,6 @@ export default function PlanComptablePage() {
                           <button onClick={() => setEditCompte(c)}
                             className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg"><Edit2 size={14} /></button>
                         )}
-                        <button onClick={() => handleToggleCompte(c)}
-                          className={`p-1.5 rounded-lg ${c.actif ? "text-amber-500 hover:bg-amber-50" : "text-emerald-500 hover:bg-emerald-50"}`}
-                          title={c.actif ? "Désactiver" : "Activer"}>
-                          {c.actif ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-                        </button>
                       </div>
                     </td>
                   </tr>

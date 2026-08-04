@@ -15,6 +15,7 @@ interface RegleComptableEntry {
   moduleSource: string;
   conditionProduit: string | null;
   conditionFamille: string | null;
+  conditionCategorie: string | null;
   conditionModePaiement: string | null;
   compteDebitNumero: string;
   compteCreditNumero: string;
@@ -34,7 +35,7 @@ const JOURNAL_LABELS: Record<string, string> = {
 
 const REGLE_VIDE = {
   evenement: "", moduleSource: "", compteDebitNumero: "", compteCreditNumero: "",
-  journal: "OD", conditionModePaiement: "", priorite: "0",
+  journal: "OD", conditionProduit: "", conditionFamille: "", conditionCategorie: "", conditionModePaiement: "", priorite: "0",
 };
 
 export default function ReglesComptablesPage() {
@@ -64,6 +65,9 @@ export default function ReglesComptablesPage() {
     const res = await creerRegle({
       ...newRegle,
       priorite: Number(newRegle.priorite) || 0,
+      conditionProduit: newRegle.conditionProduit || null,
+      conditionFamille: newRegle.conditionFamille || null,
+      conditionCategorie: newRegle.conditionCategorie || null,
       conditionModePaiement: newRegle.conditionModePaiement || null,
     });
     if (res) { refetchRegles(); setShowAddRegle(false); setNewRegle(REGLE_VIDE); }
@@ -133,6 +137,21 @@ export default function ReglesComptablesPage() {
                 placeholder="ex: 701" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
             </div>
             <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Condition produit</label>
+              <input value={newRegle.conditionProduit} onChange={(e) => setNewRegle(p => ({ ...p, conditionProduit: e.target.value }))}
+                placeholder="ex: Riz local (optionnel)" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Condition famille</label>
+              <input value={newRegle.conditionFamille} onChange={(e) => setNewRegle(p => ({ ...p, conditionFamille: e.target.value }))}
+                placeholder="ex: Denrées alimentaires (optionnel)" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Condition catégorie</label>
+              <input value={newRegle.conditionCategorie} onChange={(e) => setNewRegle(p => ({ ...p, conditionCategorie: e.target.value }))}
+                placeholder="ex: Riz (optionnel)" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div>
               <label className="text-xs font-medium text-slate-600 mb-1 block">Condition mode de paiement</label>
               <input value={newRegle.conditionModePaiement} onChange={(e) => setNewRegle(p => ({ ...p, conditionModePaiement: e.target.value }))}
                 placeholder="ex: VIREMENT (optionnel)" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
@@ -178,6 +197,9 @@ export default function ReglesComptablesPage() {
                 <tr key={r.id} className={`hover:bg-slate-50 transition-colors ${!r.actif ? "opacity-50" : ""}`}>
                   <td className="px-4 py-3 font-mono text-xs font-bold text-emerald-700">
                     {r.evenement}
+                    {r.conditionProduit && <span className="ml-2 text-xs font-sans text-slate-400">produit={r.conditionProduit}</span>}
+                    {r.conditionFamille && <span className="ml-2 text-xs font-sans text-slate-400">famille={r.conditionFamille}</span>}
+                    {r.conditionCategorie && <span className="ml-2 text-xs font-sans text-slate-400">catégorie={r.conditionCategorie}</span>}
                     {r.conditionModePaiement && <span className="ml-2 text-xs font-sans text-slate-400">si {r.conditionModePaiement}</span>}
                   </td>
                   <td className="px-4 py-3 text-slate-500 hidden md:table-cell">{r.moduleSource}</td>

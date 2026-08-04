@@ -248,6 +248,7 @@ export async function GET(req: Request) {
     const type     = searchParams.get("type");
     const nature   = searchParams.get("nature");
     const actif    = searchParams.get("actif");
+    const statut   = searchParams.get("statut");
     const page     = Math.max(1, Number(searchParams.get("page") || 1));
     const limit    = Math.min(200, Math.max(1, Number(searchParams.get("limit") || 100)));
     const skip     = (page - 1) * limit;
@@ -264,6 +265,7 @@ export async function GET(req: Request) {
       ...(type    && { type }),
       ...(nature  && { nature }),
       ...(actif !== null && actif !== "" && { actif: actif === "true" }),
+      ...(statut  && { statut }),
     };
 
     const [comptes, total] = await Promise.all([
@@ -350,10 +352,22 @@ export async function POST(req: Request) {
     }
 
     // Création d'un compte individuel
-    const { numero, libelle, classe, type, nature, sens, compteParentId, tiersType, tiersNom } = body;
+    const {
+      numero, libelle, classe, type, nature, sens, compteParentId, tiersType, tiersNom,
+      categorie, estCompteCollectif, natureActif,
+      autoriseLettrage, autoriseRapprochement,
+      compteTvaAssocieId, sectionAnalytiqueDefautId, compteImmobilisationAssocieId,
+    } = body;
     if (!numero || !libelle || !classe || !type) {
       return NextResponse.json({ error: "Champs obligatoires manquants" }, { status: 400 });
     }
+
+    // CDC §5 — compte de bilan (ACTIF/PASSIF/TRESORERIE) vs compte de résultat
+    // (CHARGES/PRODUITS), autorisation de lettrage/rapprochement : dérivés du
+    // type/classe à la création (éditables ensuite via PATCH).
+    const estCompteResultatDefaut = type === "CHARGES" || type === "PRODUITS";
+    const autoriseLettrageDefaut = Number(classe) === 4;
+    const autoriseRapprochementDefaut = type === "TRESORERIE";
 
     const compte = await prisma.$transaction(async (tx) => {
       const c = await tx.compteComptable.create({
@@ -367,6 +381,17 @@ export async function POST(req: Request) {
           compteParentId: compteParentId ? Number(compteParentId) : null,
           tiersType: tiersType || null,
           tiersNom: tiersNom || null,
+          categorie: categorie || null,
+          estCompteCollectif: estCompteCollectif != null ? Boolean(estCompteCollectif) : false,
+          estCompteBilan: !estCompteResultatDefaut,
+          estCompteResultat: estCompteResultatDefaut,
+          natureActif: natureActif || null,
+          autoriseLettrage: autoriseLettrage != null ? Boolean(autoriseLettrage) : autoriseLettrageDefaut,
+          autoriseRapprochement: autoriseRapprochement != null ? Boolean(autoriseRapprochement) : autoriseRapprochementDefaut,
+          compteTvaAssocieId: compteTvaAssocieId ? Number(compteTvaAssocieId) : null,
+          sectionAnalytiqueDefautId: sectionAnalytiqueDefautId ? Number(sectionAnalytiqueDefautId) : null,
+          compteImmobilisationAssocieId: compteImmobilisationAssocieId ? Number(compteImmobilisationAssocieId) : null,
+          creeParId: userId,
         },
       });
       await auditLog(tx, userId, "CREATION_COMPTE_COMPTABLE", "CompteComptable", c.id, { numero: c.numero, libelle: c.libelle }, meta);
@@ -390,6 +415,11 @@ export async function PATCH(req: Request) {
     const { id, ...data } = await req.json();
     if (!id) return NextResponse.json({ error: "ID manquant" }, { status: 400 });
 
+    const STATUTS_VALIDES = ["ACTIF", "DESACTIVE", "ARCHIVE", "OBSOLETE"];
+    if (data.statut !== undefined && !STATUTS_VALIDES.includes(data.statut)) {
+      return NextResponse.json({ error: "Statut invalide" }, { status: 400 });
+    }
+
     const userId = Number(session.user.id);
     const meta = getRequestMeta(req);
     const compte = await prisma.$transaction(async (tx) => {
@@ -397,13 +427,22 @@ export async function PATCH(req: Request) {
         where: { id: Number(id) },
         data: {
           ...(data.libelle   !== undefined && { libelle: data.libelle }),
-          ...(data.actif     !== undefined && { actif: Boolean(data.actif) }),
+          // CDC §5 — un compte ne peut plus être supprimé une fois utilisé, seulement
+          // désactivé/archivé/obsolète ; `statut` piloté explicitement fait aussi foi
+          // sur `actif` (le seul champ que le moteur d'écriture consulte). Un simple
+          // toggle `actif` (ancien comportement UI) reste supporté et mappé sur
+          // ACTIF/DESACTIVE quand `statut` n'est pas fourni.
+          ...(data.statut !== undefined && { statut: data.statut, actif: data.statut === "ACTIF" }),
+          ...(data.actif !== undefined && data.statut === undefined && {
+            actif: Boolean(data.actif),
+            statut: Boolean(data.actif) ? "ACTIF" : "DESACTIVE",
+          }),
           ...(data.tiersType !== undefined && { tiersType: data.tiersType }),
           ...(data.tiersNom  !== undefined && { tiersNom: data.tiersNom }),
           ...(data.nature    !== undefined && { nature: data.nature }),
         },
       });
-      await auditLog(tx, userId, "MODIFICATION_COMPTE_COMPTABLE", "CompteComptable", c.id, { libelle: data.libelle, actif: data.actif }, meta);
+      await auditLog(tx, userId, "MODIFICATION_COMPTE_COMPTABLE", "CompteComptable", c.id, { libelle: data.libelle, statut: data.statut, actif: data.actif }, meta);
       return c;
     });
     return NextResponse.json({ data: compte });

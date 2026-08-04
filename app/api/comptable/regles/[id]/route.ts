@@ -18,7 +18,7 @@ export async function PUT(req: Request, { params }: Ctx) {
     const body = await req.json();
     const {
       evenement, moduleSource, compteDebitNumero, compteCreditNumero, journal,
-      conditionProduit, conditionFamille, conditionModePaiement,
+      conditionProduit, conditionFamille, conditionCategorie, conditionModePaiement,
       priorite, actif, mode, notes,
     } = body;
 
@@ -35,6 +35,7 @@ export async function PUT(req: Request, { params }: Ctx) {
           ...(journal !== undefined && { journal }),
           ...(conditionProduit !== undefined && { conditionProduit: conditionProduit || null }),
           ...(conditionFamille !== undefined && { conditionFamille: conditionFamille || null }),
+          ...(conditionCategorie !== undefined && { conditionCategorie: conditionCategorie || null }),
           ...(conditionModePaiement !== undefined && { conditionModePaiement: conditionModePaiement || null }),
           ...(priorite !== undefined && { priorite: Number(priorite) }),
           ...(actif !== undefined && { actif: Boolean(actif) }),
