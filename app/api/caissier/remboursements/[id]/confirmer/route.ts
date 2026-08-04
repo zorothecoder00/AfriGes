@@ -217,6 +217,7 @@ export async function POST(req: Request, { params }: Ctx) {
           clientId: credit.clientId,
           modePaiement: remboursement.modePaiement,
           userId,
+          pointDeVenteId: credit.pointDeVenteId,
         });
       }
 

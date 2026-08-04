@@ -25,6 +25,7 @@ export async function creerEcritureAchatDepuisMouvement(
     where: { id: mouvementStockId },
     include: { produit: { select: { nom: true, prixUnitaire: true } } },
   });
+  // mouvement.pointDeVenteId : PDV/dépôt qui réceptionne, porté sur les 2 lignes (CDC §24).
   if (!mouvement) return;
 
   const montant = mouvement.quantite * Number(mouvement.produit.prixUnitaire);
@@ -52,8 +53,8 @@ export async function creerEcritureAchatDepuisMouvement(
     journal: regle.journal,
     userId,
     lignes: [
-      { numero: regle.compteDebitNumero, debit: montant, libelle: mouvement.produit.nom },
-      { numero: compteCredit, credit: montant, libelle: mouvement.produit.nom },
+      { numero: regle.compteDebitNumero, debit: montant, libelle: mouvement.produit.nom, pointDeVenteId: mouvement.pointDeVenteId },
+      { numero: compteCredit, credit: montant, libelle: mouvement.produit.nom, pointDeVenteId: mouvement.pointDeVenteId },
     ],
   });
 }

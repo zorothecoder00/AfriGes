@@ -39,6 +39,7 @@ export async function creerEcritureVenteDepuisVenteDirecte(
       montantPaye: true,
       clientNom: true,
       createdAt: true,
+      pointDeVenteId: true,
     },
   });
   if (!vente) return;
@@ -55,14 +56,14 @@ export async function creerEcritureVenteDepuisVenteDirecte(
     ? (() => {
         const { montantHT, montantTVA } = decomposerTTC(montant, tva.taux);
         return [
-          { numero: COMPTE_CAISSE, debit: montant, libelle: `VD ${vente.reference}` },
-          { numero: COMPTE_VENTES, credit: montantHT, libelle: `VD ${vente.reference}` },
-          { numero: tva.compteCollecteNumero, credit: montantTVA, libelle: `TVA collectée ${vente.reference}`, isTva: true, tauxTva: tva.taux, montantTva: montantTVA },
+          { numero: COMPTE_CAISSE, debit: montant, libelle: `VD ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
+          { numero: COMPTE_VENTES, credit: montantHT, libelle: `VD ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
+          { numero: tva.compteCollecteNumero, credit: montantTVA, libelle: `TVA collectée ${vente.reference}`, isTva: true, tauxTva: tva.taux, montantTva: montantTVA, pointDeVenteId: vente.pointDeVenteId },
         ];
       })()
     : [
-        { numero: COMPTE_CAISSE, debit: montant, libelle: `VD ${vente.reference}` },
-        { numero: COMPTE_VENTES, credit: montant, libelle: `VD ${vente.reference}` },
+        { numero: COMPTE_CAISSE, debit: montant, libelle: `VD ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
+        { numero: COMPTE_VENTES, credit: montant, libelle: `VD ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
       ];
 
   await creerEcriture(tx, {
@@ -104,6 +105,7 @@ export async function creerEcritureCogsVenteDirecte(
       reference: true,
       statut: true,
       createdAt: true,
+      pointDeVenteId: true,
       lignes: { select: { produitId: true, quantite: true } },
     },
   });
@@ -138,8 +140,8 @@ export async function creerEcritureCogsVenteDirecte(
     libelle: `Sortie de stock — ${vente.reference}`,
     userId,
     lignes: [
-      { numero: regle.compteDebitNumero, debit: coutTotal, libelle: `COGS ${vente.reference}` },
-      { numero: regle.compteCreditNumero, credit: coutTotal, libelle: `COGS ${vente.reference}` },
+      { numero: regle.compteDebitNumero, debit: coutTotal, libelle: `COGS ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
+      { numero: regle.compteCreditNumero, credit: coutTotal, libelle: `COGS ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
     ],
   });
 }

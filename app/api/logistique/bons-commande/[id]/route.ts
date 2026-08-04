@@ -85,6 +85,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
             fournisseurId: b.fournisseurId,
             modePaiement,
             userId,
+            pointDeVenteId: b.pointDeVenteId,
           });
           await auditLog(tx, userId, "PO_PAIEMENT_ENREGISTRE", "BonCommande", bonId, {
             montant, soldeRestant: Number(b.montantTotal) - Number(b.montantPaye),

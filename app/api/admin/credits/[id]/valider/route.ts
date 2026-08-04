@@ -131,6 +131,7 @@ export async function POST(_req: Request, { params }: Ctx) {
         clientNom: `${client.prenom} ${client.nom}`,
         clientId: credit.clientId,
         userId: Number(session.user.id),
+        pointDeVenteId: credit.pointDeVenteId,
       });
 
       // ── 9b. Hook RIA — pour chaque affectation active du client ──────────

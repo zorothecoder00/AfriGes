@@ -26,6 +26,8 @@ export interface LigneMoteur {
   isTva?: boolean;
   tauxTva?: number;
   montantTva?: number;
+  /** Imputation analytique (CDC §24) — PDV/agence porteur de la ligne, quand l'appelant le connaît. */
+  pointDeVenteId?: number | null;
 }
 
 export interface CreerEcritureOpts {
@@ -153,6 +155,7 @@ export async function creerEcriture(tx: TxClient, opts: CreerEcritureOpts): Prom
           isTva: l.isTva ?? false,
           tauxTva: l.tauxTva ?? null,
           montantTva: l.montantTva ?? null,
+          pointDeVenteId: l.pointDeVenteId ?? null,
         })),
       },
     },
@@ -248,11 +251,12 @@ export async function resoudreRegleComptable(
  */
 export async function ecritureVenteCreditValidee(
   tx: TxClient,
-  params: { montant: number; reference: string; clientNom: string; clientId?: number; userId: number; date?: Date },
+  params: { montant: number; reference: string; clientNom: string; clientId?: number; userId: number; date?: Date; pointDeVenteId?: number | null },
 ): Promise<number | null> {
   const regle = await resoudreRegleComptable(tx, "VENTE_CREDIT_VALIDEE");
   if (!regle) return null;
   const compteDebit = await compteAuxiliaireOuDefaut(tx, regle.compteDebitNumero, { clientId: params.clientId });
+  const pdv = params.pointDeVenteId ?? null;
 
   // TVA (CDC §21) : si une taxe TVA est active et applicable aux ventes, le
   // montant (TTC) est décomposé HT/TVA ; sinon comportement inchangé (montant
@@ -262,14 +266,14 @@ export async function ecritureVenteCreditValidee(
     ? (() => {
         const { montantHT, montantTVA } = decomposerTTC(params.montant, tva.taux);
         return [
-          { numero: compteDebit, debit: params.montant, libelle: `Créance ${params.clientNom}` },
-          { numero: regle.compteCreditNumero, credit: montantHT, libelle: `Vente crédit ${params.reference}` },
-          { numero: tva.compteCollecteNumero, credit: montantTVA, libelle: `TVA collectée ${params.reference}`, isTva: true, tauxTva: tva.taux, montantTva: montantTVA },
+          { numero: compteDebit, debit: params.montant, libelle: `Créance ${params.clientNom}`, pointDeVenteId: pdv },
+          { numero: regle.compteCreditNumero, credit: montantHT, libelle: `Vente crédit ${params.reference}`, pointDeVenteId: pdv },
+          { numero: tva.compteCollecteNumero, credit: montantTVA, libelle: `TVA collectée ${params.reference}`, isTva: true, tauxTva: tva.taux, montantTva: montantTVA, pointDeVenteId: pdv },
         ];
       })()
     : [
-        { numero: compteDebit, debit: params.montant, libelle: `Créance ${params.clientNom}` },
-        { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Vente crédit ${params.reference}` },
+        { numero: compteDebit, debit: params.montant, libelle: `Créance ${params.clientNom}`, pointDeVenteId: pdv },
+        { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Vente crédit ${params.reference}`, pointDeVenteId: pdv },
       ];
 
   return creerEcriture(tx, {
@@ -297,11 +301,13 @@ export async function ecritureRemboursementCreditConfirme(
     modePaiement?: string | null;
     userId: number;
     date?: Date;
+    pointDeVenteId?: number | null;
   },
 ): Promise<number | null> {
   const regle = await resoudreRegleComptable(tx, "REMBOURSEMENT_CREDIT_CONFIRME", { modePaiement: params.modePaiement });
   if (!regle) return null;
   const compteCredit = await compteAuxiliaireOuDefaut(tx, regle.compteCreditNumero, { clientId: params.clientId });
+  const pdv = params.pointDeVenteId ?? null;
   return creerEcriture(tx, {
     journal: regle.journal,
     date: params.date ?? new Date(),
@@ -309,8 +315,8 @@ export async function ecritureRemboursementCreditConfirme(
     userId: params.userId,
     reference: `SYNC-RBT-${params.reference}`,
     lignes: [
-      { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Encaissement ${params.reference}` },
-      { numero: compteCredit, credit: params.montant, libelle: `Solde créance ${params.clientNom}` },
+      { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Encaissement ${params.reference}`, pointDeVenteId: pdv },
+      { numero: compteCredit, credit: params.montant, libelle: `Solde créance ${params.clientNom}`, pointDeVenteId: pdv },
     ],
   });
 }
@@ -330,11 +336,13 @@ export async function ecripturePaiementFournisseur(
     modePaiement?: string | null;
     userId: number;
     date?: Date;
+    pointDeVenteId?: number | null;
   },
 ): Promise<number | null> {
   const regle = await resoudreRegleComptable(tx, "PAIEMENT_FOURNISSEUR", { modePaiement: params.modePaiement });
   if (!regle) return null;
   const compteDebit = await compteAuxiliaireOuDefaut(tx, regle.compteDebitNumero, { fournisseurId: params.fournisseurId });
+  const pdv = params.pointDeVenteId ?? null;
   return creerEcriture(tx, {
     journal: regle.journal,
     date: params.date ?? new Date(),
@@ -342,8 +350,8 @@ export async function ecripturePaiementFournisseur(
     userId: params.userId,
     reference: `SYNC-PAF-${params.reference}`,
     lignes: [
-      { numero: compteDebit, debit: params.montant, libelle: `Solde dette ${params.fournisseurNom}` },
-      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Décaissement ${params.reference}` },
+      { numero: compteDebit, debit: params.montant, libelle: `Solde dette ${params.fournisseurNom}`, pointDeVenteId: pdv },
+      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Décaissement ${params.reference}`, pointDeVenteId: pdv },
     ],
   });
 }
@@ -395,7 +403,7 @@ export async function creerEcritureCogsLigneCreditClient(
       quantite: true,
       produitId: true,
       produitSubstitutId: true,
-      credit: { select: { reference: true } },
+      credit: { select: { reference: true, pointDeVenteId: true } },
     },
   });
   if (!ligne) return;
@@ -419,8 +427,8 @@ export async function creerEcritureCogsLigneCreditClient(
     libelle: `Sortie de stock — ${ligne.credit.reference}`,
     userId,
     lignes: [
-      { numero: regle.compteDebitNumero, debit: coutTotal, libelle: `COGS ${ligne.credit.reference}` },
-      { numero: regle.compteCreditNumero, credit: coutTotal, libelle: `COGS ${ligne.credit.reference}` },
+      { numero: regle.compteDebitNumero, debit: coutTotal, libelle: `COGS ${ligne.credit.reference}`, pointDeVenteId: ligne.credit.pointDeVenteId },
+      { numero: regle.compteCreditNumero, credit: coutTotal, libelle: `COGS ${ligne.credit.reference}`, pointDeVenteId: ligne.credit.pointDeVenteId },
     ],
   });
 }
@@ -469,6 +477,7 @@ export async function contrepasserEcriture(tx: TxClient, ecritureId: number, use
           isTva: l.isTva,
           tauxTva: l.tauxTva,
           montantTva: l.montantTva,
+          pointDeVenteId: l.pointDeVenteId,
         })),
       },
     },
