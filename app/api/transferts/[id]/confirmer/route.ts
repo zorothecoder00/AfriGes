@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { notifyAdmins, notify, auditLog } from "@/lib/notifications";
+import { comptabiliserTransfertRecu } from "@/lib/comptabilite/ecrituresTransfert";
 import { getRequestMeta } from "@/lib/requestMeta";
 import { randomUUID } from "crypto";
 
@@ -147,6 +148,7 @@ export async function POST(req: Request, { params }: Ctx) {
       });
 
       await auditLog(tx, userId, "TRANSFERT_STOCK_RECU_PDV", "TransfertStock", transfertId, undefined, getRequestMeta(req));
+      await comptabiliserTransfertRecu(tx, transfertId, userId);
       return updated;
     });
 

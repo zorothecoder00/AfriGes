@@ -16,7 +16,11 @@ interface EtapeConfigEntry {
   cle: string; label: string; complete: boolean; optionnelle: boolean; detail: string; onglet: string;
 }
 interface ConfigurationInitialeData {
-  config: { pays: string; devise: string; referentiel: string; typeEntite: string };
+  config: {
+    pays: string; devise: string; referentiel: string; typeEntite: string;
+    compteAchatDefaut: string | null; compteVenteDefaut: string | null; compteStockDefaut: string | null;
+    compteVariationStockDefaut: string | null; compteTvaAchatDefaut: string | null; compteTvaVenteDefaut: string | null;
+  };
   etapes: EtapeConfigEntry[];
 }
 interface SocieteEntry {
@@ -47,11 +51,20 @@ export default function ConfigurationInitialePage() {
   const { mutate: enregistrerConfig, loading: enregistrantConfig } = useMutation<unknown, object>(
     "/api/comptable/configuration-initiale", "PATCH", { successMessage: "Configuration enregistrée" }
   );
-  const [configForm, setConfigForm] = useState({ pays: "", devise: "", referentiel: "", typeEntite: "" });
+  const [configForm, setConfigForm] = useState({
+    pays: "", devise: "", referentiel: "", typeEntite: "",
+    compteAchatDefaut: "", compteVenteDefaut: "", compteStockDefaut: "", compteVariationStockDefaut: "", compteTvaAchatDefaut: "", compteTvaVenteDefaut: "",
+  });
   const [configFormInit, setConfigFormInit] = useState(false);
   useEffect(() => {
     if (configInitialeData?.data.config && !configFormInit) {
-      setConfigForm(configInitialeData.data.config);
+      const c = configInitialeData.data.config;
+      setConfigForm({
+        pays: c.pays, devise: c.devise, referentiel: c.referentiel, typeEntite: c.typeEntite,
+        compteAchatDefaut: c.compteAchatDefaut ?? "", compteVenteDefaut: c.compteVenteDefaut ?? "",
+        compteStockDefaut: c.compteStockDefaut ?? "", compteVariationStockDefaut: c.compteVariationStockDefaut ?? "",
+        compteTvaAchatDefaut: c.compteTvaAchatDefaut ?? "", compteTvaVenteDefaut: c.compteTvaVenteDefaut ?? "",
+      });
       setConfigFormInit(true);
     }
   }, [configInitialeData, configFormInit]);
@@ -132,6 +145,36 @@ export default function ConfigurationInitialePage() {
           <div>
             <label className="text-xs font-medium text-slate-600 mb-1 block">Type d&apos;entité</label>
             <input value={configForm.typeEntite} onChange={(e) => setConfigForm(p => ({ ...p, typeEntite: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+        </div>
+        <h4 className="text-sm font-semibold text-slate-700 mb-1 mt-2">Comptes par défaut (CDC §53)</h4>
+        <p className="text-xs text-slate-500 mb-3">
+          Dernier niveau de la cascade Produit &gt; Catégorie &gt; Famille &gt; Configuration générale — utilisés quand aucun niveau plus précis n&apos;est paramétré.
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Compte achat</label>
+            <input value={configForm.compteAchatDefaut} placeholder="601" onChange={(e) => setConfigForm(p => ({ ...p, compteAchatDefaut: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Compte vente</label>
+            <input value={configForm.compteVenteDefaut} placeholder="701" onChange={(e) => setConfigForm(p => ({ ...p, compteVenteDefaut: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Compte stock</label>
+            <input value={configForm.compteStockDefaut} placeholder="311" onChange={(e) => setConfigForm(p => ({ ...p, compteStockDefaut: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Compte variation stock</label>
+            <input value={configForm.compteVariationStockDefaut} placeholder="6031" onChange={(e) => setConfigForm(p => ({ ...p, compteVariationStockDefaut: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Compte TVA achat</label>
+            <input value={configForm.compteTvaAchatDefaut} placeholder="4452" onChange={(e) => setConfigForm(p => ({ ...p, compteTvaAchatDefaut: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Compte TVA vente</label>
+            <input value={configForm.compteTvaVenteDefaut} placeholder="4431" onChange={(e) => setConfigForm(p => ({ ...p, compteTvaVenteDefaut: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
         </div>
         <button onClick={handleEnregistrerConfig} disabled={enregistrantConfig}

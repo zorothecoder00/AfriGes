@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { PrioriteNotification, StatutBonSortie } from "@prisma/client";
+import { PrioriteNotification, StatutBonSortie, TypeSortieStock } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { requirePermission } from "@/lib/permissions";
 import { auditLog, notifyRoles } from "@/lib/notifications";
+import { comptabiliserBonSortie } from "@/lib/comptabilite/ecrituresBonSortie";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -126,6 +127,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         });
 
         await auditLog(tx, parseInt(session.user.id), "BON_SORTIE_VALIDE", "BonSortie", bon.id);
+        await comptabiliserBonSortie(tx, bon.id, parseInt(session.user.id));
 
         await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "RESPONSABLE_POINT_DE_VENTE", "COMPTABLE"], {
           titre:    `Livraison client expédiée (${bon.reference})`,
@@ -140,9 +142,15 @@ export async function PATCH(req: Request, { params }: Ctx) {
       return NextResponse.json({ data: updated });
     }
 
-    // Cas PERTE / CASSE BROUILLON → VALIDE : déplacer du disponible vers endommagé (4.4)
-    if (statut === "VALIDE" && bon.statut === "BROUILLON" &&
-        (bon.typeSortie === "PERTE" || bon.typeSortie === "CASSE")) {
+    // Cas PERTE/CASSE/VOL/DON/CONSOMMATION_INTERNE/RETOUR_FOURNISSEUR BROUILLON
+    // → VALIDE : décrémenter le stock disponible (4.1). PERTE/CASSE vont en plus
+    // vers l'endommagé (4.4) — les autres types quittent le stock définitivement
+    // sans y être "abîmés". Avant cet élargissement, seuls PERTE/CASSE
+    // décrémentaient réellement le stock : un bon DON/VOL/CONSOMMATION_INTERNE/
+    // RETOUR_FOURNISSEUR validé ne faisait rien de réel (CDC §56).
+    const TYPES_SORTIE_STOCK_REEL: TypeSortieStock[] = ["PERTE", "CASSE", "VOL", "DON", "CONSOMMATION_INTERNE", "RETOUR_FOURNISSEUR"];
+    if (statut === "VALIDE" && bon.statut === "BROUILLON" && TYPES_SORTIE_STOCK_REEL.includes(bon.typeSortie)) {
+      const versEndommage = bon.typeSortie === "PERTE" || bon.typeSortie === "CASSE";
       // Vérifier les stocks avant transaction
       for (const l of bon.lignes) {
         const stock = await prisma.stockSite.findUnique({
@@ -159,20 +167,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
       const updated = await prisma.$transaction(async (tx) => {
         for (const l of bon.lignes) {
-          // Décrémenter le disponible (4.1) et incrémenter l'endommagé (4.4)
+          // Décrémenter le disponible (4.1) — PERTE/CASSE en plus vers l'endommagé (4.4)
           await tx.stockSite.update({
             where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: bon.pointDeVenteId } },
-            data: {
-              quantite:          { decrement: l.quantite },
-              quantiteEndommagee:{ increment: l.quantite },
-            },
+            data: versEndommage
+              ? { quantite: { decrement: l.quantite }, quantiteEndommagee: { increment: l.quantite } }
+              : { quantite: { decrement: l.quantite } },
           });
           await tx.mouvementStock.create({
             data: {
               produitId:      l.produitId,
               pointDeVenteId: bon.pointDeVenteId,
               type:           "SORTIE",
-              typeSortie:     bon.typeSortie as "PERTE" | "CASSE",
+              typeSortie:     bon.typeSortie,
               quantite:       l.quantite,
               motif:          `${bon.typeSortie} constatée — ${bon.reference}`,
               reference:      `${bon.reference}-P${l.produitId}`,
@@ -189,10 +196,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
         });
 
         await auditLog(tx, parseInt(session.user.id), "BON_SORTIE_VALIDE", "BonSortie", bon.id);
+        await comptabiliserBonSortie(tx, bon.id, parseInt(session.user.id));
 
         await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "RESPONSABLE_POINT_DE_VENTE"], {
           titre:    `${bon.typeSortie} enregistrée (${bon.reference})`,
-          message:  `${session.user.prenom} ${session.user.nom} a validé un bon de ${bon.typeSortie.toLowerCase()} (${bon.reference}) sur "${bon.pointDeVente.nom}". ${bon.lignes.length} produit(s) mis en stock endommagé.`,
+          message:  `${session.user.prenom} ${session.user.nom} a validé un bon de ${bon.typeSortie.toLowerCase()} (${bon.reference}) sur "${bon.pointDeVente.nom}". ${bon.lignes.length} produit(s) ${versEndommage ? "mis en stock endommagé" : "sortis du stock"}.`,
           priorite: PrioriteNotification.HAUTE,
           actionUrl:`/dashboard/magasinier/bons-sortie/${bon.id}`,
         });

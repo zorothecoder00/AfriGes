@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
     const {
       evenement, moduleSource, compteDebitNumero, compteCreditNumero, journal,
       conditionProduit, conditionFamille, conditionCategorie, conditionModePaiement,
+      conditionTypeClient, conditionPointDeVente, conditionTypeSortie,
       compteTvaNumero, sectionAnalytiqueId, centreCoutId, devise, dateDebutValidite, dateFinValidite,
       priorite, actif, mode, notes,
     } = body;
@@ -67,6 +68,9 @@ export async function POST(req: NextRequest) {
           conditionFamille: conditionFamille || null,
           conditionCategorie: conditionCategorie || null,
           conditionModePaiement: conditionModePaiement || null,
+          conditionTypeClient: conditionTypeClient || null,
+          conditionPointDeVente: conditionPointDeVente ? Number(conditionPointDeVente) : null,
+          conditionTypeSortie: conditionTypeSortie || null,
           compteTvaNumero: compteTvaNumero || null,
           sectionAnalytiqueId: sectionAnalytiqueId ? Number(sectionAnalytiqueId) : null,
           centreCoutId: centreCoutId ? Number(centreCoutId) : null,

@@ -37,7 +37,10 @@ export async function PATCH(req: Request) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { pays, devise, referentiel, typeEntite } = body;
+    const {
+      pays, devise, referentiel, typeEntite,
+      compteAchatDefaut, compteVenteDefaut, compteStockDefaut, compteVariationStockDefaut, compteTvaAchatDefaut, compteTvaVenteDefaut,
+    } = body;
 
     await chargerConfigurationInitiale(prisma);
     const userId = Number(session.user.id);
@@ -50,6 +53,14 @@ export async function PATCH(req: Request) {
           ...(devise !== undefined && { devise }),
           ...(referentiel !== undefined && { referentiel }),
           ...(typeEntite !== undefined && { typeEntite }),
+          // Comptes par défaut (CDC §53) — dernier niveau de la cascade
+          // Produit > Catégorie > Famille > Configuration générale.
+          ...(compteAchatDefaut !== undefined && { compteAchatDefaut: compteAchatDefaut || null }),
+          ...(compteVenteDefaut !== undefined && { compteVenteDefaut: compteVenteDefaut || null }),
+          ...(compteStockDefaut !== undefined && { compteStockDefaut: compteStockDefaut || null }),
+          ...(compteVariationStockDefaut !== undefined && { compteVariationStockDefaut: compteVariationStockDefaut || null }),
+          ...(compteTvaAchatDefaut !== undefined && { compteTvaAchatDefaut: compteTvaAchatDefaut || null }),
+          ...(compteTvaVenteDefaut !== undefined && { compteTvaVenteDefaut: compteTvaVenteDefaut || null }),
         },
       });
       await auditLog(tx, userId, "MODIFICATION_CONFIGURATION_INITIALE", "ConfigurationComptableInitiale", u.id, { pays, devise, referentiel, typeEntite }, meta);

@@ -19,6 +19,8 @@ export async function GET() {
         id: true, nom: true, description: true, actif: true,
         sousFamilles: { orderBy: { nom: "asc" }, select: { id: true, nom: true, actif: true, _count: { select: { produits: true } } } },
         _count: { select: { produits: true } },
+        compteAchat: true, compteVente: true, compteStock: true, compteVariationStock: true,
+        compteTvaAchat: true, compteTvaVente: true,
       },
     }),
     prisma.categorieProduit.findMany({
@@ -27,6 +29,8 @@ export async function GET() {
         id: true, nom: true, description: true, actif: true,
         sousCategories: { orderBy: { nom: "asc" }, select: { id: true, nom: true, actif: true, _count: { select: { produits: true } } } },
         _count: { select: { produits: true } },
+        compteAchat: true, compteVente: true, compteStock: true, compteVariationStock: true,
+        compteTvaAchat: true, compteTvaVente: true,
       },
     }),
     prisma.marqueProduit.findMany({

@@ -5,6 +5,7 @@ import { getLogistiqueSession } from "@/lib/authLogistique";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { randomUUID } from "crypto";
 import { notify, notifyRoles, auditLog } from "@/lib/notifications";
+import { comptabiliserTransfertRecu } from "@/lib/comptabilite/ecrituresTransfert";
 import { getRequestMeta } from "@/lib/requestMeta";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -221,6 +222,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         });
 
         await auditLog(tx, parseInt(session.user.id), "TRANSFERT_RECU", "TransfertStock", t.id, undefined, getRequestMeta(req));
+        await comptabiliserTransfertRecu(tx, t.id, parseInt(session.user.id));
 
         await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT"], {
           titre:    `Transfert reçu : ${transfert.reference}`,

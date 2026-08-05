@@ -15,6 +15,7 @@
 import { Prisma } from "@prisma/client";
 import { compteAuxiliaireOuDefaut } from "@/lib/comptabilite/auxiliaire";
 import { resoudreTvaVente, decomposerTTC } from "@/lib/comptabilite/tva";
+import { resoudreComptesProduit, type ComptesProduitResolus } from "@/lib/comptabilite/comptesProduit";
 
 export type TxClient = Prisma.TransactionClient;
 
@@ -200,6 +201,21 @@ export interface ContexteEvenement {
   famille?: string | null;
   /** CategorieProduit.nom (ou Produit.categorie legacy) — CDC §6, mapping automatique par catégorie. */
   categorie?: string | null;
+  /**
+   * Produit.id réel — CDC §52/§53 : quand fourni, une fois qu'une règle par
+   * défaut (REGLES_PAR_DEFAUT) ou DB a fourni un couple de comptes de base, la
+   * cascade Produit > Catégorie > Famille > Configuration générale
+   * (lib/comptabilite/comptesProduit.ts) vient surcharger les comptes que la
+   * fiche produit connaît mieux qu'une règle générique (achat/vente/stock/
+   * variation stock/TVA/section analytique).
+   */
+  produitId?: number | null;
+  /** CDC §54 — type de client (Client.typeClient : COMPTANT|CREDIT, ou walk-in). */
+  typeClient?: string | null;
+  /** CDC §54/§55 — point de vente/dépôt à l'origine de l'événement. */
+  pointDeVenteId?: number | null;
+  /** CDC §56 — TypeSortieStock (PERTE/CASSE/DON/VOL/CONSOMMATION_INTERNE/LIVRAISON_CLIENT/RETOUR_FOURNISSEUR…). */
+  typeSortie?: string | null;
 }
 
 export interface ComptesRegle {
@@ -226,6 +242,15 @@ export function compteTresorerie(modePaiement?: string | null): { numero: string
 // ecritureAchatServer). Le comptable peut les surcharger en créant une
 // RegleComptable active pour le même `evenement` (priorité DB > défaut code).
 const REGLES_PAR_DEFAUT: Record<string, (ctx: ContexteEvenement) => ComptesRegle> = {
+  // Vente comptant directe (CDC §54) : Dr Trésorerie (571/521 selon mode de
+  // paiement, CDC §8) / Cr Ventes. Avant cet événement, lib/ecritureVenteServer.ts
+  // câblait "571" en dur quel que soit le mode de paiement (VIREMENT/CHEQUE/
+  // MOBILE_MONEY finissaient quand même en Caisse) — désormais symétrique à
+  // RECEPTION_ACHAT_VALIDEE/PAIEMENT_FOURNISSEUR qui font déjà cette distinction.
+  VENTE_COMPTANT_DIRECTE: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: tr.numero, compteCreditNumero: "701" };
+  },
   VENTE_CREDIT_VALIDEE: () => ({ journal: "VENTES", compteDebitNumero: "411", compteCreditNumero: "701" }),
   // Intérêts/frais de crédit (CDC §8 — "intérêts/frais si applicable → écriture
   // comptable") : avant, noyés dans 701 Ventes avec la marchandise, faussant le
@@ -270,12 +295,78 @@ const REGLES_PAR_DEFAUT: Record<string, (ctx: ContexteEvenement) => ComptesRegle
   // sens (débit/crédit) déterminé à l'appel selon le signe de l'écart — ce couple
   // ne sert que de comptes par défaut (311 Marchandises / 6031 Variation de stocks).
   INVENTAIRE_ECART_VALIDE: () => ({ journal: "OD", compteDebitNumero: "311", compteCreditNumero: "6031" }),
+  // Ajustement de stock approuvé (CDC §56) : mêmes rôles que INVENTAIRE_ECART_VALIDE
+  // (lib/comptabilite/ecrituresAjustement.ts détermine le sens réel selon le signe).
+  AJUSTEMENT_STOCK_APPROUVE: () => ({ journal: "OD", compteDebitNumero: "311", compteCreditNumero: "6031" }),
+  // Sortie de stock exceptionnelle (CDC §56 — pertes, casses, dons, vols,
+  // consommation interne, retours fournisseur, livraisons client hors vente
+  // directe/crédit) : lib/comptabilite/ecrituresBonSortie.ts. Le sens dépend
+  // du type de sortie — une livraison client se comporte comme un COGS de
+  // vente (6031/311) ; un retour fournisseur réduit la dette fournisseur
+  // (401/311) ; tout le reste (perte/casse/vol/don/conso interne) est une
+  // charge diverse de gestion courante (658) contre le stock.
+  SORTIE_STOCK_EXCEPTIONNELLE: (ctx) => {
+    if (ctx.typeSortie === "LIVRAISON_CLIENT") return { journal: "VENTES", compteDebitNumero: "6031", compteCreditNumero: "311" };
+    if (ctx.typeSortie === "RETOUR_FOURNISSEUR") return { journal: "ACHATS", compteDebitNumero: "401", compteCreditNumero: "311" };
+    return { journal: "OD", compteDebitNumero: "658", compteCreditNumero: "311" };
+  },
 };
 
 /**
- * Résout les comptes à utiliser pour un événement donné : d'abord une
- * RegleComptable active en base (la plus prioritaire dont les conditions
- * correspondent au contexte), sinon la règle par défaut du code.
+ * Surcharge, champ par champ, les comptes d'une résolution de base avec ceux
+ * que la fiche produit connaît (cascade CDC §52/§53) — seuls les champs
+ * pertinents pour `evenement` sont éligibles, et seuls ceux effectivement
+ * renseignés sur le produit/sa catégorie/sa famille/la config générale
+ * l'emportent (sinon la base — RegleComptable DB ou REGLES_PAR_DEFAUT — reste
+ * inchangée, zéro régression pour un produit non paramétré).
+ */
+function surchargerAvecCascadeProduit(evenement: string, base: ComptesRegle, cp: ComptesProduitResolus): ComptesRegle {
+  const out = { ...base };
+  switch (evenement) {
+    case "RECEPTION_ACHAT_VALIDEE": {
+      const debit = cp.compteStock ?? cp.compteAchat;
+      if (debit) out.compteDebitNumero = debit;
+      if (cp.compteTvaAchat) out.compteTvaNumero = cp.compteTvaAchat;
+      break;
+    }
+    case "SORTIE_STOCK_VENTE":
+    case "SORTIE_STOCK_EXCEPTIONNELLE": {
+      if (cp.compteVariationStock) out.compteDebitNumero = cp.compteVariationStock;
+      if (cp.compteStock) out.compteCreditNumero = cp.compteStock;
+      break;
+    }
+    // Rôles (pas des débit/crédit fixes) : le sens réel est déterminé à l'appel
+    // selon le signe de l'écart (lib/comptabilite/ecrituresInventaire.ts,
+    // lib/comptabilite/ecrituresAjustement.ts) — compteDebitNumero porte le
+    // "compte stock", compteCreditNumero le "compte variation stock".
+    case "AJUSTEMENT_STOCK_APPROUVE":
+    case "INVENTAIRE_ECART_VALIDE": {
+      if (cp.compteStock) out.compteDebitNumero = cp.compteStock;
+      if (cp.compteVariationStock) out.compteCreditNumero = cp.compteVariationStock;
+      break;
+    }
+    case "VENTE_CREDIT_VALIDEE":
+    case "VENTE_COMPTANT_DIRECTE": {
+      if (cp.compteVente) out.compteCreditNumero = cp.compteVente;
+      if (cp.compteTvaVente) out.compteTvaNumero = cp.compteTvaVente;
+      break;
+    }
+    default:
+      return base; // événement non produit-dépendant : aucune surcharge
+  }
+  if (cp.sectionAnalytiqueId != null) out.sectionAnalytiqueId = cp.sectionAnalytiqueId;
+  return out;
+}
+
+/**
+ * Résout les comptes à utiliser pour un événement donné, par ordre de
+ * priorité décroissante :
+ *   1. RegleComptable active en base (la plus prioritaire dont les conditions
+ *      correspondent au contexte) — inchangé, prime sur tout le reste ;
+ *   2. Si `ctx.produitId` est fourni, la cascade fiche produit > catégorie >
+ *      famille > configuration générale (CDC §52/§53) vient surcharger les
+ *      comptes que la base (règle DB ou défaut) ne connaît pas mieux ;
+ *   3. REGLES_PAR_DEFAUT codé en dur, en dernier recours.
  */
 export async function resoudreRegleComptable(
   tx: TxClient,
@@ -298,12 +389,26 @@ export async function resoudreRegleComptable(
     if (r.conditionFamille && r.conditionFamille !== ctx.famille) continue;
     if (r.conditionCategorie && r.conditionCategorie !== ctx.categorie) continue;
     if (r.conditionModePaiement && r.conditionModePaiement !== (ctx.modePaiement ?? null)) continue;
+    if (r.conditionTypeClient && r.conditionTypeClient !== (ctx.typeClient ?? null)) continue;
+    if (r.conditionPointDeVente != null && r.conditionPointDeVente !== ctx.pointDeVenteId) continue;
+    if (r.conditionTypeSortie && r.conditionTypeSortie !== (ctx.typeSortie ?? null)) continue;
+    // Une RegleComptable DB explicitement paramétrée par le comptable est le
+    // niveau de priorité le plus haut : elle l'emporte telle quelle, sans
+    // passer par la cascade produit (comportement historique inchangé).
     return {
       journal: r.journal, compteDebitNumero: r.compteDebitNumero, compteCreditNumero: r.compteCreditNumero,
       compteTvaNumero: r.compteTvaNumero, sectionAnalytiqueId: r.sectionAnalytiqueId, centreCoutId: r.centreCoutId, devise: r.devise,
     };
   }
-  return REGLES_PAR_DEFAUT[evenement]?.(ctx) ?? null;
+
+  // Aucune RegleComptable DB ne correspond : défaut codé en dur, puis
+  // surchargé par la cascade fiche produit (CDC §52/§53) si `produitId` connu.
+  const defaut = REGLES_PAR_DEFAUT[evenement]?.(ctx) ?? null;
+  if (!defaut) return null;
+  if (ctx.produitId == null) return defaut;
+
+  const cp = await resoudreComptesProduit(tx, ctx.produitId);
+  return surchargerAvecCascadeProduit(evenement, defaut, cp);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -328,7 +433,12 @@ export async function ecritureVenteCreditValidee(
     montantInteret?: number; montantFrais?: number;
   },
 ): Promise<number | null> {
-  const regle = await resoudreRegleComptable(tx, "VENTE_CREDIT_VALIDEE");
+  // CDC §54 — "type client" comme facteur de résolution des comptes.
+  const client = params.clientId != null
+    ? await tx.client.findUnique({ where: { id: params.clientId }, select: { typeClient: true } })
+    : null;
+  const ctx: ContexteEvenement = { pointDeVenteId: params.pointDeVenteId, typeClient: client?.typeClient ?? null };
+  const regle = await resoudreRegleComptable(tx, "VENTE_CREDIT_VALIDEE", ctx);
   if (!regle) return null;
   const compteDebit = await compteAuxiliaireOuDefaut(tx, regle.compteDebitNumero, { clientId: params.clientId });
   const pdv = params.pointDeVenteId ?? null;
@@ -582,7 +692,7 @@ export async function creerEcritureCogsLigneCreditClient(
   // catégorie de produit (ex: Riz → comptes spécifiques si paramétré) ; sans
   // règle personnalisée pour cette catégorie, retombe sur 6031/311 (inchangé).
   const categorie = produit.categorieProduit?.nom ?? produit.categorie ?? null;
-  const regle = await resoudreRegleComptable(tx, "SORTIE_STOCK_VENTE", { categorie });
+  const regle = await resoudreRegleComptable(tx, "SORTIE_STOCK_VENTE", { categorie, produitId, pointDeVenteId: ligne.credit.pointDeVenteId });
   if (!regle) return;
 
   await creerEcriture(tx, {

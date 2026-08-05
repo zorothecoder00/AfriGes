@@ -30,7 +30,7 @@ export async function creerEcritureAchatDepuisMouvement(
 ): Promise<void> {
   const mouvement = await tx.mouvementStock.findUnique({
     where: { id: mouvementStockId },
-    include: { produit: { select: { nom: true, prixUnitaire: true } } },
+    include: { produit: { select: { nom: true, prixUnitaire: true, categorie: true, categorieProduit: { select: { nom: true } } } } },
   });
   // mouvement.pointDeVenteId : PDV/dépôt qui réceptionne, porté sur les 2 lignes (CDC §24).
   if (!mouvement) return;
@@ -48,7 +48,15 @@ export async function creerEcritureAchatDepuisMouvement(
     : null;
   const modePaiementCtx = reception?.modeReglement === "COMPTANT" ? (reception.modePaiement ?? "ESPECES") : null;
 
-  const regle = await resoudreRegleComptable(tx, "RECEPTION_ACHAT_VALIDEE", { modePaiement: modePaiementCtx });
+  // CDC §55 — catégorie de produit et point de vente/dépôt réceptionnaire
+  // comme facteurs de résolution des comptes (cascade §52/§53 comprise, via
+  // produitId — avant : seul le mode de paiement était pris en compte).
+  const regle = await resoudreRegleComptable(tx, "RECEPTION_ACHAT_VALIDEE", {
+    modePaiement: modePaiementCtx,
+    categorie: mouvement.produit.categorieProduit?.nom ?? mouvement.produit.categorie ?? null,
+    produitId: mouvement.produitId,
+    pointDeVenteId: mouvement.pointDeVenteId,
+  });
   if (!regle) return;
 
   const compteCredit = await compteAuxiliaireOuDefaut(tx, regle.compteCreditNumero, { fournisseurId: reception?.fournisseurId });

@@ -19,6 +19,7 @@ export async function PUT(req: Request, { params }: Ctx) {
     const {
       evenement, moduleSource, compteDebitNumero, compteCreditNumero, journal,
       conditionProduit, conditionFamille, conditionCategorie, conditionModePaiement,
+      conditionTypeClient, conditionPointDeVente, conditionTypeSortie,
       compteTvaNumero, sectionAnalytiqueId, centreCoutId, devise, dateDebutValidite, dateFinValidite,
       priorite, actif, mode, notes,
     } = body;
@@ -38,6 +39,9 @@ export async function PUT(req: Request, { params }: Ctx) {
           ...(conditionFamille !== undefined && { conditionFamille: conditionFamille || null }),
           ...(conditionCategorie !== undefined && { conditionCategorie: conditionCategorie || null }),
           ...(conditionModePaiement !== undefined && { conditionModePaiement: conditionModePaiement || null }),
+          ...(conditionTypeClient !== undefined && { conditionTypeClient: conditionTypeClient || null }),
+          ...(conditionPointDeVente !== undefined && { conditionPointDeVente: conditionPointDeVente ? Number(conditionPointDeVente) : null }),
+          ...(conditionTypeSortie !== undefined && { conditionTypeSortie: conditionTypeSortie || null }),
           ...(compteTvaNumero !== undefined && { compteTvaNumero: compteTvaNumero || null }),
           ...(sectionAnalytiqueId !== undefined && { sectionAnalytiqueId: sectionAnalytiqueId ? Number(sectionAnalytiqueId) : null }),
           ...(centreCoutId !== undefined && { centreCoutId: centreCoutId ? Number(centreCoutId) : null }),

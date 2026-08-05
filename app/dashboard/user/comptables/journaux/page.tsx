@@ -26,8 +26,9 @@ import {
   Search, X, ChevronLeft, ChevronRight, ArrowUpRight, ArrowDownRight,
   PlusCircle, Save, CheckCircle, AlertCircle, Filter, Plus,
   BookOpen, Wallet, Calendar, TrendingUp, Package, ShoppingBag, BadgeCheck, Users,
-  Paperclip, Upload, ExternalLink, Trash2,
+  Paperclip, Upload, ExternalLink, Trash2, Sparkles, Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort, formatDateTime } from "@/lib/format";
 import { generateUploadButton } from "@uploadthing/react";
@@ -35,6 +36,7 @@ import type { OurFileRouter } from "@/app/api/uploadthing/core";
 import { useT } from "@/contexts/AppSettingsContext";
 import AideComptable from "@/components/AideComptable";
 import { AIDE_COMPTABLE } from "@/lib/aideComptableContenu";
+import PropositionOcrModal, { type PropositionOCR } from "@/components/comptable/PropositionOcrModal";
 
 const UploadButton = generateUploadButton<OurFileRouter>();
 
@@ -235,6 +237,25 @@ export default function JournauxPage() {
   const [piecesLoading, setPiecesLoading] = useState(false);
   const [piecesSuppLoading, setPiecesSuppLoading] = useState<number | null>(null);
   const [pieceNatureChoisie, setPieceNatureChoisie] = useState("AUTRE");
+
+  // Reconnaissance heuristique de facture (CDC IA/Automatisation §51) — jamais
+  // de création d'écriture automatique, seulement une proposition à relire.
+  const [ocrAnalysingId, setOcrAnalysingId] = useState<number | null>(null);
+  const [ocrProposition, setOcrProposition] = useState<PropositionOCR | null>(null);
+
+  async function analyserFacture(pieceJustificativeId: number) {
+    setOcrAnalysingId(pieceJustificativeId);
+    try {
+      const r = await fetch("/api/comptable/ocr/analyser", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pieceJustificativeId }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      setOcrProposition(j.data);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Analyse impossible"); }
+    finally { setOcrAnalysingId(null); }
+  }
 
   const fetchPiecesModal = useCallback(async (sourceType: string, sourceId: number) => {
     setPiecesLoading(true);
@@ -650,6 +671,12 @@ export default function JournauxPage() {
                       {piece.description && <p className="text-xs text-slate-500 italic mt-0.5">{piece.description}</p>}
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
+                      {piece.nature === "FACTURE" && piece.type.includes("pdf") && (
+                        <button onClick={() => analyserFacture(piece.id)} disabled={ocrAnalysingId === piece.id}
+                          className="p-1.5 text-violet-500 hover:bg-violet-50 rounded-lg disabled:opacity-40" title="Analyser (reconnaissance auto)">
+                          {ocrAnalysingId === piece.id ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                        </button>
+                      )}
                       <a href={piece.url} target="_blank" rel="noopener noreferrer"
                         className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg" title="Ouvrir">
                         <ExternalLink size={15} />
@@ -705,6 +732,14 @@ export default function JournauxPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {ocrProposition && (
+        <PropositionOcrModal
+          proposition={ocrProposition}
+          onClose={() => setOcrProposition(null)}
+          onDone={() => { setOcrProposition(null); if (piecesModal) fetchPiecesModal(piecesModal.sourceType, piecesModal.sourceId); }}
+        />
       )}
     </main>
   );

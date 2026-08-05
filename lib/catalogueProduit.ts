@@ -52,5 +52,13 @@ export function buildProduitData(body: Record<string, unknown>) {
     imagesSecondaires:  Array.isArray(body.imagesSecondaires) ? (body.imagesSecondaires as unknown[]).filter((x): x is string => typeof x === "string") : [],
     ficheTechniqueUrl:  strOrNull(body.ficheTechniqueUrl),
     videoUrl:           strOrNull(body.videoUrl),
+    // Comptabilisation (CDC §52/§53) — cascade lib/comptabilite/comptesProduit.ts
+    compteAchat:            strOrNull(body.compteAchat),
+    compteVente:            strOrNull(body.compteVente),
+    compteStock:            strOrNull(body.compteStock),
+    compteVariationStock:   strOrNull(body.compteVariationStock),
+    compteTvaAchat:         strOrNull(body.compteTvaAchat),
+    compteTvaVente:         strOrNull(body.compteTvaVente),
+    sectionAnalytiqueDefautId: numOrNull(body.sectionAnalytiqueDefautId),
   };
 }

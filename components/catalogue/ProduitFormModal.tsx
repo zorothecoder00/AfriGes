@@ -31,6 +31,7 @@ const EMPTY: FormState = {
   familleId: "", sousFamilleId: "", categorieId: "", sousCategorieId: "", marqueId: "", fournisseurPrincipalId: "", paysOrigine: "",
   poids: "", volume: "", dimensions: "", couleur: "", saveur: "", conditionnement: "", unitesParPalette: "", uniteVenteId: "", uniteAchatId: "",
   imagePrincipaleUrl: "", ficheTechniqueUrl: "", videoUrl: "", motifPrix: "",
+  compteAchat: "", compteVente: "", compteStock: "", compteVariationStock: "", compteTvaAchat: "", compteTvaVente: "", sectionAnalytiqueDefautId: "",
 };
 
 export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
@@ -39,6 +40,7 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
   const [loading, setLoading] = useState(!!produitId);
   const [saving, setSaving] = useState(false);
   const [fournisseurs, setFournisseurs] = useState<FournisseurRef[]>([]);
+  const [sectionsAnalytiques, setSectionsAnalytiques] = useState<{ id: number; code: string; libelle: string }[]>([]);
   const [secIds, setSecIds] = useState<string[]>([]);
   const [tab, setTab] = useState<"fiche" | "tarification" | "disponibilite">("fiche");
   const isEdit = produitId != null;
@@ -64,6 +66,9 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
           poids: s(p.poids), volume: s(p.volume), dimensions: s(p.dimensions), couleur: s(p.couleur), saveur: s(p.saveur),
           conditionnement: s(p.conditionnement), unitesParPalette: s(p.unitesParPalette), uniteVenteId: s(p.uniteVenteId), uniteAchatId: s(p.uniteAchatId),
           imagePrincipaleUrl: s(p.imagePrincipaleUrl), ficheTechniqueUrl: s(p.ficheTechniqueUrl), videoUrl: s(p.videoUrl), motifPrix: "",
+          compteAchat: s(p.compteAchat), compteVente: s(p.compteVente), compteStock: s(p.compteStock),
+          compteVariationStock: s(p.compteVariationStock), compteTvaAchat: s(p.compteTvaAchat), compteTvaVente: s(p.compteTvaVente),
+          sectionAnalytiqueDefautId: s(p.sectionAnalytiqueDefautId),
         });
         setSecIds((p.fournisseursSecondaires ?? []).map((f: FournisseurRef) => String(f.id)));
       } catch (e) { toast.error(e instanceof Error ? e.message : "Chargement impossible"); }
@@ -74,6 +79,9 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
   useEffect(() => {
     fetch("/api/admin/catalogue/fournisseurs").then((r) => (r.ok ? r.json() : null)).then((j) => {
       if (j?.data) setFournisseurs(j.data);
+    }).catch(() => {});
+    fetch("/api/comptable/analytique/sections").then((r) => (r.ok ? r.json() : null)).then((j) => {
+      if (j?.data) setSectionsAnalytiques(j.data);
     }).catch(() => {});
   }, []);
 
@@ -161,6 +169,25 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
               <Field label="Seuil d'alerte stock"><input type="number" min={0} value={form.alerteStock} onChange={(e) => set("alerteStock", e.target.value)} className={inputCls} /></Field>
               {isEdit && <Field label="Motif (si changement de prix)" span2><input value={form.motifPrix} onChange={(e) => set("motifPrix", e.target.value)} placeholder="Ex. hausse fournisseur" className={inputCls} /></Field>}
               <p className="col-span-2 text-[11px] text-gray-400">Les prix multiples (crédit, VIP, communauté…) seront gérés dans l&apos;onglet Tarification (Phase 2).</p>
+            </Section>
+
+            {/* Comptabilisation (CDC §52/§53) */}
+            <Section title="Comptabilité">
+              <p className="col-span-2 text-[11px] text-gray-400 -mt-1">
+                Un champ laissé vide hérite du niveau supérieur (catégorie → famille → configuration générale).
+              </p>
+              <Field label="Compte achat"><input value={form.compteAchat} onChange={(e) => set("compteAchat", e.target.value)} placeholder="601" className={inputCls} /></Field>
+              <Field label="Compte vente"><input value={form.compteVente} onChange={(e) => set("compteVente", e.target.value)} placeholder="701" className={inputCls} /></Field>
+              <Field label="Compte stock"><input value={form.compteStock} onChange={(e) => set("compteStock", e.target.value)} placeholder="311" className={inputCls} /></Field>
+              <Field label="Compte variation stock"><input value={form.compteVariationStock} onChange={(e) => set("compteVariationStock", e.target.value)} placeholder="6031" className={inputCls} /></Field>
+              <Field label="Compte TVA achat"><input value={form.compteTvaAchat} onChange={(e) => set("compteTvaAchat", e.target.value)} placeholder="4452" className={inputCls} /></Field>
+              <Field label="Compte TVA vente"><input value={form.compteTvaVente} onChange={(e) => set("compteTvaVente", e.target.value)} placeholder="4431" className={inputCls} /></Field>
+              <Field label="Section analytique" span2>
+                <select value={form.sectionAnalytiqueDefautId} onChange={(e) => set("sectionAnalytiqueDefautId", e.target.value)} className={inputCls}>
+                  <option value="">—</option>
+                  {sectionsAnalytiques.map((s) => <option key={s.id} value={s.id}>{s.code} — {s.libelle}</option>)}
+                </select>
+              </Field>
             </Section>
 
             {/* Classification */}

@@ -17,13 +17,10 @@
  * (lib/comptabilite/moteur.ts::ecritureVenteCreditValidee).
  */
 import type { Prisma } from "@prisma/client";
-import { creerEcriture, resoudreRegleComptable, type LigneMoteur } from "@/lib/comptabilite/moteur";
+import { creerEcriture, resoudreRegleComptable, type ContexteEvenement, type LigneMoteur } from "@/lib/comptabilite/moteur";
 import { resoudreTvaVente, decomposerTTC } from "@/lib/comptabilite/tva";
 
 type TxClient = Prisma.TransactionClient;
-
-const COMPTE_CAISSE = "571";
-const COMPTE_VENTES = "701";
 
 export async function creerEcritureVenteDepuisVenteDirecte(
   tx: TxClient,
@@ -38,6 +35,7 @@ export async function creerEcritureVenteDepuisVenteDirecte(
       modePaiement: true,
       montantPaye: true,
       clientNom: true,
+      clientId: true,
       createdAt: true,
       pointDeVenteId: true,
     },
@@ -49,6 +47,20 @@ export async function creerEcritureVenteDepuisVenteDirecte(
   const montant = Number(vente.montantPaye);
   if (montant <= 0) return;
 
+  // CDC §54 — mode de paiement (compte de trésorerie), type client et point de
+  // vente comme facteurs de résolution des comptes (avant : "571" câblé en dur
+  // quel que soit le mode de paiement, aucune notion de type client/PDV).
+  const client = vente.clientId != null
+    ? await tx.client.findUnique({ where: { id: vente.clientId }, select: { typeClient: true } })
+    : null;
+  const ctx: ContexteEvenement = {
+    modePaiement: vente.modePaiement,
+    typeClient: client?.typeClient ?? null,
+    pointDeVenteId: vente.pointDeVenteId,
+  };
+  const regle = await resoudreRegleComptable(tx, "VENTE_COMPTANT_DIRECTE", ctx);
+  if (!regle) return;
+
   // TVA (CDC §21) : décomposition HT/TVA si une taxe TVA active est configurée
   // (onglet Exercices, Taxes & Récurrentes) ; sinon comportement inchangé.
   const tva = await resoudreTvaVente(tx);
@@ -56,21 +68,21 @@ export async function creerEcritureVenteDepuisVenteDirecte(
     ? (() => {
         const { montantHT, montantTVA } = decomposerTTC(montant, tva.taux);
         return [
-          { numero: COMPTE_CAISSE, debit: montant, libelle: `VD ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
-          { numero: COMPTE_VENTES, credit: montantHT, libelle: `VD ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
+          { numero: regle.compteDebitNumero, debit: montant, libelle: `VD ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
+          { numero: regle.compteCreditNumero, credit: montantHT, libelle: `VD ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
           { numero: tva.compteCollecteNumero, credit: montantTVA, libelle: `TVA collectée ${vente.reference}`, isTva: true, tauxTva: tva.taux, montantTva: montantTVA, pointDeVenteId: vente.pointDeVenteId },
         ];
       })()
     : [
-        { numero: COMPTE_CAISSE, debit: montant, libelle: `VD ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
-        { numero: COMPTE_VENTES, credit: montant, libelle: `VD ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
+        { numero: regle.compteDebitNumero, debit: montant, libelle: `VD ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
+        { numero: regle.compteCreditNumero, credit: montant, libelle: `VD ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
       ];
 
   await creerEcriture(tx, {
     reference: `SYNC-VD-${venteDirecteId}`,
     date: vente.createdAt,
     libelle: `Vente directe — ${vente.reference}${vente.clientNom ? ` — ${vente.clientNom}` : ""}`,
-    journal: "VENTES",
+    journal: regle.journal,
     userId,
     lignes,
   });
@@ -124,31 +136,42 @@ export async function creerEcritureCogsVenteDirecte(
     { cout: p.prixAchat != null ? Number(p.prixAchat) : null, categorie: p.categorieProduit?.nom ?? p.categorie ?? null },
   ]));
 
-  // CDC §6 — mapping automatique du compte stock/variation de stock par
-  // catégorie de produit : le coût est regroupé par catégorie résolue, chaque
-  // groupe résolvant ses propres comptes débit/crédit (une règle personnalisée
-  // par catégorie l'emporte ; sans règle, tous les groupes retombent sur les
-  // mêmes 6031/311, comportement inchangé).
-  const coutParCategorie = new Map<string | null, number>();
+  // CDC §6/§52/§53 — coût regroupé par PRODUIT (pas seulement catégorie) : chaque
+  // produit résout sa propre cascade Produit > Catégorie > Famille > Config
+  // générale (lib/comptabilite/comptesProduit.ts) via resoudreRegleComptable,
+  // avant repli sur les mêmes 6031/311 par défaut (comportement inchangé pour
+  // un produit non paramétré). Les lignes obtenues sont ensuite regroupées par
+  // couple de comptes réellement résolu pour ne pas multiplier les lignes
+  // d'écriture inutilement.
+  const coutParProduit = new Map<number, number>();
   for (const l of vente.lignes) {
     if (l.produitId == null) continue;
     const info = infoParProduit.get(l.produitId);
     if (!info || info.cout == null) continue;
-    const cle = info.categorie;
-    coutParCategorie.set(cle, (coutParCategorie.get(cle) ?? 0) + l.quantite * info.cout);
+    coutParProduit.set(l.produitId, (coutParProduit.get(l.produitId) ?? 0) + l.quantite * info.cout);
   }
-  if (coutParCategorie.size === 0) return;
+  if (coutParProduit.size === 0) return;
+
+  const parCouple = new Map<string, { debit: string; credit: string; journal: string; montant: number }>();
+  for (const [produitId, coutGroupe] of coutParProduit) {
+    if (coutGroupe <= 0) continue;
+    const info = infoParProduit.get(produitId);
+    const regle = await resoudreRegleComptable(tx, "SORTIE_STOCK_VENTE", { categorie: info?.categorie ?? null, produitId, pointDeVenteId: vente.pointDeVenteId });
+    if (!regle) continue;
+    const cle = `${regle.compteDebitNumero}|${regle.compteCreditNumero}|${regle.journal}`;
+    const existant = parCouple.get(cle);
+    if (existant) existant.montant += coutGroupe;
+    else parCouple.set(cle, { debit: regle.compteDebitNumero, credit: regle.compteCreditNumero, journal: regle.journal, montant: coutGroupe });
+  }
+  if (parCouple.size === 0) return;
 
   const lignes: LigneMoteur[] = [];
   let journal = "VENTES";
-  for (const [categorie, coutGroupe] of coutParCategorie) {
-    if (coutGroupe <= 0) continue;
-    const regle = await resoudreRegleComptable(tx, "SORTIE_STOCK_VENTE", { categorie });
-    if (!regle) continue;
-    journal = regle.journal;
+  for (const { debit, credit, journal: j, montant } of parCouple.values()) {
+    journal = j;
     lignes.push(
-      { numero: regle.compteDebitNumero, debit: coutGroupe, libelle: `COGS ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
-      { numero: regle.compteCreditNumero, credit: coutGroupe, libelle: `COGS ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
+      { numero: debit, debit: montant, libelle: `COGS ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
+      { numero: credit, credit: montant, libelle: `COGS ${vente.reference}`, pointDeVenteId: vente.pointDeVenteId },
     );
   }
   if (lignes.length === 0) return;

@@ -8,6 +8,8 @@ type Ctx = { params: Promise<{ type: string; id: string }> };
 const TYPES = ["familles", "sous-familles", "categories", "sous-categories", "marques", "unites"] as const;
 type RefType = (typeof TYPES)[number];
 
+const CHAMPS_COMPTABLES = ["compteAchat", "compteVente", "compteStock", "compteVariationStock", "compteTvaAchat", "compteTvaVente"] as const;
+
 // Construit le payload de mise à jour commun (nom / actif + champs spécifiques).
 function buildData(type: RefType, body: Record<string, unknown>): Prisma.MarqueProduitUpdateInput {
   const data: Record<string, unknown> = {};
@@ -18,6 +20,12 @@ function buildData(type: RefType, body: Record<string, unknown>): Prisma.MarqueP
   }
   if (type === "marques" && typeof body.logoUrl === "string") data.logoUrl = body.logoUrl.trim() || null;
   if (type === "unites" && typeof body.symbole === "string") data.symbole = body.symbole.trim() || null;
+  // Comptabilisation par famille/catégorie (CDC §52/§53).
+  if (type === "familles" || type === "categories") {
+    for (const champ of CHAMPS_COMPTABLES) {
+      if (typeof body[champ] === "string") data[champ] = body[champ].trim() || null;
+    }
+  }
   return data as Prisma.MarqueProduitUpdateInput;
 }
 

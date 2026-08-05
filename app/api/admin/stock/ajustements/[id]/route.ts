@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { notify, notifyAdmins, auditLog } from "@/lib/notifications";
+import { comptabiliserAjustementStock } from "@/lib/comptabilite/ecrituresAjustement";
 import { randomUUID } from "crypto";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -117,6 +118,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         });
 
         await auditLog(tx, adminId, "AJUSTEMENT_STOCK_APPROUVE", "DemandeAjustementStock", demandeId);
+        await comptabiliserAjustementStock(tx, demandeId, adminId);
       } else {
         // REJETE — notifier le demandeur
         await notify(tx, [demande.demandeurId], {

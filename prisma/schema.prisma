@@ -743,6 +743,8 @@ model User {
   ecrituresComptables  EcritureComptable[]
   ecrituresValidees    EcritureComptable[] @relation("EcritureValidateur")
   ecrituresControlees  EcritureComptable[] @relation("EcritureControleur")
+  propositionsOCRAnalysees PropositionImputationOCR[] @relation("PropositionOCRAnalysePar")
+  propositionsOCRValidees  PropositionImputationOCR[] @relation("PropositionOCRValidePar")
   rapprochements       RapprochementBancaire[]
   declarationsTVA      DeclarationTVA[]
   journalValidations   JournalValidation[]
@@ -1682,6 +1684,7 @@ model Fournisseur {
   provisionsDepreciation ProvisionDepreciation[]
   avoirs           AvoirFournisseur[]
   avances          AvanceFournisseur[]
+  propositionsOCR  PropositionImputationOCR[] // factures matchées par reconnaissance heuristique (CDC IA §51)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1820,6 +1823,19 @@ model FamilleProduit {
   sousFamilles SousFamilleProduit[]
   produits     Produit[]
   promotions   Promotion[]
+
+  // ── Comptabilisation par famille (CDC Comptabilité §53) : niveau intermédiaire
+  // de la cascade Produit > Catégorie > Famille > Configuration générale.
+  // Résolu par lib/comptabilite/comptesProduit.ts::resoudreComptesProduit.
+  compteAchat              String?
+  compteVente              String?
+  compteStock              String?
+  compteVariationStock     String?
+  compteTvaAchat           String?
+  compteTvaVente           String?
+  sectionAnalytiqueDefautId Int?
+  sectionAnalytiqueDefaut   SectionAnalytique? @relation("FamilleSectionAnalytique", fields: [sectionAnalytiqueDefautId], references: [id])
+
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
 }
@@ -1846,6 +1862,18 @@ model CategorieProduit {
   sousCategories SousCategorieProduit[]
   produits       Produit[]
   promotions     Promotion[]
+
+  // ── Comptabilisation par catégorie (CDC Comptabilité §53) : niveau
+  // intermédiaire de la cascade Produit > Catégorie > Famille > Config générale.
+  compteAchat              String?
+  compteVente              String?
+  compteStock              String?
+  compteVariationStock     String?
+  compteTvaAchat           String?
+  compteTvaVente           String?
+  sectionAnalytiqueDefautId Int?
+  sectionAnalytiqueDefaut   SectionAnalytique? @relation("CategorieSectionAnalytique", fields: [sectionAnalytiqueDefautId], references: [id])
+
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt
 }
@@ -1925,6 +1953,19 @@ model Produit {
   fournisseurPrincipal   Fournisseur?      @relation(fields: [fournisseurPrincipalId], references: [id])
   fournisseursSecondaires Fournisseur[]    @relation("ProduitFournisseursSecondaires") // CDC §5 — sources alternatives
   paysOrigine        String?
+
+  // ── Comptabilité §52 : mapping comptable de la fiche produit — niveau le plus
+  // précis de la cascade Produit > Catégorie > Famille > Configuration générale
+  // (CDC §53). Résolu par lib/comptabilite/comptesProduit.ts::resoudreComptesProduit,
+  // chaque champ hérité indépendamment si laissé vide ici.
+  compteAchat              String?
+  compteVente              String?
+  compteStock              String?
+  compteVariationStock     String?
+  compteTvaAchat           String?
+  compteTvaVente           String?
+  sectionAnalytiqueDefautId Int?
+  sectionAnalytiqueDefaut   SectionAnalytique? @relation("ProduitSectionAnalytique", fields: [sectionAnalytiqueDefautId], references: [id])
 
   // ── Catalogue §3 : caractéristiques ──────────────────────────────────────
   poids            Decimal?   // en kg
@@ -2772,6 +2813,12 @@ model TransfertStock {
   dateReception  DateTime?
   notes          String?
 
+  // Comptabilisation (CDC §56) — écriture générée à la réception confirmée,
+  // renseignée pour empêcher une double comptabilisation
+  // (lib/comptabilite/ecrituresTransfert.ts). Même compte stock des deux
+  // côtés (aucun impact P&L) — seule la dimension analytique par PDV bouge.
+  ecritureId Int?
+
   lignes LigneTransfertStock[]
 
   createdAt DateTime @default(now())
@@ -2892,6 +2939,10 @@ model BonSortie {
   creeParId      Int
   valideParId    Int?
 
+  // Comptabilisation (CDC §56) — écriture générée à la validation, renseignée
+  // pour empêcher une double comptabilisation (lib/comptabilite/ecrituresBonSortie.ts).
+  ecritureId     Int?
+
   pointDeVente PointDeVente @relation(fields: [pointDeVenteId], references: [id])
   creePar      User         @relation("BonsSortieCreePar", fields: [creeParId], references: [id])
   validePar    User?        @relation("BonsSortieValidePar", fields: [valideParId], references: [id])
@@ -2959,6 +3010,10 @@ model DemandeAjustementStock {
   demandeurId           Int
   validateurId          Int?
   commentaireValidation String?
+
+  // Comptabilisation (CDC §56) — écriture générée à l'approbation, renseignée
+  // pour empêcher une double comptabilisation (lib/comptabilite/ecrituresAjustement.ts).
+  ecritureId Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3625,7 +3680,52 @@ model PieceJustificative {
   archiverJusquau DateTime
   createdAt      DateTime @default(now())
 
+  propositionOCR PropositionImputationOCR?
+
   @@index([sourceType, sourceId])
+}
+
+enum StatutPropositionOCR {
+  ANALYSE   // extraction faite, en attente de relecture par le comptable
+  VALIDEE   // comptable a créé l'écriture (BROUILLON) à partir de la proposition
+  REJETEE   // comptable a rejeté la proposition, saisie manuelle classique
+}
+
+/// Proposition d'imputation générée par reconnaissance heuristique de facture
+/// fournisseur PDF (CDC IA/Automatisation §51). L'extraction ne crée JAMAIS
+/// d'écriture comptable seule — elle propose, le comptable relit/corrige et
+/// valide explicitement (lib/comptabilite/moteur.ts::creerEcriture reste
+/// toujours appelé avec statut "BROUILLON").
+model PropositionImputationOCR {
+  id                    Int      @id @default(autoincrement())
+  pieceJustificativeId  Int      @unique
+  pieceJustificative    PieceJustificative @relation(fields: [pieceJustificativeId], references: [id], onDelete: Cascade)
+
+  // Champs extraits (heuristique — jamais garantis, toujours relus par un humain)
+  fournisseurDetecte    String?
+  fournisseurIdMatche   Int?
+  fournisseur           Fournisseur? @relation(fields: [fournisseurIdMatche], references: [id])
+  dateDetectee          String?  // ISO YYYY-MM-DD si parsable
+  numeroDetecte         String?
+  montantHT             Decimal?
+  montantTVA            Decimal?
+  montantTTC            Decimal?
+  lignesJson            Json?
+  compteDebitProbable   String?
+  compteCreditProbable  String?
+
+  statut         StatutPropositionOCR @default(ANALYSE)
+  ecritureCreeeId Int?
+
+  analyseParId Int
+  analysePar   User  @relation("PropositionOCRAnalysePar", fields: [analyseParId], references: [id])
+  valideParId  Int?
+  validePar    User? @relation("PropositionOCRValidePar", fields: [valideParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
 }
 
 // ============================================================
@@ -3960,6 +4060,9 @@ model RegleComptable {
   conditionFamille      String?
   conditionCategorie    String? // CategorieProduit.nom (ou Produit.categorie legacy) — CDC §6, mapping automatique par catégorie
   conditionModePaiement String?
+  conditionTypeClient     String?  // CDC §54 — Client.typeClient (COMPTANT|CREDIT)
+  conditionPointDeVente   Int?     // CDC §54/§55 — PointDeVente.id précis
+  conditionTypeSortie     String?  // CDC §56 — TypeSortieStock (PERTE, CASSE, DON, VOL, CONSOMMATION_INTERNE…)
 
   compteDebitNumero  String
   compteCreditNumero String
@@ -4259,6 +4362,9 @@ model SectionAnalytique {
   comptesParDefaut CompteComptable[]
   reglesAnalytique  RegleComptable[] @relation("RegleAnalytique")
   reglesCentreCout  RegleComptable[] @relation("RegleCentreCout")
+  produitsComptables  Produit[]         @relation("ProduitSectionAnalytique")
+  categoriesComptables CategorieProduit[] @relation("CategorieSectionAnalytique")
+  famillesComptables  FamilleProduit[]  @relation("FamilleSectionAnalytique")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4521,6 +4627,17 @@ model ConfigurationComptableInitiale {
   devise      String @default("XOF")
   referentiel String @default("SYSCOHADA révisé")
   typeEntite  String @default("Société commerciale")
+
+  // ── Comptabilité §53 : dernier niveau de la cascade Produit > Catégorie >
+  // Famille > Configuration générale — comptes par défaut appliqués quand aucun
+  // niveau plus précis n'est paramétré (avant repli sur REGLES_PAR_DEFAUT codé
+  // en dur dans lib/comptabilite/moteur.ts).
+  compteAchatDefaut            String?
+  compteVenteDefaut            String?
+  compteStockDefaut            String?
+  compteVariationStockDefaut   String?
+  compteTvaAchatDefaut         String?
+  compteTvaVenteDefaut         String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

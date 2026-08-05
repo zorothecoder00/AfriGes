@@ -17,6 +17,9 @@ interface RegleComptableEntry {
   conditionFamille: string | null;
   conditionCategorie: string | null;
   conditionModePaiement: string | null;
+  conditionTypeClient: string | null;
+  conditionPointDeVente: number | null;
+  conditionTypeSortie: string | null;
   compteDebitNumero: string;
   compteCreditNumero: string;
   journal: string;
@@ -35,6 +38,7 @@ interface JournalComptableEntry {
   id: number | null; code: string; libelle: string; prefixe: string | null; actif: boolean; builtin: boolean;
 }
 interface SectionAnalytiqueEntry { id: number; axe: string; code: string; libelle: string }
+interface PointDeVenteEntry { id: number; nom: string; code: string | null }
 const JOURNAL_LABELS: Record<string, string> = {
   CAISSE: "Caisse", BANQUE: "Banque", VENTES: "Ventes",
   ACHATS: "Achats", OD: "Opérations diverses", PAIE: "Paie",
@@ -42,9 +46,12 @@ const JOURNAL_LABELS: Record<string, string> = {
   OUVERTURE: "Ouverture", REGULARISATION: "Régularisation",
 };
 
+const TYPES_SORTIE = ["PERTE", "CASSE", "VOL", "DON", "CONSOMMATION_INTERNE", "LIVRAISON_CLIENT", "RETOUR_FOURNISSEUR"];
+
 const REGLE_VIDE = {
   evenement: "", moduleSource: "", compteDebitNumero: "", compteCreditNumero: "",
   journal: "OD", conditionProduit: "", conditionFamille: "", conditionCategorie: "", conditionModePaiement: "",
+  conditionTypeClient: "", conditionPointDeVente: "", conditionTypeSortie: "",
   compteTvaNumero: "", sectionAnalytiqueId: "", centreCoutId: "", devise: "", dateDebutValidite: "", dateFinValidite: "",
   priorite: "0",
 };
@@ -52,6 +59,7 @@ const REGLE_VIDE = {
 export default function ReglesComptablesPage() {
   const { data: journauxData } = useApi<{ data: JournalComptableEntry[] }>("/api/comptable/journaux");
   const { data: sectionsData } = useApi<{ data: SectionAnalytiqueEntry[] }>("/api/comptable/analytique/sections");
+  const { data: pdvData } = useApi<{ data: PointDeVenteEntry[] }>("/api/comptable/points-de-vente");
   const sectionsAnalytiques = (sectionsData?.data ?? []).filter((s) => s.axe !== "CENTRE_COUT");
   const centresCout = (sectionsData?.data ?? []).filter((s) => s.axe === "CENTRE_COUT");
 
@@ -83,6 +91,9 @@ export default function ReglesComptablesPage() {
       conditionFamille: newRegle.conditionFamille || null,
       conditionCategorie: newRegle.conditionCategorie || null,
       conditionModePaiement: newRegle.conditionModePaiement || null,
+      conditionTypeClient: newRegle.conditionTypeClient || null,
+      conditionPointDeVente: newRegle.conditionPointDeVente || null,
+      conditionTypeSortie: newRegle.conditionTypeSortie || null,
       compteTvaNumero: newRegle.compteTvaNumero || null,
       sectionAnalytiqueId: newRegle.sectionAnalytiqueId || null,
       centreCoutId: newRegle.centreCoutId || null,
@@ -177,6 +188,31 @@ export default function ReglesComptablesPage() {
                 placeholder="ex: VIREMENT (optionnel)" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
             </div>
             <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Condition type client</label>
+              <select value={newRegle.conditionTypeClient} onChange={(e) => setNewRegle(p => ({ ...p, conditionTypeClient: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="">— Toutes (optionnel) —</option>
+                <option value="COMPTANT">Comptant</option>
+                <option value="CREDIT">Crédit</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Condition point de vente</label>
+              <select value={newRegle.conditionPointDeVente} onChange={(e) => setNewRegle(p => ({ ...p, conditionPointDeVente: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="">— Tous (optionnel) —</option>
+                {(pdvData?.data ?? []).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Condition type de sortie stock</label>
+              <select value={newRegle.conditionTypeSortie} onChange={(e) => setNewRegle(p => ({ ...p, conditionTypeSortie: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="">— Toutes (optionnel) —</option>
+                {TYPES_SORTIE.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="text-xs font-medium text-slate-600 mb-1 block">Priorité</label>
               <input type="number" value={newRegle.priorite} onChange={(e) => setNewRegle(p => ({ ...p, priorite: e.target.value }))}
                 className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
@@ -257,6 +293,9 @@ export default function ReglesComptablesPage() {
                     {r.conditionFamille && <span className="ml-2 text-xs font-sans text-slate-400">famille={r.conditionFamille}</span>}
                     {r.conditionCategorie && <span className="ml-2 text-xs font-sans text-slate-400">catégorie={r.conditionCategorie}</span>}
                     {r.conditionModePaiement && <span className="ml-2 text-xs font-sans text-slate-400">si {r.conditionModePaiement}</span>}
+                    {r.conditionTypeClient && <span className="ml-2 text-xs font-sans text-slate-400">client={r.conditionTypeClient}</span>}
+                    {r.conditionPointDeVente != null && <span className="ml-2 text-xs font-sans text-slate-400">PDV={(pdvData?.data ?? []).find(p => p.id === r.conditionPointDeVente)?.nom ?? r.conditionPointDeVente}</span>}
+                    {r.conditionTypeSortie && <span className="ml-2 text-xs font-sans text-slate-400">sortie={r.conditionTypeSortie}</span>}
                     {r.compteTvaNumero && <span className="ml-2 text-xs font-sans text-slate-400">TVA={r.compteTvaNumero}</span>}
                     {r.devise && <span className="ml-2 text-xs font-sans text-slate-400">devise={r.devise}</span>}
                     {(r.dateDebutValidite || r.dateFinValidite) && (
