@@ -4,9 +4,10 @@
 // Extrait du bloc activeTab === "rapportsGestion" du monolithe (app/dashboard/user/comptables/page.tsx,
 // ~ligne 5014), consommant /api/comptable/rapports-gestion (~ligne 1387).
 import { useState } from "react";
+import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, ArrowRight } from "lucide-react";
 import AideComptable from "@/components/AideComptable";
 import { AIDE_COMPTABLE } from "@/lib/aideComptableContenu";
 
@@ -15,9 +16,12 @@ interface RapportsGestionData {
   margeParProduit: { produitId: number; nom: string; quantiteVendue: number; ca: number; marge: number | null; margePct: number | null; coutConnu: boolean }[];
   margeParFamille: { familleId: number | null; nom: string; ca: number; marge: number | null; margePct: number | null }[];
   rentabiliteParAgence: { pdvId: number; pdvNom: string; ca: number; marge: number | null; margePct: number | null }[];
+  rentabiliteParClient: { clientId: number; clientNom: string; ca: number; marge: number | null; margePct: number | null }[];
   rotationStock: { produitId: number; nom: string; quantiteVendue: number; stockActuel: number; rotation: number | null; valeurStock: number }[];
   dso: { encoursMoyen: number; caCreditPeriode: number; joursPeriode: number; dsoJours: number | null };
   dpoFournisseursProxy: { fournisseurId: number; nom: string; resteAPayer: number }[];
+  chargesParDepartement: { sectionId: number; code: string; libelle: string; montant: number }[];
+  depensesParProjet: { sectionId: number; code: string; libelle: string; montant: number }[];
 }
 
 export default function RapportsGestionPage() {
@@ -40,13 +44,18 @@ export default function RapportsGestionPage() {
       </div>
 
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex items-center justify-between gap-4 flex-wrap">
-        <p className="text-xs text-slate-500 mt-0.5">CA et marge par point de vente/produit/famille, rotation de stock, DSO clients (CDC §71-72).</p>
+        <p className="text-xs text-slate-500 mt-0.5">CA et marge par point de vente/produit/famille/client, rotation de stock, DSO clients (CDC §71-72).</p>
         <div className="flex items-center gap-2">
           <input type="date" value={rapportsDateDebut} onChange={(e) => setRapportsDateDebut(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           <span className="text-slate-400 text-sm">→</span>
           <input type="date" value={rapportsDateFin} onChange={(e) => setRapportsDateFin(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
         </div>
       </div>
+
+      <Link href="/dashboard/user/comptables" className="flex items-center justify-between gap-2 bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+        <span>Évolution de trésorerie sur 12 mois — voir le tableau de bord comptable</span>
+        <ArrowRight size={16} className="text-slate-400" />
+      </Link>
 
       {rapportsGestionLoading ? (
         <div className="flex items-center justify-center p-12"><div className="w-8 h-8 border-3 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" /></div>
@@ -114,6 +123,73 @@ export default function RapportsGestionPage() {
                     </tr>
                   ))}
                   {rapportsGestionData.data.margeParFamille.length === 0 && <tr><td colSpan={4} className="py-6 text-center text-slate-400">Aucune vente sur la période.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+            <h4 className="font-semibold text-slate-800 mb-3">Rentabilité par client</h4>
+            <div className="max-h-72 overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="border-b border-slate-100 sticky top-0 bg-white"><tr>
+                  <th className="text-left py-1.5 text-slate-500">Client</th>
+                  <th className="text-right py-1.5 text-slate-500">CA</th>
+                  <th className="text-right py-1.5 text-slate-500">Marge</th>
+                  <th className="text-right py-1.5 text-slate-500">Marge %</th>
+                </tr></thead>
+                <tbody className="divide-y divide-slate-50">
+                  {rapportsGestionData.data.rentabiliteParClient.map((c) => (
+                    <tr key={c.clientId}>
+                      <td className="py-1.5 text-slate-700">{c.clientNom}</td>
+                      <td className="py-1.5 text-right text-slate-700">{formatCurrency(c.ca)}</td>
+                      <td className="py-1.5 text-right text-emerald-700">{c.marge != null ? formatCurrency(c.marge) : "—"}</td>
+                      <td className="py-1.5 text-right text-emerald-700">{c.margePct != null ? `${c.margePct}%` : "—"}</td>
+                    </tr>
+                  ))}
+                  {rapportsGestionData.data.rentabiliteParClient.length === 0 && <tr><td colSpan={4} className="py-6 text-center text-slate-400">Aucun client identifié sur la période.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <h4 className="font-semibold text-slate-800 mb-1">Charges par département</h4>
+              <p className="text-xs text-slate-400 mb-3 italic">Basé sur les sections analytiques axe Département (CDC §24) imputées sur les écritures.</p>
+              <table className="w-full text-xs">
+                <thead className="border-b border-slate-100"><tr>
+                  <th className="text-left py-1.5 text-slate-500">Département</th>
+                  <th className="text-right py-1.5 text-slate-500">Charges</th>
+                </tr></thead>
+                <tbody className="divide-y divide-slate-50">
+                  {rapportsGestionData.data.chargesParDepartement.map((d) => (
+                    <tr key={d.sectionId}>
+                      <td className="py-1.5 text-slate-700">{d.libelle}</td>
+                      <td className="py-1.5 text-right text-red-600">{formatCurrency(d.montant)}</td>
+                    </tr>
+                  ))}
+                  {rapportsGestionData.data.chargesParDepartement.length === 0 && <tr><td colSpan={2} className="py-6 text-center text-slate-400">Aucune section analytique « Département » paramétrée.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+              <h4 className="font-semibold text-slate-800 mb-1">Dépenses par projet</h4>
+              <p className="text-xs text-slate-400 mb-3 italic">Basé sur les sections analytiques axe Projet (CDC §24) imputées sur les écritures.</p>
+              <table className="w-full text-xs">
+                <thead className="border-b border-slate-100"><tr>
+                  <th className="text-left py-1.5 text-slate-500">Projet</th>
+                  <th className="text-right py-1.5 text-slate-500">Dépenses</th>
+                </tr></thead>
+                <tbody className="divide-y divide-slate-50">
+                  {rapportsGestionData.data.depensesParProjet.map((d) => (
+                    <tr key={d.sectionId}>
+                      <td className="py-1.5 text-slate-700">{d.libelle}</td>
+                      <td className="py-1.5 text-right text-red-600">{formatCurrency(d.montant)}</td>
+                    </tr>
+                  ))}
+                  {rapportsGestionData.data.depensesParProjet.length === 0 && <tr><td colSpan={2} className="py-6 text-center text-slate-400">Aucune section analytique « Projet » paramétrée.</td></tr>}
                 </tbody>
               </table>
             </div>

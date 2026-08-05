@@ -238,7 +238,7 @@ async function controlerFournisseurDebiteurInhabituel(tx: TxClient): Promise<Con
 }
 
 /** §42 — factures de vente échues et non intégralement réglées ("facture sans paiement"). */
-async function controlerFacturesSansPaiement(tx: TxClient): Promise<ConstatControle[]> {
+export async function controlerFacturesSansPaiement(tx: TxClient): Promise<ConstatControle[]> {
   const factures = await tx.factureVente.findMany({
     where: {
       statut: "EMISE",

@@ -8,6 +8,7 @@
 import type { Prisma } from "@prisma/client";
 import { genererBilan, genererCompteResultat } from "@/lib/comptabilite/etatsFinanciers";
 import { genererEcrituresAttente, type EcritureAttente } from "@/lib/comptabilite/comptesAttente";
+import { controlerFacturesSansPaiement } from "@/lib/comptabilite/controles";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -32,6 +33,21 @@ export interface KpisDashboardComptable {
   rapprochementsEnAttente: number;
   /** CDC §41 — nombre de lignes du compte d'attente (471) non résolues. */
   ecrituresCompteAttente: number;
+  /** CDC §70 — bloc "Aujourd'hui" du tableau de bord. */
+  aujourdhui: {
+    ecrituresSaisiesJour: number;
+    ecrituresAValider: number;
+    erreurs: number;
+    rapprochementsEnAttente: number;
+    facturesImpayees: number;
+  };
+  /** CDC §70 — bloc "Mois en cours" (flux du mois, pas de l'exercice). */
+  mois: {
+    chiffreAffaires: number;
+    achats: number;
+    charges: number;
+    resultat: number;
+  };
 }
 
 /** Les 20 KPI du CDC §4, calculés sur l'exercice en cours (1er janvier → maintenant) pour les flux, et « à date » pour les soldes de bilan. */
@@ -39,10 +55,16 @@ export async function genererKpisDashboard(tx: TxClient): Promise<KpisDashboardC
   const now = new Date();
   const debutExercice = new Date(now.getFullYear(), 0, 1);
   const debutMois = new Date(now.getFullYear(), now.getMonth(), 1);
+  const debutJour = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const [bilan, compteResultat, immosAgg, nombreEcritures, ecrituresEnAttente, balancesEcritures, rapprochementsEnAttente, lignesTvaMois, ecrituresAttente] = await Promise.all([
+  const [
+    bilan, compteResultat, compteResultatMois, immosAgg, nombreEcritures, ecrituresEnAttente,
+    balancesEcritures, rapprochementsEnAttente, lignesTvaMois, ecrituresAttente,
+    ecrituresSaisiesJour, facturesImpayees,
+  ] = await Promise.all([
     genererBilan(tx, now),
     genererCompteResultat(tx, debutExercice, now),
+    genererCompteResultat(tx, debutMois, now),
     tx.immobilisation.aggregate({ _sum: { coutAcquisition: true, amortissementCumule: true, valeurNetteComptable: true } }),
     tx.ecritureComptable.count(),
     tx.ecritureComptable.count({ where: { statut: "BROUILLON" } }),
@@ -57,6 +79,8 @@ export async function genererKpisDashboard(tx: TxClient): Promise<KpisDashboardC
       select: { debit: true, credit: true, compte: { select: { numero: true } } },
     }),
     genererEcrituresAttente(tx),
+    tx.ecritureComptable.count({ where: { createdAt: { gte: debutJour } } }),
+    controlerFacturesSansPaiement(tx),
   ]);
 
   const ecrituresNonEquilibrees = balancesEcritures.filter(
@@ -108,6 +132,19 @@ export async function genererKpisDashboard(tx: TxClient): Promise<KpisDashboardC
     ecrituresNonEquilibrees,
     rapprochementsEnAttente,
     ecrituresCompteAttente: ecrituresAttente.length,
+    aujourdhui: {
+      ecrituresSaisiesJour,
+      ecrituresAValider: ecrituresEnAttente,
+      erreurs: ecrituresNonEquilibrees,
+      rapprochementsEnAttente,
+      facturesImpayees: facturesImpayees.length,
+    },
+    mois: {
+      chiffreAffaires: montantPourPrefixes(compteResultatMois.produits, PREFIXES_CA),
+      achats: montantPourPrefixe(compteResultatMois.charges, "60"),
+      charges: compteResultatMois.totalCharges,
+      resultat: compteResultatMois.resultatNet,
+    },
   };
 }
 

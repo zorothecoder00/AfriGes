@@ -14,6 +14,8 @@ import { exportToXlsx } from '@/lib/exportXlsx';
 import { useT } from '@/contexts/AppSettingsContext';
 import { useTagModal } from '@/contexts/TagModalContext';
 import SideTabs from '@/components/ui/SideTabs';
+import { calculerMargeVente } from '@/lib/margeVente';
+import MargeBadge from '@/components/comptable/MargeBadge';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -825,8 +827,7 @@ export default function VentesPage() {
                   {lignes.length > 0 && (
                     <div className="border border-slate-200 rounded-xl overflow-hidden">
                       {lignes.map((l, i) => {
-                        const margeUnit = l.prixAchat != null && l.prixAchat > 0 ? l.prixUnitaire - l.prixAchat : null;
-                        const margeTotale = margeUnit != null ? margeUnit * l.quantite : null;
+                        const marge = calculerMargeVente(l.prixUnitaire, l.prixAchat, l.quantite);
                         return (
                           <div key={l.produitId}
                             className={`px-4 py-3 ${i < lignes.length - 1 ? 'border-b border-slate-100' : ''}`}>
@@ -858,14 +859,7 @@ export default function VentesPage() {
                             {/* Marge + stock dispo */}
                             <div className="flex items-center gap-3 mt-1.5">
                               <span className="text-xs text-slate-400">Dispo réel : {l.stockDispo}</span>
-                              {margeTotale != null && (
-                                <span className={`text-xs font-semibold ${margeTotale >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                  Marge : {margeTotale >= 0 ? '+' : ''}{formatCurrency(margeTotale)}
-                                  <span className="font-normal text-slate-400 ml-1">
-                                    ({margeUnit! >= 0 ? '+' : ''}{formatCurrency(margeUnit!)} / u.)
-                                  </span>
-                                </span>
-                              )}
+                              <MargeBadge marge={marge} variant="ligne" />
                             </div>
                           </div>
                         );
@@ -906,19 +900,12 @@ export default function VentesPage() {
                       <span className="font-bold text-emerald-700 text-base">{formatCurrency(montantTotal)}</span>
                     </div>
                     {(() => {
-                      const margeTotal = lignes.reduce((acc, l) => {
-                        if (l.prixAchat == null || l.prixAchat <= 0) return acc;
-                        return acc + (l.prixUnitaire - l.prixAchat) * l.quantite;
-                      }, 0);
-                      if (!lignes.some(l => l.prixAchat != null && l.prixAchat > 0)) return null;
-                      return (
-                        <div className="flex justify-between pt-1 border-t border-dashed border-slate-200 mt-1 text-sm">
-                          <span className="text-slate-500">Marge estimée</span>
-                          <span className={`font-semibold ${margeTotal >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                            {margeTotal >= 0 ? '+' : ''}{formatCurrency(margeTotal)}
-                          </span>
-                        </div>
-                      );
+                      const lignesAvecCout = lignes.filter(l => l.prixAchat != null && l.prixAchat > 0);
+                      if (lignesAvecCout.length === 0) return null;
+                      const margeTotal = lignesAvecCout.reduce((acc, l) => acc + (l.prixUnitaire - l.prixAchat!) * l.quantite, 0);
+                      const caTotal = lignesAvecCout.reduce((acc, l) => acc + l.prixUnitaire * l.quantite, 0);
+                      const margePct = caTotal > 0 ? Math.round((margeTotal / caTotal) * 1000) / 10 : null;
+                      return <MargeBadge marge={{ margeUnitaire: 0, margeTotale: margeTotal, margePct }} variant="total" />;
                     })()}
                   </div>
 

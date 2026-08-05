@@ -16,7 +16,7 @@ import {
   Users, Building2, Wallet, PiggyBank, CreditCard,
   Percent, ArrowDownToLine, ArrowUpFromLine,
   Boxes, Gauge, FileStack, ListChecks, AlertTriangle, Building,
-  RefreshCw, PauseCircle, Paperclip,
+  RefreshCw, PauseCircle, Paperclip, AlertOctagon, CheckCircle2,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDateShort } from "@/lib/format";
@@ -36,11 +36,18 @@ interface KpisDashboard {
   nombreEcritures: number; ecrituresEnAttente: number; ecrituresNonEquilibrees: number;
   rapprochementsEnAttente: number;
   ecrituresCompteAttente: number;
+  aujourdhui: {
+    ecrituresSaisiesJour: number; ecrituresAValider: number; erreurs: number;
+    rapprochementsEnAttente: number; facturesImpayees: number;
+  };
+  mois: { chiffreAffaires: number; achats: number; charges: number; resultat: number };
 }
 interface EcritureAttente {
   ligneId: number; ecritureId: number; reference: string; montant: number; date: string;
   origine: string; libelle: string; utilisateur: string | null; aPiece: boolean; delaiJours: number;
 }
+interface AlerteItem { code: string; message: string; count?: number; montant?: number }
+interface AlertesComptables { critique: AlerteItem[]; attention: AlerteItem[]; aTraiter: AlerteItem[]; ok: AlerteItem[] }
 interface PointSerie { mois: string; label: string; valeur: number }
 interface PointResultatMensuel { mois: string; label: string; produits: number; charges: number; resultat: number }
 interface GraphiquesDashboard {
@@ -241,6 +248,38 @@ function ComparaisonNN1Chart({ data }: { data: GraphiquesDashboard["comparaisonN
   );
 }
 
+/** Alertes à 4 paliers (CDC §73) — recompose des signaux déjà calculés ailleurs (controles.ts, assistantCloture.ts), rien de recalculé ici. */
+function AlertesWidget({ alertes }: { alertes: AlertesComptables | undefined }) {
+  const paliers = [
+    { key: "critique" as const, label: "Critique", emoji: "🔴", icon: AlertOctagon, wrap: "bg-red-50 border-red-200", text: "text-red-700", iconColor: "text-red-500" },
+    { key: "attention" as const, label: "Attention", emoji: "🟠", icon: AlertTriangle, wrap: "bg-orange-50 border-orange-200", text: "text-orange-700", iconColor: "text-orange-500" },
+    { key: "aTraiter" as const, label: "À traiter", emoji: "🟡", icon: ListChecks, wrap: "bg-amber-50 border-amber-200", text: "text-amber-700", iconColor: "text-amber-500" },
+    { key: "ok" as const, label: "OK", emoji: "🟢", icon: CheckCircle2, wrap: "bg-emerald-50 border-emerald-200", text: "text-emerald-700", iconColor: "text-emerald-500" },
+  ];
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {paliers.map((p) => {
+        const items = alertes?.[p.key] ?? [];
+        const Icon = p.icon;
+        return (
+          <div key={p.key} className={`rounded-2xl p-4 border ${p.wrap}`}>
+            <h4 className={`text-xs font-bold uppercase flex items-center gap-1.5 mb-2 ${p.text}`}>
+              <Icon size={15} className={p.iconColor} /> {p.emoji} {p.label}
+            </h4>
+            {items.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">Rien à signaler</p>
+            ) : (
+              <ul className="space-y-1">
+                {items.map((it, i) => <li key={i} className={`text-xs ${p.text}`}>{it.message}</li>)}
+              </ul>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Surveillance des comptes d'attente (CDC §41) : détail des lignes du compte 471 non résolues. */
 function ComptesAttenteWidget({ items }: { items: EcritureAttente[] }) {
   return (
@@ -295,6 +334,7 @@ function ComptesAttenteWidget({ items }: { items: EcritureAttente[] }) {
 
 export default function ComptableTableauBordPage() {
   const { data, loading, refetch } = useApi<DashboardResponse>("/api/comptable/dashboard");
+  const { data: alertesData } = useApi<{ data: AlertesComptables }>("/api/comptable/alertes");
   const k = data?.data.kpis;
   const g = data?.data.graphiques;
 
@@ -328,6 +368,33 @@ export default function ComptableTableauBordPage() {
           </button>
           {AIDE_COMPTABLE["synthese"] && <AideComptable contenu={AIDE_COMPTABLE["synthese"]} />}
         </div>
+      </div>
+
+      {/* ── Alertes (CDC §73) ── */}
+      <SectionTitle>Alertes</SectionTitle>
+      <AlertesWidget alertes={alertesData?.data} />
+
+      {/* ── KPI — Aujourd'hui (CDC §70) ── */}
+      <SectionTitle>Aujourd&apos;hui</SectionTitle>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <KpiCard label="Écritures saisies" value={String(k?.aujourdhui.ecrituresSaisiesJour ?? 0)} icon={FileStack} color="text-slate-600" bg="bg-slate-100" />
+        <KpiCard label="À valider" value={String(k?.aujourdhui.ecrituresAValider ?? 0)} icon={ListChecks} color="text-amber-600" bg="bg-amber-50" alerte={(k?.aujourdhui.ecrituresAValider ?? 0) > 0} />
+        <KpiCard label="Erreurs" value={String(k?.aujourdhui.erreurs ?? 0)} icon={AlertTriangle} color="text-red-500" bg="bg-red-50" alerte={(k?.aujourdhui.erreurs ?? 0) > 0} />
+        <KpiCard label="Rapprochements en attente" value={String(k?.aujourdhui.rapprochementsEnAttente ?? 0)} icon={CreditCard} color="text-amber-600" bg="bg-amber-50" alerte={(k?.aujourdhui.rapprochementsEnAttente ?? 0) > 0} />
+        <KpiCard label="Factures impayées" value={String(k?.aujourdhui.facturesImpayees ?? 0)} icon={Paperclip} color="text-orange-600" bg="bg-orange-50" alerte={(k?.aujourdhui.facturesImpayees ?? 0) > 0} />
+      </div>
+
+      {/* ── KPI — Mois en cours (CDC §70) ── */}
+      <SectionTitle>Mois en cours</SectionTitle>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard label="CA du mois" value={formatCurrency(k?.mois.chiffreAffaires ?? 0)} icon={TrendingUp} color="text-emerald-600" bg="bg-emerald-50" />
+        <KpiCard label="Achats du mois" value={formatCurrency(k?.mois.achats ?? 0)} icon={ShoppingCart} color="text-orange-600" bg="bg-orange-50" />
+        <KpiCard label="Charges du mois" value={formatCurrency(k?.mois.charges ?? 0)} icon={Receipt} color="text-red-500" bg="bg-red-50" />
+        <KpiCard label="Résultat du mois" value={formatCurrency(k?.mois.resultat ?? 0)} icon={Scale}
+          color={(k?.mois.resultat ?? 0) >= 0 ? "text-emerald-600" : "text-red-500"} bg={(k?.mois.resultat ?? 0) >= 0 ? "bg-emerald-50" : "bg-red-50"} />
+        <KpiCard label="Trésorerie" value={formatCurrency(k?.tresorerie ?? 0)} icon={Wallet} color="text-emerald-600" bg="bg-emerald-50" />
+        <KpiCard label="Créances clients" value={formatCurrency(k?.creancesClients ?? 0)} icon={Users} color="text-blue-600" bg="bg-blue-50" />
+        <KpiCard label="Dettes fournisseurs" value={formatCurrency(k?.dettesFournisseurs ?? 0)} icon={Building2} color="text-orange-600" bg="bg-orange-50" />
       </div>
 
       {/* ── KPI — Activité (exercice en cours) ── */}

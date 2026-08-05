@@ -762,6 +762,8 @@ model User {
   litigesClientsCrees        LitigeClient[]          @relation("LitigeClientCreateur")
   avoirsFournisseursCrees    AvoirFournisseur[]      @relation("AvoirFournisseurCreateur")
   avancesFournisseursCrees   AvanceFournisseur[]     @relation("AvanceFournisseurCreateur")
+  facturesAchatCrees         FactureAchat[]          @relation("FactureAchatCreateur")
+  facturesAchatRapprochees   FactureAchat[]          @relation("FactureAchatRapprochePar")
   chargesProduitsAttenteCrees ChargeProduitAttente[] @relation("ChargeProduitAttenteCreateur")
   engagementsHorsBilanCrees   EngagementHorsBilan[]  @relation("EngagementHorsBilanCreateur")
 
@@ -1685,7 +1687,8 @@ model Fournisseur {
   provisionsDepreciation ProvisionDepreciation[]
   avoirs           AvoirFournisseur[]
   avances          AvanceFournisseur[]
-  propositionsOCR  PropositionImputationOCR[] // factures matchées par reconnaissance heuristique (CDC IA §51)
+  propositionsOCR  PropositionImputationOCR[]
+  facturesAchat    FactureAchat[] // factures matchées par reconnaissance heuristique (CDC IA §51)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1749,6 +1752,40 @@ model AvanceFournisseur {
   updatedAt DateTime @updatedAt
 
   @@index([fournisseurId])
+}
+
+/// Facture fournisseur (CDC Comptabilité §71/§73) : trace le numéro/date de
+/// facture reçue et son état de rapprochement avec une réception physique —
+/// alimente l'alerte "factures fournisseurs non rapprochées" (§73), qui
+/// n'avait aucune source de données avant ce modèle (ni ReceptionApprovisionnement
+/// ni BonCommande ne portent de numéro de facture). Portée volontairement
+/// contenue : pas de sous-registre de paiements dédié (le règlement reste
+/// suivi au niveau du compte auxiliaire 401xxx existant).
+model FactureAchat {
+  id            Int         @id @default(autoincrement())
+  numero        String
+  dateFacture   DateTime
+  fournisseurId Int
+  fournisseur   Fournisseur @relation(fields: [fournisseurId], references: [id])
+  montantTTC    Decimal
+
+  receptionApproId Int?
+  receptionAppro   ReceptionApprovisionnement? @relation(fields: [receptionApproId], references: [id])
+
+  statutRapprochement String    @default("NON_RAPPROCHEE") // NON_RAPPROCHEE | RAPPROCHEE
+  dateRapprochement   DateTime?
+  rapprocheParId      Int?
+  rapprochePar        User?     @relation("FactureAchatRapprochePar", fields: [rapprocheParId], references: [id])
+
+  notes     String?
+  creeParId Int
+  creePar   User @relation("FactureAchatCreateur", fields: [creeParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fournisseurId])
+  @@index([statutRapprochement])
 }
 
 /// Contrat rattaché à un fournisseur (CDC §8) — document + période de validité.
@@ -2518,6 +2555,7 @@ model ReceptionApprovisionnement {
 
   lignes LigneReceptionAppro[]
   lots   LotProduit[]
+  facturesAchat FactureAchat[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
