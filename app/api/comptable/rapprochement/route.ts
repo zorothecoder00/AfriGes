@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { requirePermission } from "@/lib/permissions";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 
@@ -8,6 +9,8 @@ export async function GET(req: Request) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "LECTURE");
+    if (denied) return denied;
 
     const { searchParams } = new URL(req.url);
     const page   = Math.max(1, Number(searchParams.get("page")  || 1));
@@ -43,6 +46,8 @@ export async function POST(req: Request) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "CREATION");
+    if (denied) return denied;
 
     const body = await req.json();
     const { periode, soldeBancaireReel, notes } = body;
@@ -115,6 +120,8 @@ export async function PATCH(req: Request) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id, statut, notes } = await req.json();
+    const denied = await requirePermission(session, "comptabilite", statut === "VALIDE" ? "VALIDATION" : "MODIFICATION");
+    if (denied) return denied;
     if (!id) return NextResponse.json({ error: "ID manquant" }, { status: 400 });
     if (statut !== undefined && statut !== "EN_COURS" && statut !== "VALIDE") {
       return NextResponse.json({ error: "Statut invalide" }, { status: 400 });

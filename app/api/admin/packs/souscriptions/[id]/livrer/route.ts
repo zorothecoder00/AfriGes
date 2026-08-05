@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { notifyAdmins, notify, auditLog } from "@/lib/notifications";
 import { PrioriteNotification } from "@prisma/client";
+import { ecritureLivraisonPack } from "@/lib/comptabilite/ecrituresPack";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -63,7 +64,7 @@ export async function POST(req: Request, { params }: Ctx) {
 
     const souscription = await prisma.souscriptionPack.findUnique({
       where: { id: souscriptionId },
-      include: { pack: true },
+      include: { pack: true, client: { select: { nom: true, prenom: true } } },
     });
 
     if (!souscription) {
@@ -349,6 +350,15 @@ export async function POST(req: Request, { params }: Ctx) {
         });
 
         await auditLog(tx, parseInt(session.user.id), "LIVRAISON_PACK_VENTE_DIRECTE", "ReceptionProduitPack", rec.id);
+
+        await ecritureLivraisonPack(tx, {
+          receptionId: rec.id,
+          packNom: souscription.pack.nom,
+          clientNom: souscription.client ? `${souscription.client.prenom} ${souscription.client.nom}` : "Client",
+          pointDeVenteId: pointDeVenteId ?? null,
+          userId: parseInt(session.user.id),
+          lignes: (lignes as { produitId: number; quantite: number; prixUnitaire: number }[]),
+        });
 
         return rec;
       });

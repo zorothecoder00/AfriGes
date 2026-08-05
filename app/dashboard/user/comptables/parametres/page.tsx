@@ -40,6 +40,7 @@ const ONGLET_TO_PATH: Record<string, string> = {
   auxiliaire: "/dashboard/user/comptables/auxiliaire",
   immobilisations: "/dashboard/user/comptables/immobilisations",
   analytique: "/dashboard/user/comptables/analytique",
+  cloture: "/dashboard/user/comptables/inventaire-cloture/exercices",
 };
 
 export default function ConfigurationInitialePage() {

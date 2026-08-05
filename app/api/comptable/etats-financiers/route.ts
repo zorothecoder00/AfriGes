@@ -11,6 +11,18 @@ import { resolveViewAs } from "@/lib/viewAs";
  *   Produits (CPC) : VersementPack + OperationCaisse ENCAISSEMENT
  *   Charges  (CPC) : MouvementStock ENTREE + OperationCaisse DECAISSEMENT
  *   Bilan          : snapshot actuel (stock + souscriptions actives)
+ *
+ * ⚠️ CDC §64 — ATTENTION AVANT DE BRANCHER CETTE ROUTE SUR UNE PAGE UI : c'est
+ * une estimation opérationnelle rapide, dérivée directement des modules
+ * métier (jamais des écritures comptables). Elle n'équilibre PAS par la
+ * partie double (capitauxPropres est une valeur d'ajustement forcée, pas un
+ * solde réel de compte). La version comptable officielle, traçable jusqu'à
+ * l'écriture validée, est `/api/comptable/etats-financiers-reels` — c'est
+ * elle que toutes les pages du dashboard consomment aujourd'hui. Si cette
+ * route est un jour réaffichée dans l'UI (une branche non fusionnée le fait
+ * déjà pour un onglet "etats"), le champ `avertissement` de la réponse DOIT
+ * être visible à côté des chiffres, jamais présenté comme équivalent aux
+ * états officiels.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -223,6 +235,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      avertissement: "Estimation opérationnelle rapide — non basée sur les écritures comptables validées. Voir /api/comptable/etats-financiers-reels pour les états officiels (CDC §36-39).",
       data: {
         annee,
         bilan: {

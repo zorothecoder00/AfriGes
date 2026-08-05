@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { requirePermission } from "@/lib/permissions";
 import { confirmerRapprochement } from "@/lib/comptabilite/rapprochementImport";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
@@ -19,6 +20,8 @@ export async function POST(req: Request) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "VALIDATION");
+    if (denied) return denied;
 
     const body = await req.json();
     const { ligneReleveId, ligneEcritureId } = body as { ligneReleveId?: number; ligneEcritureId?: number };

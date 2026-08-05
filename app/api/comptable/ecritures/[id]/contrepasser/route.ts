@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getComptableSession } from "@/lib/authComptable";
+import { getComptableSession, getComptablePdvId, ecritureDansPerimetrePdv } from "@/lib/authComptable";
+import { requirePermission } from "@/lib/permissions";
 import { contrepasserEcriture } from "@/lib/comptabilite/moteur";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
@@ -24,10 +25,17 @@ export async function POST(req: Request, { params }: Ctx) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "VALIDATION");
+    if (denied) return denied;
 
     const { id } = await params;
     const ecritureId = Number(id);
     if (isNaN(ecritureId)) return NextResponse.json({ error: "ID invalide" }, { status: 400 });
+
+    const pdvId = await getComptablePdvId(session);
+    if (pdvId !== null && !(await ecritureDansPerimetrePdv(pdvId, ecritureId))) {
+      return NextResponse.json({ error: "Écriture hors de votre périmètre PDV" }, { status: 403 });
+    }
 
     const userId = Number(session.user.id);
     const meta = getRequestMeta(req);

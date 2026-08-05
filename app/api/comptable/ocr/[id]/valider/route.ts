@@ -10,6 +10,9 @@
 // la requête. La validation finale (BROUILLON → VALIDE) reste l'écran normal
 // des écritures (app/api/comptable/ecritures/[id]/route.ts), identique à
 // toute écriture saisie manuellement — aucun raccourci pour ce chemin IA.
+// Le journal et la section analytique, eux, restent proposés (jamais figés :
+// CDC §63 — "propose compte, taxe, journal, analytique"), éditables par le
+// comptable avant confirmation.
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
@@ -48,6 +51,8 @@ export async function POST(req: Request, { params }: Ctx) {
     const compteDebitNumero = typeof body.compteDebitNumero === "string" ? body.compteDebitNumero.trim() : "";
     const compteCreditNumero = typeof body.compteCreditNumero === "string" ? body.compteCreditNumero.trim() : "";
     const compteTvaNumero = typeof body.compteTvaNumero === "string" && body.compteTvaNumero.trim() ? body.compteTvaNumero.trim() : null;
+    const journal = typeof body.journal === "string" && body.journal.trim() ? body.journal.trim() : "ACHATS";
+    const sectionAnalytiqueId = body.sectionAnalytiqueId != null && body.sectionAnalytiqueId !== "" ? Number(body.sectionAnalytiqueId) : null;
 
     if (!fournisseurNom || !numero || !montantTTC || montantTTC <= 0 || !compteDebitNumero || !compteCreditNumero) {
       return NextResponse.json(
@@ -71,7 +76,7 @@ export async function POST(req: Request, { params }: Ctx) {
       const compteCredit = await compteAuxiliaireOuDefaut(tx, compteCreditNumero, { fournisseurId });
 
       const ecritureId = await creerEcriture(tx, {
-        journal: "ACHATS",
+        journal,
         date: dateFacture,
         libelle: `Facture fournisseur — ${fournisseurNom} — ${numero}`,
         userId,
@@ -80,13 +85,13 @@ export async function POST(req: Request, { params }: Ctx) {
         statut: "BROUILLON",
         lignes: decomposeTva
           ? [
-              { numero: compteDebitNumero, debit: montantHT!, libelle: `Facture ${numero} — ${fournisseurNom}` },
-              { numero: compteTvaNumero!, debit: montantTVA!, libelle: `TVA déductible — ${numero}`, isTva: true, montantTva: montantTVA! },
-              { numero: compteCredit, credit: montantTTC, libelle: `Facture ${numero} — ${fournisseurNom}` },
+              { numero: compteDebitNumero, debit: montantHT!, libelle: `Facture ${numero} — ${fournisseurNom}`, sectionAnalytiqueId },
+              { numero: compteTvaNumero!, debit: montantTVA!, libelle: `TVA déductible — ${numero}`, isTva: true, montantTva: montantTVA!, sectionAnalytiqueId },
+              { numero: compteCredit, credit: montantTTC, libelle: `Facture ${numero} — ${fournisseurNom}`, sectionAnalytiqueId },
             ]
           : [
-              { numero: compteDebitNumero, debit: montantTTC, libelle: `Facture ${numero} — ${fournisseurNom}` },
-              { numero: compteCredit, credit: montantTTC, libelle: `Facture ${numero} — ${fournisseurNom}` },
+              { numero: compteDebitNumero, debit: montantTTC, libelle: `Facture ${numero} — ${fournisseurNom}`, sectionAnalytiqueId },
+              { numero: compteCredit, credit: montantTTC, libelle: `Facture ${numero} — ${fournisseurNom}`, sectionAnalytiqueId },
             ],
       });
 

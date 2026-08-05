@@ -20,7 +20,13 @@ export async function GET(req: Request) {
     const dateDebut = searchParams.get("dateDebut") ? new Date(searchParams.get("dateDebut")!) : null;
     const dateFin = searchParams.get("dateFin") ? new Date(`${searchParams.get("dateFin")}T23:59:59`) : null;
 
-    const data = await genererGrandLivreCompte(prisma, compteId, { dateDebut, dateFin });
+    // CDC §67 — pagination optionnelle : sans `page`, comportement historique
+    // inchangé (toutes les lignes en une réponse).
+    const pageParam = searchParams.get("page");
+    const page = pageParam ? Math.max(1, Number(pageParam)) : undefined;
+    const limit = pageParam ? Math.min(200, Math.max(1, Number(searchParams.get("limit") || 50))) : undefined;
+
+    const data = await genererGrandLivreCompte(prisma, compteId, { dateDebut, dateFin, page, limit });
     return NextResponse.json({ data });
   } catch (e) {
     console.error(e);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { requirePermission } from "@/lib/permissions";
 import { JOURNAUX_BUILTIN } from "@/lib/comptabilite/moteur";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
@@ -30,6 +31,8 @@ export async function GET() {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "LECTURE");
+    if (denied) return denied;
 
     const personnalises = await prisma.journalComptable.findMany({ orderBy: { code: "asc" } });
 
@@ -55,6 +58,8 @@ export async function POST(req: Request) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "CREATION");
+    if (denied) return denied;
 
     const body = await req.json();
     const { code, libelle, prefixe } = body as { code?: string; libelle?: string; prefixe?: string };

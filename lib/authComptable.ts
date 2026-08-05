@@ -58,6 +58,18 @@ export async function getComptableLectureSession() {
  * Si viewAsUserId est fourni (admin en mode lecture), retourne le PDV du user ciblé.
  * Retourne null si le comptable n'a aucune affectation active (fallback global).
  */
+/**
+ * CDC §68 — un comptable affecté à un PDV (pdvId non null via
+ * `getComptablePdvId`) ne doit agir que sur des écritures qui le concernent.
+ * `EcritureComptable` n'a pas de `pointDeVenteId` direct (seul `LigneEcriture`
+ * l'a, CDC §48 imputation multi-PDV) : au moins une ligne dans le PDV suffit
+ * (filtre inclusif, pas exclusif — une écriture multi-PDV reste accessible).
+ */
+export async function ecritureDansPerimetrePdv(pdvId: number, ecritureId: number): Promise<boolean> {
+  const count = await prisma.ligneEcriture.count({ where: { ecritureId, pointDeVenteId: pdvId } });
+  return count > 0;
+}
+
 export async function getComptablePdvId(
   session: NonNullable<Awaited<ReturnType<typeof getComptableSession>>>,
   viewAsUserId?: number

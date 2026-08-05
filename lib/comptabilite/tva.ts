@@ -33,21 +33,47 @@ export interface TvaAchatActive {
 }
 
 /**
+ * Contexte optionnel (CDC §65 tax_rules) permettant de résoudre un taux réduit
+ * conditionnel par catégorie/famille/PDV, à l'image de `RegleComptable`. Omis
+ * ou `{}` = comportement historique inchangé (première taxe TVA active, sans
+ * condition). Non branché côté ventes (§64 précédent — les ventes restent sur
+ * un taux global, décision assumée pour ne pas refactoriser la génération
+ * d'écriture de vente en ligne-par-ligne).
+ */
+export interface ContexteTaxe {
+  categorieId?: number | null;
+  familleId?: number | null;
+  pointDeVenteId?: number | null;
+}
+
+/**
  * Taxe TVA active applicable aux achats (CDC §21 — "applicable à achat") :
  * avant cette fonction, `TaxeConfig.applicableAchat` était stocké mais jamais
  * lu par le moteur d'écriture d'achat, qui imputait tout le montant TTC en
  * charge/stock sans jamais isoler la TVA déductible (4432).
+ *
+ * CDC §65 (tax_rules) : si `ctx` est fourni, les taxes candidates sont
+ * filtrées par leurs conditions (catégorie/famille/PDV — une condition non
+ * renseignée sur la taxe matche tout) puis triées par `priorite` décroissante,
+ * la première qui matche toutes ses conditions renseignées l'emporte — même
+ * principe que `resoudreRegleComptable` (moteur.ts).
  */
-export async function resoudreTvaAchat(tx: TxClient): Promise<TvaAchatActive | null> {
-  const taxe = await tx.taxeConfig.findFirst({
+export async function resoudreTvaAchat(tx: TxClient, ctx: ContexteTaxe = {}): Promise<TvaAchatActive | null> {
+  const taxes = await tx.taxeConfig.findMany({
     where: { nature: "TVA", actif: true, applicableAchat: true },
-    orderBy: { id: "asc" },
+    orderBy: { priorite: "desc" },
   });
-  // compteDeductibleNumero est nullable en base (une taxe peut n'être configurée
-  // que côté vente) — sans compte déductible, impossible de décomposer la TVA
-  // sur achat, comportement identique à "aucune taxe applicable".
-  if (!taxe || !taxe.compteDeductibleNumero) return null;
-  return { taux: Number(taxe.taux), compteDeductibleNumero: taxe.compteDeductibleNumero };
+  for (const taxe of taxes) {
+    if (taxe.conditionCategorieId != null && taxe.conditionCategorieId !== ctx.categorieId) continue;
+    if (taxe.conditionFamilleId != null && taxe.conditionFamilleId !== ctx.familleId) continue;
+    if (taxe.conditionPointDeVenteId != null && taxe.conditionPointDeVenteId !== ctx.pointDeVenteId) continue;
+    // compteDeductibleNumero est nullable en base (une taxe peut n'être configurée
+    // que côté vente) — sans compte déductible, impossible de décomposer la TVA
+    // sur achat, comportement identique à "aucune taxe applicable".
+    if (!taxe.compteDeductibleNumero) continue;
+    return { taux: Number(taxe.taux), compteDeductibleNumero: taxe.compteDeductibleNumero };
+  }
+  return null;
 }
 
 /** Décompose un montant TTC en HT + TVA selon un taux (%). */

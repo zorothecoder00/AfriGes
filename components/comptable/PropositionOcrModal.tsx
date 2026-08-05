@@ -6,7 +6,7 @@
 // "Créer l'écriture (brouillon)" ou "Rejeter". Aucun bouton "valider directement"
 // ici : l'écriture créée reste BROUILLON et rejoint le circuit normal de
 // validation comptable (onglet Journal des opérations).
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Sparkles, X, Loader2, FileCheck, Ban } from "lucide-react";
 
@@ -21,7 +21,13 @@ export interface PropositionOCR {
   montantTTC: number | null;
   compteDebitProbable: string | null;
   compteCreditProbable: string | null;
+  compteTvaProbable: string | null;
+  journalProbable: string | null;
+  sectionAnalytiqueProbableId: number | null;
 }
+
+interface JournalOption { code: string; libelle: string; actif: boolean }
+interface SectionOption { id: number; code: string; libelle: string; actif: boolean }
 
 const inputCls = "w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500";
 
@@ -35,8 +41,19 @@ export default function PropositionOcrModal({ proposition, onClose, onDone }:
   const [montantTTC, setMontantTTC] = useState(proposition.montantTTC != null ? String(proposition.montantTTC) : "");
   const [compteDebitNumero, setCompteDebitNumero] = useState(proposition.compteDebitProbable ?? "");
   const [compteCreditNumero, setCompteCreditNumero] = useState(proposition.compteCreditProbable ?? "");
-  const [compteTvaNumero, setCompteTvaNumero] = useState("");
+  const [compteTvaNumero, setCompteTvaNumero] = useState(proposition.compteTvaProbable ?? "");
+  const [journal, setJournal] = useState(proposition.journalProbable ?? "ACHATS");
+  const [sectionAnalytiqueId, setSectionAnalytiqueId] = useState(
+    proposition.sectionAnalytiqueProbableId != null ? String(proposition.sectionAnalytiqueProbableId) : ""
+  );
+  const [journaux, setJournaux] = useState<JournalOption[]>([]);
+  const [sections, setSections] = useState<SectionOption[]>([]);
   const [busy, setBusy] = useState<"valider" | "rejeter" | null>(null);
+
+  useEffect(() => {
+    fetch("/api/comptable/journaux").then((r) => r.json()).then((j) => setJournaux(j.data ?? [])).catch(() => {});
+    fetch("/api/comptable/analytique/sections").then((r) => r.json()).then((j) => setSections(j.data ?? [])).catch(() => {});
+  }, []);
 
   const confirmer = async () => {
     if (!fournisseurNom.trim() || !numero.trim() || !montantTTC || Number(montantTTC) <= 0 || !compteDebitNumero.trim() || !compteCreditNumero.trim()) {
@@ -58,6 +75,8 @@ export default function PropositionOcrModal({ proposition, onClose, onDone }:
           compteDebitNumero: compteDebitNumero.trim(),
           compteCreditNumero: compteCreditNumero.trim(),
           compteTvaNumero: compteTvaNumero.trim() || undefined,
+          journal: journal.trim() || undefined,
+          sectionAnalytiqueId: sectionAnalytiqueId || undefined,
         }),
       });
       const j = await r.json();
@@ -140,6 +159,26 @@ export default function PropositionOcrModal({ proposition, onClose, onDone }:
               <input value={compteTvaNumero} onChange={(e) => setCompteTvaNumero(e.target.value)} placeholder="4452 (optionnel)" className={inputCls} />
             </div>
           )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Journal</label>
+              <select value={journal} onChange={(e) => setJournal(e.target.value)} className={inputCls}>
+                {journaux.length === 0 && <option value={journal}>{journal}</option>}
+                {journaux.map((j) => (
+                  <option key={j.code} value={j.code}>{j.libelle} ({j.code})</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Section analytique (probable)</label>
+              <select value={sectionAnalytiqueId} onChange={(e) => setSectionAnalytiqueId(e.target.value)} className={inputCls}>
+                <option value="">— Aucune —</option>
+                {sections.map((s) => (
+                  <option key={s.id} value={s.id}>{s.libelle} ({s.code})</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
         <div className="px-6 py-4 border-t border-slate-100 flex gap-2 justify-end">

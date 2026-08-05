@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { requirePermission } from "@/lib/permissions";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 
@@ -10,6 +11,8 @@ export async function PUT(req: Request, { params }: Ctx) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "MODIFICATION");
+    if (denied) return denied;
 
     const { id } = await params;
     const existing = await prisma.regleComptable.findUnique({ where: { id: Number(id) } });
@@ -69,6 +72,8 @@ export async function DELETE(req: Request, { params }: Ctx) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "SUPPRESSION_LOGIQUE");
+    if (denied) return denied;
 
     const { id } = await params;
     const existing = await prisma.regleComptable.findUnique({ where: { id: Number(id) } });

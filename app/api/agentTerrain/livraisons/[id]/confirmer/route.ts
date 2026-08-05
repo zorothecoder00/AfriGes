@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
+import { ecritureLivraisonPack } from "@/lib/comptabilite/ecrituresPack";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -135,6 +136,17 @@ export async function POST(_req: Request, { params }: Ctx) {
       }
 
       await auditLog(tx, agentId, "LIVRAISON_PACK_CONFIRMEE_AGENT_TERRAIN", "ReceptionProduitPack", rec.id);
+
+      await ecritureLivraisonPack(tx, {
+        receptionId: rec.id,
+        packNom: souscription.pack.nom,
+        clientNom,
+        pointDeVenteId: agentPdvId,
+        userId: agentId,
+        lignes: rec.lignes
+          .filter((l) => l.produitId != null)
+          .map((l) => ({ produitId: l.produitId as number, quantite: l.quantite, prixUnitaire: Number(l.prixUnitaire) })),
+      });
 
       // ── Renouvellement de cycle ─────────────────────────────────────────────
       if (souscription.pack.type === "FAMILIAL") {

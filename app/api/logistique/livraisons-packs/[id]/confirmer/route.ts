@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getLogistiqueSession } from "@/lib/authLogistique";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
+import { ecritureLivraisonPack } from "@/lib/comptabilite/ecrituresPack";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -32,7 +33,7 @@ export async function POST(_req: Request, { params }: Ctx) {
         where: { id: receptionId },
         include: {
           lignes: true,
-          souscription: { include: { pack: true } },
+          souscription: { include: { pack: true, client: { select: { nom: true, prenom: true } } } },
         },
       });
 
@@ -41,6 +42,7 @@ export async function POST(_req: Request, { params }: Ctx) {
 
       const souscription = rec.souscription;
       const souscriptionId = souscription.id;
+      const clientNom = souscription.client ? `${souscription.client.prenom} ${souscription.client.nom}` : "Client";
 
       // ── Vérification stock (quantite - quantiteReservee) ───────────────────
       for (const ligne of rec.lignes) {
@@ -99,6 +101,17 @@ export async function POST(_req: Request, { params }: Ctx) {
       });
 
       await auditLog(tx, parseInt(session.user.id), "LIVRAISON_PACK_CONFIRMEE_LOGISTIQUE", "ReceptionProduitPack", rec.id);
+
+      await ecritureLivraisonPack(tx, {
+        receptionId: rec.id,
+        packNom: souscription.pack.nom,
+        clientNom,
+        pointDeVenteId: rec.pointDeVenteId,
+        userId: parseInt(session.user.id),
+        lignes: rec.lignes
+          .filter((l) => l.produitId != null)
+          .map((l) => ({ produitId: l.produitId as number, quantite: l.quantite, prixUnitaire: Number(l.prixUnitaire) })),
+      });
 
       // ── Renouvellement de cycle ─────────────────────────────────────────────
       if (souscription.pack.type === "FAMILIAL") {

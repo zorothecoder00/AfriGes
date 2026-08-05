@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { requirePermission } from "@/lib/permissions";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 
@@ -12,6 +13,8 @@ export async function GET() {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "LECTURE");
+    if (denied) return denied;
 
     const regles = await prisma.regleComptable.findMany({
       orderBy: [{ evenement: "asc" }, { priorite: "desc" }],
@@ -37,6 +40,8 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "CREATION");
+    if (denied) return denied;
 
     const body = await req.json();
     const {

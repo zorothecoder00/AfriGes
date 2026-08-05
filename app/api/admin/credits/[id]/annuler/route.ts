@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
 import { getCaissierSession } from "@/lib/authCaissier";
 import { requirePermission } from "@/lib/permissions";
+import { contrepasserEcriture } from "@/lib/comptabilite/moteur";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -90,6 +91,23 @@ export async function POST(req: Request, { params }: Ctx) {
           where: { id: credit.clientId },
           data: { soldeActuel: { decrement: Number(credit.soldeRestant) } },
         });
+
+        // ── Défaire l'écriture comptable de vente à crédit déjà générée ──────
+        // (CDC §57/§58 : une annulation ne doit jamais laisser une créance
+        // fantôme en comptabilité alors qu'elle a disparu côté opérationnel).
+        const ecritureOriginale = await tx.ecritureComptable.findUnique({
+          where: { reference: `SYNC-CRD-${credit.reference}` },
+          select: { id: true, statut: true },
+        });
+        if (ecritureOriginale) {
+          if (ecritureOriginale.statut === "VALIDE" || ecritureOriginale.statut === "CLOTURE") {
+            await contrepasserEcriture(tx, ecritureOriginale.id, Number(session.user.id));
+          } else if (ecritureOriginale.statut === "BROUILLON") {
+            // Jamais validée : rien à contrepasser, suppression directe.
+            await tx.ligneEcriture.deleteMany({ where: { ecritureId: ecritureOriginale.id } });
+            await tx.ecritureComptable.delete({ where: { id: ecritureOriginale.id } });
+          }
+        }
 
         // ── Correction du stock selon le statut réel de chaque ligne ─────────
         // LIVRE     → le stock a déjà été décrémenté, on le restaure (retour client)

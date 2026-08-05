@@ -126,6 +126,21 @@ export async function periodeClôturée(tx: TxClient, date: Date): Promise<boole
 }
 
 /**
+ * CDC §66 — une écriture ne doit jamais tomber en dehors d'un exercice
+ * comptable OUVERT (PREPARATION/EN_CLOTURE/CLOTURE/ARCHIVE ne comptent pas).
+ * Distinct de `periodeClôturée` (verrou mensuel) : ici on vérifie qu'un
+ * exercice ANNUEL actif couvre bien la date, indépendamment de tout mois
+ * verrouillé.
+ */
+export async function dateHorsExercice(tx: TxClient, date: Date): Promise<boolean> {
+  const exercice = await tx.exerciceComptable.findFirst({
+    where: { statut: "OUVERT", dateDebut: { lte: date }, dateFin: { gte: date } },
+    select: { id: true },
+  });
+  return !exercice;
+}
+
+/**
  * Crée une écriture comptable (statut BROUILLON) équilibrée à partir de numéros
  * de compte, résolus en base. Idempotent par référence : un second appel avec la
  * même référence renvoie l'écriture déjà créée sans doublon.
@@ -144,7 +159,10 @@ export async function creerEcriture(tx: TxClient, opts: CreerEcritureOpts): Prom
     throw new Error(`Journal "${opts.journal}" inexistant ou inactif`);
   }
 
-  if (!opts.ignorerCloture && !opts.derogationJustification && (await periodeClôturée(tx, opts.date))) return null;
+  if (!opts.ignorerCloture && !opts.derogationJustification) {
+    if (await periodeClôturée(tx, opts.date)) return null;
+    if (await dateHorsExercice(tx, opts.date)) return null;
+  }
 
   const numeros = [...new Set(opts.lignes.map((l) => l.numero))];
   const comptes = await tx.compteComptable.findMany({
@@ -309,6 +327,25 @@ const REGLES_PAR_DEFAUT: Record<string, (ctx: ContexteEvenement) => ComptesRegle
     if (ctx.typeSortie === "LIVRAISON_CLIENT") return { journal: "VENTES", compteDebitNumero: "6031", compteCreditNumero: "311" };
     if (ctx.typeSortie === "RETOUR_FOURNISSEUR") return { journal: "ACHATS", compteDebitNumero: "401", compteCreditNumero: "311" };
     return { journal: "OD", compteDebitNumero: "658", compteCreditNumero: "311" };
+  },
+  // Packs AfriSime (CDC §57) : un versement pack est encaissé AVANT la livraison
+  // du produit — ce n'est pas une vente mais une avance client (SYSCOHADA 4191
+  // "Clients, avances et acomptes reçus"), Dr Trésorerie / Cr 4191.
+  SOUSCRIPTION_PACK_VERSEMENT: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: tr.numero, compteCreditNumero: "4191" };
+  },
+  // Livraison réelle d'un pack (CDC §57) : reclasse l'avance en vente — Dr 4191
+  // (solde l'avance) / Cr 701 (comptes de vente réels résolus ligne par ligne
+  // via la cascade produit dans lib/comptabilite/ecrituresPack.ts).
+  LIVRAISON_PACK_VALIDEE: () => ({ journal: "VENTES", compteDebitNumero: "4191", compteCreditNumero: "701" }),
+  // Pénalité de retard sur échéance de crédit (CDC §58) : Dr 411 (créance déjà
+  // débitée) / Cr 7078 (produits financiers divers).
+  PENALITE_RETARD_CREDIT: () => ({ journal: "VENTES", compteDebitNumero: "411", compteCreditNumero: "7078" }),
+  // Commission RIA versée (CDC §58) : Dr charge de commission / Cr Trésorerie.
+  COMMISSION_RIA_VERSEE: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "668", compteCreditNumero: tr.numero };
   },
 };
 
@@ -539,6 +576,56 @@ export async function ecritureRemboursementCreditConfirme(
     lignes: [
       { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Encaissement ${params.reference}`, pointDeVenteId: pdv },
       { numero: compteCredit, credit: params.montant, libelle: `Solde créance ${params.clientNom}`, pointDeVenteId: pdv },
+    ],
+  });
+}
+
+/**
+ * Pénalité de retard sur échéance de crédit (CDC §58) : Dr Créances client
+ * (411, imputée au sous-compte auxiliaire) / Cr Produits financiers divers.
+ * L'appelant doit passer uniquement le *delta* de pénalité nouvellement
+ * constaté (la pénalité stockée sur EcheanceCredit est recalculée/écrasée à
+ * chaque remboursement, jamais accumulée en historique) pour éviter tout
+ * double comptage sur des remboursements partiels successifs.
+ */
+export async function ecripturePenaliteRetardCredit(
+  tx: TxClient,
+  params: { montant: number; reference: string; clientNom: string; clientId?: number; userId: number; date?: Date },
+): Promise<number | null> {
+  if (params.montant <= 0) return null;
+  const regle = await resoudreRegleComptable(tx, "PENALITE_RETARD_CREDIT");
+  if (!regle) return null;
+  const compteDebit = await compteAuxiliaireOuDefaut(tx, regle.compteDebitNumero, { clientId: params.clientId });
+  return creerEcriture(tx, {
+    journal: regle.journal,
+    date: params.date ?? new Date(),
+    libelle: `Pénalité de retard — ${params.clientNom} — ${params.reference}`,
+    userId: params.userId,
+    reference: `SYNC-PEN-${params.reference}`,
+    lignes: [
+      { numero: compteDebit, debit: params.montant, libelle: `Pénalité de retard ${params.reference}` },
+      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Pénalité de retard ${params.reference}` },
+    ],
+  });
+}
+
+/** Commission RIA versée (CDC §58) : Dr Charge de commission / Cr Trésorerie. */
+export async function ecritureCommissionRIAVersee(
+  tx: TxClient,
+  params: { montant: number; reference: string; agentNom: string; modePaiement?: string | null; userId: number; date?: Date },
+): Promise<number | null> {
+  if (params.montant <= 0) return null;
+  const regle = await resoudreRegleComptable(tx, "COMMISSION_RIA_VERSEE", { modePaiement: params.modePaiement });
+  if (!regle) return null;
+  return creerEcriture(tx, {
+    journal: regle.journal,
+    date: params.date ?? new Date(),
+    libelle: `Commission RIA versée — ${params.agentNom} — ${params.reference}`,
+    userId: params.userId,
+    reference: `SYNC-COM-RIA-${params.reference}`,
+    lignes: [
+      { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Commission ${params.agentNom}` },
+      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Versement commission ${params.reference}` },
     ],
   });
 }

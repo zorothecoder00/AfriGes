@@ -53,6 +53,10 @@ interface UsersResponse {
 }
 
 interface SettingsData { success: boolean; data: Record<string, string> }
+interface BackupLogEntry {
+  id: number; dateExecution: string; statut: string;
+  tailleOctets: number | null; url: string | null; erreur: string | null; dureeMs: number | null;
+}
 interface ModuleItem { id: number; key: string; nom: string; description: string | null; actif: boolean }
 interface ModulesResponse { success: boolean; data: ModuleItem[] }
 interface LogItem {
@@ -164,6 +168,9 @@ export default function SuperAdminPage() {
   const usersParams = new URLSearchParams({ page: String(userPage), limit: "20", ...(userSearch ? { search: userSearch } : {}), ...(userEtat ? { etat: userEtat } : {}) }).toString();
   const { data: usersRes, refetch: refetchUsers } = useApi<UsersResponse>(activeTab === "utilisateurs" ? `/api/superadmin/users?${usersParams}` : null);
   const { data: settingsRes } = useApi<SettingsData>(activeTab === "parametres" ? "/api/superadmin/settings" : null);
+  const { data: backupsRes } = useApi<{ data: BackupLogEntry[] }>(
+    activeTab === "parametres" && paramSection === "backup" ? "/api/superadmin/backups" : null
+  );
   const { data: modulesRes, refetch: refetchModules } = useApi<ModulesResponse>(activeTab === "modules" ? "/api/superadmin/modules" : null);
   const logsParams = new URLSearchParams({ page: String(logPage), limit: "30", type: logType, ...(logSearch ? { search: logSearch } : {}) }).toString();
   const { data: logsRes, refetch: refetchLogs } = useApi<LogsResponse>(activeTab === "logs" ? `/api/superadmin/audit-logs?${logsParams}` : null);
@@ -937,7 +944,23 @@ export default function SuperAdminPage() {
                   </div>
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
                     <Info size={16} className="text-amber-600 mt-0.5 shrink-0" />
-                    <p className="text-xs text-amber-700">Les sauvegardes effectives dépendent de la configuration serveur (cron, pg_dump). Ces paramètres sont enregistrés en base et peuvent être lus par vos scripts d&apos;infrastructure.</p>
+                    <p className="text-xs text-amber-700">Un cron quotidien exporte les tables comptables critiques (écritures, plan comptable, journaux, exercices, règles, taxes) et les téléverse sur UploadThing (stockage externe). La rétention ci-dessus est appliquée automatiquement à chaque exécution.</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-700 mb-2">Historique des sauvegardes</h4>
+                    <div className="space-y-1.5">
+                      {(backupsRes?.data ?? []).length === 0 && (
+                        <p className="text-xs text-slate-400">Aucune exécution enregistrée pour l&apos;instant.</p>
+                      )}
+                      {(backupsRes?.data ?? []).map((b) => (
+                        <div key={b.id} className="flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 text-xs">
+                          <span className="text-slate-600">{new Date(b.dateExecution).toLocaleString("fr-FR")}</span>
+                          <span className={b.statut === "SUCCES" ? "text-emerald-600 font-medium" : "text-red-600 font-medium"}>
+                            {b.statut === "SUCCES" ? `Succès — ${((b.tailleOctets ?? 0) / 1024).toFixed(0)} Ko` : `Échec — ${b.erreur ?? ""}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}

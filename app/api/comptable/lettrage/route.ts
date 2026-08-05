@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { requirePermission } from "@/lib/permissions";
 import { lignesNonLettrees, proposerLettrage, appliquerLettrage } from "@/lib/comptabilite/lettrage";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
@@ -22,6 +23,8 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "LECTURE");
+    if (denied) return denied;
 
     const compteId = Number(req.nextUrl.searchParams.get("compteId"));
     if (!compteId) return NextResponse.json({ error: "compteId requis" }, { status: 400 });
@@ -46,6 +49,8 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "VALIDATION");
+    if (denied) return denied;
 
     const body = await req.json();
     const ligneIds = Array.isArray(body?.ligneIds) ? body.ligneIds.map(Number) : [];

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getComptableSession } from "@/lib/authComptable";
-import { genererReferenceEcriture, periodeClôturée } from "@/lib/comptabilite/moteur";
+import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
+import { requirePermission } from "@/lib/permissions";
+import { genererReferenceEcriture, periodeClôturée, dateHorsExercice } from "@/lib/comptabilite/moteur";
 import { detecterDoublonPotentiel } from "@/lib/comptabilite/detectionDoublons";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
@@ -10,6 +11,10 @@ export async function GET(req: Request) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "LECTURE");
+    if (denied) return denied;
+
+    const pdvId = await getComptablePdvId(session);
 
     const { searchParams } = new URL(req.url);
     const page    = Math.max(1, Number(searchParams.get("page")  || 1));
@@ -39,6 +44,9 @@ export async function GET(req: Request) {
             },
           }
         : {}),
+      // CDC §68 — un comptable affecté à un PDV ne voit que les écritures qui
+      // le concernent (au moins une ligne dans son PDV — filtre inclusif).
+      ...(pdvId !== null && { lignes: { some: { pointDeVenteId: pdvId } } }),
     };
 
     const [ecritures, total] = await Promise.all([
@@ -93,6 +101,8 @@ export async function POST(req: Request) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "CREATION");
+    if (denied) return denied;
 
     const body = await req.json();
     const { date, libelle, journal, notes, lignes, devise, tauxChange, derogationJustification, confirmerDoublon } = body;
@@ -119,6 +129,16 @@ export async function POST(req: Request) {
         }, { status: 403 });
       }
     }
+    // CDC §66 — l'écriture doit tomber dans un exercice comptable OUVERT.
+    // Contrairement à la période fermée ci-dessus, l'absence d'exercice ouvert
+    // est une erreur de configuration (pas un cas légitime à contourner) : pas
+    // de dérogation ici.
+    if (await dateHorsExercice(prisma, dateEcriture)) {
+      return NextResponse.json({
+        error: "Aucun exercice comptable ouvert ne couvre cette date — impossible de saisir l'écriture.",
+      }, { status: 400 });
+    }
+
     if (!Array.isArray(lignes) || lignes.length < 2) {
       return NextResponse.json({ error: "Une écriture nécessite au moins 2 lignes" }, { status: 400 });
     }

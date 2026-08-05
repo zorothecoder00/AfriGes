@@ -1,6 +1,11 @@
 import { Prisma } from "@prisma/client";
+import { ecritureVersementPackConfirme } from "@/lib/comptabilite/ecrituresPack";
 
 type TX = Omit<Prisma.TransactionClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
+
+function nomClient(c: { nom: string; prenom: string } | null | undefined): string {
+  return c ? `${c.prenom} ${c.nom}` : "Client";
+}
 
 function genRefVersement(): string {
   const d = new Date();
@@ -144,7 +149,7 @@ export async function enregistrerVersementPack(
 ): Promise<ResultatVersementPack> {
   const souscription = await tx.souscriptionPack.findUnique({
     where: { id: p.souscriptionId },
-    include: { pack: true },
+    include: { pack: true, client: { select: { nom: true, prenom: true } } },
   });
   if (!souscription) return { ok: false, error: "Souscription introuvable" };
   if (["ANNULE", "COMPLETE"].includes(souscription.statut)) {
@@ -172,6 +177,17 @@ export async function enregistrerVersementPack(
   }
 
   const { estSolde } = await imputerSurSouscription(tx, souscription, montantEffectif, datePaiement);
+
+  await ecritureVersementPackConfirme(tx, {
+    versementId: versement.id,
+    montant: montantEffectif,
+    packNom: souscription.pack.nom,
+    clientNom: nomClient(souscription.client),
+    modePaiement: p.modePaiement,
+    userId: p.encaisseParId,
+    date: datePaiement,
+  });
+
   return { ok: true, versementId: versement.id, montantEffectif, estSolde };
 }
 
@@ -193,7 +209,7 @@ export async function confirmerVersementPackExistant(
 ): Promise<ResultatConfirmationVersement> {
   const versement = await tx.versementPack.findUnique({
     where: { id: versementId },
-    include: { souscription: { include: { pack: true } } },
+    include: { souscription: { include: { pack: true, client: { select: { nom: true, prenom: true } } } } },
   });
   if (!versement) return { ok: false, error: "Versement introuvable" };
 
@@ -212,6 +228,16 @@ export async function confirmerVersementPackExistant(
     `Versement pack confirmé — ${souscription.pack.nom} (${versement.encaisseParNom})`,
     caissierNom,
   );
+
+  await ecritureVersementPackConfirme(tx, {
+    versementId: versement.id,
+    montant: montantEffectif,
+    packNom: souscription.pack.nom,
+    clientNom: nomClient(souscription.client),
+    modePaiement: "ESPECES",
+    userId: caissierId,
+    date: versement.datePaiement,
+  });
 
   return { ok: true, versementId, montantEffectif, estSolde };
 }

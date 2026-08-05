@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { notifyRoles, notify, auditLog } from "@/lib/notifications";
 import { PrioriteNotification } from "@prisma/client";
+import { ecritureLivraisonPack } from "@/lib/comptabilite/ecrituresPack";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -131,6 +132,17 @@ export async function PATCH(req: Request, { params }: Ctx) {
       });
 
       await auditLog(tx, parseInt(session.user.id), "LIVRAISON_PACK_LIVREE", "ReceptionProduitPack", rec.id);
+
+      await ecritureLivraisonPack(tx, {
+        receptionId: rec.id,
+        packNom: souscription.pack.nom,
+        clientNom,
+        pointDeVenteId: effectivePdvId,
+        userId: parseInt(session.user.id),
+        lignes: reception.lignes
+          .filter((l) => l.produitId != null)
+          .map((l) => ({ produitId: l.produitId as number, quantite: l.quantite, prixUnitaire: Number(l.prixUnitaire) })),
+      });
 
       // Notifier le RPV du PDV concerné (ou tous les RPV si pas de PDV explicite)
       if (effectivePdvId) {

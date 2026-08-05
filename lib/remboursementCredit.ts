@@ -1,6 +1,9 @@
 import { Prisma, StatutCredit, StatutEcheanceCredit, TypePaiement } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
+import { ecritureRemboursementCreditConfirme, ecripturePenaliteRetardCredit } from "@/lib/comptabilite/moteur";
+import { obtenirOuCreerCompteAuxiliaireClient } from "@/lib/comptabilite/auxiliaire";
+import { proposerLettrage, appliquerLettrage } from "@/lib/comptabilite/lettrage";
 
 type TX = Omit<Prisma.TransactionClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
 
@@ -157,7 +160,10 @@ export async function enregistrerRemboursementCredit(
 ): Promise<ResultatEnregistrement> {
   const credit = await tx.creditClient.findUnique({
     where: { id: p.creditId },
-    select: { id: true, reference: true, clientId: true, statut: true, soldeRestant: true, montantRembourse: true, tauxPenalite: true },
+    select: {
+      id: true, reference: true, clientId: true, statut: true, soldeRestant: true, montantRembourse: true, tauxPenalite: true,
+      client: { select: { nom: true, prenom: true } },
+    },
   });
   if (!credit) return { ok: false, error: "Crédit introuvable" };
   if (credit.statut !== StatutCredit.ACTIF && credit.statut !== StatutCredit.EN_RETARD) {
@@ -192,14 +198,17 @@ export async function enregistrerRemboursementCredit(
   });
 
   let budget = montantEffectif;
+  let deltaPenaliteTotal = 0;
   for (const ec of echeances) {
     if (budget <= 0) break;
     const restant = Number(ec.montantDu) - Number(ec.montantPaye);
-    let penalite = Number(ec.penalite ?? 0);
+    const anciennePenalite = Number(ec.penalite ?? 0);
+    let penalite = anciennePenalite;
     if (ec.dateEcheance < now && Number(credit.tauxPenalite) > 0) {
       const jours = Math.max(0, Math.floor((now.getTime() - ec.dateEcheance.getTime()) / 86400000));
       penalite = Number((Number(ec.montantDu) * (Number(credit.tauxPenalite) / 100) * jours).toFixed(2));
     }
+    deltaPenaliteTotal += Math.max(0, penalite - anciennePenalite);
     if (budget >= restant) {
       await tx.echeanceCredit.update({ where: { id: ec.id }, data: { montantPaye: Number(ec.montantDu), statut: StatutEcheanceCredit.PAYE, penalite } });
       budget -= restant;
@@ -229,6 +238,39 @@ export async function enregistrerRemboursementCredit(
   await tx.client.update({ where: { id: credit.clientId }, data: { soldeActuel: { decrement: montantEffectif } } });
 
   const remboursement = await tx.remboursementCredit.create({ data: { ...baseData, statut: "CONFIRME" } });
+
+  // ── Comptabilisation (CDC §57/§58) : cette fonction ne branchait jusqu'ici
+  // jamais le moteur comptable — l'écriture de remboursement n'existait que
+  // pour le flux "confirmation caissier" séparé. Ici, on la génère directement
+  // avec le lettrage automatique (rapproche l'encaissement de la créance sur
+  // le sous-compte auxiliaire du client) et la pénalité de retard éventuelle.
+  const clientNom = `${credit.client.prenom} ${credit.client.nom}`;
+  const ecritureId = await ecritureRemboursementCreditConfirme(tx, {
+    montant: montantEffectif,
+    reference: `${credit.reference}-${remboursement.id}`,
+    clientNom,
+    clientId: credit.clientId,
+    modePaiement: baseData.modePaiement,
+    userId: p.enregistreParId,
+    date: baseData.dateRemboursement,
+  });
+  if (ecritureId != null) {
+    const compteClient = await obtenirOuCreerCompteAuxiliaireClient(tx, credit.clientId);
+    const propositions = await proposerLettrage(tx, compteClient.id);
+    for (const prop of propositions) {
+      try { await appliquerLettrage(tx, prop.ligneIds); } catch { /* déjà lettrée par ailleurs : ignorer */ }
+    }
+  }
+  if (deltaPenaliteTotal > 0.01) {
+    await ecripturePenaliteRetardCredit(tx, {
+      montant: deltaPenaliteTotal,
+      reference: `${credit.reference}-${remboursement.id}`,
+      clientNom,
+      clientId: credit.clientId,
+      userId: p.enregistreParId,
+      date: baseData.dateRemboursement,
+    });
+  }
 
   // ── Cascade RIA : recouvrement proportionnel à l'encours des financements ─────
   const financementsRIA = await tx.operationFinancementRIA.findMany({

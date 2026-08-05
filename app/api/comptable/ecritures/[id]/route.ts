@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getComptableSession } from "@/lib/authComptable";
+import { getComptableSession, getComptablePdvId, ecritureDansPerimetrePdv } from "@/lib/authComptable";
+import { requirePermission } from "@/lib/permissions";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 
@@ -10,8 +11,15 @@ export async function GET(_req: Request, { params }: Ctx) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "LECTURE");
+    if (denied) return denied;
 
     const { id } = await params;
+    const pdvId = await getComptablePdvId(session);
+    if (pdvId !== null && !(await ecritureDansPerimetrePdv(pdvId, Number(id)))) {
+      return NextResponse.json({ error: "Écriture hors de votre périmètre PDV" }, { status: 403 });
+    }
+
     const ecriture = await prisma.ecritureComptable.findUnique({
       where: { id: Number(id) },
       include: {
@@ -48,8 +56,21 @@ export async function PUT(req: Request, { params }: Ctx) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
+    const pdvId = await getComptablePdvId(session);
+    if (pdvId !== null && !(await ecritureDansPerimetrePdv(pdvId, Number(id)))) {
+      return NextResponse.json({ error: "Écriture hors de votre périmètre PDV" }, { status: 403 });
+    }
+
     const body = await req.json();
     const { statut, libelle, notes, lignes } = body;
+
+    // CDC §68 — RBAC granulaire : une validation finale exige l'action
+    // VALIDATION, toute autre modification (y compris le contrôle intermédiaire)
+    // exige MODIFICATION. Complémentaire à la séparation des fonctions
+    // ci-dessous (les deux contrôles s'appliquent, ni l'un ni l'autre ne
+    // remplace l'autre).
+    const denied = await requirePermission(session, "comptabilite", statut === "VALIDE" ? "VALIDATION" : "MODIFICATION");
+    if (denied) return denied;
 
     const existing = await prisma.ecritureComptable.findUnique({ where: { id: Number(id) } });
     if (!existing) return NextResponse.json({ error: "Écriture introuvable" }, { status: 404 });
@@ -182,8 +203,15 @@ export async function DELETE(req: Request, { params }: Ctx) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "SUPPRESSION_LOGIQUE");
+    if (denied) return denied;
 
     const { id } = await params;
+    const pdvId = await getComptablePdvId(session);
+    if (pdvId !== null && !(await ecritureDansPerimetrePdv(pdvId, Number(id)))) {
+      return NextResponse.json({ error: "Écriture hors de votre périmètre PDV" }, { status: 403 });
+    }
+
     const existing = await prisma.ecritureComptable.findUnique({ where: { id: Number(id) } });
     if (!existing) return NextResponse.json({ error: "Écriture introuvable" }, { status: 404 });
 

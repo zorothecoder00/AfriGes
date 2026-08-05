@@ -984,6 +984,7 @@ model PointDeVente {
   bonsCommande               BonCommande[]
   lignesEcritureComptable    LigneEcriture[]
   lignesBudget               LigneBudget[]
+  taxesConditionnelles       TaxeConfig[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1835,6 +1836,7 @@ model FamilleProduit {
   compteTvaVente           String?
   sectionAnalytiqueDefautId Int?
   sectionAnalytiqueDefaut   SectionAnalytique? @relation("FamilleSectionAnalytique", fields: [sectionAnalytiqueDefautId], references: [id])
+  taxesConditionnelles      TaxeConfig[]
 
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
@@ -1873,6 +1875,7 @@ model CategorieProduit {
   compteTvaVente           String?
   sectionAnalytiqueDefautId Int?
   sectionAnalytiqueDefaut   SectionAnalytique? @relation("CategorieSectionAnalytique", fields: [sectionAnalytiqueDefautId], references: [id])
+  taxesConditionnelles      TaxeConfig[]
 
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt
@@ -3713,6 +3716,10 @@ model PropositionImputationOCR {
   lignesJson            Json?
   compteDebitProbable   String?
   compteCreditProbable  String?
+  compteTvaProbable     String?
+  journalProbable       String?
+  sectionAnalytiqueProbableId Int?
+  sectionAnalytiqueProbable   SectionAnalytique? @relation(fields: [sectionAnalytiqueProbableId], references: [id])
 
   statut         StatutPropositionOCR @default(ANALYSE)
   ecritureCreeeId Int?
@@ -3748,6 +3755,22 @@ model AuditLog {
   @@index([userId])
   @@index([entite, entiteId])
   @@index([createdAt])
+}
+
+/// Sauvegarde applicative (CDC Comptabilité §69) : trace chaque exécution du
+/// cron de sauvegarde (export JSON des tables comptables critiques, uploadé
+/// sur UploadThing — stockage externe distinct de Neon). Rend l'écran
+/// SuperAdmin "Politique de sauvegarde" vérifiable plutôt que décoratif.
+model BackupLog {
+  id            Int      @id @default(autoincrement())
+  dateExecution DateTime @default(now())
+  statut        String   // SUCCES | ECHEC
+  tailleOctets  Int?
+  url           String?  // fichier UploadThing si succès
+  erreur        String?
+  dureeMs       Int?
+
+  @@index([dateExecution])
 }
 
 model Notification {
@@ -4365,6 +4388,7 @@ model SectionAnalytique {
   produitsComptables  Produit[]         @relation("ProduitSectionAnalytique")
   categoriesComptables CategorieProduit[] @relation("CategorieSectionAnalytique")
   famillesComptables  FamilleProduit[]  @relation("FamilleSectionAnalytique")
+  propositionsOCR     PropositionImputationOCR[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4447,8 +4471,23 @@ model TaxeConfig {
   dateFin         DateTime?
   actif           Boolean      @default(true)
 
+  // CDC §65 (tax_rules) : conditions optionnelles, même principe que
+  // RegleComptable — une condition non renseignée matche tout ; la taxe la
+  // plus prioritaire dont toutes les conditions renseignées matchent gagne.
+  // Laissé vide partout = comportement historique inchangé (taux global).
+  conditionCategorieId  Int?
+  conditionCategorie    CategorieProduit? @relation(fields: [conditionCategorieId], references: [id])
+  conditionFamilleId    Int?
+  conditionFamille      FamilleProduit?   @relation(fields: [conditionFamilleId], references: [id])
+  conditionPointDeVenteId Int?
+  conditionPointDeVente   PointDeVente?   @relation(fields: [conditionPointDeVenteId], references: [id])
+  priorite Int @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([nature])
+  @@index([actif])
 }
 
 enum TypeChargeProduitAttente {

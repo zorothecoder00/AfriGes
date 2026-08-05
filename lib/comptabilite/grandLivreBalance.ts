@@ -111,16 +111,35 @@ export interface LigneGrandLivreGenerique {
  * (pas seulement les auxiliaires 411xxx/401xxx — cf. lib/comptabilite/clientAuxiliaire.ts
  * pour la version dédiée client/fournisseur), avec solde progressif et un
  * solde d'ouverture optionnel si `dateDebut` est fourni.
+ *
+ * CDC §67 — pagination bornée : sans `page`/`limit`, comportement historique
+ * inchangé (toutes les lignes, zéro régression). Avec pagination, le coût
+ * mémoire reste borné par `skip + limit` (jamais par le volume total du
+ * compte) : `soldeFinal` est calculé via un agrégat séparé sur l'ensemble du
+ * filtre (O(1) lignes renvoyées par Postgres), et le solde de départ de la
+ * page via un `findMany` léger (`select` debit/credit uniquement, `take: skip`)
+ * sommé en mémoire — coût proportionnel à `skip`, jamais au total du compte.
  */
 export async function genererGrandLivreCompte(
   tx: TxClient,
   compteId: number,
-  periode: { dateDebut?: Date | null; dateFin?: Date | null } = {},
-): Promise<{ compte: { numero: string; libelle: string } | null; soldeOuverture: number; lignes: LigneGrandLivreGenerique[]; soldeFinal: number }> {
+  periode: { dateDebut?: Date | null; dateFin?: Date | null; page?: number; limit?: number } = {},
+): Promise<{
+  compte: { numero: string; libelle: string } | null;
+  soldeOuverture: number;
+  lignes: LigneGrandLivreGenerique[];
+  soldeFinal: number;
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}> {
   const compte = await tx.compteComptable.findUnique({ where: { id: compteId }, select: { numero: true, libelle: true } });
-  if (!compte) return { compte: null, soldeOuverture: 0, lignes: [], soldeFinal: 0 };
+  if (!compte) return { compte: null, soldeOuverture: 0, lignes: [], soldeFinal: 0, total: 0, page: 1, limit: 0, totalPages: 0 };
 
-  const { dateDebut, dateFin } = periode;
+  const { dateDebut, dateFin, page, limit } = periode;
+  const pagine = page != null && limit != null;
+
   const soldeOuverture = dateDebut
     ? await tx.ligneEcriture
         .aggregate({
@@ -130,19 +149,52 @@ export async function genererGrandLivreCompte(
         .then((agg) => Number(agg._sum.debit ?? 0) - Number(agg._sum.credit ?? 0))
     : 0;
 
-  const lignes = await tx.ligneEcriture.findMany({
-    where: {
-      compteId,
-      ecriture: {
-        statut: { in: [...STATUTS_COMPTABILISES] },
-        ...(dateDebut || dateFin ? { date: { ...(dateDebut && { gte: dateDebut }), ...(dateFin && { lte: dateFin }) } } : {}),
-      },
+  const wherePeriode = {
+    compteId,
+    ecriture: {
+      statut: { in: [...STATUTS_COMPTABILISES] },
+      ...(dateDebut || dateFin ? { date: { ...(dateDebut && { gte: dateDebut }), ...(dateFin && { lte: dateFin }) } } : {}),
     },
-    include: { ecriture: { select: { reference: true, date: true, libelle: true, journal: true, user: { select: { nom: true, prenom: true } } } } },
-    orderBy: [{ ecriture: { date: "asc" } }, { id: "asc" }],
-  });
+  };
+  const orderBy = [{ ecriture: { date: "asc" as const } }, { id: "asc" as const }];
 
-  let solde = soldeOuverture;
+  if (!pagine) {
+    const lignes = await tx.ligneEcriture.findMany({
+      where: wherePeriode,
+      include: { ecriture: { select: { reference: true, date: true, libelle: true, journal: true, user: { select: { nom: true, prenom: true } } } } },
+      orderBy,
+    });
+    let solde = soldeOuverture;
+    const lignesAvecSolde: LigneGrandLivreGenerique[] = lignes.map((l) => {
+      solde += Number(l.debit) - Number(l.credit);
+      return {
+        id: l.id, date: l.ecriture.date, numeroPiece: l.ecriture.reference, journal: l.ecriture.journal,
+        libelle: l.libelle || l.ecriture.libelle, debit: Number(l.debit), credit: Number(l.credit), lettrage: l.lettrage,
+        solde, utilisateur: l.ecriture.user ? `${l.ecriture.user.prenom} ${l.ecriture.user.nom}` : null,
+      };
+    });
+    return { compte, soldeOuverture, lignes: lignesAvecSolde, soldeFinal: solde, total: lignes.length, page: 1, limit: lignes.length, totalPages: lignes.length > 0 ? 1 : 0 };
+  }
+
+  const skip = (page! - 1) * limit!;
+
+  const [total, agregatTotal, prefixe, lignes] = await Promise.all([
+    tx.ligneEcriture.count({ where: wherePeriode }),
+    tx.ligneEcriture.aggregate({ where: wherePeriode, _sum: { debit: true, credit: true } }),
+    skip > 0
+      ? tx.ligneEcriture.findMany({ where: wherePeriode, select: { debit: true, credit: true }, orderBy, take: skip })
+      : Promise.resolve([]),
+    tx.ligneEcriture.findMany({
+      where: wherePeriode,
+      include: { ecriture: { select: { reference: true, date: true, libelle: true, journal: true, user: { select: { nom: true, prenom: true } } } } },
+      orderBy,
+      skip,
+      take: limit,
+    }),
+  ]);
+
+  const soldeFinal = soldeOuverture + Number(agregatTotal._sum.debit ?? 0) - Number(agregatTotal._sum.credit ?? 0);
+  let solde = soldeOuverture + prefixe.reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0);
   const lignesAvecSolde: LigneGrandLivreGenerique[] = lignes.map((l) => {
     solde += Number(l.debit) - Number(l.credit);
     return {
@@ -152,5 +204,5 @@ export async function genererGrandLivreCompte(
     };
   });
 
-  return { compte, soldeOuverture, lignes: lignesAvecSolde, soldeFinal: solde };
+  return { compte, soldeOuverture, lignes: lignesAvecSolde, soldeFinal, total, page: page!, limit: limit!, totalPages: Math.ceil(total / limit!) };
 }

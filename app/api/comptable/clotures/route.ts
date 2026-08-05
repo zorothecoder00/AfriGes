@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
+import { requirePermission } from "@/lib/permissions";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 
@@ -22,6 +23,8 @@ export async function GET(req: Request) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "LECTURE");
+    if (denied) return denied;
 
     const { searchParams } = new URL(req.url);
     const annee = Number(searchParams.get("annee") ?? new Date().getFullYear());
@@ -53,6 +56,8 @@ export async function POST(req: Request) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "CREATION");
+    if (denied) return denied;
 
     const body = await req.json();
     const annee = Number(body.annee);
@@ -106,19 +111,28 @@ export async function DELETE(req: Request) {
   try {
     const session = await getComptableSession();
     if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+    const denied = await requirePermission(session, "comptabilite", "SUPPRESSION_LOGIQUE");
+    if (denied) return denied;
 
     const body  = await req.json();
     const annee = Number(body.annee);
     const mois  = Number(body.mois);
+    // CDC §66 — le déverrouillage d'une période close était moins protégé que
+    // la dérogation de saisie sur période fermée (qui exige ADMIN + justification) :
+    // on aligne le niveau de protection en exigeant aussi une justification tracée.
+    const justification = typeof body.justification === "string" ? body.justification.trim() : "";
 
     if (!annee || mois < 1 || mois > 12) {
       return NextResponse.json({ success: false, message: "Année ou mois invalide" }, { status: 400 });
+    }
+    if (!justification) {
+      return NextResponse.json({ success: false, message: "Une justification est obligatoire pour déverrouiller une période clôturée" }, { status: 400 });
     }
 
     const meta = getRequestMeta(req);
     await prisma.$transaction(async (tx) => {
       const deleted = await tx.clotureComptable.delete({ where: { annee_mois: { annee, mois } } });
-      await auditLog(tx, parseInt(session.user.id), "DEVERROUILLAGE_PERIODE_COMPTABLE", "ClotureComptable", deleted.id, { annee, mois }, meta);
+      await auditLog(tx, parseInt(session.user.id), "DEVERROUILLAGE_PERIODE_COMPTABLE", "ClotureComptable", deleted.id, { annee, mois, justification }, meta);
     });
 
     return NextResponse.json({ success: true, message: `Période ${mois}/${annee} déverrouillée` });

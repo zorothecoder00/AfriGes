@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRIASession } from "@/lib/authRIA";
+import { ecritureCommissionRIAVersee } from "@/lib/comptabilite/moteur";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -13,8 +14,37 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const body   = await req.json();
     const { action, notes } = body as { action: string; notes?: string };
 
-    const commission = await prisma.commissionAgentRIA.findUnique({ where: { id: parseInt(id) } });
+    const commission = await prisma.commissionAgentRIA.findUnique({
+      where: { id: parseInt(id) },
+      include: { user: { select: { nom: true, prenom: true } } },
+    });
     if (!commission) return NextResponse.json({ error: "Commission introuvable" }, { status: 404 });
+
+    // ── Mise en paiement : transaction dédiée (comptabilisation, CDC §58) ──────
+    if (action === "MARQUER_PAYE") {
+      if (commission.statut !== "APPROUVE") {
+        return NextResponse.json({ error: "Seules les commissions APPROUVÉES peuvent être marquées payées" }, { status: 400 });
+      }
+      const agentNom = `${commission.user.prenom} ${commission.user.nom}`;
+      const updated = await prisma.$transaction(async (tx) => {
+        const upd = await tx.commissionAgentRIA.update({
+          where: { id: commission.id },
+          data: { statut: "PAYE", datePaiement: new Date(), notes: notes ?? commission.notes },
+          include: {
+            user:        { select: { id: true, nom: true, prenom: true } },
+            approuvePar: { select: { id: true, nom: true, prenom: true } },
+          },
+        });
+        await ecritureCommissionRIAVersee(tx, {
+          montant: Number(commission.montant),
+          reference: `${commission.userId}-${commission.mois}-${commission.annee}-${commission.roleType}`,
+          agentNom,
+          userId: Number(session.user.id),
+        });
+        return upd;
+      });
+      return NextResponse.json(updated);
+    }
 
     let data: Record<string, unknown> = {};
 
@@ -24,13 +54,6 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
           return NextResponse.json({ error: "Seules les commissions CALCULÉES peuvent être approuvées" }, { status: 400 });
         }
         data = { statut: "APPROUVE", approuveParId: session.user.id, dateApprobation: new Date(), notes: notes ?? commission.notes };
-        break;
-
-      case "MARQUER_PAYE":
-        if (commission.statut !== "APPROUVE") {
-          return NextResponse.json({ error: "Seules les commissions APPROUVÉES peuvent être marquées payées" }, { status: 400 });
-        }
-        data = { statut: "PAYE", datePaiement: new Date(), notes: notes ?? commission.notes };
         break;
 
       case "ANNULER":

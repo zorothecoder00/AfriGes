@@ -30,7 +30,7 @@ export async function creerEcritureAchatDepuisMouvement(
 ): Promise<void> {
   const mouvement = await tx.mouvementStock.findUnique({
     where: { id: mouvementStockId },
-    include: { produit: { select: { nom: true, prixUnitaire: true, categorie: true, categorieProduit: { select: { nom: true } } } } },
+    include: { produit: { select: { nom: true, prixUnitaire: true, categorie: true, categorieId: true, familleId: true, categorieProduit: { select: { nom: true } } } } },
   });
   // mouvement.pointDeVenteId : PDV/dépôt qui réceptionne, porté sur les 2 lignes (CDC §24).
   if (!mouvement) return;
@@ -63,7 +63,13 @@ export async function creerEcritureAchatDepuisMouvement(
   const pdv = mouvement.pointDeVenteId;
   const libelle = mouvement.produit.nom;
 
-  const tva = await resoudreTvaAchat(tx);
+  // CDC §65 (tax_rules) : résolution conditionnelle par catégorie/famille/PDV
+  // du produit réceptionné — sans condition configurée, comportement inchangé.
+  const tva = await resoudreTvaAchat(tx, {
+    categorieId: mouvement.produit.categorieId,
+    familleId: mouvement.produit.familleId,
+    pointDeVenteId: mouvement.pointDeVenteId,
+  });
   const lignes: LigneMoteur[] = tva
     ? (() => {
         const { montantHT, montantTVA } = decomposerTTC(montant, tva.taux);

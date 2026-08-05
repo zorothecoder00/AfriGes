@@ -54,6 +54,10 @@
     {
       "path": "/api/cron/comptabilite/amortissements?secret=${CRON_SECRET}",
       "schedule": "0 6 1 * *"
+    },
+    {
+      "path": "/api/cron/comptabilite/sauvegarde?secret=${CRON_SECRET}",
+      "schedule": "0 2 * * *"
     }
   ]
 }

@@ -5,6 +5,8 @@ import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
 import { chargerParametrageCC, debiterCCPourCredit, extraireMetaRequete } from "@/lib/compteCourant";
 import { ecritureRemboursementCreditConfirme } from "@/lib/comptabilite/moteur";
+import { obtenirOuCreerCompteAuxiliaireClient } from "@/lib/comptabilite/auxiliaire";
+import { proposerLettrage, appliquerLettrage } from "@/lib/comptabilite/lettrage";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -210,7 +212,7 @@ export async function POST(req: Request, { params }: Ctx) {
         // Référence suffixée par l'id du remboursement : un même crédit peut être
         // remboursé plusieurs fois, chaque encaissement doit avoir sa propre écriture.
         // Le cas CC (branche ci-dessus) a déjà sa propre écriture via debiterCCPourCredit.
-        await ecritureRemboursementCreditConfirme(tx, {
+        const ecritureId = await ecritureRemboursementCreditConfirme(tx, {
           montant: montantNum,
           reference: `${credit.reference}-${remboursementId}`,
           clientNom: credit.client ? `${credit.client.prenom} ${credit.client.nom}` : "Client",
@@ -219,6 +221,16 @@ export async function POST(req: Request, { params }: Ctx) {
           userId,
           pointDeVenteId: credit.pointDeVenteId,
         });
+
+        // Lettrage automatique (CDC §57) : rapproche l'encaissement qu'on vient
+        // de créer avec la créance encore ouverte sur le sous-compte du client.
+        if (ecritureId != null) {
+          const compteClient = await obtenirOuCreerCompteAuxiliaireClient(tx, credit.clientId);
+          const propositions = await proposerLettrage(tx, compteClient.id);
+          for (const prop of propositions) {
+            try { await appliquerLettrage(tx, prop.ligneIds); } catch { /* déjà lettrée par ailleurs : ignorer */ }
+          }
+        }
       }
 
       // 5bis. Mettre à jour la ligne de session de collecte liée (si paiement
