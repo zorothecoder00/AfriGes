@@ -123,6 +123,23 @@ export async function PUT(req: Request, { params }: Ctx) {
       }
     }
 
+    // CDC §40 — pièce justificative obligatoire avant la validation finale d'une
+    // écriture saisie manuellement (les flux automatiques, référence SYNC-, sont
+    // déjà tracés par leur enregistrement source et exemptés — même convention
+    // que le contrôle a posteriori `controlerEcritureSansPiece`).
+    if (estValidationFinale && !existing.reference.startsWith("SYNC-")) {
+      const piece = await prisma.pieceJustificative.findFirst({
+        where: { sourceType: "ECRITURE_COMPTABLE", sourceId: existing.id },
+        select: { id: true },
+      });
+      if (!piece) {
+        return NextResponse.json(
+          { error: "Aucune pièce justificative associée — impossible de valider cette écriture sans pièce" },
+          { status: 400 },
+        );
+      }
+    }
+
     // Mise à jour dans une transaction si les lignes sont modifiées
     const userId = Number(session.user.id);
     const meta = getRequestMeta(req);

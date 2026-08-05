@@ -10,8 +10,8 @@ const MESSAGES: Record<string, [string, number]> = {
   LETTRAGE_MIN_2_LIGNES: ["Un lettrage nécessite au moins 2 lignes", 400],
   LIGNE_INTROUVABLE: ["Une des lignes sélectionnées est introuvable", 404],
   COMPTES_DIFFERENTS: ["Les lignes sélectionnées n'appartiennent pas toutes au même compte", 422],
-  DEJA_LETTREE: ["Une des lignes sélectionnées est déjà lettrée", 422],
-  LIGNES_NON_EQUILIBREES: ["La sélection ne s'équilibre pas (débit ≠ crédit)", 422],
+  DEJA_LETTREE: ["Une des lignes sélectionnées est intégralement lettrée", 422],
+  AUCUN_MONTANT_COMMUN: ["Aucun montant commun disponible entre ces lignes", 422],
 };
 
 /**

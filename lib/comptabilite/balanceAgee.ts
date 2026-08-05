@@ -2,10 +2,12 @@
 //
 // Balance âgée clients/fournisseurs (CDC Comptabilité §16-17) : ventile le solde
 // dû de chaque tiers par ancienneté (0-30j / 31-60j / 61-90j / 90j+), à partir
-// des lignes NON LETTRÉES de son compte auxiliaire (lib/comptabilite/lettrage.ts)
-// — une facture lettrée par son règlement n'apparaît plus ici, exactement comme
-// un solde réellement dû. L'âge retenu est la date de l'écriture d'origine (la
-// facture), pas la date du jour.
+// du RELIQUAT non lettré des lignes de son compte auxiliaire
+// (lib/comptabilite/lettrage.ts) — une facture lettrée intégralement par son
+// règlement n'apparaît plus ici ; une facture lettrée PARTIELLEMENT (CDC §18,
+// ex. 500k facturés / 300k réglés) n'apparaît plus que pour son reliquat de
+// 200k, jamais pour son montant plein. L'âge retenu est la date de l'écriture
+// d'origine (la facture), pas la date du jour.
 import type { Prisma } from "@prisma/client";
 
 type TxClient = Prisma.TransactionClient;
@@ -50,10 +52,9 @@ export async function genererBalanceAgee(
   const lignes = await tx.ligneEcriture.findMany({
     where: {
       compteId: { in: comptes.map((c) => c.id) },
-      lettrage: null,
       ecriture: { statut: { in: ["VALIDE", "CLOTURE"] } },
     },
-    select: { compteId: true, debit: true, credit: true, ecriture: { select: { date: true } } },
+    select: { compteId: true, debit: true, credit: true, montantLettre: true, ecriture: { select: { date: true } } },
   });
 
   const parCompte = new Map<number, LigneBalanceAgee>();
@@ -72,7 +73,10 @@ export async function genererBalanceAgee(
   for (const l of lignes) {
     const ligneBalance = parCompte.get(l.compteId);
     if (!ligneBalance) continue;
-    const solde = type === "CLIENT" ? Number(l.debit) - Number(l.credit) : Number(l.credit) - Number(l.debit);
+    // CDC §18 — reliquat non lettré de la ligne, pas son montant plein.
+    const reliquatDebit = Math.max(0, Number(l.debit) - Number(l.montantLettre));
+    const reliquatCredit = Math.max(0, Number(l.credit) - Number(l.montantLettre));
+    const solde = type === "CLIENT" ? reliquatDebit - reliquatCredit : reliquatCredit - reliquatDebit;
     if (Math.abs(solde) < 0.01) continue;
 
     const joursAge = Math.floor((dateRef.getTime() - l.ecriture.date.getTime()) / (1000 * 60 * 60 * 24));

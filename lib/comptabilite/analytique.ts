@@ -9,7 +9,7 @@ type TxClient = Prisma.TransactionClient;
 
 export async function calculerRealiseCompte(
   tx: TxClient,
-  params: { compteId: number; annee: number; mois?: number; sectionAnalytiqueId?: number; pointDeVenteId?: number },
+  params: { compteId: number; annee: number; mois?: number; sectionAnalytiqueId?: number; pointDeVenteId?: number; produitId?: number },
 ): Promise<number> {
   const compte = await tx.compteComptable.findUnique({ where: { id: params.compteId }, select: { sens: true } });
   if (!compte) return 0;
@@ -22,6 +22,7 @@ export async function calculerRealiseCompte(
       compteId: params.compteId,
       ...(params.sectionAnalytiqueId != null && { sectionAnalytiqueId: params.sectionAnalytiqueId }),
       ...(params.pointDeVenteId != null && { pointDeVenteId: params.pointDeVenteId }),
+      ...(params.produitId != null && { produitId: params.produitId }),
       ecriture: { statut: { in: ["VALIDE", "CLOTURE"] }, date: { gte: dateDebut, lt: dateFin } },
     },
     _sum: { debit: true, credit: true },

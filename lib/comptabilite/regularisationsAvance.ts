@@ -98,9 +98,7 @@ export async function creerRegularisation(tx: TxClient, opts: CreerRegularisatio
     })),
   });
 
-  await tx.regularisationAvance.update({ where: { id: regularisation.id }, data: { ecritureConstatationId } });
-
-  return regularisation;
+  return tx.regularisationAvance.update({ where: { id: regularisation.id }, data: { ecritureConstatationId } });
 }
 
 /**

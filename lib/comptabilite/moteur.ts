@@ -167,10 +167,21 @@ export async function creerEcriture(tx: TxClient, opts: CreerEcritureOpts): Prom
   const numeros = [...new Set(opts.lignes.map((l) => l.numero))];
   const comptes = await tx.compteComptable.findMany({
     where: { numero: { in: numeros }, actif: true },
-    select: { id: true, numero: true },
+    select: { id: true, numero: true, nature: true, estCompteCollectif: true, statut: true },
   });
   const map = new Map(comptes.map((c) => [c.numero, c.id]));
   if (opts.lignes.some((l) => !map.has(l.numero))) return null;
+
+  // CDC §40 — compte interdit (regroupement/collectif/inactif) : bloquant pour
+  // toute saisie manuelle. Les flux automatiques (référence SYNC-) résolvent déjà
+  // leurs comptes via compteAuxiliaireOuDefaut et ne doivent jamais être bloqués
+  // rétroactivement par ce garde.
+  if (!(opts.reference ?? "").startsWith("SYNC-")) {
+    const compteInterdit = comptes.find((c) => c.nature === "REGROUPEMENT" || c.estCompteCollectif || c.statut !== "ACTIF");
+    if (compteInterdit) {
+      throw new Error(`Compte interdit à la saisie directe : ${compteInterdit.numero} (compte de regroupement, collectif ou inactif)`);
+    }
+  }
 
   const reference = opts.reference ?? (await genererReferenceEcriture(tx, opts.journal));
   const existing = await tx.ecritureComptable.findUnique({ where: { reference }, select: { id: true } });

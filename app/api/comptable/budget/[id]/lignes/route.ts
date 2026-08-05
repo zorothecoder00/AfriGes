@@ -26,6 +26,7 @@ export async function GET(_req: Request, { params }: Ctx) {
         compte: { select: { numero: true, libelle: true } },
         sectionAnalytique: { select: { libelle: true, axe: true } },
         pointDeVente: { select: { nom: true } },
+        produit: { select: { nom: true } },
       },
       orderBy: [{ mois: "asc" }, { compte: { numero: "asc" } }],
     });
@@ -38,6 +39,7 @@ export async function GET(_req: Request, { params }: Ctx) {
           mois: l.mois,
           sectionAnalytiqueId: l.sectionAnalytiqueId ?? undefined,
           pointDeVenteId: l.pointDeVenteId ?? undefined,
+          produitId: l.produitId ?? undefined,
         });
         const prevu = Number(l.montantPrevu);
         return { ...l, montantPrevu: prevu, realise, ecart: prevu - realise };
@@ -67,9 +69,9 @@ export async function POST(req: Request, { params }: Ctx) {
     if (!budget) return NextResponse.json({ error: "Budget introuvable" }, { status: 404 });
 
     const body = await req.json();
-    const { compteId, compteNumero, mois, montantPrevu, sectionAnalytiqueId, pointDeVenteId } = body as {
+    const { compteId, compteNumero, mois, montantPrevu, sectionAnalytiqueId, pointDeVenteId, produitId, observation } = body as {
       compteId?: number; compteNumero?: string; mois?: number; montantPrevu?: number;
-      sectionAnalytiqueId?: number; pointDeVenteId?: number;
+      sectionAnalytiqueId?: number; pointDeVenteId?: number; produitId?: number; observation?: string;
     };
     if ((!compteId && !compteNumero) || !mois || montantPrevu == null) {
       return NextResponse.json({ error: "compteId (ou compteNumero), mois et montantPrevu sont requis" }, { status: 400 });
@@ -88,6 +90,7 @@ export async function POST(req: Request, { params }: Ctx) {
         budgetId, compteId: resolvedCompteId!, mois: Number(mois),
         sectionAnalytiqueId: sectionAnalytiqueId ? Number(sectionAnalytiqueId) : null,
         pointDeVenteId: pointDeVenteId ? Number(pointDeVenteId) : null,
+        produitId: produitId ? Number(produitId) : null,
       },
     });
 
@@ -95,12 +98,14 @@ export async function POST(req: Request, { params }: Ctx) {
     const meta = getRequestMeta(req);
     const ligne = await prisma.$transaction(async (tx) => {
       const l = existing
-        ? await tx.ligneBudget.update({ where: { id: existing.id }, data: { montantPrevu: Number(montantPrevu) } })
+        ? await tx.ligneBudget.update({ where: { id: existing.id }, data: { montantPrevu: Number(montantPrevu), observation: observation?.trim() || null } })
         : await tx.ligneBudget.create({
             data: {
               budgetId, compteId: resolvedCompteId!, mois: Number(mois), montantPrevu: Number(montantPrevu),
               sectionAnalytiqueId: sectionAnalytiqueId ? Number(sectionAnalytiqueId) : null,
               pointDeVenteId: pointDeVenteId ? Number(pointDeVenteId) : null,
+              produitId: produitId ? Number(produitId) : null,
+              observation: observation?.trim() || null,
             },
           });
       await auditLog(

@@ -12,32 +12,38 @@ import { exportToXlsx, type XlsxColumn } from "@/lib/exportXlsx";
 
 interface SectionAnalytiqueEntry { id: number; axe: string; code: string; libelle: string; actif: boolean }
 interface BudgetEntry { id: number; annee: number; libelle: string | null; statut: string }
+interface ProduitEntry { id: number; nom: string }
 interface LigneBudgetEntry {
-  id: number; mois: number; montantPrevu: number; realise: number; ecart: number;
+  id: number; mois: number; montantPrevu: number; realise: number; ecart: number; observation: string | null;
   compte: { numero: string; libelle: string };
   sectionAnalytique?: { libelle: string; axe: string } | null;
   pointDeVente?: { nom: string } | null;
+  produit?: { nom: string } | null;
 }
 
 const AXE_LABELS: Record<string, string> = { ACTIVITE: "Activité", PROJET: "Projet", DEPARTEMENT: "Département" };
 const MOIS_LABELS = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"];
 
-interface LigneBudgetExport { compte: string; mois: string; section: string; montantPrevu: number; realise: number; ecart: number }
+interface LigneBudgetExport { compte: string; mois: string; section: string; produit: string; montantPrevu: number; realise: number; ecart: number; observation: string }
 const COLONNES_BUDGET: XlsxColumn<LigneBudgetExport>[] = [
   { label: "Compte", key: "compte", width: 30 },
   { label: "Mois", key: "mois", width: 10 },
   { label: "Section analytique", key: "section", width: 24 },
+  { label: "Produit", key: "produit", width: 24 },
   { label: "Budget", key: "montantPrevu", type: "currency" },
   { label: "Réalisé", key: "realise", type: "currency" },
   { label: "Écart", key: "ecart", type: "currency" },
+  { label: "Observation", key: "observation", width: 30 },
 ];
 
 export default function AnalytiquePage() {
   // ── État Analytique & Budget ───────────────────────────────────────────
   const [newSection, setNewSection] = useState({ axe: "DEPARTEMENT", code: "", libelle: "" });
   const [budgetAnnee, setBudgetAnnee] = useState(() => String(new Date().getFullYear()));
-  const NOUVELLE_LIGNE_BUDGET = { compteNumero: "", mois: String(new Date().getMonth() + 1), montantPrevu: "", sectionAnalytiqueId: "" };
+  const NOUVELLE_LIGNE_BUDGET = { compteNumero: "", mois: String(new Date().getMonth() + 1), montantPrevu: "", sectionAnalytiqueId: "", produitId: "", observation: "" };
   const [nouvelleLigneBudget, setNouvelleLigneBudget] = useState(NOUVELLE_LIGNE_BUDGET);
+
+  const { data: produitsData } = useApi<{ data: ProduitEntry[] }>("/api/comptable/produits?limit=50");
 
   // ── Analytique & Budget API ────────────────────────────────────────────
   const { data: sectionsData, refetch: refetchSections } =
@@ -93,6 +99,8 @@ export default function AnalytiquePage() {
       mois: Number(nouvelleLigneBudget.mois),
       montantPrevu: Number(nouvelleLigneBudget.montantPrevu),
       sectionAnalytiqueId: nouvelleLigneBudget.sectionAnalytiqueId ? Number(nouvelleLigneBudget.sectionAnalytiqueId) : undefined,
+      produitId: nouvelleLigneBudget.produitId ? Number(nouvelleLigneBudget.produitId) : undefined,
+      observation: nouvelleLigneBudget.observation || undefined,
     });
     if (res) { refetchLignesBudget(); setNouvelleLigneBudget({ ...NOUVELLE_LIGNE_BUDGET, mois: nouvelleLigneBudget.mois }); }
   }
@@ -105,7 +113,9 @@ export default function AnalytiquePage() {
         compte: `${l.compte.numero} ${l.compte.libelle}`,
         mois: MOIS_LABELS[l.mois - 1],
         section: l.sectionAnalytique ? `${AXE_LABELS[l.sectionAnalytique.axe] ?? l.sectionAnalytique.axe} — ${l.sectionAnalytique.libelle}` : "—",
+        produit: l.produit?.nom ?? "—",
         montantPrevu: l.montantPrevu, realise: l.realise, ecart: l.ecart,
+        observation: l.observation ?? "",
       })),
       COLONNES_BUDGET,
       `budget-analytique-${budgetAnnee}.xlsx`,
@@ -203,7 +213,7 @@ export default function AnalytiquePage() {
 
           {budgetData?.data && (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <input value={nouvelleLigneBudget.compteNumero} onChange={(e) => setNouvelleLigneBudget(p => ({ ...p, compteNumero: e.target.value }))}
                   placeholder="N° compte (ex: 623)" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
                 <select value={nouvelleLigneBudget.mois} onChange={(e) => setNouvelleLigneBudget(p => ({ ...p, mois: e.target.value }))}
@@ -215,8 +225,15 @@ export default function AnalytiquePage() {
                   <option value="">Sans section</option>
                   {(sectionsData?.data ?? []).filter(s => s.actif).map(s => <option key={s.id} value={s.id}>{AXE_LABELS[s.axe]} — {s.libelle}</option>)}
                 </select>
+                <select value={nouvelleLigneBudget.produitId} onChange={(e) => setNouvelleLigneBudget(p => ({ ...p, produitId: e.target.value }))}
+                  className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                  <option value="">Sans produit</option>
+                  {(produitsData?.data ?? []).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                </select>
                 <input type="number" value={nouvelleLigneBudget.montantPrevu} onChange={(e) => setNouvelleLigneBudget(p => ({ ...p, montantPrevu: e.target.value }))}
                   placeholder="Montant prévu" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 [appearance:textfield]" />
+                <input value={nouvelleLigneBudget.observation} onChange={(e) => setNouvelleLigneBudget(p => ({ ...p, observation: e.target.value }))}
+                  placeholder="Observation (optionnel)" className="md:col-span-2 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
                 <button onClick={handleAjouterLigneBudget} disabled={ajoutantLigneBudget || !nouvelleLigneBudget.compteNumero || !nouvelleLigneBudget.montantPrevu}
                   className="flex items-center justify-center gap-2 px-3 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50">
                   <Save size={14} /> Enregistrer
@@ -229,9 +246,11 @@ export default function AnalytiquePage() {
                     <th className="text-left px-3 py-2 font-semibold text-slate-600 text-xs uppercase">Compte</th>
                     <th className="text-left px-3 py-2 font-semibold text-slate-600 text-xs uppercase">Mois</th>
                     <th className="text-left px-3 py-2 font-semibold text-slate-600 text-xs uppercase hidden md:table-cell">Section</th>
+                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-xs uppercase hidden lg:table-cell">Produit</th>
                     <th className="text-right px-3 py-2 font-semibold text-slate-600 text-xs uppercase">Budget</th>
                     <th className="text-right px-3 py-2 font-semibold text-slate-600 text-xs uppercase">Réalisé</th>
                     <th className="text-right px-3 py-2 font-semibold text-slate-600 text-xs uppercase">Écart</th>
+                    <th className="text-left px-3 py-2 font-semibold text-slate-600 text-xs uppercase hidden lg:table-cell">Observation</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -240,13 +259,15 @@ export default function AnalytiquePage() {
                       <td className="px-3 py-2 font-mono text-xs text-violet-700">{l.compte.numero} <span className="text-slate-400 font-sans">{l.compte.libelle}</span></td>
                       <td className="px-3 py-2 text-slate-600">{MOIS_LABELS[l.mois - 1]}</td>
                       <td className="px-3 py-2 text-slate-500 hidden md:table-cell">{l.sectionAnalytique?.libelle ?? "—"}</td>
+                      <td className="px-3 py-2 text-slate-500 hidden lg:table-cell">{l.produit?.nom ?? "—"}</td>
                       <td className="px-3 py-2 text-right font-medium text-slate-700">{formatCurrency(l.montantPrevu)}</td>
                       <td className="px-3 py-2 text-right text-blue-700">{formatCurrency(l.realise)}</td>
                       <td className={`px-3 py-2 text-right font-semibold ${l.ecart >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatCurrency(l.ecart)}</td>
+                      <td className="px-3 py-2 text-slate-500 hidden lg:table-cell">{l.observation ?? "—"}</td>
                     </tr>
                   ))}
                   {(lignesBudgetData?.data ?? []).length === 0 && (
-                    <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400">Aucune ligne budgétaire pour {budgetAnnee}.</td></tr>
+                    <tr><td colSpan={8} className="px-3 py-8 text-center text-slate-400">Aucune ligne budgétaire pour {budgetAnnee}.</td></tr>
                   )}
                 </tbody>
               </table>

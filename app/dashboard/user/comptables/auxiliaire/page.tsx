@@ -37,13 +37,14 @@ interface LigneNonLettreeEntry {
   credit: number;
   libelle: string;
   lettrage: string | null;
+  reliquat: number;
   ecriture: { reference: string; date: string; statut: string; libelle: string };
 }
 
 interface LettrageResponse {
   data: {
     lignes: LigneNonLettreeEntry[];
-    propositions: { ligneIds: number[]; montant: number }[];
+    propositions: { ligneIds: number[]; montant: number; partiel?: boolean; reliquat?: number }[];
   };
 }
 
@@ -294,11 +295,18 @@ export default function AuxiliairePage() {
               <>
                 {(lettrageData?.data.propositions ?? []).length > 0 && (
                   <div className="mb-4 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-                    <p className="text-xs font-semibold text-emerald-700 mb-2">Correspondances exactes proposées</p>
+                    <p className="text-xs font-semibold text-emerald-700 mb-2">Correspondances proposées</p>
                     <div className="space-y-1.5">
                       {lettrageData!.data.propositions.map((p, i) => (
                         <div key={i} className="flex items-center justify-between text-xs">
-                          <span className="text-slate-600">{formatCurrency(p.montant)} — {p.ligneIds.length} lignes</span>
+                          <span className="text-slate-600">
+                            {formatCurrency(p.montant)} — {p.ligneIds.length} lignes
+                            {p.partiel && (
+                              <span className="ml-1.5 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-semibold">
+                                Partiel — reliquat {formatCurrency(p.reliquat ?? 0)}
+                              </span>
+                            )}
+                          </span>
                           <button onClick={() => handleAppliquerLettrage(p.ligneIds)} disabled={applyingLettrage}
                             className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 disabled:opacity-50">
                             Lettrer
@@ -310,7 +318,7 @@ export default function AuxiliairePage() {
                 )}
 
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-slate-500 uppercase">Lignes non lettrées</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase">Lignes en instance</p>
                   <button onClick={() => handleAppliquerLettrage(lettrageSelection)}
                     disabled={lettrageSelection.length < 2 || applyingLettrage}
                     className="flex items-center gap-1 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-semibold hover:bg-violet-700 disabled:opacity-40">
@@ -324,7 +332,14 @@ export default function AuxiliairePage() {
                         className="rounded border-slate-300 text-violet-600 focus:ring-violet-500" />
                       <span className="text-xs text-slate-400 w-24 flex-shrink-0">{formatDateShort(l.ecriture.date)}</span>
                       <span className="font-mono text-xs text-slate-500 w-28 flex-shrink-0">{l.ecriture.reference}</span>
-                      <span className="flex-1 text-slate-700 truncate">{l.libelle}</span>
+                      <span className="flex-1 text-slate-700 truncate">
+                        {l.libelle}
+                        {l.lettrage && (
+                          <span className="ml-1.5 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-semibold align-middle">
+                            Lettrage partiel — reliquat {formatCurrency(l.reliquat)}
+                          </span>
+                        )}
+                      </span>
                       <span className="text-blue-700 font-medium w-28 text-right">{Number(l.debit) > 0 ? formatCurrency(Number(l.debit)) : ""}</span>
                       <span className="text-emerald-700 font-medium w-28 text-right">{Number(l.credit) > 0 ? formatCurrency(Number(l.credit)) : ""}</span>
                     </label>

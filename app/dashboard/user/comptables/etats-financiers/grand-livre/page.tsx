@@ -57,6 +57,8 @@ export default function GrandLivrePage() {
     return `/api/comptable/etats-financiers/grand-livre?${p.toString()}`;
   }, [compteSelectionne, dateDebut, dateFin]);
 
+  const grandLivrePdfUrl = useMemo(() => grandLivreUrl?.replace("/grand-livre?", "/grand-livre/pdf?") ?? null, [grandLivreUrl]);
+
   const { data: grandLivreData, loading: grandLivreLoading } = useApi<GrandLivreResponse>(grandLivreUrl);
   const gl = grandLivreData?.data;
 
@@ -120,10 +122,10 @@ export default function GrandLivrePage() {
               className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40">
               <Download size={14} /> Excel
             </button>
-            <button onClick={() => window.print()} disabled={!gl}
-              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-40">
+            <a href={grandLivrePdfUrl ?? "#"} download aria-disabled={!gl}
+              className={`flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 ${!gl ? "pointer-events-none opacity-40" : ""}`}>
               <Printer size={14} /> PDF
-            </button>
+            </a>
           </div>
         </div>
       </div>

@@ -720,6 +720,7 @@ model User {
   preferenceNotifRH       PreferenceNotificationRH?
   piecesJustificatives    PieceJustificative[]
   userPermissions      UserPermission[]
+  userJournauxAutorises UserJournalAutorise[]
   securityLogs         SecurityLog[]
   messagesEnvoyes      Message[]            @relation("MessagesEnvoyes")
   messagesRecus        Message[]            @relation("MessagesRecus")
@@ -2065,6 +2066,7 @@ model Produit {
   demandesCotation DemandeCotation[] // RFQ portant sur ce produit
   lignesBonCommande LigneBonCommande[] // lignes de bons de commande portant sur ce produit
   lignesEcritureComptable LigneEcriture[] // imputation analytique axe Produit (Comptabilité §24)
+  lignesBudget LigneBudget[] // ventilation budgétaire par produit (Comptabilité §25)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3088,6 +3090,7 @@ model SessionCaisse {
   caissier       User             @relation("SessionsCaisseCaissier", fields: [caissierId], references: [id])
   operations     OperationCaisse[]
   transferts     TransfertCaisse[]
+  transfertsRecus TransfertCaisse[] @relation("TransfertsCaisseDestination")
   clotures       ClotureCaisse[]
   caissesPDV     CaissePDV[]
   ventesDirectes VenteDirecte[]
@@ -3165,6 +3168,13 @@ model TransfertCaisse {
   operateurNom String
   operateurId  Int
   createdAt    DateTime @default(now())
+
+  // CDC §20 — transfert symétrique : quand `destination` correspond à une
+  // SessionCaisse active identifiable, son solde théorique est crédité en
+  // clôture (app/api/caissier/cloture/route.ts). null = destination purement
+  // descriptive (comportement historique préservé, ex. "Banque Ecobank").
+  destinationSessionId Int?
+  destinationSession   SessionCaisse? @relation("TransfertsCaisseDestination", fields: [destinationSessionId], references: [id])
 
   session   SessionCaisse @relation(fields: [sessionId], references: [id])
   operateur User          @relation("TransfertsCaisse", fields: [operateurId], references: [id])
@@ -3915,6 +3925,12 @@ model CompteComptable {
   creeParId Int?
   creePar   User? @relation("CompteComptableCreateur", fields: [creeParId], references: [id])
 
+  // CDC §50 — multi-société (version légère, voir commentaire du modèle Societe) :
+  // `null` = compte du plan partagé/société principale. Ne change PAS l'unicité
+  // de `numero` (toujours globale) — sert uniquement à filtrer/reporter.
+  societeId Int?
+  societe   Societe? @relation(fields: [societeId], references: [id])
+
   // Compte auxiliaire réel (CDC Comptabilité §16-17) : sous-compte 411xxx/401xxx
   // rattaché à un client ou fournisseur précis par FK (et non plus seulement par
   // texte libre tiersNom). Auto-provisionné par lib/comptabilite/auxiliaire.ts.
@@ -3941,6 +3957,7 @@ model CompteComptable {
   @@index([classe])
   @@index([type])
   @@index([nature])
+  @@index([societeId])
 }
 
 model EcritureComptable {
@@ -4007,9 +4024,13 @@ model LigneEcriture {
   montantTva Decimal?
 
   // Lettrage (CDC Comptabilité §18) : code partagé par un groupe de lignes du
-  // même compte dont la somme débit = somme crédit (facture soldée par un
-  // paiement). null = non lettrée.
-  lettrage   String?
+  // même compte. Groupe équilibré (débit=crédit) = lettrage classique intégral.
+  // Groupe déséquilibré = lettrage PARTIEL (ex. facture 500k / paiement 300k) :
+  // `montantLettre` porte alors la part de CETTE ligne effectivement soldée
+  // (≤ son montant) ; le reliquat (montant - montantLettre) reste "en instance"
+  // (cf. lignesNonLettrees dans lib/comptabilite/lettrage.ts). null = non lettrée.
+  lettrage      String?
+  montantLettre Decimal @default(0)
 
   // Imputation analytique (CDC §24, 5 axes) : Activité/Projet/Département via
   // SectionAnalytique, Point de vente et Produit réutilisent les modèles
@@ -4466,9 +4487,14 @@ model LigneBudget {
   sectionAnalytique   SectionAnalytique? @relation(fields: [sectionAnalytiqueId], references: [id])
   pointDeVenteId      Int?
   pointDeVente        PointDeVente?      @relation(fields: [pointDeVenteId], references: [id])
+  // CDC §24/§25 — 3e axe analytique (Produit), au même titre que sur LigneEcriture.
+  produitId           Int?
+  produit             Produit?           @relation(fields: [produitId], references: [id])
 
   mois         Int // 1-12
   montantPrevu Decimal
+  // CDC §25 — colonne "Observation" du tableau Budget/Réalisé/Écart.
+  observation  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4476,6 +4502,7 @@ model LigneBudget {
   @@index([budgetId])
   @@index([compteId])
   @@index([mois])
+  @@index([produitId])
 }
 
 // ============================================================
@@ -4521,11 +4548,17 @@ model TaxeConfig {
   conditionPointDeVente   PointDeVente?   @relation(fields: [conditionPointDeVenteId], references: [id])
   priorite Int @default(0)
 
+  // CDC §50 — multi-société (version légère, voir commentaire du modèle Societe) :
+  // `null` = taxe du référentiel partagé/société principale.
+  societeId Int?
+  societe   Societe? @relation(fields: [societeId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([nature])
   @@index([actif])
+  @@index([societeId])
 }
 
 enum TypeChargeProduitAttente {
@@ -4698,12 +4731,38 @@ model ExerciceComptable {
 /// complétion est calculée à la volée depuis les données réelles
 /// (lib/comptabilite/configurationInitiale.ts), pour éviter un état "fait/pas
 /// fait" qui pourrait diverger de la réalité.
+/// Référentiel comptable versionné (CDC §77) : catalogue historique de quel
+/// référentiel/version/pays fait foi et depuis quand. Volontairement léger
+/// (pas de FK depuis CompteComptable/RegleComptable/TaxeConfig, migration trop
+/// invasive pour un gain marginal) — le versioning temporel granulaire existe
+/// déjà au niveau des règles (RegleComptable.dateDebutValidite/dateFinValidite)
+/// et des taxes (TaxeConfig.dateDebut/dateFin) ; ce modèle couvre le seul
+/// niveau qui manquait : le référentiel global actif, avec historique.
+model ReferentielComptable {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique // ex: "SYSCOHADA_REVISE_2017"
+  nom             String   // ex: "Acte uniforme OHADA — SYSCOHADA révisé"
+  version         String   // ex: "2017"
+  pays            String   // ex: "Togo" (ou "OHADA" si régional commun)
+  dateApplication DateTime
+  actif           Boolean  @default(true)
+  notes           String?
+
+  configurations ConfigurationComptableInitiale[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model ConfigurationComptableInitiale {
   id          Int    @id @default(1)
   pays        String @default("Togo")
   devise      String @default("XOF")
   referentiel String @default("SYSCOHADA révisé")
   typeEntite  String @default("Société commerciale")
+
+  referentielActifId Int?
+  referentielActif   ReferentielComptable? @relation(fields: [referentielActifId], references: [id])
 
   // ── Comptabilité §53 : dernier niveau de la cascade Produit > Catégorie >
   // Famille > Configuration générale — comptes par défaut appliqués quand aucun
@@ -4738,14 +4797,17 @@ model Devise {
 
 /// Société (CDC §50 — "architecture prévue pour multi-sociétés"). AfriSime
 /// SARL est aujourd'hui l'unique société active (estPrincipale=true), mais
-/// EcritureComptable/ExerciceComptable/JournalComptable portent déjà un
-/// societeId optionnel pour ne jamais bloquer l'ajout d'une 2e entité.
+/// EcritureComptable/ExerciceComptable/JournalComptable/CompteComptable/
+/// TaxeConfig portent déjà un societeId optionnel pour ne jamais bloquer
+/// l'ajout d'une 2e entité (`null` = société principale/plan partagé).
 /// Le plan comptable (CompteComptable.numero) reste volontairement partagé/non
-/// scopé par société dans cette première étape — le scoper impliquerait de
-/// changer son unicité globale en (societeId, numero) et de retoucher chaque
-/// résolution par numéro dans le moteur (~20 points d'appel) pour un besoin qui
-/// n'existe pas encore concrètement ; à faire le jour où une 2e société réelle
-/// est créée.
+/// scopé par société (unicité globale sur `numero`, pas composite
+/// (societeId, numero)) — le scoper réellement impliquerait de retoucher
+/// chaque résolution par numéro dans le moteur (~20 points d'appel) pour un
+/// besoin qui n'existe pas encore concrètement (une seule société réelle
+/// aujourd'hui) ; à faire le jour où une 2e société réelle est créée avec son
+/// propre plan comptable. `societeId` sert dès maintenant à filtrer/reporter
+/// (cf. lib/comptabilite/consolidation.ts), pas à séparer les référentiels.
 model Societe {
   id                      Int     @id @default(autoincrement())
   nom                     String
@@ -4759,6 +4821,8 @@ model Societe {
   exercices ExerciceComptable[]
   journaux  JournalComptable[]
   ecritures EcritureComptable[]
+  comptes   CompteComptable[]
+  taxes     TaxeConfig[]
   provisionsDepreciation ProvisionDepreciation[]
   regularisationsAvance  RegularisationAvance[]
 
@@ -5050,6 +5114,34 @@ model RolePermission {
 
   @@unique([role, module, action])
   @@index([role])
+}
+
+/// CDC §68 — droits par journal : restreint un rôle à un sous-ensemble de
+/// journaux comptables (code JOURNAUX_BUILTIN ou JournalComptable.code).
+/// Absence de toute ligne pour un rôle = non restreint (comportement additif,
+/// tout journal reste autorisé par défaut — pas de régression sur l'existant).
+model RoleJournalAutorise {
+  id          Int              @id @default(autoincrement())
+  role        RoleGestionnaire
+  journalCode String
+  createdAt   DateTime         @default(now())
+
+  @@unique([role, journalCode])
+  @@index([role])
+}
+
+/// Override individuel (priorité sur RoleJournalAutorise) — autorise ou retire
+/// explicitement un journal pour un utilisateur donné, même schéma que UserPermission.
+model UserJournalAutorise {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journalCode String
+  autorise    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, journalCode])
+  @@index([userId])
 }
 
 /// Modules de la plateforme — activation / désactivation

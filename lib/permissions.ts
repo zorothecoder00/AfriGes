@@ -55,6 +55,34 @@ export async function can(
 }
 
 /**
+ * CDC §68 — droits par journal : renvoie true si l'utilisateur peut saisir dans
+ * `journalCode`. Même cascade que `can()` (ADMIN bypass → override utilisateur
+ * → restriction de rôle), mais avec une sémantique "additive" au dernier niveau :
+ * l'absence de toute ligne `RoleJournalAutorise` pour ce rôle signifie "non
+ * restreint" (tout journal autorisé), contrairement à `can()` qui referme par
+ * défaut. Ce choix préserve le comportement actuel pour tous les rôles tant que
+ * personne n'a explicitement restreint leurs journaux.
+ */
+export async function journalAutorise(session: SessionLike, journalCode: string): Promise<boolean> {
+  if (!session) return false;
+  if (isAdmin(session.user.role)) return true;
+
+  const userId = Number(session.user.id);
+  const gest = (session.user.gestionnaireRole ?? null) as RoleGestionnaire | null;
+
+  const userOv = await prisma.userJournalAutorise.findUnique({
+    where: { userId_journalCode: { userId, journalCode } },
+    select: { autorise: true },
+  });
+  if (userOv) return userOv.autorise;
+
+  if (!gest) return true;
+  const restrictions = await prisma.roleJournalAutorise.findMany({ where: { role: gest }, select: { journalCode: true } });
+  if (restrictions.length === 0) return true;
+  return restrictions.some((r) => r.journalCode === journalCode);
+}
+
+/**
  * Garde de route : renvoie une réponse 403 si la permission manque, sinon null.
  *   const denied = await requirePermission(session, "credits", "VALIDATION");
  *   if (denied) return denied;

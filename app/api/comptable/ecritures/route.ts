@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
-import { requirePermission } from "@/lib/permissions";
-import { genererReferenceEcriture, periodeClôturée, dateHorsExercice } from "@/lib/comptabilite/moteur";
+import { requirePermission, journalAutorise } from "@/lib/permissions";
+import { genererReferenceEcriture, periodeClôturée, dateHorsExercice, journalValide } from "@/lib/comptabilite/moteur";
 import { detecterDoublonPotentiel } from "@/lib/comptabilite/detectionDoublons";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
@@ -112,6 +112,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "date, libelle et journal sont obligatoires" }, { status: 400 });
     }
 
+    // CDC §40/§68 — le journal doit exister (builtin ou JournalComptable actif)
+    // et l'utilisateur doit être autorisé à y saisir (droits par journal).
+    if (!(await journalValide(prisma, journal))) {
+      return NextResponse.json({ error: `Journal "${journal}" inexistant ou inactif` }, { status: 400 });
+    }
+    if (!(await journalAutorise(session, journal))) {
+      return NextResponse.json({ error: `Vous n'êtes pas autorisé à saisir dans le journal "${journal}"` }, { status: 403 });
+    }
+
     // CDC §29/§31 — période fermée : interdit sauf "autorisation spéciale"
     // (ADMIN/SUPER_ADMIN uniquement, justification obligatoire, tracée dans
     // les notes de l'écriture). Avant ce contrôle, cette route ne vérifiait
@@ -160,6 +169,21 @@ export async function POST(req: Request) {
     if (Math.abs(totalDebit - totalCredit) > 0.01) {
       return NextResponse.json({
         error: `L'écriture n'est pas équilibrée : débit ${totalDebit.toFixed(2)} ≠ crédit ${totalCredit.toFixed(2)}`,
+      }, { status: 400 });
+    }
+
+    // CDC §40 — compte interdit à la saisie directe : un compte de regroupement,
+    // collectif (401/411 global) ou non actif ne doit jamais recevoir de ligne
+    // manuelle (les auxiliaires 401xxx/411xxx par tiers restent autorisés).
+    const compteIds = [...new Set(lignes.map((l: { compteId: number }) => Number(l.compteId)))];
+    const comptesCibles = await prisma.compteComptable.findMany({
+      where: { id: { in: compteIds } },
+      select: { id: true, numero: true, nature: true, estCompteCollectif: true, statut: true },
+    });
+    const compteInterdit = comptesCibles.find((c) => c.nature === "REGROUPEMENT" || c.estCompteCollectif || c.statut !== "ACTIF");
+    if (compteInterdit) {
+      return NextResponse.json({
+        error: `Compte interdit à la saisie directe : ${compteInterdit.numero} (compte de regroupement, collectif ou inactif)`,
       }, { status: 400 });
     }
 

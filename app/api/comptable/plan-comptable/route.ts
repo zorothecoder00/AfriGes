@@ -17,7 +17,7 @@ import { getRequestMeta } from "@/lib/requestMeta";
 // silencieusement omises faute de compte. Les comptes 476/477 sont déjà pris par
 // les écarts de conversion actif/passif ; les charges/produits constatés d'avance
 // utilisent donc 4786/4787 (lib/comptabilite/regularisationsAvance.ts).
-const PLAN_SYSCOHADA_BASE = [
+export const PLAN_SYSCOHADA_BASE = [
   // ── Classe 1 — Ressources durables ──────────────────────────────────────────
   { numero: "101", libelle: "Capital social", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },
   { numero: "104", libelle: "Primes liées au capital social", classe: 1, type: "PASSIF", nature: "DETAIL", sens: "CREDITEUR" },

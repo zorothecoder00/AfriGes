@@ -27,7 +27,7 @@ const roleLabel = (r: string) => ROLE_LABEL[r] ?? r.replace(/_/g, " ");
 
 export default function PermissionsPage() {
   const { data: res, loading } = useApi<PermsResponse>("/api/admin/permissions");
-  const [tab, setTab] = useState<"role" | "user">("role");
+  const [tab, setTab] = useState<"role" | "user" | "journaux">("role");
 
   const modules = res?.modules ?? [];
   const actions = res?.actions ?? [];
@@ -50,12 +50,14 @@ export default function PermissionsPage() {
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
           <SideTabs
             accent="blue"
-            items={([["role", "Par rôle"], ["user", "Par utilisateur"]] as const).map(([k, label]) => ({
+            items={([["role", "Par rôle"], ["user", "Par utilisateur"], ["journaux", "Journaux autorisés"]] as const).map(([k, label]) => ({
               key: k, label, active: tab === k, onClick: () => setTab(k),
             }))}
           />
           <div className="flex-1 min-w-0 space-y-6">
-            {loading && !res ? (
+            {tab === "journaux" ? (
+              <JournalMatrix />
+            ) : loading && !res ? (
               <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-3" /> Chargement…</div>
             ) : tab === "role" ? (
               <RoleMatrix res={res!} modules={modules} actions={actions} />
@@ -168,6 +170,99 @@ function RoleMatrix({ res, modules, actions }: {
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Enregistrer
           </button>
         </div>
+      </div>
+    </>
+  );
+}
+
+/* ────────────────────────── Onglet « Journaux autorisés » (CDC §68) ────────── */
+interface JournauxResponse { data: Record<string, Record<string, boolean>>; roles: string[]; journaux: { code: string; libelle: string }[] }
+
+function JournalMatrix() {
+  const { data: res, loading } = useApi<JournauxResponse>("/api/admin/permissions/journaux");
+  const [role, setRole] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Record<string, Record<string, boolean>>>({});
+  const [saving, setSaving] = useState(false);
+
+  const activeRole = role ?? res?.roles[0] ?? "";
+  if (res && !draft[activeRole] && res.data[activeRole]) {
+    // Initialise paresseusement le brouillon du rôle sélectionné.
+    setDraft((p) => ({ ...p, [activeRole]: { ...res.data[activeRole] } }));
+  }
+
+  const dirty = useMemo(() => {
+    if (!res || !draft[activeRole]) return false;
+    return res.journaux.some((j) => draft[activeRole][j.code] !== res.data[activeRole]?.[j.code]);
+  }, [res, draft, activeRole]);
+
+  const toggle = (code: string) => setDraft((p) => ({ ...p, [activeRole]: { ...p[activeRole], [code]: !p[activeRole][code] } }));
+
+  const save = async () => {
+    if (!res || !dirty) return;
+    setSaving(true);
+    try {
+      const journauxAutorises = res.journaux.filter((j) => draft[activeRole][j.code]).map((j) => j.code);
+      const r = await fetch("/api/admin/permissions/journaux", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: activeRole, journauxAutorises }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Journaux autorisés enregistrés ✓");
+      res.data[activeRole] = { ...draft[activeRole] };
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setSaving(false); }
+  };
+
+  if (loading && !res) {
+    return <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-3" /> Chargement…</div>;
+  }
+  if (!res) return null;
+
+  return (
+    <>
+      <p className="text-xs text-slate-500 -mt-2">
+        Aucune case décochée pour un rôle = non restreint (tous les journaux restent autorisés par défaut, comportement additif).
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {res.roles.map((r) => (
+          <button key={r} onClick={() => setRole(r)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${activeRole === r ? "bg-primary-600 text-white border-primary-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}>
+            {roleLabel(r)}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500 uppercase text-xs tracking-wide">Journal</th>
+                <th className="px-3 py-3 font-semibold text-slate-500 uppercase text-[10px] tracking-wide text-center">Autorisé</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {res.journaux.map((j) => {
+                const on = !!draft[activeRole]?.[j.code];
+                return (
+                  <tr key={j.code} className="hover:bg-slate-50/50">
+                    <td className="px-5 py-3 font-medium text-slate-800">{j.libelle} <span className="text-xs text-slate-400">({j.code})</span></td>
+                    <td className="px-3 py-3 text-center">
+                      <button onClick={() => toggle(j.code)} aria-pressed={on}
+                        className={`w-6 h-6 rounded-md border inline-flex items-center justify-center transition-colors ${on ? "bg-primary-600 border-primary-600 text-white" : "bg-white border-slate-300 hover:border-primary-400"}`}>
+                        {on && <Check className="w-4 h-4" />}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end gap-2">
+        <button onClick={save} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-primary-600 rounded-xl hover:bg-primary-700 disabled:opacity-40">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Enregistrer
+        </button>
       </div>
     </>
   );

@@ -115,12 +115,29 @@ export async function POST(req: Request) {
 
     const operateurNom = auth.user.name ?? `${auth.user.prenom} ${auth.user.nom}`;
 
+    // CDC §20 — transfert symétrique : si `destination` correspond au nom du
+    // caissier d'une autre session active (OUVERTE/SUSPENDUE), on la relie pour
+    // que son solde théorique soit crédité à sa clôture (sinon le montant
+    // "disparaîtrait" — décrémenté d'un côté, jamais recrédité de l'autre).
+    // Une destination purement descriptive (banque, dépôt externe…) reste
+    // acceptée telle quelle, sans session associée.
+    const destinationTrim = destination.trim();
+    const sessionDestination = await prisma.sessionCaisse.findFirst({
+      where: {
+        id: { not: sessionActive.id },
+        statut: { in: ["OUVERTE", "SUSPENDUE"] },
+        caissierNom: { equals: destinationTrim, mode: "insensitive" },
+      },
+      select: { id: true },
+    });
+
     const transfert = await prisma.$transaction(async (tx) => {
       const t = await tx.transfertCaisse.create({
         data: {
           sessionId:   sessionActive.id,
           origine:     origine.trim(),
-          destination: destination.trim(),
+          destination: destinationTrim,
+          destinationSessionId: sessionDestination?.id ?? null,
           montant:     new Prisma.Decimal(montant),
           motif:       motif?.trim() || null,
           reference:   genRef(),

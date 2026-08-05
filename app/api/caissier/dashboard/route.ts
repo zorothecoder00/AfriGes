@@ -316,7 +316,7 @@ export async function GET(req: NextRequest) {
         ? {}
         : { sessionId: -1 }; // caissier sans session → aucune opération
 
-    const [encaissAgg, decaissAgg, transfertAgg] = await Promise.all([
+    const [encaissAgg, decaissAgg, transfertAgg, transfertRecuAgg] = await Promise.all([
       prisma.operationCaisse.aggregate({
         _sum: { montant: true },
         where: { ...sessionIdFilter, type: "ENCAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
@@ -329,12 +329,21 @@ export async function GET(req: NextRequest) {
         _sum: { montant: true },
         where: { ...sessionIdFilter, createdAt: { gte: startOfDay, lte: endOfDay } },
       }),
+      // CDC §20 — transfert symétrique : montants reçus d'une autre session de
+      // caisse, à créditer ici (miroir du calcul dans app/api/caissier/cloture/route.ts).
+      sessionActive
+        ? prisma.transfertCaisse.aggregate({
+            _sum: { montant: true },
+            where: { destinationSessionId: sessionActive.id, createdAt: { gte: startOfDay, lte: endOfDay } },
+          })
+        : Promise.resolve({ _sum: { montant: null } }),
     ]);
 
     const encaissJour   = Number(encaissAgg._sum.montant ?? 0);
     const decaissJour   = Number(decaissAgg._sum.montant ?? 0);
     const transfertJour = Number(transfertAgg._sum.montant ?? 0);
-    const soldeTempsReel = fondsCaisse + montantJour + montantRemboursements + encaissJour - decaissJour - transfertJour;
+    const transfertRecuJour = Number(transfertRecuAgg._sum.montant ?? 0);
+    const soldeTempsReel = fondsCaisse + montantJour + montantRemboursements + encaissJour + transfertRecuJour - decaissJour - transfertJour;
 
     return NextResponse.json({
       success: true,
@@ -357,6 +366,7 @@ export async function GET(req: NextRequest) {
           encaissements: encaissJour,
           decaissements: decaissJour,
           transferts:    transfertJour,
+          transfertsRecus: transfertRecuJour,
         },
         versements: {
           total:    totalVersements,

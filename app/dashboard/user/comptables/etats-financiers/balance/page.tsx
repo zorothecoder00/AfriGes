@@ -8,7 +8,7 @@
 // initiaux packs" au lieu du vrai 701 SYSCOHADA "Ventes de marchandises").
 
 import { useMemo, useState } from "react";
-import { Calculator, Download, Search } from "lucide-react";
+import { Calculator, Download, Search, FileDown } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
 import { exportToXlsx } from "@/lib/exportXlsx";
@@ -55,6 +55,8 @@ export default function BalancePage() {
     return `/api/comptable/etats-financiers/balance?${p.toString()}`;
   }, [dateDebut, dateFin, classe, journal, pointDeVenteId, sectionAnalytiqueId, tiersType]);
 
+  const balancePdfUrl = useMemo(() => balanceUrl.replace("/balance?", "/balance/pdf?"), [balanceUrl]);
+
   const { data: balanceData, loading: balanceLoading } = useApi<BalanceResponse>(balanceUrl);
 
   const lignesFiltrees = useMemo(() => {
@@ -98,6 +100,9 @@ export default function BalancePage() {
           <button onClick={handleExporter} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 text-sm font-medium shadow-sm">
             <Download size={15} />Exporter Excel
           </button>
+          <a href={balancePdfUrl} download className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 text-sm font-medium shadow-sm">
+            <FileDown size={15} />PDF
+          </a>
           {AIDE_COMPTABLE.balance && <AideComptable contenu={AIDE_COMPTABLE.balance} />}
         </div>
       </div>

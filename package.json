@@ -12,7 +12,9 @@
     "backfill:codes": "node scripts/backfill-code-client.js",
     "backfill:codes:prod": "node scripts/backfill-code-client.js --prod",
     "backfill:echeances": "node scripts/backfill-echeances-arrondi.js",
-    "backfill:echeances:prod": "node scripts/backfill-echeances-arrondi.js --prod"
+    "backfill:echeances:prod": "node scripts/backfill-echeances-arrondi.js --prod",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.2.0",
@@ -50,6 +52,8 @@
     "eslint-config-next": "16.0.10",
     "prisma": "^7.2.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.1.10"
   }
 }

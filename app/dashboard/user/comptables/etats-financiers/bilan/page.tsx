@@ -50,10 +50,11 @@ export default function BilanPage() {
             className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50">
             <Download size={14} /> Excel
           </button>
-          <button onClick={() => window.print()} disabled={!bilan}
-            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+          <a href={`/api/comptable/etats-financiers/bilan/pdf?annee=${annee}`} download
+            aria-disabled={!bilan}
+            className={`flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 ${!bilan ? "pointer-events-none opacity-50" : ""}`}>
             <Printer size={14} /> PDF
-          </button>
+          </a>
           {AIDE_COMPTABLE.etatsReels && <AideComptable contenu={AIDE_COMPTABLE.etatsReels} />}
         </div>
       </div>

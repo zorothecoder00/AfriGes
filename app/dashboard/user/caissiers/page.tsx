@@ -134,7 +134,7 @@ interface DashboardData {
     fondsCaisse: number; dateOuverture: string; caissierNom: string;
   } | null;
   soldeTempsReel: number;
-  operationsJour: { encaissements: number; decaissements: number; transferts: number };
+  operationsJour: { encaissements: number; decaissements: number; transferts: number; transfertsRecus: number };
   versements: { total: number; montant: number; nbClients: number };
   ventesDirectes: { total: number; montant: number; parMode?: { especes: number; virement: number; credit: number } };
   remboursementsCredit: { total: number; montant: number; items: RemboursementCreditDashboardItem[] };
@@ -1232,7 +1232,8 @@ export default function CaissierPage() {
   const encaissementsAutres = dashboard?.operationsJour?.encaissements ?? 0;
   const decaissementsTotal  = dashboard?.operationsJour?.decaissements ?? 0;
   const transfertsTotal     = dashboard?.operationsJour?.transferts ?? 0;
-  const soldeTheorique      = fondsCaisseInitial + versementsPacks + encaissementsAutres - decaissementsTotal - transfertsTotal;
+  const transfertsRecusTotal = dashboard?.operationsJour?.transfertsRecus ?? 0;
+  const soldeTheorique      = fondsCaisseInitial + versementsPacks + encaissementsAutres + transfertsRecusTotal - decaissementsTotal - transfertsTotal;
   const ecartCaisse         = soldeReel !== "" ? Number(soldeReel) - soldeTheorique : null;
 
   // ── Handlers ─────────────────────────────────────────────────────────────

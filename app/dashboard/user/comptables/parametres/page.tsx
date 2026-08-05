@@ -31,6 +31,10 @@ interface DeviseEntry {
   code: string; nom: string; symbole: string; tauxVersFonctionnelle: number | string;
   dateTauxMaj: string; actif: boolean;
 }
+interface ReferentielEntry {
+  id: number; code: string; nom: string; version: string; pays: string;
+  dateApplication: string; actif: boolean; notes: string | null;
+}
 
 // L'ancien assistant renvoyait vers un onglet du monolithe (setActiveTab) ; on route
 // désormais vers la nouvelle sous-page correspondante (layout.tsx niveau 1).
@@ -88,6 +92,24 @@ export default function ConfigurationInitialePage() {
   const { mutate: patchDevise } = useMutation<unknown, object>(
     () => `/api/comptable/devises/${deviseActionCodeRef.current}`, "PATCH"
   );
+
+  const { data: referentielsData, refetch: refetchReferentiels } = useApi<{ data: ReferentielEntry[]; referentielActifId: number | null }>("/api/comptable/referentiels");
+  const [nouveauReferentiel, setNouveauReferentiel] = useState({ code: "", nom: "", version: "", pays: "Togo", dateApplication: "" });
+  const { mutate: creerReferentiel } = useMutation<unknown, object>("/api/comptable/referentiels", "POST", { successMessage: "Référentiel créé" });
+  const referentielActionIdRef = useRef<number | null>(null);
+  const { mutate: activerReferentiel } = useMutation<unknown, object>(
+    () => `/api/comptable/referentiels/${referentielActionIdRef.current}/activer`, "POST"
+  );
+  async function handleCreerReferentiel() {
+    if (!nouveauReferentiel.code.trim() || !nouveauReferentiel.nom.trim() || !nouveauReferentiel.version.trim() || !nouveauReferentiel.dateApplication) return;
+    const res = await creerReferentiel(nouveauReferentiel);
+    if (res) { refetchReferentiels(); setNouveauReferentiel({ code: "", nom: "", version: "", pays: "Togo", dateApplication: "" }); }
+  }
+  async function handleActiverReferentiel(r: ReferentielEntry) {
+    referentielActionIdRef.current = r.id;
+    const res = await activerReferentiel({});
+    if (res) refetchReferentiels();
+  }
 
   async function handleCreerSociete() {
     if (!nouvelleSociete.nom.trim()) return;
@@ -212,6 +234,45 @@ export default function ConfigurationInitialePage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Référentiels comptables versionnés (CDC §77) */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+        <h4 className="font-semibold text-slate-800 mb-1">Référentiels comptables</h4>
+        <p className="text-xs text-slate-500 mb-4">
+          Historique versionné (CDC §77) : référentiel, version, pays et date d&apos;application. Le versioning des règles et taxes existe déjà à leur niveau (dates de validité) — ce catalogue trace quel référentiel global fait foi, depuis quand.
+        </p>
+        <div className="space-y-2 mb-4">
+          {(referentielsData?.data ?? []).map((r) => {
+            const estActif = r.id === referentielsData?.referentielActifId;
+            return (
+              <div key={r.id} className={`flex items-center justify-between p-3 rounded-xl border ${estActif ? "border-emerald-200 bg-emerald-50/30" : "border-slate-200"}`}>
+                <div>
+                  <p className="text-sm font-medium text-slate-800">
+                    {r.nom} {estActif && <span className="text-xs text-emerald-600 font-semibold ml-1">(actif)</span>}
+                  </p>
+                  <p className="text-xs text-slate-400">{r.code} · v{r.version} · {r.pays} · en vigueur depuis le {formatDateShort(r.dateApplication)}</p>
+                </div>
+                {!estActif && (
+                  <button onClick={() => handleActiverReferentiel(r)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">
+                    Activer
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {(referentielsData?.data ?? []).length === 0 && <p className="text-xs text-slate-400 text-center py-4">Aucun référentiel enregistré.</p>}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <input value={nouveauReferentiel.code} onChange={(e) => setNouveauReferentiel(p => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="Code" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          <input value={nouveauReferentiel.nom} onChange={(e) => setNouveauReferentiel(p => ({ ...p, nom: e.target.value }))} placeholder="Nom" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          <input value={nouveauReferentiel.version} onChange={(e) => setNouveauReferentiel(p => ({ ...p, version: e.target.value }))} placeholder="Version" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          <input value={nouveauReferentiel.pays} onChange={(e) => setNouveauReferentiel(p => ({ ...p, pays: e.target.value }))} placeholder="Pays" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          <input type="date" value={nouveauReferentiel.dateApplication} onChange={(e) => setNouveauReferentiel(p => ({ ...p, dateApplication: e.target.value }))} className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        </div>
+        <button onClick={handleCreerReferentiel} className="mt-2 flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700">
+          <PlusCircle size={15} /> Ajouter le référentiel
+        </button>
       </div>
 
       {/* Sociétés (CDC §50) */}

@@ -20,18 +20,35 @@ interface CompteSolde {
   numero: string; libelle: string; classe: number; type: string; sens: string; solde: number;
 }
 
-/** Solde de chaque compte actif, dans son sens naturel, sur [dateDebut, dateFin] (dateDebut=null → cumulé depuis toujours). */
-async function soldesParCompte(tx: TxClient, dateDebut: Date | null, dateFin: Date): Promise<Map<number, CompteSolde>> {
+/**
+ * Solde de chaque compte actif, dans son sens naturel, sur [dateDebut, dateFin]
+ * (dateDebut=null → cumulé depuis toujours). `societeIds` (CDC §50, optionnel,
+ * `undefined` par défaut = tout confondu, comportement historique inchangé)
+ * filtre sur les écritures rattachées à l'une de ces sociétés — utilisé par la
+ * consolidation. Inclure `null` dans le tableau matche aussi les écritures sans
+ * société explicite (convention "société principale implicite" du moteur).
+ */
+async function soldesParCompte(tx: TxClient, dateDebut: Date | null, dateFin: Date, societeIds?: (number | null)[]): Promise<Map<number, CompteSolde>> {
   const comptes = await tx.compteComptable.findMany({
     where: { actif: true },
     select: { id: true, numero: true, libelle: true, classe: true, type: true, sens: true },
   });
+  // Prisma n'accepte pas `null` dans un filtre `in` sur une colonne nullable —
+  // on doit combiner `societeId IN (...)` et `societeId IS NULL` via un OR.
+  const idsNonNuls = societeIds?.filter((s): s is number => s !== null) ?? [];
+  const inclureNull = societeIds?.includes(null) ?? false;
   const lignes = await tx.ligneEcriture.groupBy({
     by: ["compteId"],
     where: {
       ecriture: {
         statut: { in: ["VALIDE", "CLOTURE"] },
         date: { ...(dateDebut ? { gte: dateDebut } : {}), lte: dateFin },
+        ...(societeIds != null && {
+          OR: [
+            ...(idsNonNuls.length ? [{ societeId: { in: idsNonNuls } }] : []),
+            ...(inclureNull ? [{ societeId: null }] : []),
+          ],
+        }),
       },
     },
     _sum: { debit: true, credit: true },
@@ -64,8 +81,8 @@ async function soldesParCompte(tx: TxClient, dateDebut: Date | null, dateFin: Da
  * ferait un vrai résultat de clôture — le bilan s'équilibre alors toujours,
  * par construction de la partie double.
  */
-export async function genererBilan(tx: TxClient, dateFin: Date) {
-  const soldes = await soldesParCompte(tx, null, dateFin);
+export async function genererBilan(tx: TxClient, dateFin: Date, societeIds?: (number | null)[]) {
+  const soldes = await soldesParCompte(tx, null, dateFin, societeIds);
   const actif: LigneEtatFinancier[] = [];
   const passif: LigneEtatFinancier[] = [];
   let resultatProvisoire = 0;
@@ -100,8 +117,8 @@ export async function genererBilan(tx: TxClient, dateFin: Date) {
 }
 
 /** Compte de résultat (Produits/Charges) sur [dateDebut, dateFin] (CDC §37). */
-export async function genererCompteResultat(tx: TxClient, dateDebut: Date, dateFin: Date) {
-  const soldes = await soldesParCompte(tx, dateDebut, dateFin);
+export async function genererCompteResultat(tx: TxClient, dateDebut: Date, dateFin: Date, societeIds?: (number | null)[]) {
+  const soldes = await soldesParCompte(tx, dateDebut, dateFin, societeIds);
   const produits: LigneEtatFinancier[] = [];
   const charges: LigneEtatFinancier[] = [];
 

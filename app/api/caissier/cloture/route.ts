@@ -282,7 +282,7 @@ export async function POST(req: Request) {
     const fondsCaisse = sessionActive ? Number(sessionActive.fondsCaisse) : 0;
 
     // Agrégats OperationCaisse du jour — scoped au caissier
-    const [encaissAgg, decaissAgg, transfertAgg, rembAgg] = await Promise.all([
+    const [encaissAgg, decaissAgg, transfertAgg, transfertRecuAgg, rembAgg] = await Promise.all([
       prisma.operationCaisse.aggregate({
         _sum: { montant: true },
         where: { ...sessionFilter, type: "ENCAISSEMENT", createdAt: { gte: startOfDay, lte: endOfDay } },
@@ -295,6 +295,15 @@ export async function POST(req: Request) {
         _sum: { montant: true },
         where: { ...sessionFilter, createdAt: { gte: startOfDay, lte: endOfDay } },
       }),
+      // CDC §20 — transfert symétrique : montants reçus d'une autre session de
+      // caisse (destinationSessionId), à créditer ici pour ne jamais faire
+      // "disparaître" l'argent transféré entre deux caisses actives.
+      sessionActive
+        ? prisma.transfertCaisse.aggregate({
+            _sum: { montant: true },
+            where: { destinationSessionId: sessionActive.id, createdAt: { gte: startOfDay, lte: endOfDay } },
+          })
+        : Promise.resolve({ _sum: { montant: null } }),
       prisma.remboursementCredit.aggregate({
         _sum: { montant: true },
         where: {
@@ -308,7 +317,8 @@ export async function POST(req: Request) {
     const totalEncaissementsAutres = Number(encaissAgg._sum.montant ?? 0) + Number(rembAgg._sum.montant ?? 0);
     const totalDecaissements       = Number(decaissAgg._sum.montant ?? 0);
     const totalTransferts          = Number(transfertAgg._sum.montant ?? 0);
-    const soldeTheorique           = fondsCaisse + montantTotal + totalEncaissementsAutres - totalDecaissements - totalTransferts;
+    const totalTransfertsRecus     = Number(transfertRecuAgg._sum.montant ?? 0);
+    const soldeTheorique           = fondsCaisse + montantTotal + totalEncaissementsAutres + totalTransfertsRecus - totalDecaissements - totalTransferts;
     const ecart                    = soldeReel !== null ? soldeReel - soldeTheorique : null;
 
     // CDC Comptabilité §20 — "le système doit demander une justification" dès
