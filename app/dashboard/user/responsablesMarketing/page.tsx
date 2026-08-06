@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
-  Menu, Plus, Loader2, Megaphone, Users, Wallet, LayoutDashboard, MessageCircle,
+  Menu, Plus, Loader2, Megaphone, Users, Wallet, LayoutDashboard, MessageCircle, Image as ImageIcon, Zap,
   Send, CheckCircle2, XCircle, Play, Pause, RotateCcw, Flag, Archive, Sparkles,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
@@ -18,8 +18,12 @@ import NouvelleCampagneModal from "@/components/marketing/NouvelleCampagneModal"
 import NouvelleAudienceModal from "@/components/marketing/NouvelleAudienceModal";
 import EnvoyerCampagneModal from "@/components/marketing/EnvoyerCampagneModal";
 import ModeleMessageForm from "@/components/marketing/ModeleMessageForm";
+import BibliothequeContenu from "@/components/marketing/BibliothequeContenu";
+import CalendrierEditorial from "@/components/marketing/CalendrierEditorial";
+import ListeAutomatisation from "@/components/marketing/ListeAutomatisation";
+import MesTachesMarketing from "@/components/marketing/MesTachesMarketing";
 
-type TabKey = "synthese" | "campagnes" | "audiences" | "communication" | "budgets";
+type TabKey = "synthese" | "campagnes" | "audiences" | "communication" | "contenu" | "automatisation" | "budgets";
 
 interface StatsResponse {
   data: {
@@ -79,6 +83,8 @@ export default function ResponsableMarketingPage() {
     { key: "campagnes", label: "Campagnes", icon: Megaphone },
     { key: "audiences", label: "Audiences", icon: Users },
     { key: "communication", label: "Communication", icon: MessageCircle },
+    { key: "contenu", label: "Contenu", icon: ImageIcon },
+    { key: "automatisation", label: "Automatisation", icon: Zap },
     { key: "budgets", label: "Budgets", icon: Wallet },
   ];
 
@@ -127,6 +133,8 @@ export default function ResponsableMarketingPage() {
           {activeTab === "campagnes" && <Campagnes />}
           {activeTab === "audiences" && <Audiences />}
           {activeTab === "communication" && <Communication />}
+          {activeTab === "contenu" && <Contenu />}
+          {activeTab === "automatisation" && <Automatisation />}
           {activeTab === "budgets" && <Budgets />}
         </main>
       </div>
@@ -295,6 +303,38 @@ function Communication() {
         ))}
       </div>
       {modalOpen && <ModeleMessageForm onClose={() => setModalOpen(false)} onCreated={() => { setModalOpen(false); refetch(); }} />}
+    </div>
+  );
+}
+
+function Contenu() {
+  const [vue, setVue] = useState<"bibliotheque" | "calendrier">("bibliotheque");
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-slate-800">Contenu</h2>
+        <div className="flex bg-slate-100 rounded-xl p-1">
+          <button onClick={() => setVue("bibliotheque")} className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${vue === "bibliotheque" ? "bg-white shadow-sm" : "text-slate-500"}`}>Bibliothèque</button>
+          <button onClick={() => setVue("calendrier")} className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${vue === "calendrier" ? "bg-white shadow-sm" : "text-slate-500"}`}>Calendrier</button>
+        </div>
+      </div>
+      {vue === "bibliotheque" ? <BibliothequeContenu /> : <CalendrierEditorial />}
+    </div>
+  );
+}
+
+function Automatisation() {
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-bold text-slate-800">Automatisation</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <ListeAutomatisation />
+        </div>
+        <div>
+          <MesTachesMarketing />
+        </div>
+      </div>
     </div>
   );
 }

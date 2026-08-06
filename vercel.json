@@ -12,6 +12,10 @@
       "schedule": "0 8 * * *"
     },
     {
+      "path": "/api/cron/marketing/automatisation?secret=${CRON_SECRET}",
+      "schedule": "30 8 * * *"
+    },
+    {
       "path": "/api/cron/appro-alertes?secret=${CRON_SECRET}",
       "schedule": "30 7 * * *"
     },

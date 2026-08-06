@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
+import { ajouterTagClient, retirerTagClient, ClientTagError } from "@/lib/clientTags";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -48,32 +49,13 @@ export async function POST(req: Request, { params }: Ctx) {
     const { tagId } = await req.json();
     if (!tagId) return NextResponse.json({ error: "tagId obligatoire" }, { status: 400 });
 
-    const [client, tag] = await Promise.all([
-      prisma.client.findUnique({ where: { id: clientId }, select: { id: true, segment: true } }),
-      prisma.tag.findUnique({ where: { id: Number(tagId) } }),
-    ]);
-
-    if (!client) return NextResponse.json({ error: "Client introuvable" }, { status: 404 });
-    if (!tag)    return NextResponse.json({ error: "Tag introuvable" }, { status: 404 });
-    if (!tag.actif) return NextResponse.json({ error: "Ce tag est inactif" }, { status: 400 });
-
-    // Vérifier compatibilité segment
-    if (tag.segment && tag.segment !== client.segment) {
-      return NextResponse.json(
-        { error: `Ce tag est réservé aux clients "${tag.segment}". Ce client est "${client.segment}".` },
-        { status: 400 }
-      );
-    }
-
-    // Upsert (silencieux si déjà associé)
-    await prisma.clientTag.upsert({
-      where: { clientId_tagId: { clientId, tagId: Number(tagId) } },
-      update: {},
-      create: { clientId, tagId: Number(tagId) },
-    });
+    await ajouterTagClient(clientId, Number(tagId));
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof ClientTagError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("POST /api/admin/clients/[id]/tags:", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
@@ -96,9 +78,7 @@ export async function DELETE(req: Request, { params }: Ctx) {
     const { tagId } = await req.json();
     if (!tagId) return NextResponse.json({ error: "tagId obligatoire" }, { status: 400 });
 
-    await prisma.clientTag.deleteMany({
-      where: { clientId, tagId: Number(tagId) },
-    });
+    await retirerTagClient(clientId, Number(tagId));
 
     return NextResponse.json({ success: true });
   } catch (error) {

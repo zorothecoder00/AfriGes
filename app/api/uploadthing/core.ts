@@ -80,6 +80,32 @@ export const ourFileRouter = {
         uploaderUserId:  metadata.uploaderUserId,
       };
     }),
+  // Endpoint bibliothèque de contenu Marketing (photos, vidéos, affiches,
+  // flyers… CDC Marketing §29) — réservé au marketing.
+  contenuMarketingMedia: f({
+    image: { maxFileSize: "8MB", maxFileCount: 5 },
+    video: { maxFileSize: "64MB", maxFileCount: 1 },
+    pdf:   { maxFileSize: "16MB", maxFileCount: 5 },
+  })
+    .middleware(async () => {
+      const session = await getAuthSession();
+      if (!session) throw new Error("Non autorisé");
+      const { role, gestionnaireRole } = session.user;
+      if (role !== "ADMIN" && role !== "SUPER_ADMIN" && gestionnaireRole !== "RESPONSABLE_MARKETING") {
+        throw new Error("Accès réservé au marketing");
+      }
+      return { uploaderUserId: Number(session.user.id) };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      return {
+        url:            file.url,
+        key:            file.key,
+        name:           file.name,
+        size:           file.size,
+        type:           file.type,
+        uploaderUserId: metadata.uploaderUserId,
+      };
+    }),
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;
