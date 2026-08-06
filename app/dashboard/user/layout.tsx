@@ -20,6 +20,7 @@ const OWN_TOPBAR_PREFIXES = [
   "/dashboard/user/investisseurs",
   "/dashboard/user/logistiquesApprovisionnements",
   "/dashboard/user/magasiniers",
+  "/dashboard/user/responsablesMarketing",
   "/dashboard/user/responsablesPointDeVente",
   "/dashboard/user/responsablesVenteCredit",
   "/dashboard/user/revendeurs",
@@ -39,6 +40,7 @@ const HAS_PDV_BADGE_PREFIXES = [
   "/dashboard/user/comptables",
   "/dashboard/user/logistiquesApprovisionnements",
   "/dashboard/user/magasiniers",
+  "/dashboard/user/responsablesMarketing",
   "/dashboard/user/responsablesPointDeVente",
 ];
 

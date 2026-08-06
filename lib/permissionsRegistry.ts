@@ -47,6 +47,7 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   { key: "caisse",         label: "Caisse" },
   { key: "factures",       label: "Factures" },
   { key: "comptabilite",   label: "Comptabilité générale" },
+  { key: "marketing",      label: "Marketing" },
 ];
 
 export const MODULE_KEYS = PERMISSION_MODULES.map((m) => m.key);
@@ -66,7 +67,7 @@ const FULL: PermissionAction[] = [L, C, M, V, E, S]; // toutes les actions
 export const DEFAULT_MATRIX: Record<string, Partial<Record<string, PermissionAction[]>>> = {
   CHEF_AGENCE: {
     credits: [L, C, M, V, E], compte_courant: [L, C, M, V, E],
-    stock: ROE, ventes: ROE, caisse: ROE, rh: RO, paie: RO,
+    stock: ROE, ventes: ROE, caisse: ROE, rh: RO, paie: RO, marketing: RO,
   },
   RESPONSABLE_ECONOMIQUE: {
     credits: [L, V, E], compte_courant: [L, V, E], ventes: ROE, caisse: ROE, stock: ROE, paie: ROE,
@@ -96,7 +97,7 @@ export const DEFAULT_MATRIX: Record<string, Partial<Record<string, PermissionAct
   // autorisation) : lecture large + validation, jamais de saisie/suppression.
   DIRECTEUR_GENERAL: {
     caisse: ROE, ventes: ROE, credits: ROE, compte_courant: ROE, paie: ROE, stock: ROE, rh: ROE,
-    comptabilite: [L, V, E],
+    comptabilite: [L, V, E], marketing: FULL,
   },
   // CDC §43 — "Responsable achats" (achats + consultation comptable limitée).
   RESPONSABLE_ACHATS: {
@@ -115,7 +116,7 @@ export const DEFAULT_MATRIX: Record<string, Partial<Record<string, PermissionAct
     stock: [L, C, M, E],
   },
   RESPONSABLE_POINT_DE_VENTE: {
-    ventes: RW, caisse: ROE, stock: [L, M, E], credits: RO, compte_courant: RO,
+    ventes: RW, caisse: ROE, stock: [L, M, E], credits: RO, compte_courant: RO, marketing: RO,
   },
   RESPONSABLE_RH: {
     rh: FULL, paie: [L, C, M, V, E],
@@ -123,6 +124,10 @@ export const DEFAULT_MATRIX: Record<string, Partial<Record<string, PermissionAct
   AUDITEUR_INTERNE: {
     credits: ROE, compte_courant: ROE, rh: ROE, paie: ROE, stock: ROE, ventes: ROE, caisse: ROE,
     comptabilite: ROE,
+  },
+  // Module Marketing (Phase 1) — accès complet à son périmètre.
+  RESPONSABLE_MARKETING: {
+    marketing: FULL, ventes: RO, credits: RO, stock: RO,
   },
 };
 

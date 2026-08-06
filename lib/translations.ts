@@ -1063,6 +1063,8 @@ export const translations = {
   nav_dashboard_ria:       { fr: "Dashboard RIA",                en: "RIA dashboard",           ar: "لوحة RIA",                   es: "Panel RIA",                       pt: "Painel RIA" },
   nav_section_popc:        { fr: "POPC — Planification",         en: "POPC — Planning",         ar: "POPC — التخطيط",             es: "POPC — Planificación",            pt: "POPC — Planejamento" },
   nav_popc_objectifs:      { fr: "Objectifs & paramétrage",      en: "Goals & settings",        ar: "الأهداف والإعدادات",         es: "Objetivos y configuración",       pt: "Metas e configurações" },
+  nav_section_marketing:   { fr: "Marketing",                    en: "Marketing",               ar: "التسويق",                    es: "Marketing",                       pt: "Marketing" },
+  nav_marketing:           { fr: "Tableau de bord Marketing",    en: "Marketing dashboard",     ar: "لوحة التسويق",               es: "Panel de marketing",              pt: "Painel de marketing" },
   nav_droits_acces:        { fr: "Droits d'accès",               en: "Access rights",           ar: "حقوق الوصول",                es: "Derechos de acceso",              pt: "Direitos de acesso" },
 
   // ── Dashboard admin — activité & graphiques ─────────────────────────────────

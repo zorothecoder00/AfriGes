@@ -1,0 +1,290 @@
+"use client";
+
+import { useRef, useState } from "react";
+import { useApi, useMutation } from "@/hooks/useApi";
+import { formatCurrency, formatDate } from "@/lib/format";
+import {
+  Menu, Plus, Loader2, Megaphone, Users, Wallet, LayoutDashboard,
+  Send, CheckCircle2, XCircle, Play, Pause, RotateCcw, Flag, Archive, Sparkles,
+} from "lucide-react";
+import NotificationBell from "@/components/NotificationBell";
+import AccountMenuButton from "@/components/AccountMenuButton";
+import CongesNavButton from "@/components/CongesNavButton";
+import MessagesLink from "@/components/MessagesLink";
+import UserPdvBadge from "@/components/UserPdvBadge";
+import AfriSimeLogo from "@/components/AfriSimeLogo";
+import KpiCard from "@/components/ui/KpiCard";
+import NouvelleCampagneModal from "@/components/marketing/NouvelleCampagneModal";
+import NouvelleAudienceModal from "@/components/marketing/NouvelleAudienceModal";
+
+type TabKey = "synthese" | "campagnes" | "audiences" | "budgets";
+
+interface StatsResponse {
+  data: {
+    totaux: {
+      budgetPrevu: number; depenses: number; campagnesActives: number; campagnesTerminees: number;
+      nouveauxClients: number; clientsReactives: number; caAttribue: number; margeAttribuee: number;
+      cac: number | null; roi: number | null;
+    };
+    topCampagnes: { id: number; code: string; nom: string; caAttribue: number }[];
+  };
+}
+interface CampagneItem {
+  id: number; code: string; nom: string; statut: string; dateDebut: string; dateFin: string;
+  typeCampagne: { libelle: string };
+  budget: { id: number; montantPrevu: number | string; statut: string } | null;
+  agences: { pointDeVente: { id: number; nom: string } }[];
+}
+interface AudienceItem {
+  id: number; nom: string; type: string; tailleCalculee: number | null; _count: { campagnes: number };
+}
+
+const STATUT_LABEL: Record<string, string> = {
+  BROUILLON: "Brouillon", PLANIFIEE: "Planifiée", APPROUVEE: "Approuvée",
+  ACTIVE: "Active", PAUSE: "En pause", TERMINEE: "Terminée", ARCHIVEE: "Archivée",
+};
+const STATUT_STYLE: Record<string, string> = {
+  BROUILLON: "bg-slate-100 text-slate-600", PLANIFIEE: "bg-blue-100 text-blue-700",
+  APPROUVEE: "bg-indigo-100 text-indigo-700", ACTIVE: "bg-emerald-100 text-emerald-700",
+  PAUSE: "bg-amber-100 text-amber-700", TERMINEE: "bg-slate-200 text-slate-700",
+  ARCHIVEE: "bg-slate-100 text-slate-400",
+};
+const ACTIONS_PAR_STATUT: Record<string, { action: string; label: string; icon: typeof Send; style: string }[]> = {
+  BROUILLON: [{ action: "SOUMETTRE", label: "Soumettre", icon: Send, style: "bg-blue-600 hover:bg-blue-700" }],
+  PLANIFIEE: [
+    { action: "APPROUVER", label: "Approuver", icon: CheckCircle2, style: "bg-indigo-600 hover:bg-indigo-700" },
+    { action: "REJETER", label: "Renvoyer en brouillon", icon: XCircle, style: "bg-red-500 hover:bg-red-600" },
+  ],
+  APPROUVEE: [{ action: "ACTIVER", label: "Activer", icon: Play, style: "bg-emerald-600 hover:bg-emerald-700" }],
+  ACTIVE: [
+    { action: "METTRE_EN_PAUSE", label: "Pause", icon: Pause, style: "bg-amber-500 hover:bg-amber-600" },
+    { action: "TERMINER", label: "Terminer", icon: Flag, style: "bg-slate-600 hover:bg-slate-700" },
+  ],
+  PAUSE: [
+    { action: "REPRENDRE", label: "Reprendre", icon: RotateCcw, style: "bg-emerald-600 hover:bg-emerald-700" },
+    { action: "TERMINER", label: "Terminer", icon: Flag, style: "bg-slate-600 hover:bg-slate-700" },
+  ],
+  TERMINEE: [{ action: "ARCHIVER", label: "Archiver", icon: Archive, style: "bg-slate-500 hover:bg-slate-600" }],
+  ARCHIVEE: [],
+};
+
+export default function ResponsableMarketingPage() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>("synthese");
+
+  const tabs: { key: TabKey; label: string; icon: typeof LayoutDashboard }[] = [
+    { key: "synthese", label: "Synthèse", icon: LayoutDashboard },
+    { key: "campagnes", label: "Campagnes", icon: Megaphone },
+    { key: "audiences", label: "Audiences", icon: Users },
+    { key: "budgets", label: "Budgets", icon: Wallet },
+  ];
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex">
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-fuchsia-800 to-fuchsia-900 text-white transform transition-transform lg:translate-x-0 lg:static ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="p-5 border-b border-white/10">
+          <div className="w-9 h-9 rounded-lg bg-white p-1 flex items-center justify-center overflow-hidden shadow-sm">
+            <AfriSimeLogo className="w-full h-full object-contain" />
+          </div>
+          <p className="text-fuchsia-200 text-xs mt-2 font-medium">Espace Marketing</p>
+        </div>
+        <nav className="p-3 space-y-1">
+          {tabs.map((t) => (
+            <button key={t.key} onClick={() => { setActiveTab(t.key); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                activeTab === t.key ? "bg-white/15 text-white shadow-inner" : "text-fuchsia-100/80 hover:bg-white/10 hover:text-white"
+              }`}>
+              <t.icon size={17} /> {t.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700">
+                <Menu size={22} />
+              </button>
+              <div className="hidden lg:block" />
+              <div className="flex items-center gap-3">
+                <MessagesLink />
+                <CongesNavButton />
+                <UserPdvBadge />
+                <NotificationBell href="/dashboard/user/notifications" />
+                <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" inline />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+          {activeTab === "synthese" && <Synthese />}
+          {activeTab === "campagnes" && <Campagnes />}
+          {activeTab === "audiences" && <Audiences />}
+          {activeTab === "budgets" && <Budgets />}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+const pct = (n: number | null) => (n === null ? "—" : `${n.toFixed(0)} %`);
+
+function Synthese() {
+  const { data: res, loading } = useApi<StatsResponse>("/api/admin/marketing/stats");
+  const s = res?.data.totaux;
+  if (loading && !res) return <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+  if (!s) return null;
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-800">Tableau de bord — Marketing</h2>
+        <p className="text-slate-500 text-sm mt-0.5">Ce qu&apos;on a fait, et ce que ça a rapporté — ce mois.</p>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard label="Budget prévu" value={s.budgetPrevu} format={formatCurrency} icon={<Wallet size={18} />} accent="primary" />
+        <KpiCard label="Campagnes actives" value={s.campagnesActives} icon={<Megaphone size={18} />} accent="brand" />
+        <KpiCard label="CA attribué" value={s.caAttribue} format={formatCurrency} icon={<Megaphone size={18} />} accent="success" />
+        <KpiCard label="ROI" value={s.roi ?? 0} format={(n) => pct(s.roi === null ? null : n)} icon={<Sparkles size={18} />} accent={s.roi !== null && s.roi >= 0 ? "success" : "error"} />
+      </div>
+      <div className="bg-white rounded-2xl border border-slate-200 p-5">
+        <h3 className="font-semibold text-slate-800 mb-3">Top campagnes</h3>
+        {(res?.data.topCampagnes ?? []).length === 0 ? (
+          <p className="text-slate-400 text-sm">Aucune campagne pour l&apos;instant</p>
+        ) : res!.data.topCampagnes.map((c) => (
+          <div key={c.id} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+            <span className="text-sm font-medium text-slate-700">{c.nom} <span className="text-xs text-slate-400">({c.code})</span></span>
+            <span className="text-sm font-semibold text-slate-800">{formatCurrency(c.caAttribue)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Campagnes() {
+  const { data: res, loading, refetch } = useApi<{ data: CampagneItem[] }>("/api/admin/marketing/campagnes");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [ouvert, setOuvert] = useState<number | null>(null);
+  const actionIdRef = useRef<number | null>(null);
+  const { mutate: agir, loading: agissant } = useMutation<unknown, { action: string }>(
+    () => `/api/admin/marketing/campagnes/${actionIdRef.current}/action`, "POST",
+    { invalidate: "/api/admin/marketing/campagnes" }
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-slate-800">Mes campagnes</h2>
+        <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-fuchsia-600 text-white rounded-xl text-sm font-semibold hover:bg-fuchsia-700">
+          <Plus size={16} /> Nouvelle campagne
+        </button>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-50">
+        {loading && !res ? (
+          <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
+        ) : (res?.data ?? []).length === 0 ? (
+          <p className="text-center text-slate-400 py-16">Aucune campagne pour l&apos;instant</p>
+        ) : res!.data.map((c) => (
+          <div key={c.id}>
+            <button onClick={() => setOuvert(ouvert === c.id ? null : c.id)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50/60 text-left">
+              <div>
+                <p className="font-medium text-slate-800">{c.nom}</p>
+                <p className="text-xs text-slate-400">{c.code} · {c.typeCampagne.libelle} · {formatDate(c.dateDebut)} → {formatDate(c.dateFin)}</p>
+              </div>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUT_STYLE[c.statut]}`}>{STATUT_LABEL[c.statut]}</span>
+            </button>
+            {ouvert === c.id && (
+              <div className="px-4 pb-4 bg-slate-50/50 space-y-3">
+                <div className="flex gap-4 text-xs text-slate-500">
+                  <span>Budget : {c.budget ? formatCurrency(c.budget.montantPrevu) : "—"}</span>
+                  <span>Agences : {c.agences.map((a) => a.pointDeVente.nom).join(", ") || "—"}</span>
+                </div>
+                <div className="flex gap-2">
+                  {(ACTIONS_PAR_STATUT[c.statut] ?? []).map((a) => (
+                    <button key={a.action} disabled={agissant}
+                      onClick={async () => { actionIdRef.current = c.id; if (await agir({ action: a.action })) refetch(); }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-xs font-semibold disabled:opacity-50 ${a.style}`}>
+                      <a.icon className="w-3.5 h-3.5" /> {a.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {modalOpen && <NouvelleCampagneModal onClose={() => setModalOpen(false)} onCreated={() => { setModalOpen(false); refetch(); }} />}
+    </div>
+  );
+}
+
+function Audiences() {
+  const { data: res, loading, refetch } = useApi<{ data: AudienceItem[] }>("/api/admin/marketing/audiences");
+  const [modalOpen, setModalOpen] = useState(false);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-slate-800">Audiences</h2>
+        <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-fuchsia-600 text-white rounded-xl text-sm font-semibold hover:bg-fuchsia-700">
+          <Plus size={16} /> Nouvelle audience
+        </button>
+      </div>
+      <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-50">
+        {loading && !res ? (
+          <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
+        ) : (res?.data ?? []).length === 0 ? (
+          <p className="text-center text-slate-400 py-16">Aucune audience pour l&apos;instant</p>
+        ) : res!.data.map((a) => (
+          <div key={a.id} className="flex items-center justify-between px-4 py-3">
+            <div>
+              <p className="font-medium text-slate-800">{a.nom}</p>
+              <p className="text-xs text-slate-400">{a.type === "STATIQUE" ? "Statique" : "Dynamique"} · utilisée par {a._count.campagnes} campagne(s)</p>
+            </div>
+            <span className="text-sm font-semibold text-slate-800">{a.tailleCalculee ?? "—"} clients</span>
+          </div>
+        ))}
+      </div>
+      {modalOpen && <NouvelleAudienceModal onClose={() => setModalOpen(false)} onCreated={() => { setModalOpen(false); refetch(); }} />}
+    </div>
+  );
+}
+
+function Budgets() {
+  const { data: res, loading, refetch } = useApi<{ data: CampagneItem[] }>("/api/admin/marketing/campagnes");
+  const budgetIdRef = useRef<number | null>(null);
+  const { mutate: agirBudget } = useMutation<unknown, { action: string }>(
+    () => `/api/admin/marketing/budgets/${budgetIdRef.current}/action`, "POST",
+    { invalidate: "/api/admin/marketing/campagnes" }
+  );
+  const avecBudget = (res?.data ?? []).filter((c) => c.budget);
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-bold text-slate-800">Budgets</h2>
+      <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-50">
+        {loading && !res ? (
+          <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
+        ) : avecBudget.length === 0 ? (
+          <p className="text-center text-slate-400 py-16">Aucun budget pour l&apos;instant</p>
+        ) : avecBudget.map((c) => (
+          <div key={c.id} className="flex items-center justify-between px-4 py-3">
+            <div>
+              <p className="font-medium text-slate-800">{c.nom}</p>
+              <p className="text-xs text-slate-400">{formatCurrency(c.budget!.montantPrevu)} · statut {c.budget!.statut}</p>
+            </div>
+            {c.budget!.statut === "BROUILLON" && (
+              <button onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "DEMANDER" })) refetch(); }}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700">Demander validation</button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

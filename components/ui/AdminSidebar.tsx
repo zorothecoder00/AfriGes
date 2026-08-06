@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   TrendingUp, Users, MessageSquare, Layers, ShoppingCart, Package, Store, Truck,
-  ClipboardCheck, BarChart2, UserCog, Network, Target, Shield, Lock,
+  ClipboardCheck, BarChart2, UserCog, Network, Target, Shield, Lock, Megaphone,
   ChevronsLeft, ChevronsRight,
 } from "lucide-react";
 import { useT } from "@/contexts/AppSettingsContext";
@@ -106,6 +106,12 @@ export default function AdminSidebar({
       title: t("nav_section_popc"),
       items: [
         { href: "/dashboard/admin/popc", label: t("nav_popc_objectifs"), icon: <Target size={18} /> },
+      ],
+    },
+    {
+      title: t("nav_section_marketing"),
+      items: [
+        { href: "/dashboard/admin/marketing", label: t("nav_marketing"), icon: <Megaphone size={18} /> },
       ],
     },
     {

@@ -30,6 +30,8 @@ const gestionnaireDashboardMap: Record<string, string> = {
   CHEF_COMPTABLE: "/dashboard/user/comptables",
   DIRECTEUR_GENERAL: "/dashboard/user/comptables",
   RESPONSABLE_ACHATS: "/dashboard/user/logistiquesApprovisionnements",
+  // Module Marketing (Phase 1)
+  RESPONSABLE_MARKETING: "/dashboard/user/responsablesMarketing",
 }
 
 // Sous-arbres de /dashboard/user ouverts en LECTURE à des gestionnaires dont ce

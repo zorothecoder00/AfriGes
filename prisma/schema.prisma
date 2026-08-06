@@ -728,6 +728,12 @@ model User {
   conversationsB       Conversation[]       @relation("ConversationsB")
   messagesChatEnvoyes  MessageChat[]        @relation("MessagesChatEnvoyes")
 
+  // Marketing (Phase 1)
+  campagnesResponsable     Campagne[]           @relation("CampagneResponsable")
+  campagnesCommercial      Campagne[]           @relation("CampagneCommercial")
+  campagnesCreees          Campagne[]           @relation("CampagneCreePar")
+  audiencesMarketingCreees AudienceMarketing[]  @relation("AudienceMarketingCreePar")
+
   // Packs & fidélité      
   souscriptionsPacks   SouscriptionPack[]  
   pointsFidelite       PointsFidelite?
@@ -988,6 +994,7 @@ model PointDeVente {
   lignesEcritureComptable    LigneEcriture[]
   lignesBudget               LigneBudget[]
   taxesConditionnelles       TaxeConfig[]
+  campagnesMarketing         CampagneAgence[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1107,6 +1114,9 @@ model Client {
   provisionsDepreciation ProvisionDepreciation[]
   avoirs           AvoirClient[]
   litiges          LitigeClient[]
+
+  // Marketing (Phase 1)
+  audienceMemberships AudienceMarketingMembre[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1435,6 +1445,11 @@ model CreditClient {
   financementsRIA  OperationFinancementRIA[] @relation("FinancementsRIACredit")
   autorisationPrelevement AutorisationPrelevement?  // prélèvement automatique CC (CDC §19.C)
 
+  // Attribution marketing (Phase 1, CDC §56-57) — tag optionnel à la saisie
+  // pour rattacher ce crédit au CA d'une campagne.
+  campagneId Int?
+  campagne   Campagne? @relation("CreditCampagne", fields: [campagneId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1442,6 +1457,7 @@ model CreditClient {
   @@index([statut])
   @@index([pointDeVenteId])
   @@index([dateDebut])
+  @@index([campagneId])
 }
 
 model LigneCreditClient {
@@ -1875,6 +1891,7 @@ model FamilleProduit {
   sectionAnalytiqueDefautId Int?
   sectionAnalytiqueDefaut   SectionAnalytique? @relation("FamilleSectionAnalytique", fields: [sectionAnalytiqueDefautId], references: [id])
   taxesConditionnelles      TaxeConfig[]
+  campagnesMarketing        CampagneProduit[]
 
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
@@ -2067,6 +2084,7 @@ model Produit {
   lignesBonCommande LigneBonCommande[] // lignes de bons de commande portant sur ce produit
   lignesEcritureComptable LigneEcriture[] // imputation analytique axe Produit (Comptabilité §24)
   lignesBudget LigneBudget[] // ventilation budgétaire par produit (Comptabilité §25)
+  campagnesMarketing CampagneProduit[] // produits ciblés par une campagne marketing (Phase 1)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3239,6 +3257,11 @@ model VenteDirecte {
   caissePDVId     Int?          // petite caisse RPV
   sessionCaisseId Int?          // grande caisse caissier
 
+  // Attribution marketing (Phase 1, CDC §56-57) — tag optionnel à la saisie
+  // pour rattacher cette vente au CA d'une campagne.
+  campagneId Int?
+  campagne   Campagne? @relation("VenteCampagne", fields: [campagneId], references: [id])
+
   pointDeVente  PointDeVente   @relation(fields: [pointDeVenteId], references: [id])
   vendeur       User           @relation("VendeurVente", fields: [vendeurId], references: [id])
   client        Client?        @relation(fields: [clientId], references: [id])
@@ -3254,6 +3277,7 @@ model VenteDirecte {
   @@index([pointDeVenteId])
   @@index([vendeurId])
   @@index([creditClientId])
+  @@index([campagneId])
 }
 
 model LigneVenteDirecte {
@@ -8430,4 +8454,311 @@ model VenteCarnet {
   @@index([agentId])
   @@index([pointDeVenteId])
   @@index([dateVente])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MODULE MARKETING — Phase 1 : Marketing Core (campagnes, audiences, budgets)
+// Principe directeur du CDC (§85-86, 89) : ce module ne duplique aucune donnée
+// opérationnelle (Client/Vente/Stock/Crédit/Comptabilité/Agence) — il les
+// consomme en lecture (FK simples) pour piloter campagnes/audiences/budgets.
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum StatutCampagne {
+  BROUILLON
+  PLANIFIEE
+  APPROUVEE
+  ACTIVE
+  PAUSE
+  TERMINEE
+  ARCHIVEE
+}
+
+enum PorteeCampagne {
+  NATIONALE
+  REGIONALE
+  AGENCE
+  POINT_DE_VENTE
+  COMMERCIALE
+}
+
+enum ObjectifCampagneType {
+  ACQUISITION
+  CONVERSION
+  FIDELISATION
+  REACTIVATION
+  CROSS_SELLING
+  UPSELLING
+  NOTORIETE
+  TRAFIC
+}
+
+enum TypeAudience {
+  STATIQUE
+  DYNAMIQUE
+}
+
+// Champs exploitables par le moteur de règles d'audience (CDC §11). Les
+// champs *_ACHAT*/DERNIER_ACHAT_JOURS sont calculés par agrégation sur
+// VenteDirecte au moment de l'évaluation (pas de colonne dédiée sur Client).
+enum ChampAudience {
+  SEGMENT
+  TYPE_CLIENT
+  VILLE
+  COMMUNE
+  QUARTIER
+  SEXE
+  POINT_DE_VENTE
+  MONTANT_ACHAT_TOTAL
+  FREQUENCE_ACHAT
+  DERNIER_ACHAT_JOURS
+  PRODUIT_ACHETE
+  FAMILLE_PRODUIT_ACHETEE
+  STATUT_CREDIT
+  NIVEAU_FIDELITE
+  TAG
+}
+
+enum OperateurAudience {
+  EGAL
+  DIFFERENT
+  SUPERIEUR
+  INFERIEUR
+  SUPERIEUR_EGAL
+  INFERIEUR_EGAL
+  CONTIENT
+  DEPUIS_JOURS
+}
+
+enum StatutBudgetMarketing {
+  BROUILLON
+  DEMANDE
+  APPROUVE
+  REJETE
+}
+
+enum CategorieDepenseMarketing {
+  PUBLICITE
+  IMPRESSION
+  INFLUENCE
+  EVENEMENT
+  TRANSPORT
+  TERRAIN
+  SMS
+  WHATSAPP
+  EMAIL
+  MEDIA
+  SPONSORING
+  CREATION_GRAPHIQUE
+  AUTRE
+}
+
+// ── Référentiels paramétrables sans code (CDC §7, §21, §81) ─────────────────
+
+model TypeCampagne {
+  id      Int     @id @default(autoincrement())
+  code    String  @unique
+  libelle String
+  actif   Boolean @default(true)
+  ordre   Int     @default(0)
+
+  campagnes Campagne[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CanalMarketing {
+  id      Int     @id @default(autoincrement())
+  code    String  @unique
+  libelle String
+  actif   Boolean @default(true)
+  ordre   Int     @default(0)
+
+  campagnesCanaux CampagneCanal[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ── Audiences / segmentation (CDC §10-15) ────────────────────────────────────
+
+model AudienceMarketing {
+  id                Int           @id @default(autoincrement())
+  nom               String
+  description       String?
+  type              TypeAudience  @default(DYNAMIQUE)
+  tailleCalculee    Int?
+  dateDernierCalcul DateTime?
+
+  creeParId Int
+  creePar   User   @relation("AudienceMarketingCreePar", fields: [creeParId], references: [id])
+
+  regles    AudienceMarketingRegle[]
+  membres   AudienceMarketingMembre[]
+  campagnes Campagne[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+}
+
+model AudienceMarketingRegle {
+  id         Int               @id @default(autoincrement())
+  audienceId Int
+  champ      ChampAudience
+  operateur  OperateurAudience
+  valeur     String // valeur brute, castée selon `champ` par lib/audienceMarketing.ts
+
+  audience AudienceMarketing @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+
+  @@index([audienceId])
+}
+
+model AudienceMarketingMembre {
+  audienceId Int
+  clientId   Int
+
+  audience AudienceMarketing @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+  client   Client            @relation(fields: [clientId], references: [id])
+
+  @@id([audienceId, clientId])
+  @@index([clientId])
+}
+
+// ── Campagnes (CDC §6-9) ──────────────────────────────────────────────────────
+
+model Campagne {
+  id          Int            @id @default(autoincrement())
+  code        String         @unique // ex CAMP-2026-0001
+  nom         String
+  description String?
+  statut      StatutCampagne @default(BROUILLON)
+  portee      PorteeCampagne @default(AGENCE)
+
+  responsableId Int
+  responsable   User @relation("CampagneResponsable", fields: [responsableId], references: [id])
+
+  commercialId Int?
+  commercial   User? @relation("CampagneCommercial", fields: [commercialId], references: [id])
+
+  typeCampagneId Int
+  typeCampagne   TypeCampagne @relation(fields: [typeCampagneId], references: [id])
+
+  // Brief marketing (CDC §9) : { probleme, cible, message, offre, zone, resultatAttendu }
+  brief Json?
+
+  audienceId Int?
+  audience   AudienceMarketing? @relation(fields: [audienceId], references: [id])
+
+  dateDebut DateTime
+  dateFin   DateTime
+
+  budget           BudgetMarketing?
+  objectifs        CampagneObjectif[]
+  agences          CampagneAgence[]
+  produits         CampagneProduit[]
+  canaux           CampagneCanal[]
+  depenses         DepenseMarketing[]
+  ventesAttribuees VenteDirecte[]     @relation("VenteCampagne")
+  creditsAttribues CreditClient[]     @relation("CreditCampagne")
+
+  creeParId Int
+  creePar   User @relation("CampagneCreePar", fields: [creeParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([dateDebut, dateFin])
+  @@index([responsableId])
+  @@index([typeCampagneId])
+}
+
+model CampagneObjectif {
+  campagneId Int
+  objectif   ObjectifCampagneType
+
+  campagne Campagne @relation(fields: [campagneId], references: [id], onDelete: Cascade)
+
+  @@id([campagneId, objectif])
+}
+
+model CampagneAgence {
+  campagneId     Int
+  pointDeVenteId Int
+
+  campagne     Campagne     @relation(fields: [campagneId], references: [id], onDelete: Cascade)
+  pointDeVente PointDeVente @relation(fields: [pointDeVenteId], references: [id])
+
+  @@id([campagneId, pointDeVenteId])
+  @@index([pointDeVenteId])
+}
+
+model CampagneProduit {
+  id         Int  @id @default(autoincrement())
+  campagneId Int
+  produitId  Int?
+  familleId  Int?
+
+  campagne Campagne        @relation(fields: [campagneId], references: [id], onDelete: Cascade)
+  produit  Produit?        @relation(fields: [produitId], references: [id])
+  famille  FamilleProduit? @relation(fields: [familleId], references: [id])
+
+  @@unique([campagneId, produitId, familleId])
+  @@index([produitId])
+  @@index([familleId])
+}
+
+model CampagneCanal {
+  campagneId Int
+  canalId    Int
+
+  campagne Campagne       @relation(fields: [campagneId], references: [id], onDelete: Cascade)
+  canal    CanalMarketing @relation(fields: [canalId], references: [id])
+
+  @@id([campagneId, canalId])
+  @@index([canalId])
+}
+
+// ── Budget & dépenses (CDC §52-54) ────────────────────────────────────────────
+
+model BudgetMarketing {
+  id              Int                   @id @default(autoincrement())
+  campagneId      Int                   @unique
+  montantPrevu    Decimal
+  montantApprouve Decimal               @default(0)
+  montantEngage   Decimal               @default(0)
+  statut          StatutBudgetMarketing @default(BROUILLON)
+
+  demandeParId    Int?
+  approuveParId   Int?
+  dateApprobation DateTime?
+
+  campagne Campagne           @relation(fields: [campagneId], references: [id])
+  depenses DepenseMarketing[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DepenseMarketing {
+  id                  Int                       @id @default(autoincrement())
+  campagneId          Int
+  budgetId            Int?
+  categorie           CategorieDepenseMarketing
+  montant             Decimal
+  date                DateTime                  @default(now())
+  description         String?
+  ecritureComptableId Int? // lien optionnel vers une écriture comptable existante
+
+  creeParId Int
+
+  campagne Campagne         @relation(fields: [campagneId], references: [id])
+  budget   BudgetMarketing? @relation(fields: [budgetId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([campagneId])
+  @@index([categorie])
 }
