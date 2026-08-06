@@ -170,6 +170,16 @@ export async function enregistrerRemboursementCredit(
     return { ok: false, error: `Crédit ${credit.reference} non remboursable (${String(credit.statut).toLowerCase()})` };
   }
 
+  if (p.numeroJour !== null && p.numeroJour !== undefined) {
+    const echeanceCiblee = await tx.echeanceCredit.findFirst({
+      where: { creditId: p.creditId, numeroEcheance: p.numeroJour },
+      select: { statut: true },
+    });
+    if (echeanceCiblee?.statut === StatutEcheanceCredit.PAYE) {
+      return { ok: false, error: `Le jour ${p.numeroJour} est déjà intégralement soldé.` };
+    }
+  }
+
   const montantAttendu  = await montantAttenduDuJour(tx, p.creditId, p.numeroJour);
   const montantEffectif = Math.min(Number(p.montant), Number(credit.soldeRestant));
   const baseData = {
@@ -197,9 +207,19 @@ export async function enregistrerRemboursementCredit(
     orderBy: { dateEcheance: "asc" },
   });
 
+  // Le jour choisi par le collecteur est imputé en priorité (le paiement doit se
+  // refléter sur CE jour précis, cf. bordereau/échéancier) ; le reliquat éventuel
+  // comble ensuite les échéances impayées restantes, les plus anciennes d'abord.
+  const echeancesOrdonnees = p.numeroJour !== null && p.numeroJour !== undefined
+    ? [
+        ...echeances.filter((e) => e.numeroEcheance === p.numeroJour),
+        ...echeances.filter((e) => e.numeroEcheance !== p.numeroJour),
+      ]
+    : echeances;
+
   let budget = montantEffectif;
   let deltaPenaliteTotal = 0;
-  for (const ec of echeances) {
+  for (const ec of echeancesOrdonnees) {
     if (budget <= 0) break;
     const restant = Number(ec.montantDu) - Number(ec.montantPaye);
     const anciennePenalite = Number(ec.penalite ?? 0);

@@ -1672,9 +1672,15 @@ export default function CreditsPage() {
                   <select value={rembJour} onChange={(e) => onChangeJour(e.target.value)}
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
                     <option value="">—</option>
-                    {Array.from({ length: rembCredit?.dureeJours ?? 0 }, (_, i) => i + 1).map((j) => (
-                      <option key={j} value={j}>Jour {j}</option>
-                    ))}
+                    {Array.from({ length: rembCredit?.dureeJours ?? 0 }, (_, i) => i + 1).map((j) => {
+                      const dejaSolde = detailCredit?.id === rembCreditId
+                        && detailCredit?.echeances.some((e) => e.numeroEcheance === j && e.statut === 'PAYE');
+                      return (
+                        <option key={j} value={j} disabled={dejaSolde}>
+                          Jour {j}{dejaSolde ? ' (déjà soldé)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>

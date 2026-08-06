@@ -70,16 +70,32 @@ export async function POST(req: Request, { params }: Ctx) {
     const erreurJour = validerNumeroJour(numeroJourNum, credit.dureeJours);
     if (erreurJour) return NextResponse.json({ error: erreurJour }, { status: 400 });
 
+    if (numeroJourNum !== null) {
+      const echeanceCiblee = await prisma.echeanceCredit.findFirst({
+        where: { creditId, numeroEcheance: numeroJourNum },
+        select: { statut: true },
+      });
+      if (echeanceCiblee?.statut === StatutEcheanceCredit.PAYE) {
+        return NextResponse.json({ error: `Le jour ${numeroJourNum} est déjà intégralement soldé.` }, { status: 400 });
+      }
+    }
+
     const montantVerse    = Number(montant);
     const montantEffectif = Math.min(montantVerse, Number(credit.soldeRestant));
     const now = new Date();
 
     const result = await prisma.$transaction(async (tx) => {
-      // ── Imputation sur les échéances ──────────────────────────────────────
-      const echeances = await tx.echeanceCredit.findMany({
+      // ── Imputation sur les échéances (jour choisi en priorité, puis arriérés) ──
+      const echeancesBrutes = await tx.echeanceCredit.findMany({
         where: { creditId, statut: { in: [StatutEcheanceCredit.EN_ATTENTE, StatutEcheanceCredit.PARTIEL] } },
         orderBy: { dateEcheance: "asc" },
       });
+      const echeances = numeroJourNum !== null
+        ? [
+            ...echeancesBrutes.filter((e) => e.numeroEcheance === numeroJourNum),
+            ...echeancesBrutes.filter((e) => e.numeroEcheance !== numeroJourNum),
+          ]
+        : echeancesBrutes;
 
       let budget = montantEffectif;
       for (const ec of echeances) {

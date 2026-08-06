@@ -1925,9 +1925,15 @@ export default function RVCCreditsPage() {
                   <select value={rembJour} onChange={(e) => setRembJour(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400">
                     <option value="">—</option>
-                    {Array.from({ length: rembCredit.dureeJours }, (_, i) => i + 1).map((j) => (
-                      <option key={j} value={j}>Jour {j}</option>
-                    ))}
+                    {Array.from({ length: rembCredit.dureeJours }, (_, i) => i + 1).map((j) => {
+                      const dejaSolde = detailCredit?.id === rembCredit.id
+                        && detailCredit?.echeances.some((e) => e.numeroEcheance === j && e.statut === 'PAYE');
+                      return (
+                        <option key={j} value={j} disabled={dejaSolde}>
+                          Jour {j}{dejaSolde ? ' (déjà soldé)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>

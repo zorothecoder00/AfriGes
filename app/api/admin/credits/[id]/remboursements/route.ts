@@ -52,14 +52,34 @@ export async function POST(req: Request, { params }: Ctx) {
       const erreurJour = validerNumeroJour(numeroJourNum, credit.dureeJours);
       if (erreurJour) throw new Error("JOUR:" + erreurJour);
 
+      if (numeroJourNum !== null) {
+        const echeanceCiblee = await tx.echeanceCredit.findFirst({
+          where: { creditId, numeroEcheance: numeroJourNum },
+          select: { statut: true },
+        });
+        if (echeanceCiblee?.statut === StatutEcheanceCredit.PAYE) {
+          throw new Error("JOUR:" + `Le jour ${numeroJourNum} est déjà intégralement soldé.`);
+        }
+      }
+
       const montantVerse = Number(montant);
       const now = new Date();
 
       // ── Récupération des échéances à imputer ──────────────────────────────
-      const echeances = await tx.echeanceCredit.findMany({
+      const echeancesBrutes = await tx.echeanceCredit.findMany({
         where: { creditId, statut: { in: [StatutEcheanceCredit.EN_ATTENTE, StatutEcheanceCredit.PARTIEL] } },
         orderBy: { dateEcheance: "asc" },
       });
+
+      // Le jour choisi par le collecteur est imputé en priorité (impact direct sur
+      // le bordereau/échéancier) ; le reliquat comble ensuite les échéances
+      // impayées restantes, les plus anciennes d'abord.
+      const echeances = numeroJourNum !== null
+        ? [
+            ...echeancesBrutes.filter((e) => e.numeroEcheance === numeroJourNum),
+            ...echeancesBrutes.filter((e) => e.numeroEcheance !== numeroJourNum),
+          ]
+        : echeancesBrutes;
 
       let montantRestant = montantVerse;
 
