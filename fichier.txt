@@ -5,6 +5,8 @@
 -"test": "vitest run",
  11 +    "test:watch": "vitest",
 
+-Playwright pour les tests visuels
+
 
 -Chromium headless est une lib qui permet le rendu pdf
 
@@ -167,9 +169,8 @@ Il reste aussi les sections du CDC non repassées au crible dans
   cette re-vérification (§1-15, §21-23, §27-45 hors §40/§43, §51-56) 
 
 
-  Euh en fait je remarque que quand j'encaisse un crédit client sur dashboard/admin/credit , le jour sélectionné et le montant sélectionné notammment n'ont aucun impact sur le bordereau de remboursement ( ça ne update pas pourtant logiquement après chaque remboursement , le bordereau automatiquement devrait prendre en compte les jours , les montants collectés et restant  ); et aussi au niveau de dashboard/admin/clients/id , onglet crédits ( ici ça affiche le montant collecté en effet mais le statut du jour de collecte reste sur retard ce qui n'a pas de sens) ; en plus même au moment de collecter un remboursement de crédit client , on peut choisir 2 fois le même jour de collecte . Revois moi tout ça stp , c'est inconcevable ce genre de bugs faciles dans une app qui vise tant l'excellence 
+Euh en fait je remarque que quand j'encaisse un crédit client sur dashboard/admin/credit , le jour sélectionné et le montant sélectionné notammment n'ont aucun impact sur le bordereau de remboursement ( ça ne update pas pourtant logiquement après chaque remboursement , le bordereau automatiquement devrait prendre en compte les jours , les montants collectés et restant  ); et aussi au niveau de dashboard/admin/clients/id , onglet crédits ( ici ça affiche le montant collecté en effet mais le statut du jour de collecte reste sur retard ce qui n'a pas de sens) ; en plus même au moment de collecter un remboursement de crédit client , on peut choisir 2 fois le même jour de collecte . Revois moi tout ça stp , c'est inconcevable ce genre de bugs faciles dans une app qui vise tant l'excellence 
 
-  normalement le comptable doit recevoir les notifications quand le caissier fait ses enregistrements ( entrées , sorties que lui doit confirmer avec pièces justificatives) et même quand les agents font des collectes , quand le rvc ou celui concerné crée des dettes
+normalement le comptable doit recevoir les notifications quand le caissier fait ses enregistrements ( entrées , sorties que lui doit confirmer avec pièces justificatives) et même quand les agents font des collectes , quand le rvc ou celui concerné crée des dettes
 
 
-Au niveau des portails user , pour les présences , est ce qu'on peut déplacer ce bouton flottant pour le mettre à la place des infos ( nom ,prénom ,point de vente qui sont déjà récupérés au niveau du bloc de profil utilisateur à droite) ??

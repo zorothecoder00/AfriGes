@@ -25,9 +25,27 @@ const OWN_TOPBAR_PREFIXES = [
   "/dashboard/user/revendeurs",
 ];
 
+// Sous-ensemble ci-dessus dont le bloc profil (UserPdvBadge) est déjà présent
+// dans la page — ce badge embarque désormais lui-même le déclencheur de
+// pointage, donc le bouton flottant y ferait doublon et doit être masqué.
+// Les autres portails "own topbar" (actionnaires, directeurCommercial,
+// investisseurs, responsablesVenteCredit, revendeurs) n'ont pas ce badge et
+// gardent le bouton flottant comme seul point d'accès au pointage.
+const HAS_PDV_BADGE_PREFIXES = [
+  "/dashboard/user/agentsTerrain",
+  "/dashboard/user/auditeursInterne",
+  "/dashboard/user/caissiers",
+  "/dashboard/user/chefAgence",
+  "/dashboard/user/comptables",
+  "/dashboard/user/logistiquesApprovisionnements",
+  "/dashboard/user/magasiniers",
+  "/dashboard/user/responsablesPointDeVente",
+];
+
 export default function UserDashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const hasOwnTopbar = OWN_TOPBAR_PREFIXES.some((p) => pathname.startsWith(p));
+  const hasPdvBadge  = HAS_PDV_BADGE_PREFIXES.some((p) => pathname.startsWith(p));
 
   return (
     <>
@@ -35,7 +53,7 @@ export default function UserDashboardLayout({ children }: { children: ReactNode 
       {!hasOwnTopbar && (
         <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" />
       )}
-      <PointageWidget />
+      {!hasPdvBadge && <PointageWidget />}
       <RiaAccessShortcuts />
     </>
   );
