@@ -8,6 +8,7 @@ import {
   ChevronLeft, Loader2, Send, CheckCircle2, XCircle, Play, Pause,
   RotateCcw, Flag, Archive, AlertTriangle, Wallet,
 } from "lucide-react";
+import EnvoyerCampagneModal from "@/components/marketing/EnvoyerCampagneModal";
 
 interface CampagneDetail {
   id: number; code: string; nom: string; description: string | null; statut: string;
@@ -71,6 +72,7 @@ export default function CampagneDetailPage({ params }: { params: Promise<{ id: s
     { invalidate: [`/api/admin/marketing/campagnes/${id}`] }
   );
   const [tab, setTab] = useState<"brief" | "audience" | "produits" | "budget" | "ventes">("brief");
+  const [envoyerOuvert, setEnvoyerOuvert] = useState(false);
 
   if (loading && !res) return <div className="flex items-center justify-center py-24 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>;
   const c = res?.data;
@@ -165,14 +167,21 @@ export default function CampagneDetailPage({ params }: { params: Promise<{ id: s
       )}
 
       {tab === "audience" && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
           {c.audience ? (
-            <Link href={`/dashboard/admin/marketing/audiences?id=${c.audience.id}`} className="text-fuchsia-700 font-medium hover:underline">
-              {c.audience.nom} — {c.audience.tailleCalculee ?? "—"} clients
-            </Link>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <Link href="/dashboard/admin/marketing/audiences" className="text-fuchsia-700 font-medium hover:underline">
+                {c.audience.nom} — {c.audience.tailleCalculee ?? "—"} clients
+              </Link>
+              <button onClick={() => setEnvoyerOuvert(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-fuchsia-600 text-white rounded-lg text-xs font-semibold hover:bg-fuchsia-700">
+                <Send className="w-3.5 h-3.5" /> Envoyer à l&apos;audience
+              </button>
+            </div>
           ) : <p className="text-slate-400 text-sm">Aucune audience associée.</p>}
         </div>
       )}
+      {envoyerOuvert && <EnvoyerCampagneModal campagneId={c.id} onClose={() => setEnvoyerOuvert(false)} />}
 
       {tab === "produits" && (
         <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">

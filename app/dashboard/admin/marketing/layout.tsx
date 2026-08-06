@@ -3,15 +3,16 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Megaphone, Users, Settings } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, MessageCircle, Settings } from "lucide-react";
 
 const BASE = "/dashboard/admin/marketing";
 
 const NAV_ITEMS = [
-  { href: `${BASE}`,             label: "Tableau de bord", icon: LayoutDashboard, exact: true },
-  { href: `${BASE}/campagnes`,   label: "Campagnes",       icon: Megaphone },
-  { href: `${BASE}/audiences`,   label: "Audiences",       icon: Users },
-  { href: `${BASE}/parametres`,  label: "Paramètres",      icon: Settings },
+  { href: `${BASE}`,               label: "Tableau de bord", icon: LayoutDashboard, exact: true },
+  { href: `${BASE}/campagnes`,     label: "Campagnes",       icon: Megaphone },
+  { href: `${BASE}/audiences`,     label: "Audiences",       icon: Users },
+  { href: `${BASE}/communication`, label: "Communication",   icon: MessageCircle },
+  { href: `${BASE}/parametres`,    label: "Paramètres",      icon: Settings },
 ];
 
 function isActive(pathname: string, href: string, exact?: boolean) {

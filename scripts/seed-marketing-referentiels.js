@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Seed des référentiels Marketing paramétrables (CDC §7 types de campagne,
- * §21/§59 canaux). Idempotent (upsert par `code`) — relançable sans risque.
+ * §21/§59 canaux, §73 réglage frequency capping). Idempotent (upsert) —
+ * relançable sans risque.
  *
  * Lancement :
  *   node scripts/seed-marketing-referentiels.js
@@ -62,7 +63,13 @@ async function main() {
       update: { libelle: c.libelle, ordre: c.ordre },
     });
   }
-  console.log(`Seed OK : ${TYPES_CAMPAGNE.length} types de campagne, ${CANAUX.length} canaux.`);
+  await prisma.parametrageMarketing.upsert({
+    where: { id: 1 },
+    create: { id: 1, maxCommunicationsParSemaine: 3 },
+    update: {},
+  });
+
+  console.log(`Seed OK : ${TYPES_CAMPAGNE.length} types de campagne, ${CANAUX.length} canaux, paramétrage communication.`);
 }
 
 main()

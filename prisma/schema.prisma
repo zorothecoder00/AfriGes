@@ -733,6 +733,9 @@ model User {
   campagnesCommercial      Campagne[]           @relation("CampagneCommercial")
   campagnesCreees          Campagne[]           @relation("CampagneCreePar")
   audiencesMarketingCreees AudienceMarketing[]  @relation("AudienceMarketingCreePar")
+  // Marketing (Phase 2 — Communication)
+  modelesMessageCrees      ModeleMessage[]      @relation("ModeleMessageCreePar")
+  envoisMessageEffectues   EnvoiMessage[]       @relation("EnvoiMessageEffectuePar")
 
   // Packs & fidélité      
   souscriptionsPacks   SouscriptionPack[]  
@@ -1042,6 +1045,7 @@ model Client {
   sexe               Sexe?
   dateNaissance      DateTime?
   telephoneSecondaire String?
+  email              String?           // CDC Marketing §26 — requis pour le canal Email
   quartier           String?
   ville              String?
   commune            String?           // commune de rattachement (texte libre)
@@ -1117,6 +1121,13 @@ model Client {
 
   // Marketing (Phase 1)
   audienceMemberships AudienceMarketingMembre[]
+
+  // Marketing (Phase 2 — Communication, CDC §74 consentement)
+  accepteSms      Boolean @default(true)
+  accepteEmail    Boolean @default(true)
+  accepteWhatsapp Boolean @default(true)
+  accepteOffres   Boolean @default(true)
+  envoisMessage   EnvoiMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8575,6 +8586,8 @@ model CanalMarketing {
   ordre   Int     @default(0)
 
   campagnesCanaux CampagneCanal[]
+  modelesMessage  ModeleMessage[]
+  envoisMessage   EnvoiMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8662,6 +8675,7 @@ model Campagne {
   depenses         DepenseMarketing[]
   ventesAttribuees VenteDirecte[]     @relation("VenteCampagne")
   creditsAttribues CreditClient[]     @relation("CreditCampagne")
+  envoisMessage    EnvoiMessage[]
 
   creeParId Int
   creePar   User @relation("CampagneCreePar", fields: [creeParId], references: [id])
@@ -8761,4 +8775,107 @@ model DepenseMarketing {
 
   @@index([campagneId])
   @@index([categorie])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MODULE MARKETING — Phase 2 : Communication (CDC §21-26)
+// Réutilise les moteurs d'envoi existants (lib/sms.ts, lib/whatsapp.ts,
+// lib/email.ts) — cette phase ne les duplique pas, elle construit par-dessus :
+// modèles de message, personnalisation, envoi de masse, journal.
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum CategorieModeleMessage {
+  BIENVENUE
+  CONFIRMATION
+  PROMOTION
+  RELANCE
+  FIDELISATION
+  ANNIVERSAIRE
+  REACTIVATION
+  NOUVEAU_PRODUIT
+  EVENEMENT
+  REMERCIEMENT
+  ENQUETE_SATISFACTION
+  AUTRE
+}
+
+// Blocs du composeur Email (CDC §26) — pas de bloc COUPON tant que le modèle
+// Coupon (Phase 5 Fidélisation) n'existe pas.
+enum TypeBlocEmail {
+  TEXTE
+  IMAGE
+  BOUTON
+  PRODUIT
+  PROMOTION
+  LIEN
+}
+
+enum StatutEnvoiMessage {
+  EN_ATTENTE
+  ENVOYE
+  ECHEC
+  LIVRE
+  LU
+  REPONSE
+}
+
+model ModeleMessage {
+  id           Int                    @id @default(autoincrement())
+  nom          String
+  categorie    CategorieModeleMessage
+  canalId      Int
+  canal        CanalMarketing         @relation(fields: [canalId], references: [id])
+  objet        String? // sujet — email uniquement
+  contenuTexte String? // SMS/WhatsApp — texte brut avec {{variables}}
+  contenuBlocs Json? // Email — tableau de blocs (TypeBlocEmail)
+  actif        Boolean                @default(true)
+
+  creeParId Int
+  creePar   User @relation("ModeleMessageCreePar", fields: [creeParId], references: [id])
+
+  envois EnvoiMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([canalId])
+  @@index([categorie])
+}
+
+model EnvoiMessage {
+  id  Int                @id @default(autoincrement())
+  campagneId      Int?
+  campagne        Campagne?      @relation(fields: [campagneId], references: [id])
+  modeleMessageId Int?
+  modeleMessage   ModeleMessage? @relation(fields: [modeleMessageId], references: [id])
+  canalId         Int
+  canal           CanalMarketing @relation(fields: [canalId], references: [id])
+  clientId        Int
+  client          Client         @relation(fields: [clientId], references: [id])
+
+  destinataire      String // téléphone/email effectivement utilisé (snapshot)
+  contenuRendu      String // contenu final après substitution des variables
+  statut            StatutEnvoiMessage @default(EN_ATTENTE)
+  providerMessageId String? // pour corrélation webhook future (hors scope Phase 2)
+  erreur            String?
+  coutEstime        Decimal? // CDC §25 coût SMS
+
+  envoyeParId Int
+  envoyePar   User @relation("EnvoiMessageEffectuePar", fields: [envoyeParId], references: [id])
+
+  dateEnvoi     DateTime  @default(now())
+  dateLivraison DateTime?
+  dateLecture   DateTime?
+  dateReponse   DateTime?
+
+  @@index([campagneId])
+  @@index([clientId])
+  @@index([statut])
+}
+
+// Réglages no-code du centre de communication (CDC §73 frequency capping) —
+// ligne unique id=1 (singleton), éditable via l'UI sans intervention développeur.
+model ParametrageMarketing {
+  id                          Int @id @default(1)
+  maxCommunicationsParSemaine Int @default(3)
 }

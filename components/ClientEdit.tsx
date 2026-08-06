@@ -7,7 +7,7 @@ import { useApi, useMutation } from '@/hooks/useApi';
 import {
   ArrowLeft, Save, User, MapPin, Shield,
   AlertCircle, Loader2, Briefcase, Navigation,
-  FileText, CreditCard, UserCheck,
+  FileText, CreditCard, UserCheck, MessageCircle,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -25,6 +25,8 @@ interface Client {
   latitude: number | null; longitude: number | null;
   typeClient: string | null; limiteCredit: string | number | null;
   agentTerrain?: { id: number; nom: string; prenom: string } | null;
+  email: string | null;
+  accepteSms: boolean; accepteEmail: boolean; accepteWhatsapp: boolean; accepteOffres: boolean;
 }
 
 interface AgentOption {
@@ -70,6 +72,9 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
     typeClient: '', limiteCredit: '',
     // Affectation
     agentTerrainId: '',
+    // Communication marketing (CDC §26, §74)
+    email: '',
+    accepteSms: true, accepteEmail: true, accepteWhatsapp: true, accepteOffres: true,
   });
 
   useEffect(() => {
@@ -98,13 +103,21 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
         typeClient:          c.typeClient           ?? '',
         limiteCredit:        c.limiteCredit         != null ? String(c.limiteCredit) : '',
         agentTerrainId:      c.agentTerrain         ? String(c.agentTerrain.id) : '',
+        email:               c.email                ?? '',
+        accepteSms:          c.accepteSms,
+        accepteEmail:        c.accepteEmail,
+        accepteWhatsapp:     c.accepteWhatsapp,
+        accepteOffres:       c.accepteOffres,
       });
     }, 0);
     return () => clearTimeout(timer);
   }, [response]);
 
-  const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+  type ConsentField = 'accepteSms' | 'accepteEmail' | 'accepteWhatsapp' | 'accepteOffres';
+  const set = (field: Exclude<keyof typeof form, ConsentField>) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
+  const toggleConsent = (field: ConsentField) => () =>
+    setForm((prev) => ({ ...prev, [field]: !prev[field] }));
 
   // ── Géolocalisation ─────────────────────────────────────────────────────────
   const [geoLoading, setGeoLoading] = useState(false);
@@ -156,6 +169,11 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
       typeClient:          form.typeClient          || null,
       limiteCredit:        form.limiteCredit        ? Number(form.limiteCredit) : null,
       agentTerrainId:      form.agentTerrainId      ? Number(form.agentTerrainId) : null,
+      email:               form.email               || null,
+      accepteSms:          form.accepteSms,
+      accepteEmail:        form.accepteEmail,
+      accepteWhatsapp:     form.accepteWhatsapp,
+      accepteOffres:       form.accepteOffres,
     });
     if (result) router.push(`/dashboard/admin/clients/${clientId}`);
   };
@@ -339,6 +357,32 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
                 <p className="text-xs text-gray-400 mt-1">Montant maximum de crédit autorisé pour ce client</p>
               </div>
             </div>
+          </div>
+
+          {/* ─ Communication marketing ─ */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-5">
+            <SectionTitle icon={<MessageCircle className="w-4 h-4" />} label="Communication marketing" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Email</label>
+                <input type="email" value={form.email} onChange={set('email')} className={INPUT} placeholder="client@exemple.com" />
+                <p className="text-xs text-gray-400 mt-1">Requis pour recevoir les campagnes email</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-1">
+              {([
+                ['accepteSms', 'SMS'],
+                ['accepteEmail', 'Email'],
+                ['accepteWhatsapp', 'WhatsApp'],
+                ['accepteOffres', 'Offres promo'],
+              ] as [ConsentField, string][]).map(([field, label]) => (
+                <label key={field} className="flex items-center gap-2 px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 cursor-pointer">
+                  <input type="checkbox" checked={form[field]} onChange={toggleConsent(field)} className="accent-emerald-600" />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400">Consentement du client à recevoir des communications marketing par canal (CDC §74) — décoché = le client n&apos;est jamais sollicité sur ce canal.</p>
           </div>
 
           {/* ─ Statut & affectation ─ */}

@@ -121,6 +121,8 @@ export async function PATCH(
       latitude, longitude,
       segment,
       typeClient, limiteCredit,
+      // Marketing Phase 2 — communication (CDC §26, §74)
+      email, accepteSms, accepteEmail, accepteWhatsapp, accepteOffres,
     } = body;
 
     // Valider le statut si fourni
@@ -219,6 +221,12 @@ export async function PATCH(
           ...(segment            !== undefined && { segment: segment as SegmentClient }),
           ...(typeClient         !== undefined && { typeClient: typeClient || null }),
           ...(limiteCredit       !== undefined && { limiteCredit: limiteCredit != null ? Number(limiteCredit) : null }),
+          // Marketing Phase 2 — communication (CDC §26, §74)
+          ...(email              !== undefined && { email: email || null }),
+          ...(accepteSms         !== undefined && { accepteSms: Boolean(accepteSms) }),
+          ...(accepteEmail       !== undefined && { accepteEmail: Boolean(accepteEmail) }),
+          ...(accepteWhatsapp    !== undefined && { accepteWhatsapp: Boolean(accepteWhatsapp) }),
+          ...(accepteOffres      !== undefined && { accepteOffres: Boolean(accepteOffres) }),
         },
       });
 

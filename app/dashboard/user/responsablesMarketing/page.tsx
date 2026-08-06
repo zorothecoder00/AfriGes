@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
-  Menu, Plus, Loader2, Megaphone, Users, Wallet, LayoutDashboard,
+  Menu, Plus, Loader2, Megaphone, Users, Wallet, LayoutDashboard, MessageCircle,
   Send, CheckCircle2, XCircle, Play, Pause, RotateCcw, Flag, Archive, Sparkles,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
@@ -16,8 +16,10 @@ import AfriSimeLogo from "@/components/AfriSimeLogo";
 import KpiCard from "@/components/ui/KpiCard";
 import NouvelleCampagneModal from "@/components/marketing/NouvelleCampagneModal";
 import NouvelleAudienceModal from "@/components/marketing/NouvelleAudienceModal";
+import EnvoyerCampagneModal from "@/components/marketing/EnvoyerCampagneModal";
+import ModeleMessageForm from "@/components/marketing/ModeleMessageForm";
 
-type TabKey = "synthese" | "campagnes" | "audiences" | "budgets";
+type TabKey = "synthese" | "campagnes" | "audiences" | "communication" | "budgets";
 
 interface StatsResponse {
   data: {
@@ -76,6 +78,7 @@ export default function ResponsableMarketingPage() {
     { key: "synthese", label: "Synthèse", icon: LayoutDashboard },
     { key: "campagnes", label: "Campagnes", icon: Megaphone },
     { key: "audiences", label: "Audiences", icon: Users },
+    { key: "communication", label: "Communication", icon: MessageCircle },
     { key: "budgets", label: "Budgets", icon: Wallet },
   ];
 
@@ -123,6 +126,7 @@ export default function ResponsableMarketingPage() {
           {activeTab === "synthese" && <Synthese />}
           {activeTab === "campagnes" && <Campagnes />}
           {activeTab === "audiences" && <Audiences />}
+          {activeTab === "communication" && <Communication />}
           {activeTab === "budgets" && <Budgets />}
         </main>
       </div>
@@ -168,6 +172,7 @@ function Campagnes() {
   const { data: res, loading, refetch } = useApi<{ data: CampagneItem[] }>("/api/admin/marketing/campagnes");
   const [modalOpen, setModalOpen] = useState(false);
   const [ouvert, setOuvert] = useState<number | null>(null);
+  const [envoyerPour, setEnvoyerPour] = useState<number | null>(null);
   const actionIdRef = useRef<number | null>(null);
   const { mutate: agir, loading: agissant } = useMutation<unknown, { action: string }>(
     () => `/api/admin/marketing/campagnes/${actionIdRef.current}/action`, "POST",
@@ -203,7 +208,7 @@ function Campagnes() {
                   <span>Budget : {c.budget ? formatCurrency(c.budget.montantPrevu) : "—"}</span>
                   <span>Agences : {c.agences.map((a) => a.pointDeVente.nom).join(", ") || "—"}</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   {(ACTIONS_PAR_STATUT[c.statut] ?? []).map((a) => (
                     <button key={a.action} disabled={agissant}
                       onClick={async () => { actionIdRef.current = c.id; if (await agir({ action: a.action })) refetch(); }}
@@ -211,6 +216,10 @@ function Campagnes() {
                       <a.icon className="w-3.5 h-3.5" /> {a.label}
                     </button>
                   ))}
+                  <button onClick={() => setEnvoyerPour(c.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-fuchsia-600 text-white rounded-lg text-xs font-semibold hover:bg-fuchsia-700">
+                    <Send className="w-3.5 h-3.5" /> Envoyer à l&apos;audience
+                  </button>
                 </div>
               </div>
             )}
@@ -219,6 +228,7 @@ function Campagnes() {
       </div>
 
       {modalOpen && <NouvelleCampagneModal onClose={() => setModalOpen(false)} onCreated={() => { setModalOpen(false); refetch(); }} />}
+      {envoyerPour !== null && <EnvoyerCampagneModal campagneId={envoyerPour} onClose={() => setEnvoyerPour(null)} />}
     </div>
   );
 }
@@ -251,6 +261,40 @@ function Audiences() {
         ))}
       </div>
       {modalOpen && <NouvelleAudienceModal onClose={() => setModalOpen(false)} onCreated={() => { setModalOpen(false); refetch(); }} />}
+    </div>
+  );
+}
+
+interface ModeleItem { id: number; nom: string; categorie: string; actif: boolean; canal: { libelle: string }; _count: { envois: number } }
+
+function Communication() {
+  const { data: res, loading, refetch } = useApi<{ data: ModeleItem[] }>("/api/admin/marketing/modeles");
+  const [modalOpen, setModalOpen] = useState(false);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-slate-800">Modèles de message</h2>
+        <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-fuchsia-600 text-white rounded-xl text-sm font-semibold hover:bg-fuchsia-700">
+          <Plus size={16} /> Nouveau modèle
+        </button>
+      </div>
+      <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-50">
+        {loading && !res ? (
+          <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
+        ) : (res?.data ?? []).length === 0 ? (
+          <p className="text-center text-slate-400 py-16">Aucun modèle pour l&apos;instant</p>
+        ) : res!.data.map((m) => (
+          <div key={m.id} className="flex items-center justify-between px-4 py-3">
+            <div>
+              <p className="font-medium text-slate-800">{m.nom}</p>
+              <p className="text-xs text-slate-400">{m.canal.libelle} · {m._count.envois} envoi(s)</p>
+            </div>
+            <span className={`inline-block w-2 h-2 rounded-full ${m.actif ? "bg-emerald-500" : "bg-slate-300"}`} />
+          </div>
+        ))}
+      </div>
+      {modalOpen && <ModeleMessageForm onClose={() => setModalOpen(false)} onCreated={() => { setModalOpen(false); refetch(); }} />}
     </div>
   );
 }
