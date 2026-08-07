@@ -3586,7 +3586,8 @@ model Pack {
   pointsParTranche   Int?
   montantTranche     Decimal?
 
-  souscriptions SouscriptionPack[]
+  souscriptions      SouscriptionPack[]
+  campagnesMarketing CampagneProduit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -9034,14 +9035,19 @@ model CampagneProduit {
   campagneId Int
   produitId  Int?
   familleId  Int?
+  /// CDC §67 — cible un Pack AfriSime (Pack Famille, Alimentaire Quinzaine/Trentaine,
+  /// Revendeur, ou tout nouveau pack créé sans développement).
+  packId     Int?
 
   campagne Campagne        @relation(fields: [campagneId], references: [id], onDelete: Cascade)
   produit  Produit?        @relation(fields: [produitId], references: [id])
   famille  FamilleProduit? @relation(fields: [familleId], references: [id])
+  pack     Pack?           @relation(fields: [packId], references: [id])
 
-  @@unique([campagneId, produitId, familleId])
+  @@unique([campagneId, produitId, familleId, packId])
   @@index([produitId])
   @@index([familleId])
+  @@index([packId])
 }
 
 model CampagneCanal {
@@ -9385,6 +9391,8 @@ enum DeclencheurAutomatisation {
   ABANDON
   /// CDC §18 "interaction marketing" — client a lu/répondu à un message marketing (EnvoiMessage.statut LU/REPONSE).
   INTERACTION_MARKETING
+  /// CDC §66 — le crédit du client vient d'être intégralement soldé (CreditClient.statut = SOLDE).
+  CREDIT_TERMINE
 }
 
 enum ActionAutomatisation {

@@ -20,10 +20,21 @@ async function calculerAlertesStock(campagneId: number) {
 
   const produitIdsDirects = produitsCampagne.filter((p) => p.produitId).map((p) => p.produitId as number);
   const familleIds = produitsCampagne.filter((p) => p.familleId).map((p) => p.familleId as number);
-  const produitsFamilles = familleIds.length
-    ? await prisma.produit.findMany({ where: { familleId: { in: familleIds } }, select: { id: true } })
-    : [];
-  const produitIds = [...new Set([...produitIdsDirects, ...produitsFamilles.map((p) => p.id)])];
+  const packIds = produitsCampagne.filter((p) => p.packId).map((p) => p.packId as number);
+  const [produitsFamilles, packsCibles] = await Promise.all([
+    familleIds.length
+      ? prisma.produit.findMany({ where: { familleId: { in: familleIds } }, select: { id: true } })
+      : Promise.resolve([]),
+    // CDC §67 — le stock du produit cible d'un pack (s'il en a un) est vérifié comme les autres.
+    packIds.length
+      ? prisma.pack.findMany({ where: { id: { in: packIds }, produitCibleId: { not: null } }, select: { produitCibleId: true } })
+      : Promise.resolve([]),
+  ]);
+  const produitIds = [...new Set([
+    ...produitIdsDirects,
+    ...produitsFamilles.map((p) => p.id),
+    ...packsCibles.map((p) => p.produitCibleId as number),
+  ])];
   if (produitIds.length === 0) return [];
 
   const stocks = await prisma.stockSite.findMany({
@@ -66,7 +77,7 @@ export async function GET(_req: Request, { params }: Ctx) {
         budget: { include: { depenses: { orderBy: { date: "desc" } } } },
         objectifs: true,
         agences: { include: { pointDeVente: { select: { id: true, nom: true, code: true } } } },
-        produits: { include: { produit: { select: { id: true, nom: true } }, famille: { select: { id: true, nom: true } } } },
+        produits: { include: { produit: { select: { id: true, nom: true } }, famille: { select: { id: true, nom: true } }, pack: { select: { id: true, nom: true } } } },
         canaux: { include: { canal: true } },
         audience: { include: { regles: true } },
         ventesAttribuees: { select: { id: true, reference: true, montantTotal: true, createdAt: true } },

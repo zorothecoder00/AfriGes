@@ -15,7 +15,7 @@ export async function GET() {
   const denied = await requirePermission(session, "marketing", "LECTURE");
   if (denied) return denied;
 
-  const [pdvs, produits, familles, utilisateurs, tags, promotions, evenements, coupons] = await Promise.all([
+  const [pdvs, produits, familles, utilisateurs, tags, promotions, evenements, coupons, packs] = await Promise.all([
     prisma.pointDeVente.findMany({ where: { actif: true }, select: { id: true, nom: true, code: true }, orderBy: { nom: "asc" } }),
     prisma.produit.findMany({ where: { actif: true }, select: { id: true, nom: true, familleId: true }, orderBy: { nom: "asc" }, take: 500 }),
     prisma.familleProduit.findMany({ where: { actif: true }, select: { id: true, nom: true }, orderBy: { nom: "asc" } }),
@@ -24,7 +24,9 @@ export async function GET() {
     prisma.promotion.findMany({ where: { actif: true }, select: { id: true, nom: true }, orderBy: { nom: "asc" } }),
     prisma.evenementMarketing.findMany({ select: { id: true, nom: true }, orderBy: { dateDebut: "desc" }, take: 100 }),
     prisma.coupon.findMany({ where: { actif: true }, select: { id: true, code: true, nom: true }, orderBy: { nom: "asc" } }),
+    // CDC §67 — packs promouvables (Pack Famille, Alimentaire Quinzaine/Trentaine, Revendeur…), génériques : tout pack créé sans dev apparaît ici.
+    prisma.pack.findMany({ where: { actif: true }, select: { id: true, nom: true, type: true }, orderBy: { nom: "asc" } }),
   ]);
 
-  return NextResponse.json({ data: { pdvs, produits, familles, utilisateurs, tags, promotions, evenements, coupons } });
+  return NextResponse.json({ data: { pdvs, produits, familles, utilisateurs, tags, promotions, evenements, coupons, packs } });
 }

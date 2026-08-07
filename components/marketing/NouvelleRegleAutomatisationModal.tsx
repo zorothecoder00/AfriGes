@@ -34,6 +34,7 @@ export const DECLENCHEUR_LABEL: Record<string, string> = {
   EVENEMENT: "Inscrit à un événement",
   ABANDON: "Lead sans achat depuis (abandon)",
   INTERACTION_MARKETING: "A lu/répondu à un message",
+  CREDIT_TERMINE: "Crédit soldé",
 };
 
 export const ACTION_LABEL: Record<string, string> = {

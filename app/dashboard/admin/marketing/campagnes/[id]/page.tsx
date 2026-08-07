@@ -19,7 +19,7 @@ interface CampagneDetail {
   typeCampagne: { libelle: string };
   objectifs: { objectif: string }[];
   agences: { pointDeVente: { id: number; nom: string; code: string } }[];
-  produits: { produit: { id: number; nom: string } | null; famille: { id: number; nom: string } | null }[];
+  produits: { produit: { id: number; nom: string } | null; famille: { id: number; nom: string } | null; pack: { id: number; nom: string } | null }[];
   canaux: { canal: { id: number; libelle: string } }[];
   audience: { id: number; nom: string; tailleCalculee: number | null } | null;
   budget: { id: number; montantPrevu: number | string; montantApprouve: number | string; montantEngage: number | string; statut: string;
@@ -189,8 +189,10 @@ export default function CampagneDetailPage({ params }: { params: Promise<{ id: s
             <p className="text-xs font-medium text-slate-500 mb-1.5">Produits ciblés</p>
             <div className="flex flex-wrap gap-1.5">
               {c.produits.length === 0 ? <span className="text-slate-400 text-xs">—</span> : c.produits.map((p, i) => (
-                <span key={i} className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
-                  {p.produit?.nom ?? p.famille?.nom}{p.famille && !p.produit ? " (famille)" : ""}
+                <span key={i} className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.pack ? "bg-fuchsia-50 text-fuchsia-700" : "bg-slate-100 text-slate-700"}`}>
+                  {p.produit?.nom ?? p.famille?.nom ?? p.pack?.nom}
+                  {p.famille && !p.produit ? " (famille)" : ""}
+                  {p.pack ? " (pack)" : ""}
                 </span>
               ))}
             </div>

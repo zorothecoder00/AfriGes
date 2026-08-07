@@ -12,7 +12,7 @@ interface Retention { actifsPeriodePrecedente: number; retenus: number; tauxRete
 interface Recommandation { segment: string; nbClients: number; action: string; priorite: "HAUTE" | "NORMALE" }
 interface LigneCanal { canal: string; leads: number; clients: number; ca: number; cout: number; cac: number | null; roi: number | null }
 interface LigneProduit { produitId: number; nom: string; ventesApresCampagne: number; caApresCampagne: number; nbPromotionsCoupons: number; margeUnitaire: number | null; rotation: number | null; stockDisponible: number }
-interface PaireComplementaire { produitAId: number; produitANom: string; produitBId: number; produitBNom: string; nbPaniers: number }
+interface PaireComplementaire { produitAId: number; produitANom: string; produitBId: number; produitBNom: string; nbPaniers: number; campagneRecommandee: string }
 interface ProduitSaisonnier { produitId: number; nom: string; moisPic: string; partMoisPic: number; quantiteTotale: number }
 interface AnalyticsData {
   attribution: Attribution; clv: ClientCLV[]; retention: Retention; compteurs: Record<string, number>;
@@ -246,17 +246,18 @@ export default function AnalyticsMarketing() {
         )}
       </div>
 
-      {/* Produits complémentaires */}
+      {/* Produits complémentaires → campagnes recommandées */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4">
-        <h3 className="text-sm font-semibold text-slate-700 mb-3">Produits complémentaires (achetés ensemble)</h3>
+        <h3 className="text-sm font-semibold text-slate-700 mb-1">Campagnes recommandées (produits complémentaires)</h3>
+        <p className="text-xs text-slate-400 mb-3">Basé sur les produits fréquemment achetés ensemble (paniers, 6 derniers mois).</p>
         {data.complementaires.length === 0 ? (
-          <p className="text-xs text-slate-400">Pas assez de paniers multi-produits sur les 6 derniers mois</p>
+          <p className="text-xs text-slate-400">Pas assez de paniers multi-produits pour une recommandation</p>
         ) : (
           <div className="space-y-1.5">
             {data.complementaires.map((c) => (
-              <div key={`${c.produitAId}-${c.produitBId}`} className="flex items-center justify-between text-xs px-2 py-1.5 bg-slate-50 rounded-lg">
-                <span className="text-slate-700">{c.produitANom} <span className="text-slate-400">+</span> {c.produitBNom}</span>
-                <span className="text-slate-500 font-medium">{c.nbPaniers} panier(s)</span>
+              <div key={`${c.produitAId}-${c.produitBId}`} className="flex items-center justify-between text-xs px-3 py-2 bg-fuchsia-50 rounded-lg">
+                <span className="text-fuchsia-800 font-medium">💡 Campagne recommandée : {c.campagneRecommandee}</span>
+                <span className="text-slate-500">{c.nbPaniers} panier(s)</span>
               </div>
             ))}
           </div>

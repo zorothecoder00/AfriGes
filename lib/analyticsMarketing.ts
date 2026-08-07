@@ -375,6 +375,8 @@ export interface PaireComplementaire {
   produitAId: number; produitANom: string;
   produitBId: number; produitBNom: string;
   nbPaniers: number; // nombre de paniers où les deux apparaissent ensemble
+  /** CDC §68 — "Campagne recommandée : Pack {A} + {B}" formulé automatiquement. */
+  campagneRecommandee: string;
 }
 
 /**
@@ -411,10 +413,13 @@ export async function produitsComplementaires(limit = 15): Promise<PaireCompleme
 
   return top.map(([cle, nbPaniers]) => {
     const [a, b] = cle.split(":").map(Number);
+    const nomA = nomMap.get(a) ?? `Produit #${a}`;
+    const nomB = nomMap.get(b) ?? `Produit #${b}`;
     return {
-      produitAId: a, produitANom: nomMap.get(a) ?? `Produit #${a}`,
-      produitBId: b, produitBNom: nomMap.get(b) ?? `Produit #${b}`,
+      produitAId: a, produitANom: nomA,
+      produitBId: b, produitBNom: nomB,
       nbPaniers,
+      campagneRecommandee: `Pack ${nomA} + ${nomB}`,
     };
   });
 }

@@ -268,6 +268,14 @@ async function detecterCandidats(
       return [...new Set(envois.map((e) => e.clientId))];
     }
 
+    case "CREDIT_TERMINE": {
+      const credits = await prisma.creditClient.findMany({
+        where: { statut: "SOLDE", updatedAt: { gte: depuisFenetre } },
+        select: { clientId: true },
+      });
+      return [...new Set(credits.map((c) => c.clientId))];
+    }
+
     default:
       return [];
   }

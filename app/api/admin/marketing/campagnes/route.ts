@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
  * Création d'une campagne en statut BROUILLON (CDC §6, §9 brief marketing).
  * Body: { nom, description?, portee?, responsableId, commercialId?, typeCampagneId,
  *   brief?, audienceId?, dateDebut, dateFin, objectifs?: string[], agenceIds?: number[],
- *   canalIds?: number[], produits?: { produitId?, familleId? }[], budgetPrevu? }
+ *   canalIds?: number[], produits?: { produitId?, familleId?, packId? }[], budgetPrevu? }
  */
 export async function POST(req: NextRequest) {
   try {
@@ -124,9 +124,10 @@ export async function POST(req: NextRequest) {
             : undefined,
           produits: produits?.length
             ? {
-                create: (produits as { produitId?: number; familleId?: number }[]).map((p) => ({
+                create: (produits as { produitId?: number; familleId?: number; packId?: number }[]).map((p) => ({
                   produitId: p.produitId ? Number(p.produitId) : null,
                   familleId: p.familleId ? Number(p.familleId) : null,
+                  packId: p.packId ? Number(p.packId) : null,
                 })),
               }
             : undefined,

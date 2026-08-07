@@ -11,6 +11,7 @@ interface Reference {
   produits: { id: number; nom: string; familleId: number | null }[];
   familles: { id: number; nom: string }[];
   utilisateurs: { id: number; nom: string; prenom: string }[];
+  packs: { id: number; nom: string; type: string }[];
 }
 
 const OBJECTIFS = [
@@ -39,6 +40,8 @@ export default function NouvelleCampagneModal({ onClose, onCreated }: { onClose:
   const [objectifs, setObjectifs] = useState<string[]>([]);
   const [agenceIds, setAgenceIds] = useState<number[]>([]);
   const [canalIds, setCanalIds] = useState<number[]>([]);
+  const [produitIds, setProduitIds] = useState<number[]>([]);
+  const [packIds, setPackIds] = useState<number[]>([]);
 
   const toggle = (arr: number[], setArr: (v: number[]) => void, id: number) =>
     setArr(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
@@ -58,6 +61,10 @@ export default function NouvelleCampagneModal({ onClose, onCreated }: { onClose:
       objectifs,
       agenceIds,
       canalIds,
+      produits: [
+        ...produitIds.map((produitId) => ({ produitId })),
+        ...packIds.map((packId) => ({ packId })),
+      ],
       brief: {
         probleme: form.probleme, cible: form.cible, message: form.message,
         offre: form.offre, zone: form.zone, resultatAttendu: form.resultatAttendu,
@@ -135,6 +142,32 @@ export default function NouvelleCampagneModal({ onClose, onCreated }: { onClose:
                 <button key={p.id} type="button" onClick={() => toggle(agenceIds, setAgenceIds, p.id)}
                   className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${
                     agenceIds.includes(p.id) ? "bg-fuchsia-600 border-fuchsia-600 text-white" : "bg-white border-slate-200 text-slate-600"
+                  }`}>{p.nom}</button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-medium text-slate-600 mb-1.5">Produits ciblés <span className="font-normal text-slate-400">(alerte automatique si stock insuffisant)</span></p>
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+              {(refRes?.data.produits ?? []).map((p) => (
+                <button key={p.id} type="button" onClick={() => toggle(produitIds, setProduitIds, p.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${
+                    produitIds.includes(p.id) ? "bg-fuchsia-600 border-fuchsia-600 text-white" : "bg-white border-slate-200 text-slate-600"
+                  }`}>{p.nom}</button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-medium text-slate-600 mb-1.5">Packs à promouvoir</p>
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+              {(refRes?.data.packs ?? []).length === 0 ? (
+                <span className="text-xs text-slate-400">Aucun pack actif</span>
+              ) : (refRes?.data.packs ?? []).map((p) => (
+                <button key={p.id} type="button" onClick={() => toggle(packIds, setPackIds, p.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${
+                    packIds.includes(p.id) ? "bg-fuchsia-600 border-fuchsia-600 text-white" : "bg-white border-slate-200 text-slate-600"
                   }`}>{p.nom}</button>
               ))}
             </div>
