@@ -61,7 +61,7 @@ export async function POST(req: Request) {
   if (denied) return denied;
 
   const body = await req.json();
-  const { texte, canalId, campagneId, pointDeVenteId, produitId, assetId, responsableId, datePublicationPrevue } = body;
+  const { texte, canalId, campagneId, pointDeVenteId, produitId, assetId, responsableId, datePublicationPrevue, niveauValidationRequis } = body;
   if (!canalId) return NextResponse.json({ error: "canalId requis" }, { status: 400 });
 
   const userId = Number(session.user.id);
@@ -75,6 +75,8 @@ export async function POST(req: Request) {
       assetId: assetId ? Number(assetId) : null,
       responsableId: responsableId ? Number(responsableId) : userId,
       datePublicationPrevue: datePublicationPrevue ? new Date(datePublicationPrevue) : null,
+      // CDC §31 — "selon le niveau de contenu", choisi par le créateur à la soumission.
+      niveauValidationRequis: niveauValidationRequis === "DIRECTION" ? "DIRECTION" : "RESPONSABLE_MARKETING",
       creeParId: userId,
     },
     include: { canal: true, campagne: { select: { id: true, nom: true } }, responsable: { select: { id: true, nom: true, prenom: true } } },

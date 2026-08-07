@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getMarketingSession } from "@/lib/authMarketing";
+import { getMarketingSession, estDirection } from "@/lib/authMarketing";
 import { requirePermission } from "@/lib/permissions";
 import { appliquerActionPublication, PublicationWorkflowError, type PublicationAction } from "@/lib/publicationSocialeWorkflow";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 const ACTION_PERMISSION: Record<PublicationAction, "MODIFICATION" | "VALIDATION"> = {
-  SOUMETTRE:  "MODIFICATION",
-  VALIDER:    "VALIDATION",
-  REJETER:    "VALIDATION",
-  PROGRAMMER: "MODIFICATION",
-  PUBLIER:    "MODIFICATION",
+  SOUMETTRE:          "MODIFICATION",
+  VALIDER:            "VALIDATION",
+  VALIDER_DIRECTION:  "VALIDATION",
+  REJETER:            "VALIDATION",
+  PROGRAMMER:         "MODIFICATION",
+  PUBLIER:            "MODIFICATION",
 };
 
 /**
@@ -36,6 +37,12 @@ export async function POST(req: Request, { params }: Ctx) {
 
     const denied = await requirePermission(session, "marketing", ACTION_PERMISSION[action]);
     if (denied) return denied;
+
+    // CDC §31 — le 2e palier (Direction) est réservé à Admin/Super Admin, même si
+    // un autre rôle a la permission "VALIDATION" marketing (ex. Responsable Marketing).
+    if (action === "VALIDER_DIRECTION" && !estDirection(session)) {
+      return NextResponse.json({ error: "Réservé à la Direction (Admin/Super Admin)" }, { status: 403 });
+    }
 
     const userId = Number(session.user.id);
     const result = await prisma.$transaction((tx) =>

@@ -1,13 +1,15 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
-import { Plus, Loader2, Send, CheckCircle2, XCircle, CalendarClock, Megaphone as MegaphoneIcon } from "lucide-react";
+import { Plus, Loader2, Send, CheckCircle2, XCircle, CalendarClock, Megaphone as MegaphoneIcon, ShieldCheck } from "lucide-react";
 import NouvellePublicationModal from "@/components/marketing/NouvellePublicationModal";
 
 interface PublicationItem {
   id: number; texte: string | null; statut: string; datePublicationPrevue: string | null;
+  niveauValidationRequis: string;
   canal: { id: number; libelle: string }; campagne: { id: number; nom: string } | null;
   responsable: { id: number; nom: string; prenom: string };
   asset: { id: number; nom: string; url: string } | null;
@@ -22,18 +24,24 @@ interface Reference {
 
 const STATUT_LABEL: Record<string, string> = {
   IDEE: "Idée", BROUILLON: "Brouillon", EN_REVISION: "En révision",
+  EN_VALIDATION_DIRECTION: "Attente Direction",
   VALIDE: "Validé", PROGRAMME: "Programmé", PUBLIE: "Publié", REJETE: "Rejeté",
 };
 const STATUT_STYLE: Record<string, string> = {
   IDEE: "bg-slate-100 text-slate-500", BROUILLON: "bg-slate-100 text-slate-600",
-  EN_REVISION: "bg-amber-100 text-amber-700", VALIDE: "bg-indigo-100 text-indigo-700",
+  EN_REVISION: "bg-amber-100 text-amber-700", EN_VALIDATION_DIRECTION: "bg-purple-100 text-purple-700",
+  VALIDE: "bg-indigo-100 text-indigo-700",
   PROGRAMME: "bg-blue-100 text-blue-700", PUBLIE: "bg-emerald-100 text-emerald-700",
   REJETE: "bg-red-100 text-red-700",
 };
-const ACTIONS_PAR_STATUT: Record<string, { action: string; label: string; icon: typeof Send; style: string }[]> = {
+const ACTIONS_PAR_STATUT: Record<string, { action: string; label: string; icon: typeof Send; style: string; direction?: boolean }[]> = {
   BROUILLON: [{ action: "SOUMETTRE", label: "Soumettre pour validation", icon: Send, style: "bg-blue-600 hover:bg-blue-700" }],
   EN_REVISION: [
     { action: "VALIDER", label: "Valider", icon: CheckCircle2, style: "bg-indigo-600 hover:bg-indigo-700" },
+    { action: "REJETER", label: "Renvoyer en brouillon", icon: XCircle, style: "bg-red-500 hover:bg-red-600" },
+  ],
+  EN_VALIDATION_DIRECTION: [
+    { action: "VALIDER_DIRECTION", label: "Valider (Direction)", icon: ShieldCheck, style: "bg-purple-600 hover:bg-purple-700", direction: true },
     { action: "REJETER", label: "Renvoyer en brouillon", icon: XCircle, style: "bg-red-500 hover:bg-red-600" },
   ],
   VALIDE: [{ action: "PROGRAMMER", label: "Programmer", icon: CalendarClock, style: "bg-blue-600 hover:bg-blue-700" }],
@@ -52,6 +60,8 @@ export default function CalendrierEditorial() {
   const { data: refRes } = useApi<{ data: Reference }>("/api/admin/marketing/reference");
   const [modalOpen, setModalOpen] = useState(false);
   const [ouvert, setOuvert] = useState<number | null>(null);
+  const { data: session } = useSession();
+  const estDirection = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN";
   const actionIdRef = useRef<number | null>(null);
   const { mutate: agir, loading: agissant } = useMutation<unknown, { action: string }>(
     () => `/api/admin/marketing/publications/${actionIdRef.current}/action`, "POST",
@@ -106,15 +116,20 @@ export default function CalendrierEditorial() {
               <div className="min-w-0">
                 <p className="font-medium text-slate-800 truncate">{p.texte || <span className="text-slate-400 italic">Sans texte</span>}</p>
                 <p className="text-xs text-slate-400">{p.canal.libelle}{p.campagne ? ` · ${p.campagne.nom}` : ""} · {p.responsable.prenom} {p.responsable.nom}
-                  {p.datePublicationPrevue ? ` · prévu ${formatDate(p.datePublicationPrevue)}` : ""}</p>
+                  {p.datePublicationPrevue ? ` · prévu ${formatDate(p.datePublicationPrevue)}` : ""}
+                  {p.niveauValidationRequis === "DIRECTION" ? " · niveau Direction" : ""}</p>
               </div>
               <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ml-2 ${STATUT_STYLE[p.statut]}`}>{STATUT_LABEL[p.statut]}</span>
             </button>
             {ouvert === p.id && (
               <div className="px-4 pb-4 bg-slate-50/50 flex gap-2 flex-wrap">
-                {(ACTIONS_PAR_STATUT[p.statut] ?? []).length === 0 ? (
-                  <p className="text-xs text-slate-400">Aucune action disponible pour ce statut.</p>
-                ) : (ACTIONS_PAR_STATUT[p.statut] ?? []).map((a) => (
+                {(ACTIONS_PAR_STATUT[p.statut] ?? []).filter((a) => !a.direction || estDirection).length === 0 ? (
+                  <p className="text-xs text-slate-400">
+                    {p.statut === "EN_VALIDATION_DIRECTION" && !estDirection
+                      ? "En attente de validation par la Direction."
+                      : "Aucune action disponible pour ce statut."}
+                  </p>
+                ) : (ACTIONS_PAR_STATUT[p.statut] ?? []).filter((a) => !a.direction || estDirection).map((a) => (
                   <button key={a.action} disabled={agissant}
                     onClick={async () => { actionIdRef.current = p.id; if (await agir({ action: a.action })) refetch(); }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-xs font-semibold disabled:opacity-50 ${a.style}`}>

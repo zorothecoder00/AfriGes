@@ -14,27 +14,33 @@ export class PublicationWorkflowError extends Error {
 export type PublicationAction =
   | "SOUMETTRE"
   | "VALIDER"
+  | "VALIDER_DIRECTION"
   | "REJETER"
   | "PROGRAMMER"
   | "PUBLIER";
 
+// VALIDER a une destination variable (résolue dans appliquerActionPublication
+// selon niveauValidationRequis) — VALIDE n'est qu'un défaut/placeholder ici.
 const TRANSITIONS: Record<PublicationAction, StatutPublicationSociale> = {
-  SOUMETTRE:  "EN_REVISION",
-  VALIDER:    "VALIDE",
-  REJETER:    "BROUILLON",
-  PROGRAMMER: "PROGRAMME",
-  PUBLIER:    "PUBLIE",
+  SOUMETTRE:          "EN_REVISION",
+  VALIDER:            "VALIDE",
+  VALIDER_DIRECTION:  "VALIDE",
+  REJETER:            "BROUILLON",
+  PROGRAMMER:         "PROGRAMME",
+  PUBLIER:            "PUBLIE",
 };
 
-// Statuts source autorisés par action — garantit la séquence du CDC §30
-// (IDÉE→BROUILLON→EN RÉVISION→VALIDÉ→PROGRAMMÉ→PUBLIÉ). Le gating de rôle
-// (permission "marketing") est fait en amont par l'appelant (requirePermission).
+// Statuts source autorisés par action — garantit la séquence du CDC §30-31
+// (IDÉE→BROUILLON→EN RÉVISION→[EN VALIDATION DIRECTION]→VALIDÉ→PROGRAMMÉ→PUBLIÉ).
+// Le gating de rôle (permission "marketing" + Direction=Admin/SuperAdmin pour
+// VALIDER_DIRECTION) est fait en amont par l'appelant (requirePermission/estDirection).
 const PRECONDITIONS: Record<PublicationAction, StatutPublicationSociale[]> = {
-  SOUMETTRE:  ["BROUILLON"],
-  VALIDER:    ["EN_REVISION"],
-  REJETER:    ["EN_REVISION"],
-  PROGRAMMER: ["VALIDE"],
-  PUBLIER:    ["PROGRAMME"],
+  SOUMETTRE:          ["BROUILLON"],
+  VALIDER:            ["EN_REVISION"],
+  VALIDER_DIRECTION:  ["EN_VALIDATION_DIRECTION"],
+  REJETER:            ["EN_REVISION", "EN_VALIDATION_DIRECTION"],
+  PROGRAMMER:         ["VALIDE"],
+  PUBLIER:            ["PROGRAMME"],
 };
 
 export interface AppliquerActionPublicationParams {
@@ -65,6 +71,14 @@ export async function appliquerActionPublication(tx: TX, params: AppliquerAction
   if (action === "VALIDER") {
     data.valideParId = userId;
     data.dateValidation = new Date();
+    // CDC §31 — contenu à niveau DIRECTION : la validation marketing n'est que le 1er palier.
+    if (current.niveauValidationRequis === "DIRECTION") {
+      data.statut = "EN_VALIDATION_DIRECTION" satisfies StatutPublicationSociale;
+    }
+  }
+  if (action === "VALIDER_DIRECTION") {
+    data.valideParDirectionId = userId;
+    data.dateValidationDirection = new Date();
   }
   if (action === "PUBLIER") {
     data.datePublication = new Date();
@@ -85,24 +99,33 @@ export async function appliquerActionPublication(tx: TX, params: AppliquerAction
     apres: { statut: updated.statut },
   });
 
-  const NOTIFS: Partial<Record<PublicationAction, { titre: string; message: string; priorite: PrioriteNotification }>> = {
+  const NOTIFS: Partial<Record<PublicationAction, { titre: string; message: string; priorite: PrioriteNotification; roles: string[] }>> = {
     SOUMETTRE: {
       titre: "Publication à valider",
       message: `La publication « ${updated.canal.libelle} » de ${updated.responsable.prenom} ${updated.responsable.nom} attend une validation.`,
-      priorite: "NORMAL",
+      priorite: "NORMAL", roles: ["RESPONSABLE_MARKETING"],
     },
     REJETER: {
       titre: "Publication renvoyée en brouillon",
       message: `Une publication a été renvoyée en brouillon pour correction.`,
-      priorite: "NORMAL",
+      priorite: "NORMAL", roles: ["RESPONSABLE_MARKETING", "COMMUNITY_MANAGER"],
     },
   };
   const conf = NOTIFS[action];
   if (conf) {
-    await notifyRoles(tx, ["RESPONSABLE_MARKETING"], {
+    await notifyRoles(tx, conf.roles, {
       titre: conf.titre,
       message: conf.message,
       priorite: conf.priorite,
+      actionUrl: `/dashboard/admin/marketing/contenu`,
+    });
+  }
+  // CDC §31 — 2e palier requis : la Direction (Admin/Super Admin) doit être alertée spécifiquement.
+  if (action === "VALIDER" && updated.statut === "EN_VALIDATION_DIRECTION") {
+    await notifyRoles(tx, [], {
+      titre: "Publication en attente de validation Direction",
+      message: `La publication « ${updated.canal.libelle} » de ${updated.responsable.prenom} ${updated.responsable.nom} a franchi le palier marketing — validation Direction requise.`,
+      priorite: "HAUTE",
       actionUrl: `/dashboard/admin/marketing/contenu`,
     });
   }

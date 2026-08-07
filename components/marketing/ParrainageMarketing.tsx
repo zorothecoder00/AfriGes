@@ -2,11 +2,17 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Users2, Loader2, Save } from "lucide-react";
+import { Users2, Loader2, Save, UserPlus, Coins, TrendingUp, Wallet } from "lucide-react";
+import KpiCard from "@/components/ui/KpiCard";
+import { formatCurrency } from "@/lib/format";
 
-/** Parrainage (CDC §2, §84) — paramétrage points + liste des parrainages/statuts. */
+/** Parrainage (CDC §2, §84) — paramétrage points + liste des parrainages/statuts + suivi ROI (§38). */
 
 interface Parametrage { actif: boolean; pointsParrain: number; pointsFilleul: number }
+interface StatsParrainage {
+  totalParrainages: number; enAttente: number; qualifies: number; recompenses: number;
+  nouveauxClients: number; coutPoints: number; caGenere: number; caParPoint: number | null;
+}
 interface Parrainage {
   id: number; statut: "EN_ATTENTE" | "QUALIFIE" | "RECOMPENSE"; dateInscription: string;
   dateQualification: string | null; dateRecompense: string | null;
@@ -22,18 +28,21 @@ const STATUT_STYLE: Record<string, string> = {
 export default function ParrainageMarketing() {
   const [param, setParam] = useState<Parametrage | null>(null);
   const [rows, setRows] = useState<Parrainage[]>([]);
+  const [stats, setStats] = useState<StatsParrainage | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [r1, r2] = await Promise.all([
+      const [r1, r2, r3] = await Promise.all([
         fetch("/api/admin/marketing/parrainage/parametrage"), fetch("/api/admin/marketing/parrainage"),
+        fetch("/api/admin/marketing/parrainage/stats"),
       ]);
-      const [j1, j2] = await Promise.all([r1.json(), r2.json()]);
+      const [j1, j2, j3] = await Promise.all([r1.json(), r2.json(), r3.json()]);
       if (!r1.ok) throw new Error(j1.error ?? "Erreur"); if (!r2.ok) throw new Error(j2.error ?? "Erreur");
-      setParam(j1.data); setRows(j2.data);
+      if (!r3.ok) throw new Error(j3.error ?? "Erreur");
+      setParam(j1.data); setRows(j2.data); setStats(j3.data);
     } catch (e) { toast.error(e instanceof Error ? e.message : "Chargement impossible"); }
     finally { setLoading(false); }
   }, []);
@@ -62,6 +71,19 @@ export default function ParrainageMarketing() {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Users2 className="w-5 h-5 text-fuchsia-600" /> Parrainage</h2>
+
+      {stats && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard label="Nouveaux clients" value={stats.nouveauxClients} icon={<UserPlus size={20} />} accent="success"
+            sub={`${stats.enAttente} en attente de 1er achat`} help="Filleuls qualifiés ou récompensés (1er achat détecté)." />
+          <KpiCard label="Coût (points attribués)" value={stats.coutPoints} icon={<Coins size={20} />} accent="warning"
+            help="Total des points fidélité attribués aux parrains + filleuls récompensés (pas de taux point→FCFA dans ce système)." />
+          <KpiCard label="CA généré" value={stats.caGenere} format={(n) => formatCurrency(n)} icon={<Wallet size={20} />} accent="brand"
+            help="Somme des ventes des filleuls convertis depuis leur qualification." />
+          <KpiCard label="CA par point investi" value={stats.caParPoint ?? 0} format={(n) => `${formatCurrency(n)}`} icon={<TrendingUp size={20} />} accent="purple"
+            help="CA généré ÷ points attribués — mesure de rendement du programme, pas un pourcentage classique." />
+        </div>
+      )}
 
       {param && (
         <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">

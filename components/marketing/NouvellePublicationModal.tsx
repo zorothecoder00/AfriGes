@@ -26,7 +26,7 @@ export default function NouvellePublicationModal({ onClose, onCreated }: { onClo
 
   const [form, setForm] = useState({
     texte: "", canalId: "", campagneId: "", pointDeVenteId: "", produitId: "", assetId: "",
-    responsableId: "", date: "", heure: "",
+    responsableId: "", date: "", heure: "", niveauValidationRequis: "RESPONSABLE_MARKETING",
   });
   const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -45,6 +45,7 @@ export default function NouvellePublicationModal({ onClose, onCreated }: { onClo
       assetId: form.assetId ? Number(form.assetId) : undefined,
       responsableId: form.responsableId ? Number(form.responsableId) : undefined,
       datePublicationPrevue,
+      niveauValidationRequis: form.niveauValidationRequis,
     });
     if (res) onCreated();
   };
@@ -113,6 +114,13 @@ export default function NouvellePublicationModal({ onClose, onCreated }: { onClo
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Heure</label>
               <input type="time" value={form.heure} onChange={set("heure")} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-slate-600 mb-1">Niveau de validation requis</label>
+              <select value={form.niveauValidationRequis} onChange={set("niveauValidationRequis")} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                <option value="RESPONSABLE_MARKETING">Responsable Marketing (standard)</option>
+                <option value="DIRECTION">Direction (contenu sensible — 2 paliers)</option>
+              </select>
             </div>
           </div>
         </div>

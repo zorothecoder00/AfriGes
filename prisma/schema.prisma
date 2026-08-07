@@ -52,6 +52,7 @@ enum RoleGestionnaire {
   AGENT_TERRAIN // vendeur terrain
   RESPONSABLE_ECONOMIQUE
   RESPONSABLE_MARKETING
+  COMMUNITY_MANAGER // CDC §31 — crée/soumet le contenu réseaux sociaux, ne peut pas le valider lui-même
   ACTIONNAIRE
   REVENDEUR
   RESPONSABLE_RH // gestionnaire RH (OGRH)
@@ -740,6 +741,7 @@ model User {
   assetsMarketingUploades    AssetMarketing[]      @relation("AssetMarketingUploadePar")
   publicationsResponsable    PublicationSociale[]  @relation("PublicationResponsable")
   publicationsValidees       PublicationSociale[]  @relation("PublicationValidePar")
+  publicationsValideesDirection PublicationSociale[] @relation("PublicationValideParDirection")
   publicationsCreees         PublicationSociale[]  @relation("PublicationCreePar")
   // Marketing (Phase 4 — Automatisation)
   reglesAutomatisationCreees RegleAutomatisation[] @relation("RegleAutomatisationCreePar")
@@ -9240,10 +9242,20 @@ enum StatutPublicationSociale {
   IDEE
   BROUILLON
   EN_REVISION
+  /// CDC §31 — 1ère validation (Responsable Marketing) passée, en attente de la Direction (contenu à niveau DIRECTION uniquement).
+  EN_VALIDATION_DIRECTION
   VALIDE
   PROGRAMME
   PUBLIE
   REJETE
+}
+
+/// CDC §31 — "selon le niveau de contenu" : décidé par le Community Manager
+/// (ou Responsable Marketing) à la soumission. RESPONSABLE_MARKETING = validé
+/// en un seul palier (comportement historique) ; DIRECTION = 2e palier requis.
+enum NiveauValidationPublication {
+  RESPONSABLE_MARKETING
+  DIRECTION
 }
 
 model AssetMarketing {
@@ -9303,9 +9315,19 @@ model PublicationSociale {
   responsable           User      @relation("PublicationResponsable", fields: [responsableId], references: [id])
   datePublicationPrevue DateTime?
 
-  valideParId     Int?
-  validePar       User?     @relation("PublicationValidePar", fields: [valideParId], references: [id])
-  dateValidation  DateTime?
+  // CDC §31 — niveau de validation requis, choisi à la soumission.
+  niveauValidationRequis NiveauValidationPublication @default(RESPONSABLE_MARKETING)
+
+  // 1er palier (Responsable Marketing) — renseigné dans les deux cas (palier unique ou premier des deux).
+  valideParId    Int?
+  validePar      User?     @relation("PublicationValidePar", fields: [valideParId], references: [id])
+  dateValidation DateTime?
+
+  // 2e palier (Direction) — renseigné uniquement si niveauValidationRequis = DIRECTION.
+  valideParDirectionId Int?
+  valideParDirection   User?     @relation("PublicationValideParDirection", fields: [valideParDirectionId], references: [id])
+  dateValidationDirection DateTime?
+
   datePublication DateTime? // renseignée à l'action PUBLIER (confirmation manuelle)
 
   creeParId Int

@@ -225,6 +225,7 @@ export default function GestionnaireEdit({ gestionnaireId }: GestionnaireEditPro
                   <option value="AGENT_TERRAIN">Agent terrain</option>
                   <option value="RESPONSABLE_ECONOMIQUE">Responsable economique</option>
                   <option value="RESPONSABLE_MARKETING">Responsable marketing</option>
+                  <option value="COMMUNITY_MANAGER">Community Manager</option>
                   <option value="ACTIONNAIRE">Actionnaire</option>
                 </select>
                 <p className="mt-1 text-xs text-gray-500">

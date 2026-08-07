@@ -129,6 +129,10 @@ export const DEFAULT_MATRIX: Record<string, Partial<Record<string, PermissionAct
   RESPONSABLE_MARKETING: {
     marketing: FULL, ventes: RO, credits: RO, stock: RO,
   },
+  // CDC §31 — crée/modifie/soumet le contenu, ne valide jamais lui-même (pas de VALIDATION).
+  COMMUNITY_MANAGER: {
+    marketing: RW,
+  },
 };
 
 /** Actions autorisées par défaut pour (rôle, module), avant overrides DB. */

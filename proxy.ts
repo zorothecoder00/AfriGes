@@ -32,6 +32,7 @@ const gestionnaireDashboardMap: Record<string, string> = {
   RESPONSABLE_ACHATS: "/dashboard/user/logistiquesApprovisionnements",
   // Module Marketing (Phase 1)
   RESPONSABLE_MARKETING: "/dashboard/user/responsablesMarketing",
+  COMMUNITY_MANAGER: "/dashboard/user/responsablesMarketing", // CDC §31 — même portail, permissions restreintes (RBAC)
 }
 
 // Sous-arbres de /dashboard/user ouverts en LECTURE à des gestionnaires dont ce
