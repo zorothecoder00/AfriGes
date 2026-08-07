@@ -7,13 +7,16 @@ import { prisma } from "@/lib/prisma";
  * donnée n'est dupliquée/recopiée sur le message, tout est résolu à l'envoi.
  *
  * Variables supportées : prenom, nom, agence, dernier_achat, montant,
- * points_fidelite, date. `{{coupon}}` est acceptée mais résolue en chaîne vide
- * (pas de source tant que le modèle Coupon — CDC §35, Phase 5 — n'existe pas).
+ * points_fidelite, date, coupon, offre.
  */
 
 export interface ContexteMessage {
   /** Montant à afficher pour {{montant}} si le contexte n'est pas "dernier achat" (ex. relance impayé). */
   montant?: number;
+  /** Code coupon à afficher pour {{coupon}} (action ATTRIBUER_COUPON de l'automatisation, CDC §19). */
+  couponCode?: string;
+  /** Libellé d'offre/promotion à afficher pour {{offre}} (action ENVOYER_OFFRE, CDC §19). */
+  offreLibelle?: string;
 }
 
 const VARIABLE_REGEX = /\{\{\s*([a-z_]+)\s*\}\}/gi;
@@ -49,19 +52,17 @@ export async function resoudreVariables(
     montant: (contexte?.montant ?? Number(dernierAchat?.montantTotal ?? 0)).toLocaleString("fr-FR"),
     points_fidelite: String(client.compteFidelite?.soldePoints ?? 0),
     date: new Date().toLocaleDateString("fr-FR"),
+    coupon: contexte?.couponCode ?? "",
+    offre: contexte?.offreLibelle ?? "",
   };
 
   return template.replace(VARIABLE_REGEX, (match, nomVariable: string) => {
     const cle = nomVariable.toLowerCase();
-    if (cle === "coupon") {
-      console.warn("[Marketing] Variable {{coupon}} utilisée sans source disponible (module Coupon = Phase 5)");
-      return "";
-    }
     return valeurs[cle] ?? match;
   });
 }
 
 /** Liste des variables disponibles, pour l'aide contextuelle du formulaire de modèle. */
 export const VARIABLES_DISPONIBLES = [
-  "prenom", "nom", "agence", "dernier_achat", "montant", "points_fidelite", "date", "coupon",
+  "prenom", "nom", "agence", "dernier_achat", "montant", "points_fidelite", "date", "coupon", "offre",
 ] as const;

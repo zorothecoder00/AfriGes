@@ -10,15 +10,30 @@ interface CampagneOption { id: number; nom: string }
 interface Reference {
   utilisateurs: { id: number; nom: string; prenom: string }[];
   tags: { id: number; nom: string }[];
+  pdvs: { id: number; nom: string; code: string }[];
+  promotions: { id: number; nom: string }[];
+  evenements: { id: number; nom: string }[];
+  coupons: { id: number; code: string; nom: string }[];
 }
 
 export const DECLENCHEUR_LABEL: Record<string, string> = {
   NOUVEAU_CLIENT: "Nouveau client",
   PREMIER_ACHAT: "Premier achat",
+  DEUXIEME_ACHAT: "Deuxième achat",
   ACHAT_PRODUIT: "Achat d'un produit",
   PANIER_ELEVE: "Panier élevé",
   CLIENT_INACTIF: "Client inactif",
   ANNIVERSAIRE: "Anniversaire du client",
+  CAMPAGNE: "Touché par une campagne",
+  COUPON_UTILISE: "Coupon utilisé",
+  POINT_FIDELITE: "Seuil de points fidélité atteint",
+  NOUVEAU_PRODUIT: "Nouveau produit (famille déjà achetée)",
+  STOCK_DISPONIBLE: "Produit de nouveau en stock",
+  PRODUIT_PREFERE: "Produit préféré non racheté",
+  AGENCE_PROCHE: "Client proche d'une agence",
+  EVENEMENT: "Inscrit à un événement",
+  ABANDON: "Lead sans achat depuis (abandon)",
+  INTERACTION_MARKETING: "A lu/répondu à un message",
 };
 
 export const ACTION_LABEL: Record<string, string> = {
@@ -32,6 +47,8 @@ export const ACTION_LABEL: Record<string, string> = {
   RETIRER_TAG: "Retirer un tag",
   ATTRIBUER_POINTS: "Attribuer des points fidélité",
   DECLENCHER_CAMPAGNE: "Ajouter à une campagne",
+  ATTRIBUER_COUPON: "Attribuer un coupon",
+  ENVOYER_OFFRE: "Envoyer une offre",
 };
 
 const CANAL_CODE_PAR_ACTION: Record<string, string> = {
@@ -110,6 +127,18 @@ export default function NouvelleRegleAutomatisationModal({ onClose, onCreated }:
         actionParams = { points: e.params.points ? Number(e.params.points) : undefined, motif: e.params.motif };
       } else if (e.action === "DECLENCHER_CAMPAGNE") {
         actionParams = { campagneId: e.params.campagneId ? Number(e.params.campagneId) : undefined };
+      } else if (e.action === "ATTRIBUER_COUPON") {
+        actionParams = {
+          couponId: e.params.couponId ? Number(e.params.couponId) : undefined,
+          canalId: e.params.canalId ? Number(e.params.canalId) : undefined,
+          modeleMessageId: e.params.modeleMessageId ? Number(e.params.modeleMessageId) : undefined,
+        };
+      } else if (e.action === "ENVOYER_OFFRE") {
+        actionParams = {
+          promotionId: e.params.promotionId ? Number(e.params.promotionId) : undefined,
+          canalId: e.params.canalId ? Number(e.params.canalId) : undefined,
+          modeleMessageId: e.params.modeleMessageId ? Number(e.params.modeleMessageId) : undefined,
+        };
       }
       return {
         delaiJours: Number(e.delaiJours || 0),
@@ -123,6 +152,16 @@ export default function NouvelleRegleAutomatisationModal({ onClose, onCreated }:
     if (form.declencheur === "ACHAT_PRODUIT" && declParams.produitId) declencheurParams.produitId = Number(declParams.produitId);
     if (form.declencheur === "PANIER_ELEVE" && declParams.montantMin) declencheurParams.montantMin = Number(declParams.montantMin);
     if (form.declencheur === "CLIENT_INACTIF") declencheurParams.seuilJours = Number(declParams.seuilJours || 30);
+    if (form.declencheur === "CAMPAGNE" && declParams.campagneId) declencheurParams.campagneId = Number(declParams.campagneId);
+    if (form.declencheur === "COUPON_UTILISE" && declParams.couponId) declencheurParams.couponId = Number(declParams.couponId);
+    if (form.declencheur === "POINT_FIDELITE" && declParams.seuilPoints) declencheurParams.seuilPoints = Number(declParams.seuilPoints);
+    if (form.declencheur === "STOCK_DISPONIBLE" && declParams.produitId) declencheurParams.produitId = Number(declParams.produitId);
+    if (form.declencheur === "PRODUIT_PREFERE") declencheurParams.seuilJours = Number(declParams.seuilJours || 30);
+    if (form.declencheur === "AGENCE_PROCHE") {
+      if (declParams.pointDeVenteId) declencheurParams.pointDeVenteId = Number(declParams.pointDeVenteId);
+      if (declParams.rayonKm) declencheurParams.rayonKm = Number(declParams.rayonKm);
+    }
+    if (form.declencheur === "EVENEMENT" && declParams.evenementId) declencheurParams.evenementId = Number(declParams.evenementId);
 
     const res = await creer({
       nom: form.nom, description: form.description || undefined,
@@ -175,11 +214,74 @@ export default function NouvelleRegleAutomatisationModal({ onClose, onCreated }:
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
               </div>
             )}
-            {form.declencheur === "CLIENT_INACTIF" && (
+            {(form.declencheur === "CLIENT_INACTIF" || form.declencheur === "PRODUIT_PREFERE") && (
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Seuil d&apos;inactivité (jours)</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  {form.declencheur === "CLIENT_INACTIF" ? "Seuil d'inactivité (jours)" : "Sans rachat depuis (jours)"}
+                </label>
                 <input type="number" value={declParams.seuilJours ?? "30"} onChange={(e) => setDeclParams((p) => ({ ...p, seuilJours: e.target.value }))}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+              </div>
+            )}
+            {form.declencheur === "CAMPAGNE" && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Campagne</label>
+                <select value={declParams.campagneId ?? ""} onChange={(e) => setDeclParams((p) => ({ ...p, campagneId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                  <option value="">—</option>
+                  {(campagnesRes?.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                </select>
+              </div>
+            )}
+            {form.declencheur === "COUPON_UTILISE" && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Coupon (optionnel — vide = tous)</label>
+                <select value={declParams.couponId ?? ""} onChange={(e) => setDeclParams((p) => ({ ...p, couponId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                  <option value="">Tous les coupons</option>
+                  {(refRes?.data.coupons ?? []).map((c) => <option key={c.id} value={c.id}>{c.code} — {c.nom}</option>)}
+                </select>
+              </div>
+            )}
+            {form.declencheur === "POINT_FIDELITE" && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Seuil de points</label>
+                <input type="number" value={declParams.seuilPoints ?? ""} onChange={(e) => setDeclParams((p) => ({ ...p, seuilPoints: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+              </div>
+            )}
+            {form.declencheur === "STOCK_DISPONIBLE" && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Produit</label>
+                <input value={declParams.produitId ?? ""} onChange={(e) => setDeclParams((p) => ({ ...p, produitId: e.target.value }))}
+                  placeholder="ID produit" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+              </div>
+            )}
+            {form.declencheur === "AGENCE_PROCHE" && (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Agence</label>
+                  <select value={declParams.pointDeVenteId ?? ""} onChange={(e) => setDeclParams((p) => ({ ...p, pointDeVenteId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                    <option value="">—</option>
+                    {(refRes?.data.pdvs ?? []).map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Rayon (km)</label>
+                  <input type="number" value={declParams.rayonKm ?? ""} onChange={(e) => setDeclParams((p) => ({ ...p, rayonKm: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+              </>
+            )}
+            {form.declencheur === "EVENEMENT" && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Événement</label>
+                <select value={declParams.evenementId ?? ""} onChange={(e) => setDeclParams((p) => ({ ...p, evenementId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                  <option value="">—</option>
+                  {(refRes?.data.evenements ?? []).map((ev) => <option key={ev.id} value={ev.id}>{ev.nom}</option>)}
+                </select>
               </div>
             )}
           </div>
@@ -276,6 +378,50 @@ export default function NouvelleRegleAutomatisationModal({ onClose, onCreated }:
                       <option value="">Campagne —</option>
                       {(campagnesRes?.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
                     </select>
+                  )}
+
+                  {etape.action === "ATTRIBUER_COUPON" && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <select value={etape.params.couponId ?? ""} onChange={(e) => majParamEtape(i, "couponId", e.target.value)}
+                        className="col-span-2 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                        <option value="">Coupon —</option>
+                        {(refRes?.data.coupons ?? []).map((c) => <option key={c.id} value={c.id}>{c.code} — {c.nom}</option>)}
+                      </select>
+                      <select value={etape.params.canalId ?? ""} onChange={(e) => majParamEtape(i, "canalId", e.target.value)}
+                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                        <option value="">Notifier via — (optionnel)</option>
+                        {(canauxRes?.data ?? []).filter((c) => c.actif).map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}
+                      </select>
+                      <select value={etape.params.modeleMessageId ?? ""} onChange={(e) => majParamEtape(i, "modeleMessageId", e.target.value)}
+                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                        <option value="">Modèle —</option>
+                        {(modelesRes?.data ?? [])
+                          .filter((m) => !etape.params.canalId || m.canalId === Number(etape.params.canalId))
+                          .map((m) => <option key={m.id} value={m.id}>{m.nom}</option>)}
+                      </select>
+                    </div>
+                  )}
+
+                  {etape.action === "ENVOYER_OFFRE" && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <select value={etape.params.promotionId ?? ""} onChange={(e) => majParamEtape(i, "promotionId", e.target.value)}
+                        className="col-span-2 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                        <option value="">Promotion —</option>
+                        {(refRes?.data.promotions ?? []).map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                      </select>
+                      <select value={etape.params.canalId ?? ""} onChange={(e) => majParamEtape(i, "canalId", e.target.value)}
+                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                        <option value="">Canal —</option>
+                        {(canauxRes?.data ?? []).filter((c) => c.actif).map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}
+                      </select>
+                      <select value={etape.params.modeleMessageId ?? ""} onChange={(e) => majParamEtape(i, "modeleMessageId", e.target.value)}
+                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                        <option value="">Modèle —</option>
+                        {(modelesRes?.data ?? [])
+                          .filter((m) => !etape.params.canalId || m.canalId === Number(etape.params.canalId))
+                          .map((m) => <option key={m.id} value={m.id}>{m.nom}</option>)}
+                      </select>
+                    </div>
                   )}
 
                   <label className="flex items-center gap-2 text-xs text-slate-600 pt-1">

@@ -3,7 +3,7 @@ import { auditLog } from "@/lib/notifications";
 import { sendSMS } from "@/lib/sms";
 import { sendWhatsApp } from "@/lib/whatsapp";
 import { sendEmail, renderEmailLayout } from "@/lib/email";
-import { resoudreVariables } from "@/lib/personnalisationMessage";
+import { resoudreVariables, type ContexteMessage } from "@/lib/personnalisationMessage";
 import { rendererBlocsEmail, type BlocEmail } from "@/lib/emailBuilder";
 
 export class EnvoiCampagneError extends Error {
@@ -36,8 +36,10 @@ export async function envoyerMessageAUnClient(params: {
   modeleMessageId: number;
   campagneId?: number | null;
   userId: number;
+  /** Variables additionnelles pour {{coupon}}/{{offre}} (actions ATTRIBUER_COUPON/ENVOYER_OFFRE, CDC §19). */
+  contexte?: ContexteMessage;
 }): Promise<ResultatEnvoiUnClient> {
-  const { clientId, canalId, modeleMessageId, campagneId = null, userId } = params;
+  const { clientId, canalId, modeleMessageId, campagneId = null, userId, contexte } = params;
 
   const [client, modele, canal, parametrage] = await Promise.all([
     prisma.client.findUnique({
@@ -93,15 +95,15 @@ export async function envoyerMessageAUnClient(params: {
   let ok: boolean;
   try {
     if (canal.code === "EMAIL") {
-      const objet = modele.objet ? await resoudreVariables(modele.objet, clientId) : modele.nom;
+      const objet = modele.objet ? await resoudreVariables(modele.objet, clientId, contexte) : modele.nom;
       const emailHtmlBrut = modele.contenuBlocs
         ? await rendererBlocsEmail(modele.contenuBlocs as unknown as BlocEmail[])
         : "";
-      const corpsPersonnalise = await resoudreVariables(emailHtmlBrut, clientId);
+      const corpsPersonnalise = await resoudreVariables(emailHtmlBrut, clientId, contexte);
       contenuRendu = renderEmailLayout(corpsPersonnalise, objet);
       ok = await sendEmail({ to: destinataire, subject: objet, html: contenuRendu });
     } else {
-      contenuRendu = await resoudreVariables(modele.contenuTexte ?? "", clientId);
+      contenuRendu = await resoudreVariables(modele.contenuTexte ?? "", clientId, contexte);
       ok = canal.code === "SMS" ? await sendSMS(destinataire, contenuRendu) : await sendWhatsApp(destinataire, contenuRendu);
     }
   } catch (e) {

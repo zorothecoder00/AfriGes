@@ -8813,6 +8813,12 @@ enum ChampAudience {
   /// CDC §39-40 — Marketing B2B : Client.activite (texte libre : revendeur,
   /// grossiste, hôtel, restaurant, entreprise, institution, association…).
   ACTIVITE
+  /// CDC §11 — âge calculé depuis Client.dateNaissance ; `valeur` = âge en
+  /// années, l'opérateur s'applique à l'âge (SUPERIEUR = plus vieux que...).
+  AGE
+  /// CDC §11 — canal déjà utilisé pour toucher le client ; `valeur` =
+  /// CanalMarketing.code (ex "SMS"). Agrégé sur EnvoiMessage.
+  CANAL
 }
 
 enum OperateurAudience {
@@ -9302,10 +9308,34 @@ model PublicationSociale {
 enum DeclencheurAutomatisation {
   NOUVEAU_CLIENT
   PREMIER_ACHAT
+  /// CDC §18 — 2e achat du client (mêmes règles de comptage que PREMIER_ACHAT).
+  DEUXIEME_ACHAT
   ACHAT_PRODUIT
   PANIER_ELEVE
   CLIENT_INACTIF
   ANNIVERSAIRE
+  /// CDC §18 "campagne" — client touché pour la 1ère fois par une campagne donnée (declencheurParams.campagneId).
+  CAMPAGNE
+  /// CDC §18 "coupon" — client a utilisé un coupon (declencheurParams.couponId optionnel = un coupon précis, sinon tous).
+  COUPON_UTILISE
+  /// CDC §18 "point fidélité" — solde de points a franchi un seuil (declencheurParams.seuilPoints).
+  POINT_FIDELITE
+  /// CDC §18 "nouveau produit" — clients déjà acheteurs de la famille d'un produit récemment créé.
+  NOUVEAU_PRODUIT
+  /// CDC §18 "stock disponible" — le produit visé (declencheurParams.produitId) est de nouveau en stock,
+  /// ciblé sur ses acheteurs historiques (pas de suivi d'état rupture→dispo : simplification assumée).
+  STOCK_DISPONIBLE
+  /// CDC §18 "produit préféré" — le produit le plus acheté du client est en stock et n'a pas été racheté
+  /// depuis declencheurParams.seuilJours.
+  PRODUIT_PREFERE
+  /// CDC §18 "agence proche" — client géolocalisé dans le rayon d'un PDV (declencheurParams.pointDeVenteId/rayonKm), via Haversine.
+  AGENCE_PROCHE
+  /// CDC §18 "événement" — client inscrit/présent à un événement (declencheurParams.evenementId).
+  EVENEMENT
+  /// CDC §18 "abandon" — lead capté (SoumissionFormulaire) sans achat depuis (pas de panier e-commerce dans ce système).
+  ABANDON
+  /// CDC §18 "interaction marketing" — client a lu/répondu à un message marketing (EnvoiMessage.statut LU/REPONSE).
+  INTERACTION_MARKETING
 }
 
 enum ActionAutomatisation {
@@ -9319,6 +9349,10 @@ enum ActionAutomatisation {
   RETIRER_TAG
   ATTRIBUER_POINTS
   DECLENCHER_CAMPAGNE
+  /// CDC §19 "attribuer coupon" — rend le client éligible (audience du coupon) + notification optionnelle.
+  ATTRIBUER_COUPON
+  /// CDC §19 "envoyer offre" — notifie le client d'une Promotion (distinct d'un coupon nominatif).
+  ENVOYER_OFFRE
 }
 
 enum StatutExecutionAutomatisation {

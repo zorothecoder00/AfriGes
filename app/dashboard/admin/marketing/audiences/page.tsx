@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
-import { Plus, Loader2, Users, RefreshCw, Sparkles } from "lucide-react";
+import { Plus, Loader2, Users, RefreshCw, Sparkles, Megaphone } from "lucide-react";
+import { toast } from "sonner";
 import NouvelleAudienceModal from "@/components/marketing/NouvelleAudienceModal";
 
 interface Regle { champ: string; operateur: string; valeur: string }
@@ -106,9 +107,18 @@ export default function AudiencesPage() {
 }
 
 function VueRFM() {
-  const { data: res, loading } = useApi<{ data: { segments: SegmentRFMRow[]; totalClients: number } }>("/api/admin/marketing/audiences/rfm");
+  const { data: res, loading, refetch } = useApi<{ data: { segments: SegmentRFMRow[]; totalClients: number } }>("/api/admin/marketing/audiences/rfm");
+  const { mutate: creerReactivation, loading: creantReactivation } = useMutation<{ id: number; taille: number }, Record<string, never>>(
+    "/api/admin/marketing/audiences/reactivation", "POST"
+  );
   if (loading && !res) return <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>;
   const segments = res?.data.segments ?? [];
+
+  const proposerReactivation = async () => {
+    const r = await creerReactivation({});
+    if (r) { toast.success(`Audience de réactivation créée (${r.taille} client(s)) — visible dans l'onglet Audiences`); refetch(); }
+  };
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {(["CHAMPIONS", "FIDELES", "GROS_ACHETEURS", "NOUVEAUX", "A_RISQUE", "DORMANTS", "PERDUS"] as const).map((seg) => {
@@ -127,6 +137,13 @@ function VueRFM() {
               ))}
               {(row?.effectif ?? 0) === 0 && <p className="text-xs opacity-60">Aucun client dans ce segment</p>}
             </div>
+            {seg === "A_RISQUE" && (row?.effectif ?? 0) > 0 && (
+              <button onClick={proposerReactivation} disabled={creantReactivation}
+                className="mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold">
+                {creantReactivation ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Megaphone className="w-3.5 h-3.5" />}
+                Créer campagne de réactivation
+              </button>
+            )}
           </div>
         );
       })}

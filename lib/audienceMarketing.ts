@@ -1,5 +1,6 @@
 import { Prisma, ChampAudience, OperateurAudience, TypeAudience } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { distanceKm } from "@/lib/geo";
 
 export interface RegleAudience {
   champ: ChampAudience;
@@ -16,8 +17,28 @@ const jourMs = 24 * 60 * 60 * 1000;
  * sous-requête dédiée — traités séparément dans `calculerAudience`.
  */
 const CHAMPS_DIRECTS: ChampAudience[] = [
-  "SEGMENT", "TYPE_CLIENT", "VILLE", "COMMUNE", "QUARTIER", "SEXE", "POINT_DE_VENTE", "STATUT_CREDIT", "ACTIVITE",
+  "SEGMENT", "TYPE_CLIENT", "VILLE", "COMMUNE", "QUARTIER", "SEXE", "POINT_DE_VENTE", "STATUT_CREDIT", "ACTIVITE", "AGE",
 ];
+
+/** Date de naissance correspondant à un âge de `annees` révolues, à la date du jour. */
+function dateAgeCutoff(annees: number): Date {
+  const now = new Date();
+  return new Date(now.getFullYear() - annees, now.getMonth(), now.getDate());
+}
+
+/** Traduit une règle AGE (années) en filtre Prisma sur `Client.dateNaissance`. */
+function appliquerOperateurAge(regle: RegleAudience): Prisma.ClientWhereInput["dateNaissance"] {
+  const seuil = N(regle.valeur);
+  const cutoff = dateAgeCutoff(seuil); // né ce jour-là = exactement `seuil` ans aujourd'hui
+  switch (regle.operateur) {
+    case "SUPERIEUR":       return { lt: cutoff }; // plus vieux que seuil ans
+    case "SUPERIEUR_EGAL":  return { lte: cutoff };
+    case "INFERIEUR":       return { gt: cutoff }; // plus jeune que seuil ans
+    case "INFERIEUR_EGAL":  return { gte: cutoff };
+    case "DIFFERENT":       return { not: { gt: dateAgeCutoff(seuil + 1), lte: cutoff } as never };
+    default:                return { gt: dateAgeCutoff(seuil + 1), lte: cutoff }; // EGAL — né dans l'année d'anniversaire
+  }
+}
 
 function appliquerOperateurTexte(regle: RegleAudience): Prisma.ClientWhereInput[keyof Prisma.ClientWhereInput] {
   switch (regle.operateur) {
@@ -44,6 +65,7 @@ function construireWhereDirect(regles: RegleAudience[]): Prisma.ClientWhereInput
         where.creditsClients = { some: { statut: r.valeur as never } };
         break;
       case "ACTIVITE":        where.activite = appliquerOperateurTexte(r) as never; break;
+      case "AGE":             where.dateNaissance = appliquerOperateurAge(r); break;
     }
   }
   return where;
@@ -143,20 +165,18 @@ async function idsPourRegleAgregee(regle: RegleAudience, candidats: number[]): P
         .filter((c) => distanceKm(pdv.latitude!, pdv.longitude!, c.latitude!, c.longitude!) <= rayonKm)
         .map((c) => c.id);
     }
+    case "CANAL": {
+      // CDC §11 — clients déjà touchés via ce canal (code CanalMarketing, ex "SMS").
+      // Opérateur ignoré, comme DISTANCE_AGENCE_KM : "a déjà été contacté sur ce canal".
+      const envois = await prisma.envoiMessage.findMany({
+        where: { clientId: { in: candidats }, canal: { code: regle.valeur } },
+        select: { clientId: true },
+      });
+      return [...new Set(envois.map((e) => e.clientId))];
+    }
     default:
       return null; // champ direct, déjà géré par construireWhereDirect
   }
-}
-
-/** Distance à vol d'oiseau entre deux points GPS (formule de Haversine), en km. */
-function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function cmp(valeur: number, operateur: OperateurAudience, seuil: number): boolean {

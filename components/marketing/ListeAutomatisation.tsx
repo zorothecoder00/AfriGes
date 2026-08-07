@@ -5,6 +5,7 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
 import { Plus, Loader2, Power, ChevronDown, ChevronUp } from "lucide-react";
 import NouvelleRegleAutomatisationModal, { DECLENCHEUR_LABEL, ACTION_LABEL } from "@/components/marketing/NouvelleRegleAutomatisationModal";
+import WorkflowVisuel from "@/components/marketing/WorkflowVisuel";
 
 interface Etape { id: number; ordre: number; delaiJours: number; action: string; arreterSiAchatEntreTemps: boolean }
 interface Regle {
@@ -56,6 +57,7 @@ export default function ListeAutomatisation() {
   const { data: res, loading, refetch } = useApi<{ data: Regle[] }>("/api/admin/marketing/regles");
   const [modalOpen, setModalOpen] = useState(false);
   const [ouvert, setOuvert] = useState<number | null>(null);
+  const [vueDetail, setVueDetail] = useState<"workflow" | "executions">("workflow");
   const toggleIdRef = useRef<number | null>(null);
   const { mutate: toggler, loading: togglant } = useMutation<unknown, { actif: boolean }>(
     () => `/api/admin/marketing/regles/${toggleIdRef.current}`, "PATCH",
@@ -95,7 +97,13 @@ export default function ListeAutomatisation() {
             </button>
             {ouvert === r.id && (
               <div className="px-4 pb-4 bg-slate-50/50">
-                <DetailRegle regleId={r.id} />
+                <div className="flex bg-slate-100 rounded-lg p-0.5 w-fit mb-3">
+                  <button onClick={() => setVueDetail("workflow")} className={`px-3 py-1 text-[11px] font-semibold rounded-md ${vueDetail === "workflow" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Workflow</button>
+                  <button onClick={() => setVueDetail("executions")} className={`px-3 py-1 text-[11px] font-semibold rounded-md ${vueDetail === "executions" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Exécutions</button>
+                </div>
+                {vueDetail === "workflow"
+                  ? <WorkflowVisuel declencheur={r.declencheur} etapes={r.etapes} />
+                  : <DetailRegle regleId={r.id} />}
               </div>
             )}
           </div>

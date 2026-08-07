@@ -22,6 +22,7 @@ import { resoudreVariables } from "@/lib/personnalisationMessage";
 import { envoyerMessageAUnClient } from "@/lib/envoiCampagne";
 import { ajouterTagClient, retirerTagClient } from "@/lib/clientTags";
 import { attribuerPointsFidelite } from "@/lib/fidelite";
+import { distanceKm } from "@/lib/geo";
 
 const JOUR_MS = 24 * 60 * 60 * 1000;
 const VENTES_EXCLUES = ["ANNULEE", "BROUILLON"];
@@ -107,6 +108,164 @@ async function detecterCandidats(
           return d.getUTCMonth() === today.getUTCMonth() && d.getUTCDate() === today.getUTCDate();
         })
         .map((c) => c.id);
+    }
+
+    case "DEUXIEME_ACHAT": {
+      const ventesRecentes = await prisma.venteDirecte.findMany({
+        where: { createdAt: { gte: depuisFenetre }, statut: { notIn: VENTES_EXCLUES as never }, clientId: { not: null } },
+        select: { clientId: true },
+      });
+      const candidats = [...new Set(ventesRecentes.map((v) => v.clientId).filter((id): id is number => id != null))];
+      if (!candidats.length) return [];
+      const counts = await prisma.venteDirecte.groupBy({
+        by: ["clientId"],
+        where: { clientId: { in: candidats }, statut: { notIn: VENTES_EXCLUES as never } },
+        _count: { _all: true },
+      });
+      return counts.filter((c) => c._count._all === 2).map((c) => c.clientId as number);
+    }
+
+    case "CAMPAGNE": {
+      const campagneId = Number(params.campagneId);
+      if (!campagneId) return [];
+      const envois = await prisma.envoiMessage.findMany({
+        where: { campagneId, dateEnvoi: { gte: depuisFenetre } },
+        select: { clientId: true },
+      });
+      return [...new Set(envois.map((e) => e.clientId))];
+    }
+
+    case "COUPON_UTILISE": {
+      const couponId = params.couponId ? Number(params.couponId) : undefined;
+      const utilisations = await prisma.couponUtilisation.findMany({
+        where: { dateUtilisation: { gte: depuisFenetre }, ...(couponId ? { couponId } : {}) },
+        select: { clientId: true },
+      });
+      return [...new Set(utilisations.map((u) => u.clientId))];
+    }
+
+    case "POINT_FIDELITE": {
+      const seuilPoints = Number(params.seuilPoints ?? 0);
+      if (!seuilPoints) return [];
+      const mouvements = await prisma.mouvementPoints.findMany({
+        where: { createdAt: { gte: depuisFenetre } },
+        select: { pointsFideliteId: true },
+        distinct: ["pointsFideliteId"],
+      });
+      if (!mouvements.length) return [];
+      const comptes = await prisma.pointsFidelite.findMany({
+        where: { id: { in: mouvements.map((m) => m.pointsFideliteId) }, clientId: { not: null }, solde: { gte: seuilPoints } },
+        select: { clientId: true },
+      });
+      return comptes.map((c) => c.clientId as number);
+    }
+
+    case "NOUVEAU_PRODUIT": {
+      const nouveauxProduits = await prisma.produit.findMany({
+        where: { createdAt: { gte: depuisFenetre }, familleId: { not: null } },
+        select: { familleId: true },
+      });
+      const familleIds = [...new Set(nouveauxProduits.map((p) => p.familleId).filter((id): id is number => id != null))];
+      if (!familleIds.length) return [];
+      const acheteurs = await prisma.ligneVenteDirecte.findMany({
+        where: { produit: { familleId: { in: familleIds } }, vente: { clientId: { not: null } } },
+        select: { vente: { select: { clientId: true } } },
+      });
+      return [...new Set(acheteurs.map((l) => l.vente.clientId).filter((id): id is number => id != null))];
+    }
+
+    case "STOCK_DISPONIBLE": {
+      // Simplification assumée (documentée en schéma) : pas de suivi d'état
+      // rupture→disponible, on cible directement les acheteurs historiques
+      // du produit dès lors que du stock existe quelque part.
+      const produitId = Number(params.produitId);
+      if (!produitId) return [];
+      const stock = await prisma.stockSite.aggregate({ where: { produitId }, _sum: { quantite: true } });
+      if (Number(stock._sum.quantite ?? 0) <= 0) return [];
+      const acheteurs = await prisma.ligneVenteDirecte.findMany({
+        where: { produitId, vente: { clientId: { not: null } } },
+        select: { vente: { select: { clientId: true } } },
+      });
+      return [...new Set(acheteurs.map((l) => l.vente.clientId).filter((id): id is number => id != null))];
+    }
+
+    case "PRODUIT_PREFERE": {
+      const seuilJours = Number(params.seuilJours ?? 30);
+      const seuilDate = new Date(Date.now() - seuilJours * JOUR_MS);
+      // Produit le plus acheté par client (toutes ventes), pas racheté depuis seuilJours.
+      // Regroupement fait en mémoire (groupBy multi-colonnes Prisma limité côté relation) :
+      const ventesAvecClient = await prisma.ligneVenteDirecte.findMany({
+        where: { vente: { clientId: { not: null } } },
+        select: { produitId: true, vente: { select: { clientId: true, createdAt: true } } },
+      });
+      const parClient = new Map<number, Map<number, { count: number; dernier: Date }>>();
+      for (const l of ventesAvecClient) {
+        const clientId = l.vente.clientId as number;
+        const parProduit = parClient.get(clientId) ?? new Map();
+        const entree = parProduit.get(l.produitId) ?? { count: 0, dernier: l.vente.createdAt };
+        entree.count += 1;
+        if (l.vente.createdAt > entree.dernier) entree.dernier = l.vente.createdAt;
+        parProduit.set(l.produitId, entree);
+        parClient.set(clientId, parProduit);
+      }
+      const candidats: number[] = [];
+      for (const [clientId, produits] of parClient) {
+        const prefere = [...produits.entries()].sort((a, b) => b[1].count - a[1].count)[0];
+        if (prefere && prefere[1].dernier < seuilDate) candidats.push(clientId);
+      }
+      return candidats;
+    }
+
+    case "AGENCE_PROCHE": {
+      const pointDeVenteId = Number(params.pointDeVenteId);
+      const rayonKm = Number(params.rayonKm);
+      if (!pointDeVenteId || !rayonKm) return [];
+      const pdv = await prisma.pointDeVente.findUnique({ where: { id: pointDeVenteId }, select: { latitude: true, longitude: true } });
+      if (pdv?.latitude == null || pdv?.longitude == null) return [];
+      const clients = await prisma.client.findMany({
+        where: { latitude: { not: null }, longitude: { not: null } },
+        select: { id: true, latitude: true, longitude: true },
+      });
+      return clients
+        .filter((c) => distanceKm(pdv.latitude!, pdv.longitude!, c.latitude!, c.longitude!) <= rayonKm)
+        .map((c) => c.id);
+    }
+
+    case "EVENEMENT": {
+      const evenementId = Number(params.evenementId);
+      if (!evenementId) return [];
+      const participants = await prisma.participantEvenement.findMany({
+        where: { evenementId, clientId: { not: null }, createdAt: { gte: depuisFenetre } },
+        select: { clientId: true },
+      });
+      return [...new Set(participants.map((p) => p.clientId).filter((id): id is number => id != null))];
+    }
+
+    case "ABANDON": {
+      // Pas de panier e-commerce dans ce système (POS/agences) : "abandon" =
+      // lead capté via une soumission de formulaire marketing sans achat depuis.
+      const soumissions = await prisma.soumissionFormulaire.findMany({
+        where: { createdAt: { gte: depuisFenetre }, clientIdCree: { not: null } },
+        select: { clientIdCree: true, createdAt: true },
+      });
+      const candidats: number[] = [];
+      for (const s of soumissions) {
+        const clientId = s.clientIdCree as number;
+        const achatDepuis = await prisma.venteDirecte.findFirst({
+          where: { clientId, createdAt: { gte: s.createdAt }, statut: { notIn: VENTES_EXCLUES as never } },
+          select: { id: true },
+        });
+        if (!achatDepuis) candidats.push(clientId);
+      }
+      return [...new Set(candidats)];
+    }
+
+    case "INTERACTION_MARKETING": {
+      const envois = await prisma.envoiMessage.findMany({
+        where: { dateEnvoi: { gte: depuisFenetre }, statut: { in: ["LU", "REPONSE"] } },
+        select: { clientId: true },
+      });
+      return [...new Set(envois.map((e) => e.clientId))];
     }
 
     default:
@@ -258,6 +417,48 @@ async function executerAction(
         create: { audienceId: campagne.audienceId, clientId },
       });
       return "Client ajouté à l'audience de la campagne";
+    }
+
+    case "ATTRIBUER_COUPON": {
+      const couponId = Number(params.couponId);
+      if (!couponId) throw new Error("Paramètre couponId manquant");
+      const coupon = await prisma.coupon.findUnique({ where: { id: couponId }, select: { code: true, audienceId: true, audience: { select: { type: true } } } });
+      if (!coupon) throw new Error("Coupon introuvable");
+      if (coupon.audienceId && coupon.audience?.type === "STATIQUE") {
+        await prisma.audienceMarketingMembre.upsert({
+          where: { audienceId_clientId: { audienceId: coupon.audienceId, clientId } },
+          update: {},
+          create: { audienceId: coupon.audienceId, clientId },
+        });
+      }
+      const canalId = Number(params.canalId);
+      const modeleMessageId = Number(params.modeleMessageId);
+      if (canalId && modeleMessageId) {
+        const issue = await envoyerMessageAUnClient({
+          clientId, canalId, modeleMessageId, campagneId: null, userId: actorUserId,
+          contexte: { couponCode: coupon.code },
+        });
+        if (issue.statut !== "ENVOYE") throw new Error(`Coupon attribué mais notification non envoyée (${issue.statut})`);
+        return `Coupon ${coupon.code} attribué et notifié`;
+      }
+      return `Coupon ${coupon.code} attribué`;
+    }
+
+    case "ENVOYER_OFFRE": {
+      const promotionId = Number(params.promotionId);
+      const canalId = Number(params.canalId);
+      const modeleMessageId = Number(params.modeleMessageId);
+      if (!promotionId || !canalId || !modeleMessageId) throw new Error("Paramètres manquants (promotionId/canalId/modeleMessageId)");
+      const promotion = await prisma.promotion.findUnique({ where: { id: promotionId }, select: { nom: true } });
+      if (!promotion) throw new Error("Promotion introuvable");
+      const issue = await envoyerMessageAUnClient({
+        clientId, canalId, modeleMessageId, campagneId: null, userId: actorUserId,
+        contexte: { offreLibelle: promotion.nom },
+      });
+      if (issue.statut === "ENVOYE") return "Offre envoyée";
+      if (issue.statut === "BLOQUE_CONSENTEMENT") throw new Error("Bloqué : client sans consentement pour ce canal");
+      if (issue.statut === "BLOQUE_FREQUENCE") throw new Error("Bloqué : plafond hebdomadaire de communications atteint");
+      throw new Error(`Échec d'envoi : ${issue.motif}`);
     }
 
     default:

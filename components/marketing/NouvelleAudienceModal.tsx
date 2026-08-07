@@ -16,6 +16,8 @@ const CHAMPS = [
   { value: "NIVEAU_FIDELITE", label: "Niveau fidélité" }, { value: "TAG", label: "Tag (ID)" },
   { value: "DISTANCE_AGENCE_KM", label: "Distance à une agence (rayon)" },
   { value: "ACTIVITE", label: "Activité (B2B : revendeur, grossiste, hôtel…)" },
+  { value: "AGE", label: "Âge (années)" },
+  { value: "CANAL", label: "Canal déjà utilisé (code, ex SMS)" },
 ];
 const OPERATEURS = [
   { value: "EGAL", label: "=" }, { value: "DIFFERENT", label: "≠" }, { value: "SUPERIEUR", label: ">" },
@@ -87,7 +89,12 @@ export default function NouvelleAudienceModal({ onClose, onCreated }: { onClose:
                   {OPERATEURS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 <input value={r.valeur} onChange={(e) => majRegle(i, { valeur: e.target.value })}
-                  placeholder={r.champ === "DISTANCE_AGENCE_KM" ? "pdvId:rayonKm ex 3:10" : "valeur"}
+                  placeholder={
+                    r.champ === "DISTANCE_AGENCE_KM" ? "pdvId:rayonKm ex 3:10"
+                    : r.champ === "AGE" ? "ex 25"
+                    : r.champ === "CANAL" ? "ex SMS"
+                    : "valeur"
+                  }
                   className="w-28 px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
                 <button onClick={() => setRegles((prev) => prev.filter((_, idx) => idx !== i))}
                   className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
