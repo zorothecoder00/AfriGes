@@ -1,5 +1,6 @@
 import type { Prisma, StatutCampagne, PrioriteNotification } from "@prisma/client";
 import { notifyRoles, auditLog } from "@/lib/notifications";
+import { emitEvent } from "@/lib/systemEvents";
 
 type TX = Prisma.TransactionClient;
 
@@ -85,6 +86,10 @@ export async function appliquerActionCampagne(tx: TX, params: AppliquerActionCam
     apres: { statut: nouveauStatut },
     commentaire: params.commentaire ?? null,
   });
+
+  // CDC §83 — campaign.started / campaign.completed
+  if (action === "ACTIVER") await emitEvent(tx, "campaign.started", { campagneId, code: current.code, nom: current.nom });
+  if (action === "TERMINER") await emitEvent(tx, "campaign.completed", { campagneId, code: current.code, nom: current.nom });
 
   // ── Notifications automatiques (CDC §80) ─────────────────────────────────
   const NOTIFS: Partial<Record<CampagneAction, { titre: string; message: string; priorite: PrioriteNotification }>> = {

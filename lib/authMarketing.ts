@@ -15,14 +15,24 @@ export async function getMarketingSession() {
     role  === "ADMIN"                ||
     role  === "SUPER_ADMIN"          ||
     gRole === "RESPONSABLE_MARKETING" ||
-    gRole === "COMMUNITY_MANAGER"
+    gRole === "COMMUNITY_MANAGER"    ||
+    gRole === "DIRECTEUR_MARKETING"  ||
+    gRole === "MARKETING_TERRAIN"    ||
+    gRole === "DIRECTEUR_GENERAL"    ||
+    gRole === "RESPONSABLE_POINT_DE_VENTE" ||
+    gRole === "CHEF_AGENCE"
   ) {
     return session;
   }
   return null;
 }
 
-/** CDC §31 — "Direction" = Admin/Super Admin uniquement (2e palier de validation). */
-export function estDirection(session: { user: { role?: string | null } }): boolean {
-  return session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+/**
+ * CDC §31/§54/§79 — "Direction" = Admin/Super Admin OU le rôle gestionnaire
+ * DIRECTEUR_GENERAL ("lecture globale + validation stratégique", déjà utilisé
+ * en comptabilité pour la même notion). Un Directeur Général n'est pas
+ * forcément Admin/SuperAdmin (compte gestionnaire USER + gestionnaireRole).
+ */
+export function estDirection(session: { user: { role?: string | null; gestionnaireRole?: string | null } }): boolean {
+  return session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN" || session.user.gestionnaireRole === "DIRECTEUR_GENERAL";
 }

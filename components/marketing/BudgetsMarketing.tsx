@@ -26,7 +26,7 @@ const STATUT_STYLE: Record<string, string> = {
 export default function BudgetsMarketing() {
   const { data: res, loading, refetch } = useApi<{ data: CampagneItem[] }>("/api/admin/marketing/campagnes");
   const { data: session } = useSession();
-  const estDirection = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN";
+  const estDirection = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN" || session?.user?.gestionnaireRole === "DIRECTEUR_GENERAL";
   const budgetIdRef = useRef<number | null>(null);
   const { mutate: agirBudget } = useMutation<unknown, { action: string }>(
     () => `/api/admin/marketing/budgets/${budgetIdRef.current}/action`, "POST",

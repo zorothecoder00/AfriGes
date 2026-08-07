@@ -44,7 +44,10 @@ export async function envoyerMessageAUnClient(params: {
   const [client, modele, canal, parametrage] = await Promise.all([
     prisma.client.findUnique({
       where: { id: clientId },
-      select: { id: true, telephone: true, email: true, accepteOffres: true, accepteSms: true, accepteEmail: true, accepteWhatsapp: true },
+      select: {
+        id: true, telephone: true, email: true, accepteOffres: true, accepteSms: true, accepteEmail: true, accepteWhatsapp: true,
+        prefPromotions: true, prefNouveautes: true, prefFidelite: true, prefEvenements: true, prefB2B: true,
+      },
     }),
     prisma.modeleMessage.findUnique({ where: { id: modeleMessageId } }),
     prisma.canalMarketing.findUnique({ where: { id: canalId } }),
@@ -66,6 +69,25 @@ export async function envoyerMessageAUnClient(params: {
     : client.accepteEmail;
   if (!client.accepteOffres || !consentementCanal) {
     return { statut: "BLOQUE_CONSENTEMENT" };
+  }
+
+  // CDC §75 — Centre de préférences : consentement par catégorie de contenu,
+  // distinct du canal. Catégories non mappées (Bienvenue/Confirmation/Relance/
+  // Anniversaire/Réactivation/Remerciement/Enquête/Autre) restent non-filtrées
+  // (contenu quasi-transactionnel, pas soumis à ce niveau d'opt-out).
+  const PREF_PAR_CATEGORIE: Partial<Record<string, keyof typeof client>> = {
+    PROMOTION: "prefPromotions", NOUVEAU_PRODUIT: "prefNouveautes",
+    FIDELISATION: "prefFidelite", EVENEMENT: "prefEvenements",
+  };
+  const clePref = PREF_PAR_CATEGORIE[modele.categorie];
+  if (clePref && !client[clePref]) {
+    return { statut: "BLOQUE_CONSENTEMENT" };
+  }
+  if (campagneId) {
+    const campagne = await prisma.campagne.findUnique({ where: { id: campagneId }, select: { typeCampagne: { select: { code: true } } } });
+    if (campagne?.typeCampagne.code === "B2B" && !client.prefB2B) {
+      return { statut: "BLOQUE_CONSENTEMENT" };
+    }
   }
 
   // Seuls les envois effectivement délivrés au client comptent pour le plafond

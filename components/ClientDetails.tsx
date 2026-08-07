@@ -6,13 +6,14 @@ import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
 import CreditEcheancier from '@/components/CreditEcheancier';
 import BordereauRemboursement from '@/components/BordereauRemboursement';
+import JournalMarketingClient from '@/components/marketing/JournalMarketingClient';
 import {
   Phone, MapPin, Calendar, Activity, ArrowLeft, Edit, Trash2,
   AlertTriangle, Hash, Briefcase, Store,
   CreditCard, TrendingDown, BarChart2, UserCheck,
   FileText, Navigation, Clock, ChevronUp,
   Banknote, ShoppingBag, RefreshCw, Shield,
-  Wallet, CheckCircle2, XCircle, AlertCircle, ChevronRight,
+  Wallet, CheckCircle2, XCircle, AlertCircle, ChevronRight, Megaphone,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -280,7 +281,7 @@ export default function ClientDetails({
     useApi<HistoriqueResponse>(`${apiBase}/${clientId}/historique?page=${timelinePage}&limit=20`);
 
   // ── Onglets bas de page ────────────────────────────────────────────────────
-  type TabId = 'versements' | 'credits' | 'histo-credit' | 'bordereau' | 'ventes' | 'historique';
+  type TabId = 'versements' | 'credits' | 'histo-credit' | 'bordereau' | 'ventes' | 'historique' | 'marketing';
   const [activeTab, setActiveTab] = useState<TabId>('versements');
   const [expandedCredits, setExpandedCredits] = useState<Set<number>>(new Set());
   const [bordereauCredit, setBordereauCredit] = useState<CreditItem | null>(null);
@@ -553,6 +554,7 @@ export default function ClientDetails({
                 { id: 'bordereau'  as TabId, label: 'Bordereau de remboursement', icon: <FileText className="w-4 h-4" />, count: creditsRes?.data.length },
                 { id: 'ventes'     as TabId, label: 'Ventes',                 icon: <ShoppingBag className="w-4 h-4" />, count: client.ventesDirectes?.length },
                 { id: 'historique' as TabId, label: 'Historique',             icon: <Clock className="w-4 h-4" />, count: histRes?.meta.total },
+                { id: 'marketing'  as TabId, label: 'Marketing',              icon: <Megaphone className="w-4 h-4" /> },
               ] as { id: TabId; label: string; icon: React.ReactNode; count?: number; alert?: boolean }[]
             ).map((tab) => (
               <button
@@ -1037,6 +1039,13 @@ export default function ClientDetails({
                 )}
               </>
             )}
+          </div>
+          )}
+
+          {/* ── Tab: MARKETING (CDC §76 — journal unifié) ─────────────────── */}
+          {activeTab === 'marketing' && (
+          <div className="p-6">
+            <JournalMarketingClient clientId={Number(client.id)} />
           </div>
           )}
 

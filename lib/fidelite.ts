@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NiveauFidelite, TypeTransactionFidelite } from "@prisma/client";
 import type { TxClient } from "@/lib/compteCourant";
+import { emitEvent } from "@/lib/systemEvents";
 
 /**
  * Programme de fidélité (CDC §19.D) : les clients qui alimentent régulièrement
@@ -114,6 +115,9 @@ export async function attribuerPointsFidelite(
     where: { id: compte.id },
     data: { soldePoints, totalGagnes, totalUtilises, niveau },
   });
+
+  // CDC §83 — loyalty.points_earned
+  if (gain) await emitEvent(tx, "loyalty.points_earned", { clientId: opts.clientId, points: opts.points, source: opts.source ?? null, motif: opts.motif });
 
   return { soldePoints, totalGagnes, niveau, niveauMonte: NIVEAU_ORDRE.indexOf(niveau) > NIVEAU_ORDRE.indexOf(compte.niveau) };
 }

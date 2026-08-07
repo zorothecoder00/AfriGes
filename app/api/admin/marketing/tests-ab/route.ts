@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     if (denied) return denied;
 
     const body = await req.json();
-    const { nom, campagneId, canalId, modeleAId, modeleBId } = body;
+    const { nom, campagneId, canalId, modeleAId, modeleBId, tailleEchantillon } = body;
 
     const nomTrim = typeof nom === "string" ? nom.trim() : "";
     if (!nomTrim) return NextResponse.json({ error: "Le nom est requis" }, { status: 400 });
@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
         data: {
           nom: nomTrim, campagneId: Number(campagneId), canalId: Number(canalId),
           modeleAId: Number(modeleAId), modeleBId: Number(modeleBId), creeParId: userId,
+          tailleEchantillon: tailleEchantillon ? Number(tailleEchantillon) : null,
         },
       });
       await auditLog(tx, userId, "TEST_AB_CREE", "TestAB", t.id);

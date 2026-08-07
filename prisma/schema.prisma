@@ -53,6 +53,8 @@ enum RoleGestionnaire {
   RESPONSABLE_ECONOMIQUE
   RESPONSABLE_MARKETING
   COMMUNITY_MANAGER // CDC §31 — crée/soumet le contenu réseaux sociaux, ne peut pas le valider lui-même
+  DIRECTEUR_MARKETING // CDC §79 — campagnes + budgets + analytics
+  MARKETING_TERRAIN // CDC §79 — événements + terrain uniquement
   ACTIONNAIRE
   REVENDEUR
   RESPONSABLE_RH // gestionnaire RH (OGRH)
@@ -1164,11 +1166,18 @@ model Client {
   // Marketing (Phase 1)
   audienceMemberships AudienceMarketingMembre[]
 
-  // Marketing (Phase 2 — Communication, CDC §74 consentement)
+  // Marketing (Phase 2 — Communication, CDC §74 consentement par canal)
   accepteSms      Boolean        @default(true)
   accepteEmail    Boolean        @default(true)
   accepteWhatsapp Boolean        @default(true)
   accepteOffres   Boolean        @default(true)
+  // CDC §75 — Centre de préférences : consentement par catégorie de contenu
+  // (distinct du canal §74). Défauts alignés sur la maquette du CDC (☑☑☑☐☐).
+  prefPromotions  Boolean        @default(true)
+  prefNouveautes  Boolean        @default(true)
+  prefFidelite    Boolean        @default(true)
+  prefEvenements  Boolean        @default(false)
+  prefB2B         Boolean        @default(false)
   envoisMessage   EnvoiMessage[]
 
   // Marketing (Phase 4 — Automatisation)
@@ -8971,6 +8980,10 @@ model Campagne {
   dateDebut DateTime
   dateFin   DateTime
 
+  /// CDC §77 — objectif de ROI (%) fixé par le responsable ; sert de référence
+  /// pour les alertes "ROI inférieur/supérieur à l'objectif". Null = pas de suivi ROI pour cette campagne.
+  roiCible Decimal?
+
   budget               BudgetMarketing?
   objectifs            CampagneObjectif[]
   agences              CampagneAgence[]
@@ -9219,11 +9232,28 @@ model ParametrageMarketing {
   maxCommunicationsParSemaine Int     @default(3)
   /// CDC §25 — coût forfaitaire par SMS envoyé (XOF), pour le calcul de EnvoiMessage.coutEstime. Éditable sans code.
   coutParSms                  Decimal @default(20)
+  /// CDC §77 — en-dessous de cette taille, une audience de campagne ACTIVE déclenche l'alerte "audience trop petite".
+  seuilAudienceMinimale       Int     @default(50)
 }
 
 /// Messagerie interne d'équipe marketing (CDC §21 "Messages internes") — fil
 /// chronologique partagé, pas de 1-to-1/DM (hors scope, pas de besoin exprimé
 /// au-delà d'un canal d'équipe).
+/// CDC §83 — bus d'événements système (registre append-only, pas de pub/sub
+/// temps réel). Câblé uniquement sur les points d'entrée déjà possédés par ce
+/// module (campagnes/coupons/fidélité) — les événements des autres modules
+/// (customer.created, order.completed, payment.completed…) restent hors
+/// périmètre d'une revue marketing (ils vivent dans le code des autres
+/// modules, les toucher dépasserait le cadre de cette review).
+model EvenementSysteme {
+  id        Int      @id @default(autoincrement())
+  type      String // ex "campaign.started", "coupon.used", "loyalty.points_earned"
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+}
+
 model MessageInterne {
   id        Int      @id @default(autoincrement())
   contenu   String
@@ -9821,6 +9851,8 @@ enum StatutTestAB {
   BROUILLON
   EN_COURS
   TERMINE
+  /// CDC §72 — la variante gagnante a été envoyée au reste de l'audience.
+  DEPLOYE
 }
 
 enum VarianteTestAB {
@@ -9841,6 +9873,11 @@ model TestAB {
   modeleB       ModeleMessage  @relation("TestABModeleB", fields: [modeleBId], references: [id])
   statut        StatutTestAB   @default(BROUILLON)
   dateLancement DateTime?
+  /// CDC §72 — taille de l'échantillon PAR variante (ex 1000 = 1000 A + 1000 B).
+  /// Null = split 100% de l'audience (comportement historique, pas de "reste" à déployer).
+  tailleEchantillon Int?
+  dateDeploiement   DateTime?
+  varianteDeployee  VarianteTestAB?
 
   assignations TestABAssignation[]
 

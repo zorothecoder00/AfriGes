@@ -61,7 +61,7 @@ export default function CalendrierEditorial() {
   const [modalOpen, setModalOpen] = useState(false);
   const [ouvert, setOuvert] = useState<number | null>(null);
   const { data: session } = useSession();
-  const estDirection = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN";
+  const estDirection = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN" || session?.user?.gestionnaireRole === "DIRECTEUR_GENERAL";
   const actionIdRef = useRef<number | null>(null);
   const { mutate: agir, loading: agissant } = useMutation<unknown, { action: string }>(
     () => `/api/admin/marketing/publications/${actionIdRef.current}/action`, "POST",

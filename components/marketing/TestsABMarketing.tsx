@@ -2,26 +2,33 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { FlaskConical, Plus, Loader2, X, ChevronDown, ChevronUp, Play } from "lucide-react";
+import { FlaskConical, Plus, Loader2, X, ChevronDown, ChevronUp, Play, Rocket, Trophy } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 
-/** Tests A/B marketing (CDC §7, Phase 7). */
+/** Tests A/B marketing (CDC §7, §71-72, Phase 7). */
 
 interface TestAB {
-  id: number; nom: string; statut: "BROUILLON" | "EN_COURS" | "TERMINE";
+  id: number; nom: string; statut: "BROUILLON" | "EN_COURS" | "TERMINE" | "DEPLOYE";
   campagne: { id: number; code: string; nom: string };
   canal: { id: number; libelle: string };
   modeleA: { id: number; nom: string };
   modeleB: { id: number; nom: string };
+  tailleEchantillon: number | null;
+  varianteDeployee: "A" | "B" | null;
   _count: { assignations: number };
 }
-interface StatsVariante { total: number; conversions: number; tauxConversion: number | null; envoyes: number; lus: number; tauxLecture: number | null }
+interface StatsVariante {
+  total: number; conversions: number; tauxConversion: number | null; envoyes: number; lus: number; tauxLecture: number | null;
+  caGenere: number; coutEstime: number; roi: number | null;
+}
 interface Campagne { id: number; code: string; nom: string }
 interface Canal { id: number; libelle: string }
 interface Modele { id: number; nom: string; canalId: number }
 
-const STATUT_LABEL: Record<string, string> = { BROUILLON: "Brouillon", EN_COURS: "En cours", TERMINE: "Terminé" };
+const STATUT_LABEL: Record<string, string> = { BROUILLON: "Brouillon", EN_COURS: "En cours", TERMINE: "Terminé", DEPLOYE: "Gagnant déployé" };
 const STATUT_STYLE: Record<string, string> = {
-  BROUILLON: "bg-slate-100 text-slate-500", EN_COURS: "bg-emerald-100 text-emerald-700", TERMINE: "bg-blue-100 text-blue-700",
+  BROUILLON: "bg-slate-100 text-slate-500", EN_COURS: "bg-emerald-100 text-emerald-700",
+  TERMINE: "bg-blue-100 text-blue-700", DEPLOYE: "bg-purple-100 text-purple-700",
 };
 
 function NouveauTestModal({ campagnes, canaux, modeles, onClose, onCreated }: { campagnes: Campagne[]; canaux: Canal[]; modeles: Modele[]; onClose: () => void; onCreated: () => void }) {
@@ -30,6 +37,7 @@ function NouveauTestModal({ campagnes, canaux, modeles, onClose, onCreated }: { 
   const [canalId, setCanalId] = useState("");
   const [modeleAId, setModeleAId] = useState("");
   const [modeleBId, setModeleBId] = useState("");
+  const [tailleEchantillon, setTailleEchantillon] = useState("");
   const [saving, setSaving] = useState(false);
 
   const modelesDuCanal = modeles.filter((m) => !canalId || m.canalId === Number(canalId));
@@ -40,7 +48,10 @@ function NouveauTestModal({ campagnes, canaux, modeles, onClose, onCreated }: { 
     try {
       const r = await fetch("/api/admin/marketing/tests-ab", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nom: nom.trim(), campagneId: Number(campagneId), canalId: Number(canalId), modeleAId: Number(modeleAId), modeleBId: Number(modeleBId) }),
+        body: JSON.stringify({
+          nom: nom.trim(), campagneId: Number(campagneId), canalId: Number(canalId), modeleAId: Number(modeleAId), modeleBId: Number(modeleBId),
+          tailleEchantillon: tailleEchantillon ? Number(tailleEchantillon) : undefined,
+        }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Erreur");
@@ -89,6 +100,11 @@ function NouveauTestModal({ campagnes, canaux, modeles, onClose, onCreated }: { 
               </select>
             </label>
           </div>
+          <label className="block"><span className={lbl}>Taille d&apos;échantillon par variante <span className="font-normal text-slate-400">(optionnel — CDC §72)</span></span>
+            <input type="number" value={tailleEchantillon} onChange={(e) => setTailleEchantillon(e.target.value)}
+              placeholder="ex : 1000 (sur une audience de 10 000, teste sur 2000 puis permet de déployer le gagnant au reste)"
+              className={field} />
+          </label>
         </div>
         <div className="flex justify-end gap-2 px-6 pb-6">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-50">Annuler</button>
@@ -101,13 +117,15 @@ function NouveauTestModal({ campagnes, canaux, modeles, onClose, onCreated }: { 
   );
 }
 
-function VarianteStats({ label, stats }: { label: string; stats: StatsVariante }) {
+function VarianteStats({ label, stats, gagnante }: { label: string; stats: StatsVariante; gagnante: boolean }) {
   return (
-    <div className="bg-slate-50 rounded-xl p-3">
-      <p className="text-xs font-bold text-slate-600">{label}</p>
+    <div className={`rounded-xl p-3 ${gagnante ? "bg-emerald-50 border border-emerald-200" : "bg-slate-50"}`}>
+      <p className="text-xs font-bold text-slate-600 flex items-center gap-1">{label} {gagnante && <Trophy className="w-3.5 h-3.5 text-emerald-600" />}</p>
       <p className="text-[11px] text-slate-500 mt-1">{stats.total} client(s) · {stats.envoyes} envoyé(s)</p>
       <p className="text-sm mt-1">Lecture : <span className="font-semibold">{stats.tauxLecture === null ? "—" : `${stats.tauxLecture.toFixed(0)}%`}</span></p>
       <p className="text-sm">Conversion : <span className="font-semibold text-fuchsia-700">{stats.tauxConversion === null ? "—" : `${stats.tauxConversion.toFixed(0)}%`}</span> ({stats.conversions})</p>
+      <p className="text-sm">CA généré : <span className="font-semibold">{formatCurrency(stats.caGenere)}</span></p>
+      <p className="text-sm">ROI : <span className="font-semibold">{stats.roi === null ? "—" : `${stats.roi.toFixed(0)}%`}</span></p>
     </div>
   );
 }
@@ -120,9 +138,10 @@ export default function TestsABMarketing() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [ouvert, setOuvert] = useState<number | null>(null);
-  const [stats, setStats] = useState<{ A: StatsVariante; B: StatsVariante } | null>(null);
+  const [stats, setStats] = useState<{ A: StatsVariante; B: StatsVariante; varianteGagnante: "A" | "B" | null } | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
   const [lancement, setLancement] = useState<number | null>(null);
+  const [deploiement, setDeploiement] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -167,6 +186,21 @@ export default function TestsABMarketing() {
     finally { setLancement(null); }
   };
 
+  const deployer = async (t: TestAB) => {
+    setDeploiement(t.id);
+    try {
+      const r = await fetch(`/api/admin/marketing/tests-ab/${t.id}/deployer`, { method: "POST" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success(`Variante ${j.data.variante} déployée : ${j.data.envoyes} envoi(s) au reste de l'audience`);
+      load();
+      const rDetail = await fetch(`/api/admin/marketing/tests-ab/${t.id}`);
+      const jDetail = await rDetail.json();
+      if (rDetail.ok) setStats(jDetail.stats);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setDeploiement(null); }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -209,9 +243,22 @@ export default function TestsABMarketing() {
                 ) : loadingStats ? (
                   <div className="py-4 flex justify-center"><Loader2 className="w-4 h-4 animate-spin text-slate-400" /></div>
                 ) : stats ? (
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <VarianteStats label="Variante A" stats={stats.A} />
-                    <VarianteStats label="Variante B" stats={stats.B} />
+                  <div className="pt-2 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <VarianteStats label="Variante A" stats={stats.A} gagnante={stats.varianteGagnante === "A"} />
+                      <VarianteStats label="Variante B" stats={stats.B} gagnante={stats.varianteGagnante === "B"} />
+                    </div>
+                    {t.statut === "DEPLOYE" ? (
+                      <p className="text-xs text-purple-700 bg-purple-50 rounded-lg px-3 py-2">
+                        Variante {t.varianteDeployee} déjà déployée au reste de l&apos;audience.
+                      </p>
+                    ) : t.tailleEchantillon ? (
+                      <button onClick={() => deployer(t)} disabled={deploiement === t.id || !stats.varianteGagnante}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold">
+                        {deploiement === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Rocket className="w-3.5 h-3.5" />}
+                        {stats.varianteGagnante ? `Déployer la variante ${stats.varianteGagnante} au reste de l'audience` : "Pas encore de gagnant net"}
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
               </div>

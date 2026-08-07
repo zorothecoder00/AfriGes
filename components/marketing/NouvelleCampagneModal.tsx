@@ -34,7 +34,7 @@ export default function NouvelleCampagneModal({ onClose, onCreated }: { onClose:
 
   const [form, setForm] = useState({
     nom: "", description: "", typeCampagneId: "", responsableId: "",
-    dateDebut: "", dateFin: "", budgetPrevu: "",
+    dateDebut: "", dateFin: "", budgetPrevu: "", roiCible: "",
     probleme: "", cible: "", message: "", offre: "", zone: "", resultatAttendu: "",
   });
   const [objectifs, setObjectifs] = useState<string[]>([]);
@@ -58,6 +58,7 @@ export default function NouvelleCampagneModal({ onClose, onCreated }: { onClose:
       dateDebut: form.dateDebut,
       dateFin: form.dateFin,
       budgetPrevu: form.budgetPrevu ? Number(form.budgetPrevu) : undefined,
+      roiCible: form.roiCible ? Number(form.roiCible) : undefined,
       objectifs,
       agenceIds,
       canalIds,
@@ -114,10 +115,16 @@ export default function NouvelleCampagneModal({ onClose, onCreated }: { onClose:
               <input type="date" value={form.dateFin} onChange={(e) => setForm((f) => ({ ...f, dateFin: e.target.value }))}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
             </div>
-            <div className="col-span-2">
+            <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Budget prévu (FCFA)</label>
               <input type="number" value={form.budgetPrevu} onChange={(e) => setForm((f) => ({ ...f, budgetPrevu: e.target.value }))}
                 placeholder="ex : 2000000"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Objectif ROI (%) <span className="font-normal text-slate-400">(alerte §77 si non atteint)</span></label>
+              <input type="number" value={form.roiCible} onChange={(e) => setForm((f) => ({ ...f, roiCible: e.target.value }))}
+                placeholder="ex : 150"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
             </div>
           </div>

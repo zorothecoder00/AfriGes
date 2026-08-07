@@ -33,6 +33,8 @@ const gestionnaireDashboardMap: Record<string, string> = {
   // Module Marketing (Phase 1)
   RESPONSABLE_MARKETING: "/dashboard/user/responsablesMarketing",
   COMMUNITY_MANAGER: "/dashboard/user/responsablesMarketing", // CDC §31 — même portail, permissions restreintes (RBAC)
+  DIRECTEUR_MARKETING: "/dashboard/user/responsablesMarketing", // CDC §79 — même portail marketing
+  MARKETING_TERRAIN: "/dashboard/user/responsablesMarketing", // CDC §79 — même portail, permissions restreintes (RBAC)
 }
 
 // Sous-arbres de /dashboard/user ouverts en LECTURE à des gestionnaires dont ce
@@ -57,6 +59,15 @@ const sharedAdminPaths: { prefix: string; roles: string[] }[] = [
   {
     prefix: "/dashboard/admin/comptes-courants",
     roles: ["CHEF_AGENCE", "CAISSIER", "RESPONSABLE_ECONOMIQUE", "AGENT_TERRAIN", "AUDITEUR_INTERNE"],
+  },
+  // CDC §79 — Direction générale (lecture globale + validation stratégique,
+  // dashboard principal = comptables) et Responsable agence (campagnes de son
+  // agence, dashboard principal = son propre portail) accèdent au dashboard
+  // marketing admin en double casquette ; l'autorisation fine reste RBAC
+  // (lib/authMarketing.ts + lib/permissions.ts).
+  {
+    prefix: "/dashboard/admin/marketing",
+    roles: ["DIRECTEUR_GENERAL", "CHEF_AGENCE", "RESPONSABLE_POINT_DE_VENTE"],
   },
 ]
 

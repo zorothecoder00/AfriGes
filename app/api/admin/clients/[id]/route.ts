@@ -123,6 +123,8 @@ export async function PATCH(
       typeClient, limiteCredit,
       // Marketing Phase 2 — communication (CDC §26, §74)
       email, accepteSms, accepteEmail, accepteWhatsapp, accepteOffres,
+      // Centre de préférences (CDC §75)
+      prefPromotions, prefNouveautes, prefFidelite, prefEvenements, prefB2B,
     } = body;
 
     // Valider le statut si fourni
@@ -227,6 +229,11 @@ export async function PATCH(
           ...(accepteEmail       !== undefined && { accepteEmail: Boolean(accepteEmail) }),
           ...(accepteWhatsapp    !== undefined && { accepteWhatsapp: Boolean(accepteWhatsapp) }),
           ...(accepteOffres      !== undefined && { accepteOffres: Boolean(accepteOffres) }),
+          ...(prefPromotions     !== undefined && { prefPromotions: Boolean(prefPromotions) }),
+          ...(prefNouveautes     !== undefined && { prefNouveautes: Boolean(prefNouveautes) }),
+          ...(prefFidelite       !== undefined && { prefFidelite: Boolean(prefFidelite) }),
+          ...(prefEvenements     !== undefined && { prefEvenements: Boolean(prefEvenements) }),
+          ...(prefB2B            !== undefined && { prefB2B: Boolean(prefB2B) }),
         },
       });
 

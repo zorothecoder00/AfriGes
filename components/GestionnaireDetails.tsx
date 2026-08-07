@@ -81,7 +81,9 @@ const getRoleBadgeColor = (role: string) => {
     case 'RESPONSABLE_VENTE_CREDIT':
     case 'RESPONSABLE_ECONOMIQUE':
     case 'RESPONSABLE_MARKETING':
-    case 'COMMUNITY_MANAGER': return 'bg-blue-100 text-blue-700';
+    case 'COMMUNITY_MANAGER':
+    case 'DIRECTEUR_MARKETING':
+    case 'MARKETING_TERRAIN': return 'bg-blue-100 text-blue-700';
     case 'CAISSIER':
     case 'COMPTABLE': return 'bg-amber-100 text-amber-700';
     case 'COMMERCIAL':

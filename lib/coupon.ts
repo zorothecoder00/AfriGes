@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { TxClient } from "@/lib/compteCourant";
+import { emitEvent } from "@/lib/systemEvents";
 
 /**
  * Coupons marketing (CDC §35) — SERVEUR uniquement. Distinct de Promotion
@@ -134,6 +135,9 @@ export async function appliquerCoupon(
       montantRemise: resultat.montantRemise,
     },
   });
+
+  // CDC §83 — coupon.used
+  await emitEvent(tx, "coupon.used", { couponId: opts.coupon.id, code: opts.coupon.code, clientId: opts.clientId, venteId: opts.venteId, montantRemise: resultat.montantRemise });
 
   return resultat;
 }

@@ -97,7 +97,9 @@ export const DEFAULT_MATRIX: Record<string, Partial<Record<string, PermissionAct
   // autorisation) : lecture large + validation, jamais de saisie/suppression.
   DIRECTEUR_GENERAL: {
     caisse: ROE, ventes: ROE, credits: ROE, compte_courant: ROE, paie: ROE, stock: ROE, rh: ROE,
-    comptabilite: [L, V, E], marketing: FULL,
+    comptabilite: [L, V, E],
+    // CDC §79 — "Direction générale" marketing : lecture globale + validation stratégique, jamais de saisie.
+    marketing: [L, V, E],
   },
   // CDC §43 — "Responsable achats" (achats + consultation comptable limitée).
   RESPONSABLE_ACHATS: {
@@ -128,6 +130,17 @@ export const DEFAULT_MATRIX: Record<string, Partial<Record<string, PermissionAct
   // Module Marketing (Phase 1) — accès complet à son périmètre.
   RESPONSABLE_MARKETING: {
     marketing: FULL, ventes: RO, credits: RO, stock: RO,
+  },
+  // CDC §79 — "Directeur Marketing" : campagnes + budgets + analytics. Le RBAC
+  // de ce module est par module (pas par sous-ressource) — même périmètre
+  // d'actions que Responsable Marketing, la distinction "pas les contenus"
+  // n'est pas mise en œuvre (limitation assumée, cohérent avec le §81 ciblé).
+  DIRECTEUR_MARKETING: {
+    marketing: FULL, ventes: RO, credits: RO, stock: RO,
+  },
+  // CDC §79 — "Marketing terrain" : événements + terrain. Crée/modifie, ne valide pas.
+  MARKETING_TERRAIN: {
+    marketing: RW,
   },
   // CDC §31 — crée/modifie/soumet le contenu, ne valide jamais lui-même (pas de VALIDATION).
   COMMUNITY_MANAGER: {

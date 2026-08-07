@@ -398,6 +398,8 @@ export default function GestionnairesPage() {
               <option value="RESPONSABLE_ECONOMIQUE">{t('role_responsable_economique')}</option>
               <option value="RESPONSABLE_MARKETING">{t('role_responsable_marketing')}</option>
               <option value="COMMUNITY_MANAGER">{t('role_community_manager')}</option>
+              <option value="DIRECTEUR_MARKETING">{t('role_directeur_marketing')}</option>
+              <option value="MARKETING_TERRAIN">{t('role_marketing_terrain')}</option>
               <option value="ACTIONNAIRE">{t('role_actionnaire')}</option>
               <option value="RESPONSABLE_RH">{t('role_responsable_rh')}</option>
               <option value="INVESTISSEUR_RIA">{t('role_investisseur_ria')}</option>
@@ -452,6 +454,8 @@ export default function GestionnairesPage() {
                     <option value="RESPONSABLE_ECONOMIQUE">{t('role_responsable_economique')}</option>
                     <option value="RESPONSABLE_MARKETING">{t('role_responsable_marketing')}</option>
               <option value="COMMUNITY_MANAGER">{t('role_community_manager')}</option>
+              <option value="DIRECTEUR_MARKETING">{t('role_directeur_marketing')}</option>
+              <option value="MARKETING_TERRAIN">{t('role_marketing_terrain')}</option>
                     <option value="ACTIONNAIRE">{t('role_actionnaire')}</option>
                     <option value="RESPONSABLE_RH">{t('role_responsable_rh')}</option>
                     <option value="INVESTISSEUR_RIA">{t('role_investisseur_ria')}</option>

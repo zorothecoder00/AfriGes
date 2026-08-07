@@ -32,8 +32,10 @@ export async function GET(req: NextRequest) {
     };
 
     // Scoping agence pour les rôles non-admin/non-marketing (§4 : "responsable
-    // d'agence voit les campagnes de son agence").
-    if (!isAdmin && gRole !== "RESPONSABLE_MARKETING" && gRole !== "DIRECTEUR_GENERAL") {
+    // d'agence voit les campagnes de son agence"). Les rôles marketing dédiés
+    // (§79) n'ont pas d'agence propre — ils voient tout leur périmètre marketing.
+    const ROLES_MARKETING_NON_SCOPES = ["RESPONSABLE_MARKETING", "DIRECTEUR_GENERAL", "COMMUNITY_MANAGER", "DIRECTEUR_MARKETING", "MARKETING_TERRAIN"];
+    if (!isAdmin && !ROLES_MARKETING_NON_SCOPES.includes(gRole ?? "")) {
       const userId = Number(session.user.id);
       const pdvIds = await prisma.pointDeVente.findMany({
         where: { OR: [{ rpvId: userId }, { chefAgenceId: userId }, { responsableId: userId }] },
@@ -82,7 +84,7 @@ export async function POST(req: NextRequest) {
     const {
       nom, description, portee, responsableId, commercialId, typeCampagneId,
       brief, audienceId, dateDebut, dateFin, objectifs, agenceIds, canalIds,
-      produits, budgetPrevu,
+      produits, budgetPrevu, roiCible,
     } = body;
 
     if (!nom || !responsableId || !typeCampagneId || !dateDebut || !dateFin) {
@@ -112,6 +114,7 @@ export async function POST(req: NextRequest) {
           audienceId: audienceId ? Number(audienceId) : null,
           dateDebut: new Date(dateDebut),
           dateFin: new Date(dateFin),
+          roiCible: roiCible !== undefined && roiCible !== null && roiCible !== "" ? Number(roiCible) : null,
           creeParId: userId,
           objectifs: objectifs?.length
             ? { create: (objectifs as string[]).map((o) => ({ objectif: o as never })) }

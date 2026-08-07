@@ -49,6 +49,8 @@ const STATUS_STYLES: Record<string, string> = {
   RESPONSABLE_ECONOMIQUE: "bg-amber-100 text-amber-700 border-amber-200",
   RESPONSABLE_MARKETING: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200",
   COMMUNITY_MANAGER: "bg-pink-100 text-pink-700 border-pink-200",
+  DIRECTEUR_MARKETING: "bg-violet-100 text-violet-700 border-violet-200",
+  MARKETING_TERRAIN: "bg-orange-100 text-orange-700 border-orange-200",
   ACTIONNAIRE: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
@@ -110,6 +112,8 @@ const STATUS_LABELS: Record<string, string> = {
   RESPONSABLE_ECONOMIQUE: "Responsable économique",
   RESPONSABLE_MARKETING: "Responsable marketing",
   COMMUNITY_MANAGER: "Community Manager",
+  DIRECTEUR_MARKETING: "Directeur Marketing",
+  MARKETING_TERRAIN: "Marketing terrain",
   ACTIONNAIRE: "Actionnaire",
 };
 

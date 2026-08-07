@@ -27,6 +27,7 @@ interface Client {
   agentTerrain?: { id: number; nom: string; prenom: string } | null;
   email: string | null;
   accepteSms: boolean; accepteEmail: boolean; accepteWhatsapp: boolean; accepteOffres: boolean;
+  prefPromotions: boolean; prefNouveautes: boolean; prefFidelite: boolean; prefEvenements: boolean; prefB2B: boolean;
 }
 
 interface AgentOption {
@@ -75,6 +76,7 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
     // Communication marketing (CDC §26, §74)
     email: '',
     accepteSms: true, accepteEmail: true, accepteWhatsapp: true, accepteOffres: true,
+    prefPromotions: true, prefNouveautes: true, prefFidelite: true, prefEvenements: false, prefB2B: false,
   });
 
   useEffect(() => {
@@ -108,12 +110,18 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
         accepteEmail:        c.accepteEmail,
         accepteWhatsapp:     c.accepteWhatsapp,
         accepteOffres:       c.accepteOffres,
+        prefPromotions:      c.prefPromotions,
+        prefNouveautes:      c.prefNouveautes,
+        prefFidelite:        c.prefFidelite,
+        prefEvenements:      c.prefEvenements,
+        prefB2B:             c.prefB2B,
       });
     }, 0);
     return () => clearTimeout(timer);
   }, [response]);
 
-  type ConsentField = 'accepteSms' | 'accepteEmail' | 'accepteWhatsapp' | 'accepteOffres';
+  type ConsentField = 'accepteSms' | 'accepteEmail' | 'accepteWhatsapp' | 'accepteOffres'
+    | 'prefPromotions' | 'prefNouveautes' | 'prefFidelite' | 'prefEvenements' | 'prefB2B';
   const set = (field: Exclude<keyof typeof form, ConsentField>) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
   const toggleConsent = (field: ConsentField) => () =>
@@ -174,6 +182,11 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
       accepteEmail:        form.accepteEmail,
       accepteWhatsapp:     form.accepteWhatsapp,
       accepteOffres:       form.accepteOffres,
+      prefPromotions:      form.prefPromotions,
+      prefNouveautes:      form.prefNouveautes,
+      prefFidelite:        form.prefFidelite,
+      prefEvenements:      form.prefEvenements,
+      prefB2B:             form.prefB2B,
     });
     if (result) router.push(`/dashboard/admin/clients/${clientId}`);
   };
@@ -383,6 +396,25 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
               ))}
             </div>
             <p className="text-xs text-gray-400">Consentement du client à recevoir des communications marketing par canal (CDC §74) — décoché = le client n&apos;est jamais sollicité sur ce canal.</p>
+
+            <div className="pt-2 border-t border-gray-100">
+              <p className="text-xs font-medium text-gray-600 mb-2">Centre de préférences — catégories de contenu (CDC §75)</p>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {([
+                  ['prefPromotions', 'Promotions'],
+                  ['prefNouveautes', 'Nouveautés'],
+                  ['prefFidelite', 'Fidélité'],
+                  ['prefEvenements', 'Événements'],
+                  ['prefB2B', 'B2B'],
+                ] as [ConsentField, string][]).map(([field, label]) => (
+                  <label key={field} className="flex items-center gap-2 px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 cursor-pointer">
+                    <input type="checkbox" checked={form[field]} onChange={toggleConsent(field)} className="accent-emerald-600" />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">Filtre par type de contenu, indépendant du canal — une promotion ne sera pas envoyée si &quot;Promotions&quot; est décoché, même si le canal est autorisé.</p>
+            </div>
           </div>
 
           {/* ─ Statut & affectation ─ */}
