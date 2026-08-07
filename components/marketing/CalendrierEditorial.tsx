@@ -12,6 +12,13 @@ interface PublicationItem {
   responsable: { id: number; nom: string; prenom: string };
   asset: { id: number; nom: string; url: string } | null;
 }
+interface CanalMarketing { id: number; code: string; libelle: string; actif: boolean }
+interface CampagneOption { id: number; nom: string }
+interface Reference {
+  pdvs: { id: number; nom: string }[];
+  produits: { id: number; nom: string }[];
+  utilisateurs: { id: number; nom: string; prenom: string }[];
+}
 
 const STATUT_LABEL: Record<string, string> = {
   IDEE: "Idée", BROUILLON: "Brouillon", EN_REVISION: "En révision",
@@ -33,10 +40,16 @@ const ACTIONS_PAR_STATUT: Record<string, { action: string; label: string; icon: 
   PROGRAMME: [{ action: "PUBLIER", label: "Marquer comme publié", icon: MegaphoneIcon, style: "bg-emerald-600 hover:bg-emerald-700" }],
 };
 
+const FILTRES_VIDES = { statut: "", canalId: "", campagneId: "", pointDeVenteId: "", produitId: "", responsableId: "" };
+
 /** Calendrier éditorial (CDC §27-28, §30-31) — liste filtrable + workflow. Partagé admin/portail. */
 export default function CalendrierEditorial() {
-  const [statutFiltre, setStatutFiltre] = useState("");
-  const { data: res, loading, refetch } = useApi<{ data: PublicationItem[] }>(`/api/admin/marketing/publications${statutFiltre ? `?statut=${statutFiltre}` : ""}`);
+  const [filtres, setFiltres] = useState(FILTRES_VIDES);
+  const qs = new URLSearchParams(Object.fromEntries(Object.entries(filtres).filter(([, v]) => v))).toString();
+  const { data: res, loading, refetch } = useApi<{ data: PublicationItem[] }>(`/api/admin/marketing/publications${qs ? `?${qs}` : ""}`);
+  const { data: canauxRes } = useApi<{ data: CanalMarketing[] }>("/api/admin/marketing/canaux");
+  const { data: campagnesRes } = useApi<{ data: CampagneOption[] }>("/api/admin/marketing/campagnes");
+  const { data: refRes } = useApi<{ data: Reference }>("/api/admin/marketing/reference");
   const [modalOpen, setModalOpen] = useState(false);
   const [ouvert, setOuvert] = useState<number | null>(null);
   const actionIdRef = useRef<number | null>(null);
@@ -45,13 +58,38 @@ export default function CalendrierEditorial() {
     { invalidate: "/api/admin/marketing/publications" }
   );
 
+  const majFiltre = (patch: Partial<typeof filtres>) => setFiltres((f) => ({ ...f, ...patch }));
+  const selectCls = "px-2.5 py-2 border border-slate-200 rounded-xl text-xs bg-white";
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <select value={statutFiltre} onChange={(e) => setStatutFiltre(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white">
-          <option value="">Tous les statuts</option>
-          {Object.entries(STATUT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
+          <select value={filtres.statut} onChange={(e) => majFiltre({ statut: e.target.value })} className={selectCls}>
+            <option value="">Tous les statuts</option>
+            {Object.entries(STATUT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+          <select value={filtres.canalId} onChange={(e) => majFiltre({ canalId: e.target.value })} className={selectCls}>
+            <option value="">Tous les réseaux</option>
+            {(canauxRes?.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.libelle}</option>)}
+          </select>
+          <select value={filtres.campagneId} onChange={(e) => majFiltre({ campagneId: e.target.value })} className={selectCls}>
+            <option value="">Toutes les campagnes</option>
+            {(campagnesRes?.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+          </select>
+          <select value={filtres.pointDeVenteId} onChange={(e) => majFiltre({ pointDeVenteId: e.target.value })} className={selectCls}>
+            <option value="">Toutes les agences</option>
+            {(refRes?.data.pdvs ?? []).map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+          </select>
+          <select value={filtres.produitId} onChange={(e) => majFiltre({ produitId: e.target.value })} className={selectCls}>
+            <option value="">Tous les produits</option>
+            {(refRes?.data.produits ?? []).map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+          </select>
+          <select value={filtres.responsableId} onChange={(e) => majFiltre({ responsableId: e.target.value })} className={selectCls}>
+            <option value="">Tous les responsables</option>
+            {(refRes?.data.utilisateurs ?? []).map((u) => <option key={u.id} value={u.id}>{u.prenom} {u.nom}</option>)}
+          </select>
+        </div>
         <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-fuchsia-600 text-white rounded-xl text-sm font-semibold hover:bg-fuchsia-700">
           <Plus size={16} /> Nouvelle publication
         </button>

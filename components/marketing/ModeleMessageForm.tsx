@@ -10,10 +10,15 @@ export type BlocEmailForm =
   | { type: "BOUTON"; texte: string; url: string }
   | { type: "PRODUIT"; produitId: number }
   | { type: "PROMOTION"; promotionId: number }
-  | { type: "LIEN"; texte: string; url: string };
+  | { type: "LIEN"; texte: string; url: string }
+  | { type: "COUPON"; couponId: number };
 
 interface CanalMarketing { id: number; code: string; libelle: string; actif: boolean }
-interface Reference { produits: { id: number; nom: string }[]; utilisateurs: { id: number; nom: string; prenom: string }[] }
+interface Reference {
+  produits: { id: number; nom: string }[];
+  utilisateurs: { id: number; nom: string; prenom: string }[];
+  coupons: { id: number; code: string; nom: string }[];
+}
 
 const CATEGORIES = [
   ["BIENVENUE", "Bienvenue"], ["CONFIRMATION", "Confirmation"], ["PROMOTION", "Promotion"], ["RELANCE", "Relance"],
@@ -25,7 +30,7 @@ const CATEGORIES = [
 const VARIABLES = ["prenom", "nom", "agence", "dernier_achat", "montant", "points_fidelite", "date"];
 
 const BLOC_LABEL: Record<BlocEmailForm["type"], string> = {
-  TEXTE: "Texte", IMAGE: "Image", BOUTON: "Bouton", PRODUIT: "Produit", PROMOTION: "Promotion", LIEN: "Lien",
+  TEXTE: "Texte", IMAGE: "Image", BOUTON: "Bouton", PRODUIT: "Produit", PROMOTION: "Promotion", LIEN: "Lien", COUPON: "Coupon",
 };
 
 function blocParDefaut(type: BlocEmailForm["type"]): BlocEmailForm {
@@ -36,6 +41,7 @@ function blocParDefaut(type: BlocEmailForm["type"]): BlocEmailForm {
     case "PRODUIT": return { type, produitId: 0 };
     case "PROMOTION": return { type, promotionId: 0 };
     case "LIEN": return { type, texte: "", url: "" };
+    case "COUPON": return { type, couponId: 0 };
   }
 }
 
@@ -173,6 +179,13 @@ export default function ModeleMessageForm({ onClose, onCreated }: { onClose: () 
                         <input type="number" value={b.promotionId || ""} onChange={(e) => majBloc(i, { promotionId: Number(e.target.value) })}
                           placeholder="ID de la promotion (Catalogue)"
                           className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
+                      )}
+                      {b.type === "COUPON" && (
+                        <select value={b.couponId || ""} onChange={(e) => majBloc(i, { couponId: Number(e.target.value) })}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white">
+                          <option value="">—</option>
+                          {(refRes?.data.coupons ?? []).map((c) => <option key={c.id} value={c.id}>{c.code} — {c.nom}</option>)}
+                        </select>
                       )}
                     </div>
                   ))}

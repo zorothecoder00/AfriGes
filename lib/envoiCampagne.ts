@@ -93,6 +93,8 @@ export async function envoyerMessageAUnClient(params: {
 
   let contenuRendu: string;
   let ok: boolean;
+  let providerMessageId: string | undefined;
+  let coutEstime: number | undefined;
   try {
     if (canal.code === "EMAIL") {
       const objet = modele.objet ? await resoudreVariables(modele.objet, clientId, contexte) : modele.nom;
@@ -104,7 +106,16 @@ export async function envoyerMessageAUnClient(params: {
       ok = await sendEmail({ to: destinataire, subject: objet, html: contenuRendu });
     } else {
       contenuRendu = await resoudreVariables(modele.contenuTexte ?? "", clientId, contexte);
-      ok = canal.code === "SMS" ? await sendSMS(destinataire, contenuRendu) : await sendWhatsApp(destinataire, contenuRendu);
+      if (canal.code === "SMS") {
+        const resultat = await sendSMS(destinataire, contenuRendu);
+        ok = resultat.ok;
+        providerMessageId = resultat.providerMessageId;
+        if (ok) coutEstime = Number((await prisma.parametrageMarketing.findUnique({ where: { id: 1 } }))?.coutParSms ?? 20);
+      } else {
+        const resultat = await sendWhatsApp(destinataire, contenuRendu);
+        ok = resultat.ok;
+        providerMessageId = resultat.providerMessageId;
+      }
     }
   } catch (e) {
     contenuRendu = "";
@@ -115,7 +126,7 @@ export async function envoyerMessageAUnClient(params: {
   await prisma.envoiMessage.create({
     data: {
       campagneId, modeleMessageId, canalId, clientId, envoyeParId: userId,
-      destinataire, contenuRendu,
+      destinataire, contenuRendu, providerMessageId, coutEstime,
       statut: ok ? "ENVOYE" : "ECHEC",
       erreur: ok ? null : "Envoi refusé par le fournisseur (non configuré ou erreur réseau)",
     },

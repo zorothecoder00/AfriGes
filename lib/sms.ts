@@ -18,12 +18,18 @@
 
 import { normalizePhone } from "@/lib/phone";
 
-async function sendViaAfricasTalking(to: string, message: string): Promise<boolean> {
+export interface ResultatEnvoiProvider {
+  ok: boolean;
+  /** Identifiant du message côté fournisseur — permet de corréler les webhooks de statut (CDC §24-25). */
+  providerMessageId?: string;
+}
+
+async function sendViaAfricasTalking(to: string, message: string): Promise<ResultatEnvoiProvider> {
   const apiKey = process.env.AT_API_KEY;
   const username = process.env.AT_USERNAME;
   if (!apiKey || !username) {
     console.warn("[SMS] Africa's Talking : AT_API_KEY / AT_USERNAME manquants");
-    return false;
+    return { ok: false };
   }
 
   const body = new URLSearchParams({ username, to, message });
@@ -41,18 +47,20 @@ async function sendViaAfricasTalking(to: string, message: string): Promise<boole
 
   if (!res.ok) {
     console.error("[SMS] Africa's Talking erreur :", await res.text());
-    return false;
+    return { ok: false };
   }
-  return true;
+  // Africa's Talking ne fournit pas de webhook de statut simple sans config DLR dédiée
+  // côté leur portail — pas d'id de corrélation exploitable ici (limitation assumée).
+  return { ok: true };
 }
 
-async function sendViaTwilioSMS(to: string, message: string): Promise<boolean> {
+async function sendViaTwilioSMS(to: string, message: string): Promise<ResultatEnvoiProvider> {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
   const from = process.env.TWILIO_SMS_FROM;
   if (!sid || !token || !from) {
     console.warn("[SMS] Twilio : variables d'env manquantes");
-    return false;
+    return { ok: false };
   }
 
   const body = new URLSearchParams({ To: to, From: from, Body: message });
@@ -70,22 +78,24 @@ async function sendViaTwilioSMS(to: string, message: string): Promise<boolean> {
 
   if (!res.ok) {
     console.error("[SMS] Twilio erreur :", await res.text());
-    return false;
+    return { ok: false };
   }
-  return true;
+  const data = await res.json().catch(() => null);
+  return { ok: true, providerMessageId: data?.sid };
 }
 
 /**
  * Envoie un SMS au numéro donné.
- * Retourne true si l'envoi a réussi, false sinon (échec non-bloquant).
+ * Retourne { ok, providerMessageId? } — providerMessageId sert à corréler le
+ * webhook de statut (livré/échec) reçu ultérieurement du fournisseur.
  */
-export async function sendSMS(to: string, message: string): Promise<boolean> {
-  if (process.env.SMS_ENABLED !== "true") return false;
+export async function sendSMS(to: string, message: string): Promise<ResultatEnvoiProvider> {
+  if (process.env.SMS_ENABLED !== "true") return { ok: false };
 
   const phone = normalizePhone(to);
   if (!phone) {
     console.warn(`[SMS] Numéro invalide : ${to}`);
-    return false;
+    return { ok: false };
   }
 
   const provider = process.env.SMS_PROVIDER ?? "africas_talking";
@@ -94,6 +104,6 @@ export async function sendSMS(to: string, message: string): Promise<boolean> {
     return await sendViaAfricasTalking(phone, message);
   } catch (err) {
     console.error("[SMS] Erreur inattendue :", err);
-    return false;
+    return { ok: false };
   }
 }

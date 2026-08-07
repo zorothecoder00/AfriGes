@@ -19,14 +19,15 @@
  */
 
 import { normalizePhone } from "@/lib/phone";
+import type { ResultatEnvoiProvider } from "@/lib/sms";
 
-async function sendViaTwilioWA(to: string, message: string): Promise<boolean> {
+async function sendViaTwilioWA(to: string, message: string): Promise<ResultatEnvoiProvider> {
   const sid   = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
   const from  = process.env.TWILIO_WA_FROM;
   if (!sid || !token || !from) {
     console.warn("[WA] Twilio : TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_WA_FROM manquants");
-    return false;
+    return { ok: false };
   }
 
   const body = new URLSearchParams({
@@ -49,17 +50,18 @@ async function sendViaTwilioWA(to: string, message: string): Promise<boolean> {
 
   if (!res.ok) {
     console.error("[WA] Twilio erreur :", await res.text());
-    return false;
+    return { ok: false };
   }
-  return true;
+  const data = await res.json().catch(() => null);
+  return { ok: true, providerMessageId: data?.sid };
 }
 
-async function sendViaMetaWA(to: string, message: string): Promise<boolean> {
+async function sendViaMetaWA(to: string, message: string): Promise<ResultatEnvoiProvider> {
   const token   = process.env.META_WA_TOKEN;
   const phoneId = process.env.META_WA_PHONE_ID;
   if (!token || !phoneId) {
     console.warn("[WA] Meta : META_WA_TOKEN / META_WA_PHONE_ID manquants");
-    return false;
+    return { ok: false };
   }
 
   // Meta attend le numéro sans le + (ex: 22890123456)
@@ -84,22 +86,24 @@ async function sendViaMetaWA(to: string, message: string): Promise<boolean> {
 
   if (!res.ok) {
     console.error("[WA] Meta erreur :", await res.text());
-    return false;
+    return { ok: false };
   }
-  return true;
+  const data = await res.json().catch(() => null);
+  return { ok: true, providerMessageId: data?.messages?.[0]?.id };
 }
 
 /**
  * Envoie un message WhatsApp au numéro donné.
- * Retourne true si l'envoi a réussi, false sinon (échec non-bloquant).
+ * Retourne { ok, providerMessageId? } — providerMessageId sert à corréler le
+ * webhook de statut (livré/lu/échec/réponse) reçu ultérieurement du fournisseur.
  */
-export async function sendWhatsApp(to: string, message: string): Promise<boolean> {
-  if (process.env.WA_ENABLED !== "true") return false;
+export async function sendWhatsApp(to: string, message: string): Promise<ResultatEnvoiProvider> {
+  if (process.env.WA_ENABLED !== "true") return { ok: false };
 
   const phone = normalizePhone(to);
   if (!phone) {
     console.warn(`[WA] Numéro invalide : ${to}`);
-    return false;
+    return { ok: false };
   }
 
   const provider = process.env.WA_PROVIDER ?? "twilio";
@@ -108,6 +112,6 @@ export async function sendWhatsApp(to: string, message: string): Promise<boolean
     return await sendViaTwilioWA(phone, message);
   } catch (err) {
     console.error("[WA] Erreur inattendue :", err);
-    return false;
+    return { ok: false };
   }
 }

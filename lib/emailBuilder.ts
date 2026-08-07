@@ -14,7 +14,8 @@ export type BlocEmail =
   | { type: "BOUTON"; texte: string; url: string }
   | { type: "PRODUIT"; produitId: number }
   | { type: "PROMOTION"; promotionId: number }
-  | { type: "LIEN"; texte: string; url: string };
+  | { type: "LIEN"; texte: string; url: string }
+  | { type: "COUPON"; couponId: number };
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
 
@@ -43,6 +44,15 @@ async function rendererBloc(bloc: BlocEmail): Promise<string> {
       return `<div style="border:2px dashed #0f172a;border-radius:8px;padding:16px;margin:0 0 16px;text-align:center;">
         <p style="margin:0;font-weight:700;color:#0f172a;">${esc(promo.nom)}</p>
         <p style="margin:4px 0 0;font-size:13px;color:#64748b;">Code : ${esc(promo.code)}</p>
+      </div>`;
+    }
+    case "COUPON": {
+      const coupon = await prisma.coupon.findUnique({ where: { id: bloc.couponId }, select: { nom: true, code: true, description: true } });
+      if (!coupon) return "";
+      return `<div style="border:2px dashed #db2777;border-radius:8px;padding:16px;margin:0 0 16px;text-align:center;background:#fdf4ff;">
+        <p style="margin:0;font-weight:700;color:#a21caf;">${esc(coupon.nom)}</p>
+        <p style="margin:6px 0 0;font-size:18px;font-weight:800;letter-spacing:2px;color:#0f172a;">${esc(coupon.code)}</p>
+        ${coupon.description ? `<p style="margin:6px 0 0;font-size:13px;color:#64748b;">${esc(coupon.description)}</p>` : ""}
       </div>`;
     }
     default:

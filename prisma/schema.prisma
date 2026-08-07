@@ -745,6 +745,7 @@ model User {
   reglesAutomatisationCreees RegleAutomatisation[] @relation("RegleAutomatisationCreePar")
   tachesMarketingAssignees   TacheMarketing[]      @relation("TacheMarketingAssigneA")
   tachesMarketingCreees      TacheMarketing[]      @relation("TacheMarketingCreePar")
+  messagesInternes           MessageInterne[]
 
   // Packs & fidélité
   souscriptionsPacks SouscriptionPack[]
@@ -9125,6 +9126,8 @@ enum TypeBlocEmail {
   PRODUIT
   PROMOTION
   LIEN
+  /// CDC §26 — bloc coupon. Différé en Phase 2 (modèle Coupon inexistant à l'époque) ; Coupon existe depuis la Phase 5.
+  COUPON
 }
 
 enum StatutEnvoiMessage {
@@ -9195,8 +9198,23 @@ model EnvoiMessage {
 // Réglages no-code du centre de communication (CDC §73 frequency capping) —
 // ligne unique id=1 (singleton), éditable via l'UI sans intervention développeur.
 model ParametrageMarketing {
-  id                          Int @id @default(1)
-  maxCommunicationsParSemaine Int @default(3)
+  id                          Int     @id @default(1)
+  maxCommunicationsParSemaine Int     @default(3)
+  /// CDC §25 — coût forfaitaire par SMS envoyé (XOF), pour le calcul de EnvoiMessage.coutEstime. Éditable sans code.
+  coutParSms                  Decimal @default(20)
+}
+
+/// Messagerie interne d'équipe marketing (CDC §21 "Messages internes") — fil
+/// chronologique partagé, pas de 1-to-1/DM (hors scope, pas de besoin exprimé
+/// au-delà d'un canal d'équipe).
+model MessageInterne {
+  id        Int      @id @default(autoincrement())
+  contenu   String
+  auteurId  Int
+  auteur    User     @relation(fields: [auteurId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

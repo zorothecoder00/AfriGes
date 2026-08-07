@@ -22,16 +22,31 @@ export async function PATCH(req: Request) {
   const denied = await requirePermission(session, "marketing", "MODIFICATION");
   if (denied) return denied;
 
-  const { maxCommunicationsParSemaine } = await req.json();
-  const valeur = Number(maxCommunicationsParSemaine);
-  if (!Number.isInteger(valeur) || valeur < 1) {
-    return NextResponse.json({ error: "maxCommunicationsParSemaine doit être un entier ≥ 1" }, { status: 400 });
+  const { maxCommunicationsParSemaine, coutParSms } = await req.json();
+
+  const data: { maxCommunicationsParSemaine?: number; coutParSms?: number } = {};
+  if (maxCommunicationsParSemaine !== undefined) {
+    const valeur = Number(maxCommunicationsParSemaine);
+    if (!Number.isInteger(valeur) || valeur < 1) {
+      return NextResponse.json({ error: "maxCommunicationsParSemaine doit être un entier ≥ 1" }, { status: 400 });
+    }
+    data.maxCommunicationsParSemaine = valeur;
+  }
+  if (coutParSms !== undefined) {
+    const valeur = Number(coutParSms);
+    if (!Number.isFinite(valeur) || valeur < 0) {
+      return NextResponse.json({ error: "coutParSms doit être un nombre ≥ 0" }, { status: 400 });
+    }
+    data.coutParSms = valeur;
+  }
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: "Aucun champ à mettre à jour" }, { status: 400 });
   }
 
   const param = await prisma.parametrageMarketing.upsert({
     where: { id: 1 },
-    create: { id: 1, maxCommunicationsParSemaine: valeur },
-    update: { maxCommunicationsParSemaine: valeur },
+    create: { id: 1, ...data },
+    update: data,
   });
   return NextResponse.json({ data: param });
 }
