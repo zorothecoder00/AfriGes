@@ -904,6 +904,15 @@ model User {
   recompensesEchangesCreees RecompenseEchange[]
   challengesMarketingCrees  ChallengeMarketing[]
 
+  // Marketing (Phase 6 — Terrain & Événementiel)
+  operationsTerrainCreees   OperationTerrain[]      @relation("OperationTerrainCreePar")
+  operationsTerrainEquipier OperationTerrainAgent[] @relation("OperationTerrainEquipe")
+  evenementsMarketingCrees  EvenementMarketing[]    @relation("EvenementMarketingCreePar")
+  qrCodesMarketingCrees     QrCodeMarketing[]       @relation("QrCodeMarketingCreePar")
+  landingPagesCreees        LandingPageMarketing[]  @relation("LandingPageMarketingCreePar")
+  formulairesMarketingCrees FormulaireMarketing[]   @relation("FormulaireMarketingCreePar")
+  partenairesMarketingCrees PartenaireMarketing[]   @relation("PartenaireMarketingCreePar")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -978,6 +987,10 @@ model PointDeVente {
   // Bulk pour clients
   clientsPDV ClientPointDeVente[]
   coupons    Coupon[]
+
+  // Marketing (Phase 6 — Terrain & Événementiel)
+  operationsTerrain      OperationTerrain[]
+  soumissionsFormulaires SoumissionFormulaire[]
 
   // Relations opérationnelles
   affectations               GestionnaireAffectation[]
@@ -1156,6 +1169,10 @@ model Client {
   codeParrainage              String?                  @unique // généré à la création, permet à ce client de parrainer
   parrainagesEnTantQueParrain Parrainage[]             @relation("ParrainageParrain")
   parrainageEnTantQueFilleul  Parrainage?              @relation("ParrainageFilleul")
+
+  // Marketing (Phase 6 — Terrain & Événementiel)
+  participationsEvenement ParticipantEvenement[]
+  soumissionsFormulaires  SoumissionFormulaire[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2037,20 +2054,21 @@ model Produit {
 
   // ── Catalogue §3 : classification structurée ─────────────────────────────
   familleId               Int?
-  famille                 FamilleProduit?       @relation(fields: [familleId], references: [id])
+  famille                 FamilleProduit?        @relation(fields: [familleId], references: [id])
   sousFamilleId           Int?
-  sousFamille             SousFamilleProduit?   @relation(fields: [sousFamilleId], references: [id])
+  sousFamille             SousFamilleProduit?    @relation(fields: [sousFamilleId], references: [id])
   categorieId             Int?
-  categorieProduit        CategorieProduit?     @relation(fields: [categorieId], references: [id])
+  categorieProduit        CategorieProduit?      @relation(fields: [categorieId], references: [id])
   sousCategorieId         Int?
-  sousCategorie           SousCategorieProduit? @relation(fields: [sousCategorieId], references: [id])
+  sousCategorie           SousCategorieProduit?  @relation(fields: [sousCategorieId], references: [id])
   marqueId                Int?
-  marque                  MarqueProduit?        @relation(fields: [marqueId], references: [id])
+  marque                  MarqueProduit?         @relation(fields: [marqueId], references: [id])
   fournisseurPrincipalId  Int?
-  fournisseurPrincipal    Fournisseur?          @relation(fields: [fournisseurPrincipalId], references: [id])
-  fournisseursSecondaires Fournisseur[]         @relation("ProduitFournisseursSecondaires") // CDC §5 — sources alternatives
+  fournisseurPrincipal    Fournisseur?           @relation(fields: [fournisseurPrincipalId], references: [id])
+  fournisseursSecondaires Fournisseur[]          @relation("ProduitFournisseursSecondaires") // CDC §5 — sources alternatives
   paysOrigine             String?
   coupons                 Coupon[]
+  landingPagesMarketing   LandingPageMarketing[]
 
   // ── Comptabilité §52 : mapping comptable de la fiche produit — niveau le plus
   // précis de la cascade Produit > Catégorie > Famille > Configuration générale
@@ -2373,6 +2391,9 @@ model Coupon {
 
   utilisations CouponUtilisation[]
   ventes       VenteDirecte[]
+
+  // Marketing (Phase 6) — coupon émis pour un partenaire (influenceur/affilié).
+  lienAffiliation LienAffiliation?
 
   creeParId Int
   creePar   User     @relation(fields: [creeParId], references: [id])
@@ -8923,6 +8944,15 @@ model Campagne {
   promotions           Promotion[]
   coupons              Coupon[]
 
+  // Marketing (Phase 6 — Terrain & Événementiel)
+  operationsTerrain OperationTerrain[]
+  evenements        EvenementMarketing[]
+  qrCodes           QrCodeMarketing[]
+  landingPages      LandingPageMarketing[]
+  formulaires       FormulaireMarketing[]
+  soumissions       SoumissionFormulaire[]
+  liensAffiliation  LienAffiliation[]
+
   creeParId Int
   creePar   User @relation("CampagneCreePar", fields: [creeParId], references: [id])
 
@@ -9363,4 +9393,289 @@ model TacheMarketing {
   updatedAt DateTime @updatedAt
 
   @@index([assigneAId, statut])
+}
+
+// ============================================================
+// MARKETING — Phase 6 : Terrain & Événementiel (CDC §41-49)
+// ============================================================
+// Toujours rattaché à une Campagne existante (réutilise budget/dates/agences/
+// attribution CA déjà portés par Campagne, Phase 1) — ces modèles n'ajoutent
+// que les détails propres à l'exécution terrain/événementielle/partenariale.
+
+enum TypeOperationTerrain {
+  STREET_MARKETING
+  FLYERS
+  PORTE_A_PORTE
+  ANIMATION_MARCHE
+  DEGUSTATION
+  STAND
+  CARAVANE
+  AUTRE
+}
+
+enum StatutOperationTerrain {
+  PLANIFIEE
+  EN_COURS
+  TERMINEE
+  ANNULEE
+}
+
+model OperationTerrain {
+  id             Int                    @id @default(autoincrement())
+  campagneId     Int
+  campagne       Campagne               @relation(fields: [campagneId], references: [id])
+  type           TypeOperationTerrain
+  zone           String
+  pointDeVenteId Int?
+  pointDeVente   PointDeVente?          @relation(fields: [pointDeVenteId], references: [id])
+  dateDebut      DateTime
+  dateFin        DateTime
+  budget         Decimal                @default(0)
+  objectifsText  String?
+  statut         StatutOperationTerrain @default(PLANIFIEE)
+
+  // Résultats — saisis par le staff en fin d'opération (simplification assumée :
+  // pas de capture de lead unitaire sur le terrain, contrairement aux formulaires).
+  prospectsGeneres Int     @default(0)
+  clientsConvertis Int     @default(0)
+  ventesGenereesCA Decimal @default(0)
+  resultatsNotes   String?
+
+  equipe      OperationTerrainAgent[]
+  soumissions SoumissionFormulaire[]
+  qrCodes     QrCodeMarketing[]
+
+  creeParId Int
+  creePar   User     @relation("OperationTerrainCreePar", fields: [creeParId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campagneId])
+  @@index([statut])
+}
+
+model OperationTerrainAgent {
+  operationTerrainId Int
+  agentId            Int
+
+  operationTerrain OperationTerrain @relation(fields: [operationTerrainId], references: [id], onDelete: Cascade)
+  agent            User             @relation("OperationTerrainEquipe", fields: [agentId], references: [id])
+
+  @@id([operationTerrainId, agentId])
+}
+
+enum StatutEvenement {
+  PLANIFIE
+  EN_COURS
+  TERMINE
+  ANNULE
+}
+
+model EvenementMarketing {
+  id          Int             @id @default(autoincrement())
+  campagneId  Int?
+  campagne    Campagne?       @relation(fields: [campagneId], references: [id])
+  nom         String
+  lieu        String?
+  dateDebut   DateTime
+  dateFin     DateTime
+  budget      Decimal         @default(0)
+  partenaires String?
+  statut      StatutEvenement @default(PLANIFIE)
+
+  participants ParticipantEvenement[]
+  qrCodes      QrCodeMarketing[]
+  soumissions  SoumissionFormulaire[]
+
+  creeParId Int
+  creePar   User     @relation("EvenementMarketingCreePar", fields: [creeParId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campagneId])
+  @@index([statut])
+}
+
+enum StatutParticipantEvenement {
+  INVITE
+  INSCRIT
+  PRESENT
+  ABSENT
+}
+
+/// Un invité/participant d'événement, converti en Client une fois qualifié
+/// (même principe que SoumissionFormulaire.clientIdCree).
+model ParticipantEvenement {
+  id          Int                        @id @default(autoincrement())
+  evenementId Int
+  evenement   EvenementMarketing         @relation(fields: [evenementId], references: [id], onDelete: Cascade)
+  nom         String
+  telephone   String?
+  email       String?
+  statut      StatutParticipantEvenement @default(INVITE)
+  clientId    Int?
+  client      Client?                    @relation(fields: [clientId], references: [id])
+  createdAt   DateTime                   @default(now())
+
+  @@index([evenementId])
+}
+
+/// Code QR généré pour une campagne/opération/événement, pointant vers une
+/// landing page (ou une URL de secours) — chaque scan est compté pour tracer
+/// la source des prospects (CDC §43).
+model QrCodeMarketing {
+  id                 Int                   @id @default(autoincrement())
+  code               String                @unique
+  campagneId         Int?
+  campagne           Campagne?             @relation(fields: [campagneId], references: [id])
+  operationTerrainId Int?
+  operationTerrain   OperationTerrain?     @relation(fields: [operationTerrainId], references: [id])
+  evenementId        Int?
+  evenement          EvenementMarketing?   @relation(fields: [evenementId], references: [id])
+  landingPageId      Int?
+  landingPage        LandingPageMarketing? @relation(fields: [landingPageId], references: [id])
+  destinationUrl     String? // utilisée si aucune landing page n'est associée
+  nbScans            Int                   @default(0)
+  actif              Boolean               @default(true)
+
+  soumissions SoumissionFormulaire[]
+
+  creeParId Int
+  creePar   User     @relation("QrCodeMarketingCreePar", fields: [creeParId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campagneId])
+}
+
+/// Page d'atterrissage simple (titre/offre/CTA/formulaire) — pas un
+/// constructeur visuel, un rendu serveur standard suffit (CDC §44).
+model LandingPageMarketing {
+  id           Int                  @id @default(autoincrement())
+  slug         String               @unique
+  campagneId   Int?
+  campagne     Campagne?            @relation(fields: [campagneId], references: [id])
+  titre        String
+  description  String?
+  produitId    Int?
+  produit      Produit?             @relation(fields: [produitId], references: [id])
+  offreTexte   String?
+  imageUrl     String?
+  ctaLabel     String?
+  ctaUrl       String?
+  formulaireId Int?
+  formulaire   FormulaireMarketing? @relation(fields: [formulaireId], references: [id])
+  actif        Boolean              @default(true)
+  nbVues       Int                  @default(0)
+
+  qrCodes     QrCodeMarketing[]
+  soumissions SoumissionFormulaire[]
+
+  creeParId Int
+  creePar   User     @relation("LandingPageMarketingCreePar", fields: [creeParId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campagneId])
+}
+
+/// Form builder minimal : `champs` liste les champs dynamiques
+/// ({cle,label,type,requis}) — pas de table relationnelle par champ, cohérent
+/// avec BadgeMarketing.condition (Phase 5) pour ce type de structure ouverte.
+model FormulaireMarketing {
+  id         Int       @id @default(autoincrement())
+  nom        String
+  campagneId Int?
+  campagne   Campagne? @relation(fields: [campagneId], references: [id])
+  champs     Json
+  actif      Boolean   @default(true)
+
+  landingPages LandingPageMarketing[]
+  soumissions  SoumissionFormulaire[]
+
+  creeParId Int
+  creePar   User     @relation("FormulaireMarketingCreePar", fields: [creeParId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Une soumission de formulaire (CDC §45-46) — convertie en Client dès
+/// réception (§85 : pas de table "leads" dupliquant le CRM). La source
+/// complète (campagne/canal/agence/QR/landing page/événement/opération) est
+/// tracée ici, sur le Client c'est juste un client normal.
+model SoumissionFormulaire {
+  id                 Int                   @id @default(autoincrement())
+  formulaireId       Int
+  formulaire         FormulaireMarketing   @relation(fields: [formulaireId], references: [id])
+  donnees            Json
+  campagneId         Int?
+  campagne           Campagne?             @relation(fields: [campagneId], references: [id])
+  canal              String?
+  pointDeVenteId     Int?
+  pointDeVente       PointDeVente?         @relation(fields: [pointDeVenteId], references: [id])
+  qrCodeId           Int?
+  qrCode             QrCodeMarketing?      @relation(fields: [qrCodeId], references: [id])
+  landingPageId      Int?
+  landingPage        LandingPageMarketing? @relation(fields: [landingPageId], references: [id])
+  evenementId        Int?
+  evenement          EvenementMarketing?   @relation(fields: [evenementId], references: [id])
+  operationTerrainId Int?
+  operationTerrain   OperationTerrain?     @relation(fields: [operationTerrainId], references: [id])
+  clientIdCree       Int?
+  clientCree         Client?               @relation(fields: [clientIdCree], references: [id])
+  createdAt          DateTime              @default(now())
+
+  @@index([formulaireId])
+  @@index([campagneId])
+  @@index([clientIdCree])
+}
+
+enum TypePartenaireMarketing {
+  INFLUENCEUR
+  AFFILIE
+}
+
+/// Unifie Influenceurs (§47-48) et Affiliés (§49) — même structure
+/// (profil + lien/code unique + clics/leads/ventes/CA/commission/ROI), CDC
+/// §49 décrit un tunnel identique à celui des influenceurs.
+model PartenaireMarketing {
+  id             Int                     @id @default(autoincrement())
+  type           TypePartenaireMarketing
+  nom            String
+  contact        String?
+  plateforme     String?
+  audienceTaille Int?
+  tarif          Decimal?
+  commissionPct  Decimal                 @default(0)
+  actif          Boolean                 @default(true)
+
+  liens LienAffiliation[]
+
+  creeParId Int
+  creePar   User     @relation("PartenaireMarketingCreePar", fields: [creeParId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Lien/code unique d'un partenaire (CDC §49). `couponId` réutilise le moteur
+/// Coupon (Phase 5) pour l'attribution des ventes — pas de mécanisme de
+/// remise/tracking parallèle. `nbClics` compte les visites du lien avant achat.
+model LienAffiliation {
+  id             Int                 @id @default(autoincrement())
+  partenaireId   Int
+  partenaire     PartenaireMarketing @relation(fields: [partenaireId], references: [id])
+  campagneId     Int?
+  campagne       Campagne?           @relation(fields: [campagneId], references: [id])
+  code           String              @unique
+  couponId       Int?                @unique
+  coupon         Coupon?             @relation(fields: [couponId], references: [id])
+  destinationUrl String?
+  nbClics        Int                 @default(0)
+  actif          Boolean             @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partenaireId])
+  @@index([campagneId])
 }

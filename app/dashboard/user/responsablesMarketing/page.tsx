@@ -5,7 +5,7 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Menu, Plus, Loader2, Megaphone, Users, Wallet, LayoutDashboard, MessageCircle, Image as ImageIcon, Zap,
-  Send, CheckCircle2, XCircle, Play, Pause, RotateCcw, Flag, Archive, Sparkles, Tag, Gift, Users2,
+  Send, CheckCircle2, XCircle, Play, Pause, RotateCcw, Flag, Archive, Sparkles, Tag, Gift, Users2, MapPin, Rocket, Star,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import AccountMenuButton from "@/components/AccountMenuButton";
@@ -28,8 +28,14 @@ import RecompensesFidelite from "@/components/marketing/RecompensesFidelite";
 import ChallengesMarketing from "@/components/marketing/ChallengesMarketing";
 import BadgesMarketing from "@/components/marketing/BadgesMarketing";
 import ParrainageMarketing from "@/components/marketing/ParrainageMarketing";
+import OperationsTerrainMarketing from "@/components/marketing/OperationsTerrainMarketing";
+import EvenementsMarketing from "@/components/marketing/EvenementsMarketing";
+import QrCodesMarketing from "@/components/marketing/QrCodesMarketing";
+import LandingPagesMarketing from "@/components/marketing/LandingPagesMarketing";
+import FormulairesMarketing from "@/components/marketing/FormulairesMarketing";
+import PartenairesMarketing from "@/components/marketing/PartenairesMarketing";
 
-type TabKey = "synthese" | "campagnes" | "audiences" | "communication" | "contenu" | "automatisation" | "budgets" | "promotions" | "fidelisation" | "parrainage";
+type TabKey = "synthese" | "campagnes" | "audiences" | "communication" | "contenu" | "automatisation" | "budgets" | "promotions" | "fidelisation" | "parrainage" | "terrain" | "acquisition" | "partenaires";
 
 interface StatsResponse {
   data: {
@@ -94,6 +100,9 @@ export default function ResponsableMarketingPage() {
     { key: "promotions", label: "Promotions", icon: Tag },
     { key: "fidelisation", label: "Fidélisation", icon: Gift },
     { key: "parrainage", label: "Parrainage", icon: Users2 },
+    { key: "terrain", label: "Terrain", icon: MapPin },
+    { key: "acquisition", label: "Acquisition", icon: Rocket },
+    { key: "partenaires", label: "Partenaires", icon: Star },
     { key: "budgets", label: "Budgets", icon: Wallet },
   ];
 
@@ -147,6 +156,9 @@ export default function ResponsableMarketingPage() {
           {activeTab === "promotions" && <Promotions />}
           {activeTab === "fidelisation" && <Fidelisation />}
           {activeTab === "parrainage" && <ParrainageMarketing />}
+          {activeTab === "terrain" && <Terrain />}
+          {activeTab === "acquisition" && <Acquisition />}
+          {activeTab === "partenaires" && <PartenairesMarketing />}
           {activeTab === "budgets" && <Budgets />}
         </main>
       </div>
@@ -376,6 +388,35 @@ function Fidelisation() {
       {vue === "recompenses" && <RecompensesFidelite />}
       {vue === "challenges" && <ChallengesMarketing />}
       {vue === "badges" && <BadgesMarketing />}
+    </div>
+  );
+}
+
+function Terrain() {
+  const [vue, setVue] = useState<"operations" | "evenements">("operations");
+  return (
+    <div className="space-y-4">
+      <div className="flex bg-slate-100 rounded-xl p-1 w-fit">
+        <button onClick={() => setVue("operations")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "operations" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Opérations</button>
+        <button onClick={() => setVue("evenements")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "evenements" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Événements</button>
+      </div>
+      {vue === "operations" ? <OperationsTerrainMarketing /> : <EvenementsMarketing />}
+    </div>
+  );
+}
+
+function Acquisition() {
+  const [vue, setVue] = useState<"landing" | "formulaires" | "qr">("landing");
+  return (
+    <div className="space-y-4">
+      <div className="flex bg-slate-100 rounded-xl p-1 w-fit">
+        <button onClick={() => setVue("landing")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "landing" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Landing pages</button>
+        <button onClick={() => setVue("formulaires")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "formulaires" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Formulaires</button>
+        <button onClick={() => setVue("qr")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "qr" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>QR Codes</button>
+      </div>
+      {vue === "landing" && <LandingPagesMarketing />}
+      {vue === "formulaires" && <FormulairesMarketing />}
+      {vue === "qr" && <QrCodesMarketing />}
     </div>
   );
 }
