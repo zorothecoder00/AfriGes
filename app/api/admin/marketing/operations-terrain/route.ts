@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getMarketingSession } from "@/lib/authMarketing";
 import { requirePermission } from "@/lib/permissions";
 import { auditLog } from "@/lib/notifications";
-import { validerOperationTerrain } from "@/lib/operationTerrain";
+import { validerOperationTerrain } from "@/lib/operationTerrainServer";
 
 /**
  * Opérations marketing terrain (CDC §41).
