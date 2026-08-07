@@ -916,6 +916,9 @@ model User {
   // Marketing (Phase 7 — Analytics & IA)
   testsABCrees TestAB[] @relation("TestABCreePar")
 
+  // Marketing (fermeture des manques CDC)
+  depensesMarketingCreees DepenseMarketing[] @relation("DepenseMarketingCreePar")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -994,6 +997,9 @@ model PointDeVente {
   // Marketing (Phase 6 — Terrain & Événementiel)
   operationsTerrain      OperationTerrain[]
   soumissionsFormulaires SoumissionFormulaire[]
+
+  // Marketing (fermeture des manques CDC — §50)
+  zonesChalandise ZoneChalandise[]
 
   // Relations opérationnelles
   affectations               GestionnaireAffectation[]
@@ -8759,15 +8765,22 @@ enum PorteeCampagne {
   COMMERCIALE
 }
 
-enum ObjectifCampagneType {
-  ACQUISITION
-  CONVERSION
-  FIDELISATION
-  REACTIVATION
-  CROSS_SELLING
-  UPSELLING
-  NOTORIETE
-  TRAFIC
+/// Objectif de campagne — table paramétrable (CDC §81, "sans code"), pas un
+/// enum : remplace l'ancien ObjectifCampagneType (jamais branché nulle part
+/// dans le code applicatif — modèle orphelin, migration sans risque de perte
+/// de données). Mêmes 8 valeurs seedées en migration, éditables ensuite par
+/// l'admin comme TypeCampagne/CanalMarketing.
+model ObjectifCampagne {
+  id      Int     @id @default(autoincrement())
+  code    String  @unique
+  libelle String
+  actif   Boolean @default(true)
+  ordre   Int     @default(0)
+
+  campagnes CampagneObjectif[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum TypeAudience {
@@ -8794,6 +8807,9 @@ enum ChampAudience {
   STATUT_CREDIT
   NIVEAU_FIDELITE
   TAG
+  /// CDC §51 — géolocalisation : `valeur` au format "pointDeVenteId:rayonKm".
+  /// L'opérateur n'est pas utilisé pour ce champ (toujours "dans le rayon").
+  DISTANCE_AGENCE_KM
 }
 
 enum OperateurAudience {
@@ -8977,11 +8993,12 @@ model Campagne {
 
 model CampagneObjectif {
   campagneId Int
-  objectif   ObjectifCampagneType
+  objectifId Int
 
-  campagne Campagne @relation(fields: [campagneId], references: [id], onDelete: Cascade)
+  campagne Campagne         @relation(fields: [campagneId], references: [id], onDelete: Cascade)
+  objectif ObjectifCampagne @relation(fields: [objectifId], references: [id])
 
-  @@id([campagneId, objectif])
+  @@id([campagneId, objectifId])
 }
 
 model CampagneAgence {
@@ -9050,9 +9067,14 @@ model DepenseMarketing {
   montant             Decimal
   date                DateTime                  @default(now())
   description         String?
-  ecritureComptableId Int? // lien optionnel vers une écriture comptable existante
+  /// CDC §54 — mode de règlement (ESPECES/VIREMENT/CHEQUE/MOBILE_MONEY),
+  /// résout le compte de trésorerie crédité par l'écriture comptable
+  /// automatique (défaut ESPECES/Caisse si non renseigné).
+  modePaiement        String?
+  ecritureComptableId Int? // lien optionnel vers une écriture comptable existante (CDC §53)
 
   creeParId Int
+  creePar   User @relation("DepenseMarketingCreePar", fields: [creeParId], references: [id])
 
   campagne Campagne         @relation(fields: [campagneId], references: [id])
   budget   BudgetMarketing? @relation(fields: [budgetId], references: [id])
@@ -9752,4 +9774,53 @@ model TestABAssignation {
 
   @@unique([testId, clientId])
   @@index([testId])
+}
+
+// ============================================================
+// MARKETING — Fermeture des manques CDC (§50-51, §81)
+// ============================================================
+
+enum TypeZoneChalandise {
+  VILLE
+  COMMUNE
+  QUARTIER
+  MARCHE
+  ENTREPRISE
+  ECOLE
+  INSTITUTION
+}
+
+/// Zone de chalandise d'une agence (CDC §50) — simple répertoire de cibles
+/// locales (villes/communes/quartiers/marchés/entreprises/écoles/
+/// institutions), consulté pour construire des campagnes/opérations terrain
+/// ciblées sur le secteur de l'agence. Pas une intégration profonde avec le
+/// moteur d'audience (VILLE/COMMUNE/QUARTIER y existent déjà comme champs) —
+/// pour MARCHE/ENTREPRISE/ECOLE/INSTITUTION, simple registre de référence.
+model ZoneChalandise {
+  id             Int                @id @default(autoincrement())
+  pointDeVenteId Int
+  pointDeVente   PointDeVente       @relation(fields: [pointDeVenteId], references: [id], onDelete: Cascade)
+  type           TypeZoneChalandise
+  nom            String
+  notes          String?
+  createdAt      DateTime           @default(now())
+
+  @@index([pointDeVenteId])
+}
+
+/// Seuils de la segmentation RFM (CDC §81, "sans code") — singleton éditable,
+/// remplace les seuils en dur de lib/audienceMarketing.ts::calculerSegmentsRFM.
+/// Valeurs par défaut = seuils historiques (zéro régression tant que personne
+/// n'édite le paramétrage).
+model ParametrageRFM {
+  id                        Int      @id @default(1)
+  seuilPerduJours           Int      @default(180)
+  seuilDormantJours         Int      @default(90)
+  seuilRisqueJours          Int      @default(60)
+  seuilRisqueFrequenceMin   Int      @default(2)
+  percentileGrosAcheteur    Float    @default(0.10) // top 10% par montant total
+  seuilChampionFrequence    Int      @default(5)
+  seuilChampionRecenceJours Int      @default(30)
+  seuilFideleFrequence      Int      @default(3)
+  updatedAt                 DateTime @updatedAt
 }

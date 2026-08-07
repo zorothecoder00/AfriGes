@@ -36,6 +36,8 @@ import FormulairesMarketing from "@/components/marketing/FormulairesMarketing";
 import PartenairesMarketing from "@/components/marketing/PartenairesMarketing";
 import AnalyticsMarketing from "@/components/marketing/AnalyticsMarketing";
 import TestsABMarketing from "@/components/marketing/TestsABMarketing";
+import ZonesChalandiseMarketing from "@/components/marketing/ZonesChalandiseMarketing";
+import DepensesMarketing from "@/components/marketing/DepensesMarketing";
 
 type TabKey = "synthese" | "campagnes" | "audiences" | "communication" | "contenu" | "automatisation" | "budgets" | "promotions" | "fidelisation" | "parrainage" | "terrain" | "acquisition" | "partenaires" | "analytics";
 
@@ -397,14 +399,17 @@ function Fidelisation() {
 }
 
 function Terrain() {
-  const [vue, setVue] = useState<"operations" | "evenements">("operations");
+  const [vue, setVue] = useState<"operations" | "evenements" | "zones">("operations");
   return (
     <div className="space-y-4">
       <div className="flex bg-slate-100 rounded-xl p-1 w-fit">
         <button onClick={() => setVue("operations")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "operations" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Opérations</button>
         <button onClick={() => setVue("evenements")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "evenements" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Événements</button>
+        <button onClick={() => setVue("zones")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "zones" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Zones de chalandise</button>
       </div>
-      {vue === "operations" ? <OperationsTerrainMarketing /> : <EvenementsMarketing />}
+      {vue === "operations" && <OperationsTerrainMarketing />}
+      {vue === "evenements" && <EvenementsMarketing />}
+      {vue === "zones" && <ZonesChalandiseMarketing />}
     </div>
   );
 }
@@ -439,6 +444,7 @@ function Analytics() {
 }
 
 function Budgets() {
+  const [vue, setVue] = useState<"budgets" | "depenses">("budgets");
   const { data: res, loading, refetch } = useApi<{ data: CampagneItem[] }>("/api/admin/marketing/campagnes");
   const budgetIdRef = useRef<number | null>(null);
   const { mutate: agirBudget } = useMutation<unknown, { action: string }>(
@@ -449,7 +455,11 @@ function Budgets() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-slate-800">Budgets</h2>
+      <div className="flex bg-slate-100 rounded-xl p-1 w-fit">
+        <button onClick={() => setVue("budgets")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "budgets" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Budgets</button>
+        <button onClick={() => setVue("depenses")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "depenses" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Dépenses</button>
+      </div>
+      {vue === "depenses" ? <DepensesMarketing /> : (
       <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-50">
         {loading && !res ? (
           <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
@@ -468,6 +478,7 @@ function Budgets() {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

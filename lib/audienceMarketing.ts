@@ -125,9 +125,37 @@ async function idsPourRegleAgregee(regle: RegleAudience, candidats: number[]): P
       });
       return tags.map((t) => t.clientId);
     }
+    case "DISTANCE_AGENCE_KM": {
+      // Format valeur : "pointDeVenteId:rayonKm" (CDC §51 — pas de champ dédié,
+      // opérateur ignoré : toujours "dans le rayon").
+      const [pdvIdStr, rayonStr] = regle.valeur.split(":");
+      const pdvId = N(pdvIdStr);
+      const rayonKm = N(rayonStr);
+      if (!pdvId || !rayonKm) return [];
+      const pdv = await prisma.pointDeVente.findUnique({ where: { id: pdvId }, select: { latitude: true, longitude: true } });
+      if (pdv?.latitude == null || pdv?.longitude == null) return [];
+      const clients = await prisma.client.findMany({
+        where: { id: { in: candidats }, latitude: { not: null }, longitude: { not: null } },
+        select: { id: true, latitude: true, longitude: true },
+      });
+      return clients
+        .filter((c) => distanceKm(pdv.latitude!, pdv.longitude!, c.latitude!, c.longitude!) <= rayonKm)
+        .map((c) => c.id);
+    }
     default:
       return null; // champ direct, déjà géré par construireWhereDirect
   }
+}
+
+/** Distance à vol d'oiseau entre deux points GPS (formule de Haversine), en km. */
+function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function cmp(valeur: number, operateur: OperateurAudience, seuil: number): boolean {
@@ -220,12 +248,22 @@ export interface ClientRFM {
   segment: SegmentRFM;
 }
 
+/** Charge (et crée au besoin) le paramétrage singleton des seuils RFM (CDC §81 — sans code). */
+export async function chargerParametrageRFM() {
+  const existant = await prisma.parametrageRFM.findUnique({ where: { id: 1 } });
+  if (existant) return existant;
+  return prisma.parametrageRFM.create({ data: { id: 1 } });
+}
+
 /**
  * Calcule Récence/Fréquence/Montant par client à partir de VenteDirecte et les
  * étiquette en 7 segments (CDC §14). Seuils simples et documentés (pas de
- * scoring quintile ML) — cohérent avec le niveau Phase 1 du module.
+ * scoring quintile ML) — cohérent avec le niveau Phase 1 du module. Seuils
+ * chargés depuis ParametrageRFM (éditables sans code), défauts = valeurs
+ * historiques en dur (zéro régression tant que personne n'édite).
  */
 export async function calculerSegmentsRFM(): Promise<ClientRFM[]> {
+  const param = await chargerParametrageRFM();
   const now = new Date();
   const groupes = await prisma.venteDirecte.groupBy({
     by: ["clientId"],
@@ -236,7 +274,7 @@ export async function calculerSegmentsRFM(): Promise<ClientRFM[]> {
   });
 
   const montants = groupes.map((g) => Number(g._sum.montantTotal ?? 0)).sort((a, b) => b - a);
-  const seuilGrosAcheteur = montants[Math.floor(montants.length * 0.1)] ?? Infinity; // top 10%
+  const seuilGrosAcheteur = montants[Math.floor(montants.length * param.percentileGrosAcheteur)] ?? Infinity;
 
   return groupes
     .filter((g) => g.clientId != null)
@@ -247,13 +285,13 @@ export async function calculerSegmentsRFM(): Promise<ClientRFM[]> {
       const recenceJours = Math.floor((now.getTime() - dernier.getTime()) / jourMs);
 
       let segment: SegmentRFM;
-      if (frequence === 1 && recenceJours <= 30) segment = "NOUVEAUX";
-      else if (recenceJours > 180) segment = "PERDUS";
-      else if (recenceJours > 90) segment = "DORMANTS";
-      else if (recenceJours > 60 && frequence >= 2) segment = "A_RISQUE"; // achetait régulièrement, ralentit (§15)
+      if (frequence === 1 && recenceJours <= param.seuilChampionRecenceJours) segment = "NOUVEAUX";
+      else if (recenceJours > param.seuilPerduJours) segment = "PERDUS";
+      else if (recenceJours > param.seuilDormantJours) segment = "DORMANTS";
+      else if (recenceJours > param.seuilRisqueJours && frequence >= param.seuilRisqueFrequenceMin) segment = "A_RISQUE"; // achetait régulièrement, ralentit (§15)
       else if (montantTotal >= seuilGrosAcheteur) segment = "GROS_ACHETEURS";
-      else if (frequence >= 5 && recenceJours <= 30) segment = "CHAMPIONS";
-      else if (frequence >= 3) segment = "FIDELES";
+      else if (frequence >= param.seuilChampionFrequence && recenceJours <= param.seuilChampionRecenceJours) segment = "CHAMPIONS";
+      else if (frequence >= param.seuilFideleFrequence) segment = "FIDELES";
       else segment = "FIDELES";
 
       return { clientId: g.clientId as number, recenceJours, frequence, montantTotal, segment };

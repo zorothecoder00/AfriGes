@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { calculerSegmentsRFM, type SegmentRFM } from "@/lib/audienceMarketing";
+import { calculerAttributionVente, type ModeleAttribution } from "@/lib/attributionModeles";
 
 /**
  * Analytics marketing (CDC §7 — Phase 7) : attribution, valeur vie client
@@ -21,15 +22,16 @@ export interface RepartitionAttribution {
 
 /**
  * Répartit le CA attribué (ventes liées à une campagne) selon plusieurs axes.
- * Attribution "dernier contact" (le champ VenteDirecte.campagneId déjà posé
- * en Phase 1) — pas de modèle multi-touch, cohérent avec l'existant.
+ * `modele` (CDC §57) : CAMPAIGN_BASED (défaut, comportement historique — 100%
+ * à VenteDirecte.campagneId) ou FIRST_TOUCH/LAST_TOUCH/LINEAR (reconstruction
+ * multi-touch via lib/attributionModeles.ts, plus coûteux car évalué vente par
+ * vente).
  */
-export async function rapportAttribution(debut: Date, fin: Date): Promise<RepartitionAttribution> {
+export async function rapportAttribution(debut: Date, fin: Date, modele: ModeleAttribution = "CAMPAIGN_BASED"): Promise<RepartitionAttribution> {
   const ventes = await prisma.venteDirecte.findMany({
     where: { campagneId: { not: null }, createdAt: { gte: debut, lte: fin }, statut: { notIn: VENTES_EXCLUES as never } },
     select: {
-      montantTotal: true,
-      campagne: { select: { typeCampagne: { select: { libelle: true } } } },
+      campagneId: true, clientId: true, createdAt: true, montantTotal: true,
       client: { select: { segment: true } },
       lignes: { select: { montant: true, produit: { select: { famille: { select: { nom: true } } } } } },
     },
@@ -39,16 +41,27 @@ export async function rapportAttribution(debut: Date, fin: Date): Promise<Repart
   const parSegment = new Map<string, number>();
   const parFamille = new Map<string, number>();
 
-  for (const v of ventes) {
-    const typeLabel = v.campagne?.typeCampagne.libelle ?? "—";
-    parType.set(typeLabel, (parType.get(typeLabel) ?? 0) + Number(v.montantTotal));
+  // Cache des libellés de type de campagne (une seule requête, réutilisée pour
+  // toutes les ventes/toutes les campagnes touchées par le modèle multi-touch).
+  const campagneIds = [...new Set(ventes.map((v) => v.campagneId).filter((id): id is number => id != null))];
+  const campagnes = campagneIds.length
+    ? await prisma.campagne.findMany({ where: { id: { in: campagneIds } }, select: { id: true, typeCampagne: { select: { libelle: true } } } })
+    : [];
+  const typeLabelParCampagne = new Map(campagnes.map((c) => [c.id, c.typeCampagne.libelle]));
 
+  for (const v of ventes) {
     const segLabel = v.client?.segment === "RIA" ? "Communauté RIA" : "Ordinaire";
     parSegment.set(segLabel, (parSegment.get(segLabel) ?? 0) + Number(v.montantTotal));
 
     for (const l of v.lignes) {
       const familleLabel = l.produit?.famille?.nom ?? "—";
       parFamille.set(familleLabel, (parFamille.get(familleLabel) ?? 0) + Number(l.montant));
+    }
+
+    const attribution = await calculerAttributionVente(v, modele);
+    for (const a of attribution) {
+      const typeLabel = typeLabelParCampagne.get(a.campagneId) ?? "—";
+      parType.set(typeLabel, (parType.get(typeLabel) ?? 0) + Number(v.montantTotal) * a.poids);
     }
   }
 
@@ -175,4 +188,185 @@ export async function recommandationsMarketing(): Promise<{ compteurs: Record<Se
   recommandations.sort((a, b) => (a.priorite === b.priorite ? b.nbClients - a.nbClients : a.priorite === "HAUTE" ? -1 : 1));
 
   return { compteurs, recommandations };
+}
+
+// ─── Analyse par canal (CDC §59) ────────────────────────────────────────────
+
+export interface LigneCanal {
+  canal: string;
+  leads: number;
+  clients: number;
+  ca: number;
+  cout: number;
+  cac: number | null;
+  roi: number | null;
+}
+
+/**
+ * Comparatif Canal/Leads/Clients/CA/Coût/CAC/ROI (CDC §59). Une campagne
+ * multi-canaux répartit son CA/coût à parts égales entre ses canaux (même
+ * simplification que `parAgence` dans /api/admin/marketing/stats). Inclut
+ * deux pseudo-canaux "Terrain" et "Événementiel" (CDC §59 cite "Terrain" en
+ * exemple, à côté de Facebook/WhatsApp/Radio) car ce ne sont pas des
+ * CanalMarketing au sens Communication (Phase 2), mais des canaux d'acquisition
+ * à part entière (Phase 6).
+ */
+export async function rapportParCanal(debut: Date, fin: Date): Promise<LigneCanal[]> {
+  const canaux = await prisma.canalMarketing.findMany({ where: { actif: true }, select: { id: true, libelle: true } });
+
+  const campagnesCanaux = await prisma.campagneCanal.findMany({ select: { campagneId: true, canalId: true } });
+  const canalIdsParCampagne = new Map<number, number[]>();
+  for (const cc of campagnesCanaux) {
+    const arr = canalIdsParCampagne.get(cc.campagneId) ?? [];
+    arr.push(cc.canalId);
+    canalIdsParCampagne.set(cc.campagneId, arr);
+  }
+
+  const [ventes, depenses, leadsDistinct] = await Promise.all([
+    prisma.venteDirecte.findMany({
+      where: { campagneId: { not: null }, createdAt: { gte: debut, lte: fin }, statut: { notIn: VENTES_EXCLUES as never } },
+      select: { campagneId: true, clientId: true, montantTotal: true },
+    }),
+    prisma.depenseMarketing.findMany({ where: { date: { gte: debut, lte: fin } }, select: { campagneId: true, montant: true } }),
+    prisma.envoiMessage.findMany({
+      where: { dateEnvoi: { gte: debut, lte: fin }, statut: { not: "EN_ATTENTE" } },
+      select: { canalId: true, clientId: true }, distinct: ["canalId", "clientId"],
+    }),
+  ]);
+
+  const caParCanal = new Map<number, number>();
+  const coutParCanal = new Map<number, number>();
+  const clientsParCanal = new Map<number, Set<number>>();
+  const leadsParCanal = new Map<number, number>();
+
+  for (const v of ventes) {
+    const canalIds = canalIdsParCampagne.get(v.campagneId as number) ?? [];
+    if (!canalIds.length) continue;
+    const part = Number(v.montantTotal) / canalIds.length;
+    for (const cid of canalIds) {
+      caParCanal.set(cid, (caParCanal.get(cid) ?? 0) + part);
+      if (v.clientId) {
+        const s = clientsParCanal.get(cid) ?? new Set<number>();
+        s.add(v.clientId);
+        clientsParCanal.set(cid, s);
+      }
+    }
+  }
+  for (const d of depenses) {
+    const canalIds = canalIdsParCampagne.get(d.campagneId) ?? [];
+    if (!canalIds.length) continue;
+    const part = Number(d.montant) / canalIds.length;
+    for (const cid of canalIds) coutParCanal.set(cid, (coutParCanal.get(cid) ?? 0) + part);
+  }
+  for (const l of leadsDistinct) leadsParCanal.set(l.canalId, (leadsParCanal.get(l.canalId) ?? 0) + 1);
+
+  const lignes: LigneCanal[] = canaux.map((c) => {
+    const ca = caParCanal.get(c.id) ?? 0;
+    const cout = coutParCanal.get(c.id) ?? 0;
+    const clients = clientsParCanal.get(c.id)?.size ?? 0;
+    return {
+      canal: c.libelle, leads: leadsParCanal.get(c.id) ?? 0, clients, ca, cout,
+      cac: clients > 0 ? cout / clients : null,
+      roi: cout > 0 ? ((ca - cout) / cout) * 100 : null,
+    };
+  });
+
+  const [operations, evenements, participants] = await Promise.all([
+    prisma.operationTerrain.findMany({
+      where: { dateDebut: { lte: fin }, dateFin: { gte: debut } },
+      select: { budget: true, prospectsGeneres: true, clientsConvertis: true, ventesGenereesCA: true },
+    }),
+    prisma.evenementMarketing.findMany({ where: { dateDebut: { lte: fin }, dateFin: { gte: debut } }, select: { budget: true } }),
+    prisma.participantEvenement.findMany({ where: { createdAt: { gte: debut, lte: fin } }, select: { clientId: true } }),
+  ]);
+
+  const terrainCout = operations.reduce((s, o) => s + Number(o.budget), 0);
+  const terrainCa = operations.reduce((s, o) => s + Number(o.ventesGenereesCA), 0);
+  const terrainClients = operations.reduce((s, o) => s + o.clientsConvertis, 0);
+  lignes.push({
+    canal: "Terrain", leads: operations.reduce((s, o) => s + o.prospectsGeneres, 0), clients: terrainClients,
+    ca: terrainCa, cout: terrainCout,
+    cac: terrainClients > 0 ? terrainCout / terrainClients : null,
+    roi: terrainCout > 0 ? ((terrainCa - terrainCout) / terrainCout) * 100 : null,
+  });
+
+  const evtCout = evenements.reduce((s, e) => s + Number(e.budget), 0);
+  const evtClients = participants.filter((p) => p.clientId != null).length;
+  lignes.push({
+    canal: "Événementiel", leads: participants.length, clients: evtClients,
+    ca: 0, cout: evtCout, // CA non tracké par événement (pas de lien direct vente↔événement)
+    cac: evtClients > 0 ? evtCout / evtClients : null, roi: null,
+  });
+
+  return lignes.sort((a, b) => b.ca - a.ca);
+}
+
+// ─── Analyse produits marketing (CDC §60-61) ────────────────────────────────
+
+export interface LigneProduitMarketing {
+  produitId: number;
+  nom: string;
+  ventesApresCampagne: number;
+  caApresCampagne: number;
+  nbPromotionsCoupons: number;
+  margeUnitaire: number | null;
+  rotation: number | null; // quantité vendue (période) / stock actuel — faible = rotation lente
+  stockDisponible: number;
+}
+
+/**
+ * Produits les plus promus / les plus vendus après campagne / rotation / marge
+ * (CDC §60) + disponibilité stock consultable côté marketing (CDC §61 — lecture
+ * seule, ne gère pas le stock). "Produits complémentaires" et "saisonniers" ne
+ * sont PAS couverts : aucune donnée de catalogue croisée (liens produits
+ * complémentaires, tag saisonnier) n'existe dans ce codebase — limite honnête,
+ * pas un oubli d'implémentation.
+ */
+export async function rapportProduitsMarketing(debut: Date, fin: Date, limit = 20): Promise<LigneProduitMarketing[]> {
+  const lignesCampagne = await prisma.ligneVenteDirecte.groupBy({
+    by: ["produitId"],
+    where: { produitId: { not: null }, vente: { campagneId: { not: null }, createdAt: { gte: debut, lte: fin }, statut: { notIn: VENTES_EXCLUES as never } } },
+    _sum: { quantite: true, montant: true },
+  });
+  if (!lignesCampagne.length) return [];
+
+  const produitIds = lignesCampagne.filter((l) => l.produitId != null).map((l) => l.produitId as number);
+
+  const [produits, stocks, ventesGlobales, promoParProduit, couponParProduit] = await Promise.all([
+    prisma.produit.findMany({ where: { id: { in: produitIds } }, select: { id: true, nom: true, prixUnitaire: true, prixAchat: true } }),
+    prisma.stockSite.groupBy({ by: ["produitId"], where: { produitId: { in: produitIds } }, _sum: { quantite: true } }),
+    prisma.ligneVenteDirecte.groupBy({
+      by: ["produitId"],
+      where: { produitId: { in: produitIds }, vente: { createdAt: { gte: debut, lte: fin }, statut: { notIn: VENTES_EXCLUES as never } } },
+      _sum: { quantite: true },
+    }),
+    prisma.promotion.groupBy({ by: ["produitId"], where: { produitId: { in: produitIds }, actif: true, dateDebut: { lte: fin }, dateFin: { gte: debut } }, _count: { _all: true } }),
+    prisma.coupon.groupBy({ by: ["produitId"], where: { produitId: { in: produitIds }, actif: true, dateDebut: { lte: fin }, dateFin: { gte: debut } }, _count: { _all: true } }),
+  ]);
+
+  const produitMap = new Map(produits.map((p) => [p.id, p]));
+  const stockMap = new Map(stocks.map((s) => [s.produitId, Number(s._sum.quantite ?? 0)]));
+  const venteGlobaleMap = new Map(ventesGlobales.map((v) => [v.produitId, Number(v._sum.quantite ?? 0)]));
+  const promoMap = new Map(promoParProduit.map((p) => [p.produitId, p._count._all]));
+  const couponMap = new Map(couponParProduit.filter((c) => c.produitId != null).map((c) => [c.produitId as number, c._count._all]));
+
+  return lignesCampagne
+    .filter((l): l is typeof l & { produitId: number } => l.produitId != null)
+    .map((l) => {
+      const produit = produitMap.get(l.produitId);
+      const stock = stockMap.get(l.produitId) ?? 0;
+      const venteGlobale = venteGlobaleMap.get(l.produitId) ?? 0;
+      return {
+        produitId: l.produitId,
+        nom: produit?.nom ?? `Produit #${l.produitId}`,
+        ventesApresCampagne: l._sum.quantite ?? 0,
+        caApresCampagne: Number(l._sum.montant ?? 0),
+        nbPromotionsCoupons: (promoMap.get(l.produitId) ?? 0) + (couponMap.get(l.produitId) ?? 0),
+        margeUnitaire: produit ? Number(produit.prixUnitaire) - Number(produit.prixAchat ?? 0) : null,
+        rotation: stock > 0 ? Math.round((venteGlobale / stock) * 100) / 100 : null,
+        stockDisponible: stock,
+      };
+    })
+    .sort((a, b) => b.caApresCampagne - a.caApresCampagne)
+    .slice(0, limit);
 }

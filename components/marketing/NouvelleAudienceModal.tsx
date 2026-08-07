@@ -14,6 +14,7 @@ const CHAMPS = [
   { value: "DERNIER_ACHAT_JOURS", label: "Jours depuis dernier achat" }, { value: "PRODUIT_ACHETE", label: "Produit acheté (ID)" },
   { value: "FAMILLE_PRODUIT_ACHETEE", label: "Famille de produit achetée (ID)" }, { value: "STATUT_CREDIT", label: "Statut crédit" },
   { value: "NIVEAU_FIDELITE", label: "Niveau fidélité" }, { value: "TAG", label: "Tag (ID)" },
+  { value: "DISTANCE_AGENCE_KM", label: "Distance à une agence (rayon)" },
 ];
 const OPERATEURS = [
   { value: "EGAL", label: "=" }, { value: "DIFFERENT", label: "≠" }, { value: "SUPERIEUR", label: ">" },
@@ -84,7 +85,8 @@ export default function NouvelleAudienceModal({ onClose, onCreated }: { onClose:
                   className="w-32 px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white">
                   {OPERATEURS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
-                <input value={r.valeur} onChange={(e) => majRegle(i, { valeur: e.target.value })} placeholder="valeur"
+                <input value={r.valeur} onChange={(e) => majRegle(i, { valeur: e.target.value })}
+                  placeholder={r.champ === "DISTANCE_AGENCE_KM" ? "pdvId:rayonKm ex 3:10" : "valeur"}
                   className="w-28 px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
                 <button onClick={() => setRegles((prev) => prev.filter((_, idx) => idx !== i))}
                   className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>

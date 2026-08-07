@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { BarChart3, Loader2, TrendingUp, TrendingDown, Users, Award, AlertTriangle } from "lucide-react";
 
@@ -10,12 +10,20 @@ interface Attribution { parTypeCampagne: { label: string; ca: number }[]; parSeg
 interface ClientCLV { clientId: number; caTotal: number; nbAchats: number; panierMoyen: number; clvEstime: number; client: { id: number; nom: string; prenom: string; segment: string } | null }
 interface Retention { actifsPeriodePrecedente: number; retenus: number; tauxRetention: number | null; tauxChurn: number | null }
 interface Recommandation { segment: string; nbClients: number; action: string; priorite: "HAUTE" | "NORMALE" }
-interface AnalyticsData { attribution: Attribution; clv: ClientCLV[]; retention: Retention; compteurs: Record<string, number>; recommandations: Recommandation[] }
+interface LigneCanal { canal: string; leads: number; clients: number; ca: number; cout: number; cac: number | null; roi: number | null }
+interface LigneProduit { produitId: number; nom: string; ventesApresCampagne: number; caApresCampagne: number; nbPromotionsCoupons: number; margeUnitaire: number | null; rotation: number | null; stockDisponible: number }
+interface AnalyticsData {
+  attribution: Attribution; clv: ClientCLV[]; retention: Retention; compteurs: Record<string, number>;
+  recommandations: Recommandation[]; parCanal: LigneCanal[]; produits: LigneProduit[]; modele: string;
+}
 
 const fmt = (v: number) => Math.round(v).toLocaleString("fr-FR");
 const SEGMENT_LABEL: Record<string, string> = {
   CHAMPIONS: "Champions", FIDELES: "Fidèles", GROS_ACHETEURS: "Gros acheteurs", NOUVEAUX: "Nouveaux",
   A_RISQUE: "À risque", DORMANTS: "Dormants", PERDUS: "Perdus",
+};
+const MODELE_LABEL: Record<string, string> = {
+  CAMPAIGN_BASED: "Campagne (défaut)", FIRST_TOUCH: "Premier contact", LAST_TOUCH: "Dernier contact", LINEAR: "Linéaire (réparti)",
 };
 
 function Barres({ items, max }: { items: { label: string; ca: number }[]; max: number }) {
@@ -39,19 +47,25 @@ function Barres({ items, max }: { items: { label: string; ca: number }[]; max: n
 export default function AnalyticsMarketing() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [modele, setModele] = useState("CAMPAIGN_BASED");
 
-  useEffect(() => {
-    fetch("/api/admin/marketing/analytics")
-      .then(async (r) => {
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error ?? "Erreur");
-        setData(j.data);
-      })
-      .catch((e) => toast.error(e instanceof Error ? e.message : "Chargement impossible"))
-      .finally(() => setLoading(false));
-  }, []);
+  const charger = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/admin/marketing/analytics?modele=${modele}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      setData(j.data);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Chargement impossible");
+    } finally {
+      setLoading(false);
+    }
+  }, [modele]);
 
-  if (loading) return <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+  useEffect(() => { charger(); }, [charger]);
+
+  if (loading && !data) return <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>;
   if (!data) return null;
 
   const maxType = Math.max(1, ...data.attribution.parTypeCampagne.map((i) => i.ca));
@@ -60,7 +74,15 @@ export default function AnalyticsMarketing() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><BarChart3 className="w-5 h-5 text-fuchsia-600" /> Analytics</h2>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><BarChart3 className="w-5 h-5 text-fuchsia-600" /> Analytics</h2>
+        <label className="flex items-center gap-2 text-xs text-slate-500">
+          Modèle d&apos;attribution
+          <select value={modele} onChange={(e) => setModele(e.target.value)} className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white">
+            {Object.entries(MODELE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </label>
+      </div>
 
       {/* Rétention */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -142,6 +164,81 @@ export default function AnalyticsMarketing() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      {/* Analyse par canal */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4">
+        <h3 className="text-sm font-semibold text-slate-700 mb-3">Analyse par canal</h3>
+        {data.parCanal.length === 0 ? (
+          <p className="text-xs text-slate-400">Aucune donnée pour l&apos;instant</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="text-slate-400 uppercase tracking-wide">
+                <tr>
+                  <th className="text-left py-1.5 font-semibold">Canal</th>
+                  <th className="text-right py-1.5 font-semibold">Leads</th>
+                  <th className="text-right py-1.5 font-semibold">Clients</th>
+                  <th className="text-right py-1.5 font-semibold">CA</th>
+                  <th className="text-right py-1.5 font-semibold">Coût</th>
+                  <th className="text-right py-1.5 font-semibold">CAC</th>
+                  <th className="text-right py-1.5 font-semibold">ROI</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {data.parCanal.map((c) => (
+                  <tr key={c.canal}>
+                    <td className="py-1.5 text-slate-700 font-medium">{c.canal}</td>
+                    <td className="py-1.5 text-right text-slate-600">{c.leads}</td>
+                    <td className="py-1.5 text-right text-slate-600">{c.clients}</td>
+                    <td className="py-1.5 text-right text-slate-600">{fmt(c.ca)} F</td>
+                    <td className="py-1.5 text-right text-slate-600">{fmt(c.cout)} F</td>
+                    <td className="py-1.5 text-right text-slate-600">{c.cac === null ? "—" : `${fmt(c.cac)} F`}</td>
+                    <td className={`py-1.5 text-right font-semibold ${c.roi !== null && c.roi >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{c.roi === null ? "—" : `${c.roi.toFixed(0)}%`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Analyse produits */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4">
+        <h3 className="text-sm font-semibold text-slate-700 mb-3">Produits — promotion & performance après campagne</h3>
+        {data.produits.length === 0 ? (
+          <p className="text-xs text-slate-400">Aucune donnée pour l&apos;instant</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="text-slate-400 uppercase tracking-wide">
+                <tr>
+                  <th className="text-left py-1.5 font-semibold">Produit</th>
+                  <th className="text-right py-1.5 font-semibold">Ventes (campagne)</th>
+                  <th className="text-right py-1.5 font-semibold">CA (campagne)</th>
+                  <th className="text-right py-1.5 font-semibold">Promos/coupons</th>
+                  <th className="text-right py-1.5 font-semibold">Marge unitaire</th>
+                  <th className="text-right py-1.5 font-semibold">Rotation</th>
+                  <th className="text-right py-1.5 font-semibold">Stock</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {data.produits.map((p) => (
+                  <tr key={p.produitId}>
+                    <td className="py-1.5 text-slate-700 font-medium">{p.nom}</td>
+                    <td className="py-1.5 text-right text-slate-600">{p.ventesApresCampagne}</td>
+                    <td className="py-1.5 text-right text-slate-600">{fmt(p.caApresCampagne)} F</td>
+                    <td className="py-1.5 text-right text-slate-600">{p.nbPromotionsCoupons}</td>
+                    <td className="py-1.5 text-right text-slate-600">{p.margeUnitaire === null ? "—" : `${fmt(p.margeUnitaire)} F`}</td>
+                    <td className={`py-1.5 text-right ${p.rotation !== null && p.rotation < 0.2 ? "text-amber-600 font-semibold" : "text-slate-600"}`}>{p.rotation === null ? "—" : p.rotation}</td>
+                    <td className="py-1.5 text-right text-slate-600">{p.stockDisponible}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[10px] text-slate-400 mt-2">Rotation faible (&lt; 0,2) mise en évidence en orange. Produits complémentaires/saisonniers non couverts (aucune donnée catalogue disponible pour ces axes).</p>
           </div>
         )}
       </div>

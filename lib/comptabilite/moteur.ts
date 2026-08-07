@@ -358,6 +358,14 @@ const REGLES_PAR_DEFAUT: Record<string, (ctx: ContexteEvenement) => ComptesRegle
     const tr = compteTresorerie(ctx.modePaiement);
     return { journal: tr.journal, compteDebitNumero: "668", compteCreditNumero: tr.numero };
   },
+  // Dépense marketing (Marketing CDC §53) : Dr 623 "Publicité, publications,
+  // relations publiques" / Cr Trésorerie — hypothèse de règlement comptant
+  // (DepenseMarketing ne porte pas de fournisseur/dette, contrairement aux
+  // achats), modePaiement résout Caisse/Banque comme partout ailleurs.
+  DEPENSE_MARKETING: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "623", compteCreditNumero: tr.numero };
+  },
 };
 
 /**
