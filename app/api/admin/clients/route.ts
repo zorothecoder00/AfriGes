@@ -3,6 +3,7 @@ import { MemberStatus, PrioriteNotification, Prisma, Role, SegmentClient } from 
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 import { genererCodeClient } from "@/lib/codeClient";
+import { genererCodeParrainage, creerParrainageSiCode } from "@/lib/parrainage";
 
 /**  
  * ==========================
@@ -181,6 +182,8 @@ export async function POST(req: Request) {
       typeClient, limiteCredit,
       // Statut
       etat,
+      // Parrainage (CDC §2, §84) — code du parrain saisi à la création
+      codeParrainageUtilise,
     } = body;
 
     if (!nom || !prenom || !telephone) {
@@ -217,6 +220,9 @@ export async function POST(req: Request) {
     const result = await prisma.$transaction(async (tx) => {
       // Auto-génération du code client (basée sur le plus grand code existant)
       const codeClient = await genererCodeClient(tx);
+      // Auto-génération du code de parrainage (CDC §2, §84) — permet à ce
+      // client de parrainer d'autres clients.
+      const codeParrainage = await genererCodeParrainage(tx);
 
       // 1. Création du client
       const client = await tx.client.create({
@@ -231,6 +237,7 @@ export async function POST(req: Request) {
           ...(agentTerrainId ? { agentTerrainId: Number(agentTerrainId) } : {}),
           // Nouveaux champs (tous optionnels)
           codeClient,
+          codeParrainage,
           sexe:               sexe               || null,
           dateNaissance:      dateNaissance       ? new Date(dateNaissance)  : null,
           telephoneSecondaire: telephoneSecondaire || null,
@@ -266,6 +273,11 @@ export async function POST(req: Request) {
         await tx.clientAgentAffectation.create({
           data: { clientId: client.id, agentId: Number(agentTerrainId), actif: true },
         });
+      }
+
+      // Parrainage (CDC §2, §84) — si un code parrain a été saisi.
+      if (codeParrainageUtilise) {
+        await creerParrainageSiCode(tx, { filleulId: client.id, codeParrainageUtilise });
       }
 
       // 2. Audit log

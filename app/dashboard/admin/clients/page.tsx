@@ -272,6 +272,8 @@ export default function ClientsPage() {
     typeClient: '', limiteCredit: '',
     // Statut & affectation
     etat: 'ACTIF', agentTerrainId: '',
+    // Parrainage (CDC §2, §84)
+    codeParrainageUtilise: '',
   });
 
   // ── Drawer historique ──────────────────────────────────────────────────────
@@ -555,10 +557,11 @@ export default function ClientsPage() {
       limiteCredit:        formData.limiteCredit        ? Number(formData.limiteCredit) : null,
       etat:                formData.etat,
       agentTerrainId:      formData.agentTerrainId      ? Number(formData.agentTerrainId) : null,
+      codeParrainageUtilise: formData.codeParrainageUtilise.trim() || null,
     });
     if (result) {
       setModalOpen(false);
-      setFormData({ nom: '', prenom: '', telephone: '', adresse: '', pointsDeVenteIds: [], sexe: '', dateNaissance: '', telephoneSecondaire: '', quartier: '', ville: '', commune: '', photoUrl: '', pieceIdentiteUrl: '', numeroCNI: '', activite: '', nomCommerce: '', latitude: '', longitude: '', segment: 'ORDINAIRE', typeClient: '', limiteCredit: '', etat: 'ACTIF', agentTerrainId: '' });
+      setFormData({ nom: '', prenom: '', telephone: '', adresse: '', pointsDeVenteIds: [], sexe: '', dateNaissance: '', telephoneSecondaire: '', quartier: '', ville: '', commune: '', photoUrl: '', pieceIdentiteUrl: '', numeroCNI: '', activite: '', nomCommerce: '', latitude: '', longitude: '', segment: 'ORDINAIRE', typeClient: '', limiteCredit: '', etat: 'ACTIF', agentTerrainId: '', codeParrainageUtilise: '' });
       refetch();
     }
   };
@@ -996,6 +999,11 @@ export default function ClientsPage() {
                       <label className="block text-xs font-medium text-slate-600 mb-1">Limite de crédit (FCFA)</label>
                       <input type="number" min={0} value={formData.limiteCredit} onChange={e => setFormData({...formData, limiteCredit: e.target.value})}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Laisser vide = aucun plafond" />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Code parrain (optionnel)</label>
+                      <input value={formData.codeParrainageUtilise} onChange={e => setFormData({...formData, codeParrainageUtilise: e.target.value.toUpperCase()})}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="PAR-XXXXXX (code d'un client existant)" />
                     </div>
                   </div>
                 </section>

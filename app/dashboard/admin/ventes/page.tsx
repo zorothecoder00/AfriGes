@@ -168,6 +168,7 @@ export default function VentesPage() {
   const [modePaiement, setModePaiement]             = useState('ESPECES');
   const [montantPaye, setMontantPaye]               = useState('');
   const [notesVente, setNotesVente]                 = useState('');
+  const [couponCode, setCouponCode]                 = useState(''); // Coupon marketing (CDC §35)
   // Paiement (partiel ou total) via le compte courant client (CDC §3)
   const [ccInfo, setCcInfo]                         = useState<{ id: number; numeroCompte: string; statut: string; solde: number } | null>(null);
   const [ccMontant, setCcMontant]                   = useState('');
@@ -399,6 +400,7 @@ export default function VentesPage() {
     setCcMontant('');
     setUseCC(false);
     setNotesVente('');
+    setCouponCode('');
   };
 
   const goToStep2 = async () => {
@@ -483,6 +485,7 @@ export default function VentesPage() {
         ? clientTelManuel || null
         : selectedClient?.telephone ?? null,
       notes: notesVente || null,
+      couponCode: couponCode.trim() || undefined,
       lignes: lignes.map(l => ({ produitId: l.produitId, quantite: l.quantite, prixUnitaire: l.prixUnitaire })),
     });
     if (res) { closeVenteModal(); refetchVentes(); }
@@ -985,6 +988,13 @@ export default function VentesPage() {
                         Montant insuffisant — reste {formatCurrency(resteAPayer - Number(montantPaye))}
                       </p>
                     ) : null}
+                  </div>
+
+                  {/* Coupon marketing (CDC §35) */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Code coupon (optionnel)</label>
+                    <input value={couponCode} onChange={e => setCouponCode(e.target.value.toUpperCase())} placeholder="AFRI10"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
                   </div>
 
                   {/* Notes */}

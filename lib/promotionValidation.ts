@@ -26,6 +26,7 @@ type PromotionData = {
   pointDeVenteId: number | null;
   segment: SegmentClient | null;
   clientId: number | null;
+  campagneId: number | null;
   dateDebut: Date;
   dateFin: Date;
   actif: boolean;
@@ -104,13 +105,17 @@ export async function validerPromotion(
   if (pointDeVenteId && !(await prisma.pointDeVente.findUnique({ where: { id: pointDeVenteId }, select: { id: true } }))) return { error: "Agence introuvable", status: 404 };
   if (clientId && !(await prisma.client.findUnique({ where: { id: clientId }, select: { id: true } }))) return { error: "Client introuvable", status: 404 };
 
+  // Attribution CA à une campagne marketing (§32, Phase 5) — additif, optionnel.
+  const campagneId = num(body.campagneId);
+  if (campagneId && !(await prisma.campagne.findUnique({ where: { id: campagneId }, select: { id: true } }))) return { error: "Campagne introuvable", status: 404 };
+
   return {
     data: {
       nom,
       description: typeof body.description === "string" && body.description.trim() ? body.description.trim() : null,
       cible, produitId, categorieId, familleId, marqueId,
       typeRemise, valeur: new Prisma.Decimal(valeur), lotAchete, lotPaye,
-      pointDeVenteId, segment, clientId,
+      pointDeVenteId, segment, clientId, campagneId,
       dateDebut, dateFin,
       actif: body.actif === undefined ? true : Boolean(body.actif),
       priorite: num(body.priorite) ?? 0,

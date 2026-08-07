@@ -9,6 +9,7 @@ import { tariferLigne } from "@/lib/venteTarification";
 import { consommerFEFOBestEffort } from "@/lib/lotsFefo";
 import { substitutsDisponibles } from "@/lib/substitutsServer";
 import { creerEcritureVenteDepuisVenteDirecte, creerEcritureCogsVenteDirecte } from "@/lib/ecritureVenteServer";
+import { validerCoupon, calculerRemiseCoupon, appliquerCoupon, type CouponValide } from "@/lib/coupon";
 
 async function getAdminSession() {
   const s = await getAuthSession();
@@ -173,6 +174,22 @@ export async function POST(req: Request) {
       });
     }
 
+    // Coupon marketing optionnel (CDC §35) — remise sur le panier (montantTotal),
+    // câblé pour cette phase à la vente admin uniquement (cf. mémoire projet).
+    let couponValide: CouponValide | null = null;
+    let montantRemiseCoupon = 0;
+    if (typeof body.couponCode === "string" && body.couponCode.trim()) {
+      const valid = await validerCoupon(body.couponCode, {
+        clientId: clientId ? Number(clientId) : null,
+        pointDeVenteId: Number(pointDeVenteId),
+        produitIds: lignesTarifees.map((l) => l.produitId),
+      });
+      if ("error" in valid) return NextResponse.json({ error: valid.error }, { status: valid.status });
+      couponValide = valid.data;
+      montantRemiseCoupon = calculerRemiseCoupon(couponValide, montantTotal).montantRemise;
+      montantTotal = Math.max(0, montantTotal - montantRemiseCoupon);
+    }
+
     // Part CC (plafonnée au total) et reste à régler en espèces/autre.
     const ccMontant    = Math.min(ccMontantDemande, montantTotal);
     const resteAPayer  = montantTotal - ccMontant;
@@ -214,10 +231,20 @@ export async function POST(req: Request) {
           clientId:        clientId        ? Number(clientId) : null,
           clientNom:       clientNom       || null,
           clientTelephone: clientTelephone || null,
+          couponId:        couponValide?.id ?? null,
           lignes: { create: lignesTarifees },
         },
         include: { lignes: true },
       });
+
+      // Coupon marketing (CDC §35) — trace l'utilisation, plafond/unicité déjà
+      // vérifiés par validerCoupon avant l'ouverture de la transaction.
+      if (couponValide && clientId) {
+        await appliquerCoupon(tx, {
+          coupon: couponValide, clientId: Number(clientId), venteId: v.id,
+          montantAvant: montantTotal + montantRemiseCoupon,
+        });
+      }
 
       // Écriture comptable automatique (CDC §8/§54) — moteur central.
       await creerEcritureVenteDepuisVenteDirecte(tx, v.id, userId);

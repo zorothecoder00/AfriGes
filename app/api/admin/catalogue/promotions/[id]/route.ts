@@ -28,6 +28,7 @@ export async function GET(_req: Request, { params }: Ctx) {
       marque: { select: { id: true, nom: true } },
       pointDeVente: { select: { id: true, nom: true } },
       client: { select: { id: true, nom: true, prenom: true } },
+      campagne: { select: { id: true, code: true, nom: true } },
     },
   });
   if (!promo) return NextResponse.json({ message: "Promotion introuvable" }, { status: 404 });

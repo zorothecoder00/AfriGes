@@ -5,7 +5,7 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Menu, Plus, Loader2, Megaphone, Users, Wallet, LayoutDashboard, MessageCircle, Image as ImageIcon, Zap,
-  Send, CheckCircle2, XCircle, Play, Pause, RotateCcw, Flag, Archive, Sparkles,
+  Send, CheckCircle2, XCircle, Play, Pause, RotateCcw, Flag, Archive, Sparkles, Tag, Gift, Users2,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import AccountMenuButton from "@/components/AccountMenuButton";
@@ -22,8 +22,14 @@ import BibliothequeContenu from "@/components/marketing/BibliothequeContenu";
 import CalendrierEditorial from "@/components/marketing/CalendrierEditorial";
 import ListeAutomatisation from "@/components/marketing/ListeAutomatisation";
 import MesTachesMarketing from "@/components/marketing/MesTachesMarketing";
+import PromotionsMarketing from "@/components/marketing/PromotionsMarketing";
+import CouponsMarketing from "@/components/marketing/CouponsMarketing";
+import RecompensesFidelite from "@/components/marketing/RecompensesFidelite";
+import ChallengesMarketing from "@/components/marketing/ChallengesMarketing";
+import BadgesMarketing from "@/components/marketing/BadgesMarketing";
+import ParrainageMarketing from "@/components/marketing/ParrainageMarketing";
 
-type TabKey = "synthese" | "campagnes" | "audiences" | "communication" | "contenu" | "automatisation" | "budgets";
+type TabKey = "synthese" | "campagnes" | "audiences" | "communication" | "contenu" | "automatisation" | "budgets" | "promotions" | "fidelisation" | "parrainage";
 
 interface StatsResponse {
   data: {
@@ -85,6 +91,9 @@ export default function ResponsableMarketingPage() {
     { key: "communication", label: "Communication", icon: MessageCircle },
     { key: "contenu", label: "Contenu", icon: ImageIcon },
     { key: "automatisation", label: "Automatisation", icon: Zap },
+    { key: "promotions", label: "Promotions", icon: Tag },
+    { key: "fidelisation", label: "Fidélisation", icon: Gift },
+    { key: "parrainage", label: "Parrainage", icon: Users2 },
     { key: "budgets", label: "Budgets", icon: Wallet },
   ];
 
@@ -135,6 +144,9 @@ export default function ResponsableMarketingPage() {
           {activeTab === "communication" && <Communication />}
           {activeTab === "contenu" && <Contenu />}
           {activeTab === "automatisation" && <Automatisation />}
+          {activeTab === "promotions" && <Promotions />}
+          {activeTab === "fidelisation" && <Fidelisation />}
+          {activeTab === "parrainage" && <ParrainageMarketing />}
           {activeTab === "budgets" && <Budgets />}
         </main>
       </div>
@@ -335,6 +347,35 @@ function Automatisation() {
           <MesTachesMarketing />
         </div>
       </div>
+    </div>
+  );
+}
+
+function Promotions() {
+  const [vue, setVue] = useState<"promotions" | "coupons">("promotions");
+  return (
+    <div className="space-y-4">
+      <div className="flex bg-slate-100 rounded-xl p-1 w-fit">
+        <button onClick={() => setVue("promotions")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "promotions" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Promotions</button>
+        <button onClick={() => setVue("coupons")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "coupons" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Coupons</button>
+      </div>
+      {vue === "promotions" ? <PromotionsMarketing /> : <CouponsMarketing />}
+    </div>
+  );
+}
+
+function Fidelisation() {
+  const [vue, setVue] = useState<"recompenses" | "challenges" | "badges">("recompenses");
+  return (
+    <div className="space-y-4">
+      <div className="flex bg-slate-100 rounded-xl p-1 w-fit">
+        <button onClick={() => setVue("recompenses")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "recompenses" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Récompenses</button>
+        <button onClick={() => setVue("challenges")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "challenges" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Challenges</button>
+        <button onClick={() => setVue("badges")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "badges" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Badges</button>
+      </div>
+      {vue === "recompenses" && <RecompensesFidelite />}
+      {vue === "challenges" && <ChallengesMarketing />}
+      {vue === "badges" && <BadgesMarketing />}
     </div>
   );
 }

@@ -37,6 +37,7 @@ export async function GET(req: Request) {
       marque: { select: { id: true, nom: true } },
       pointDeVente: { select: { id: true, nom: true } },
       client: { select: { id: true, nom: true, prenom: true } },
+      campagne: { select: { id: true, code: true, nom: true } },
     },
   });
 

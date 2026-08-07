@@ -899,6 +899,11 @@ model User {
   mouvementsLot              MouvementLot[]            @relation("MouvementLotOperateur")
   produitsSubstitutsCrees    ProduitSubstitut[]        @relation("ProduitSubstitutCreePar")
 
+  // Marketing (Phase 5 — Fidélisation)
+  couponsCrees              Coupon[]
+  recompensesEchangesCreees RecompenseEchange[]
+  challengesMarketingCrees  ChallengeMarketing[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -972,6 +977,7 @@ model PointDeVente {
 
   // Bulk pour clients
   clientsPDV ClientPointDeVente[]
+  coupons    Coupon[]
 
   // Relations opérationnelles
   affectations               GestionnaireAffectation[]
@@ -1142,6 +1148,14 @@ model Client {
   // Marketing (Phase 4 — Automatisation)
   executionsAutomatisation ExecutionAutomatisation[]
   tachesMarketing          TacheMarketing[]
+
+  // Marketing (Phase 5 — Fidélisation : coupons, gamification, parrainage)
+  couponUtilisations          CouponUtilisation[]
+  participationsChallenge     ParticipationChallenge[]
+  badgesObtenus               BadgeClient[]
+  codeParrainage              String?                  @unique // généré à la création, permet à ce client de parrainer
+  parrainagesEnTantQueParrain Parrainage[]             @relation("ParrainageParrain")
+  parrainageEnTantQueFilleul  Parrainage?              @relation("ParrainageFilleul")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2036,6 +2050,7 @@ model Produit {
   fournisseurPrincipal    Fournisseur?          @relation(fields: [fournisseurPrincipalId], references: [id])
   fournisseursSecondaires Fournisseur[]         @relation("ProduitFournisseursSecondaires") // CDC §5 — sources alternatives
   paysOrigine             String?
+  coupons                 Coupon[]
 
   // ── Comptabilité §52 : mapping comptable de la fiche produit — niveau le plus
   // précis de la cascade Produit > Catégorie > Famille > Configuration générale
@@ -2303,6 +2318,11 @@ model Promotion {
   actif     Boolean  @default(true)
   priorite  Int      @default(0) // départage si plusieurs promos matchent (plus haut = prioritaire)
 
+  // Attribution CA à une campagne marketing (Marketing §32, Phase 5) — additif,
+  // même pattern que VenteDirecte.campagneId/CreditClient.campagneId (Phase 1).
+  campagneId Int?
+  campagne   Campagne? @relation(fields: [campagneId], references: [id])
+
   creeParId Int?
   creePar   User?    @relation("PromotionCreePar", fields: [creeParId], references: [id])
   createdAt DateTime @default(now())
@@ -2315,6 +2335,70 @@ model Promotion {
   @@index([familleId])
   @@index([marqueId])
   @@index([pointDeVenteId])
+  @@index([campagneId])
+}
+
+// ============================================================
+// MARKETING — Phase 5 : Coupons (CDC §35)
+// ============================================================
+// Distinct de Promotion (remise automatique par ligne, sans code) : un Coupon
+// est un CODE saisi (ex AFRI10) appliqué au panier (VenteDirecte.montantTotal),
+// avec plafond d'utilisation. Réutilise TypeRemisePromotion (POURCENTAGE/MONTANT).
+
+model Coupon {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique // ex AFRI10 (saisi ou généré)
+  nom         String
+  description String?
+
+  campagneId Int?
+  campagne   Campagne? @relation(fields: [campagneId], references: [id])
+
+  typeRemise TypeRemisePromotion
+  valeur     Decimal             @default(0)
+
+  audienceId Int?
+  audience   AudienceMarketing? @relation(fields: [audienceId], references: [id])
+
+  pointDeVenteId Int?
+  pointDeVente   PointDeVente? @relation(fields: [pointDeVenteId], references: [id])
+
+  produitId Int?
+  produit   Produit? @relation(fields: [produitId], references: [id])
+
+  dateDebut      DateTime
+  dateFin        DateTime
+  utilisationMax Int? // null = illimité (global)
+  actif          Boolean  @default(true)
+
+  utilisations CouponUtilisation[]
+  ventes       VenteDirecte[]
+
+  creeParId Int
+  creePar   User     @relation(fields: [creeParId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([actif, dateDebut, dateFin])
+  @@index([campagneId])
+}
+
+/// Un client n'utilise un coupon donné qu'une fois (@@unique) — simplification
+/// assumée, cohérente avec les codes d'exemple du CDC (AFRI10, WELCOME…).
+model CouponUtilisation {
+  id       Int           @id @default(autoincrement())
+  couponId Int
+  coupon   Coupon        @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  clientId Int
+  client   Client        @relation(fields: [clientId], references: [id])
+  venteId  Int?
+  vente    VenteDirecte? @relation(fields: [venteId], references: [id])
+
+  montantRemise   Decimal
+  dateUtilisation DateTime @default(now())
+
+  @@unique([couponId, clientId])
+  @@index([couponId])
 }
 
 // ============================================================
@@ -3288,6 +3372,11 @@ model VenteDirecte {
   campagneId Int?
   campagne   Campagne? @relation("VenteCampagne", fields: [campagneId], references: [id])
 
+  // Coupon marketing (Phase 5, CDC §35) — remise panier appliquée à la vente.
+  couponId           Int?
+  coupon             Coupon?             @relation(fields: [couponId], references: [id])
+  couponUtilisations CouponUtilisation[]
+
   pointDeVente  PointDeVente        @relation(fields: [pointDeVenteId], references: [id])
   vendeur       User                @relation("VendeurVente", fields: [vendeurId], references: [id])
   client        Client?             @relation(fields: [clientId], references: [id])
@@ -3661,10 +3750,144 @@ model RecompenseFidelite {
   actif          Boolean        @default(true)
   dateExpiration DateTime?
 
+  // legacy — branché sur PointsFidelite (grand livre mort, cf. mémoire projet).
   utilisations UtilisationRecompense[]
+  // actif — branché sur CompteFidelite (Marketing Phase 5, CDC §36).
+  echanges     RecompenseEchange[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Rachat d'une RecompenseFidelite contre des points (Marketing Phase 5, CDC §36).
+/// Branché sur CompteFidelite (source de vérité active) — PAS sur PointsFidelite/
+/// UtilisationRecompense (legacy, mort). Le catalogue RecompenseFidelite existait
+/// déjà mais n'était référencé nulle part dans le code applicatif avant cette phase.
+model RecompenseEchange {
+  id               Int                @id @default(autoincrement())
+  recompenseId     Int
+  recompense       RecompenseFidelite @relation(fields: [recompenseId], references: [id])
+  compteFideliteId Int
+  compteFidelite   CompteFidelite     @relation(fields: [compteFideliteId], references: [id])
+  pointsUtilises   Int
+  statut           StatutRecompense   @default(DISPONIBLE)
+  dateUtilisation  DateTime?
+  creeParId        Int
+  creePar          User               @relation(fields: [creeParId], references: [id])
+  createdAt        DateTime           @default(now())
+}
+
+// ============================================================
+// MARKETING — Phase 5 : Gamification (CDC §37)
+// ============================================================
+// Objectif quantifiable minimal (NB_ACHATS ou MONTANT_ACHATS sur une période),
+// fidèle à l'exemple unique du CDC ("achetez 5 fois ce mois-ci") — pas de moteur
+// de règles générique. Badges = attribution automatique sur condition simple.
+
+enum TypeObjectifChallenge {
+  NB_ACHATS
+  MONTANT_ACHATS
+}
+
+enum StatutChallenge {
+  ACTIF
+  TERMINE
+}
+
+enum StatutParticipationChallenge {
+  EN_COURS
+  REUSSI
+}
+
+model ChallengeMarketing {
+  id               Int                   @id @default(autoincrement())
+  nom              String
+  description      String?
+  typeObjectif     TypeObjectifChallenge
+  seuil            Int
+  recompensePoints Int
+  dateDebut        DateTime
+  dateFin          DateTime
+  statut           StatutChallenge       @default(ACTIF)
+  segment          SegmentClient? // ciblage optionnel, réutilise l'enum existant
+
+  participations ParticipationChallenge[]
+
+  creeParId Int
+  creePar   User     @relation(fields: [creeParId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Progression d'un client sur un challenge — @@unique protège l'idempotence
+/// de l'évaluation cron (un client ne réussit un challenge qu'une fois).
+model ParticipationChallenge {
+  id           Int                          @id @default(autoincrement())
+  challengeId  Int
+  challenge    ChallengeMarketing           @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  clientId     Int
+  client       Client                       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  progression  Int                          @default(0)
+  statut       StatutParticipationChallenge @default(EN_COURS)
+  dateReussite DateTime?
+
+  @@unique([challengeId, clientId])
+}
+
+model BadgeMarketing {
+  id          Int     @id @default(autoincrement())
+  nom         String
+  description String?
+  icone       String? // nom d'icône lucide ou emoji
+  condition   Json // {type:"NIVEAU_FIDELITE",niveau:"OR"} | {type:"NB_ACHATS",seuil:N}
+  actif       Boolean @default(true)
+
+  attributions BadgeClient[]
+  createdAt    DateTime      @default(now())
+}
+
+model BadgeClient {
+  id              Int            @id @default(autoincrement())
+  badgeId         Int
+  badge           BadgeMarketing @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  clientId        Int
+  client          Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  dateAttribution DateTime       @default(now())
+
+  @@unique([badgeId, clientId])
+}
+
+// ============================================================
+// MARKETING — Phase 5 : Parrainage (CDC §2, §84)
+// ============================================================
+// Structure simple confirmée par le CDC lui-même : un parrain (Client), un
+// filleul (Client, un seul parrain possible), qualification = premier achat
+// du filleul, récompense en points aux deux via attribuerPointsFidelite.
+
+model ParametrageParrainage {
+  id            Int      @id @default(1)
+  actif         Boolean  @default(true)
+  pointsParrain Int      @default(500)
+  pointsFilleul Int      @default(200)
+  updatedAt     DateTime @updatedAt
+}
+
+enum StatutParrainage {
+  EN_ATTENTE
+  QUALIFIE
+  RECOMPENSE
+}
+
+model Parrainage {
+  id                Int              @id @default(autoincrement())
+  parrainId         Int
+  parrain           Client           @relation("ParrainageParrain", fields: [parrainId], references: [id])
+  filleulId         Int              @unique // un filleul n'a qu'un seul parrain
+  filleul           Client           @relation("ParrainageFilleul", fields: [filleulId], references: [id])
+  statut            StatutParrainage @default(EN_ATTENTE)
+  dateInscription   DateTime         @default(now())
+  dateQualification DateTime?
+  dateRecompense    DateTime?
 }
 
 model UtilisationRecompense {
@@ -8266,16 +8489,17 @@ model ProgrammeFidelite {
 
 // Compte de fidélité d'un client (CDC §19.D) — solde de points + niveau.
 model CompteFidelite {
-  id            Int                   @id @default(autoincrement())
-  clientId      Int                   @unique
-  client        Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  soldePoints   Int                   @default(0) // points disponibles (gagnés − dépensés)
-  totalGagnes   Int                   @default(0) // cumul gagné (détermine le niveau, jamais décrémenté)
-  totalUtilises Int                   @default(0)
-  niveau        NiveauFidelite        @default(BRONZE)
-  transactions  TransactionFidelite[]
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  id                  Int                   @id @default(autoincrement())
+  clientId            Int                   @unique
+  client              Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  soldePoints         Int                   @default(0) // points disponibles (gagnés − dépensés)
+  totalGagnes         Int                   @default(0) // cumul gagné (détermine le niveau, jamais décrémenté)
+  totalUtilises       Int                   @default(0)
+  niveau              NiveauFidelite        @default(BRONZE)
+  transactions        TransactionFidelite[]
+  echangesRecompenses RecompenseEchange[]
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
 
   @@index([niveau])
 }
@@ -8626,6 +8850,7 @@ model AudienceMarketing {
   regles    AudienceMarketingRegle[]
   membres   AudienceMarketingMembre[]
   campagnes Campagne[]
+  coupons   Coupon[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8695,6 +8920,8 @@ model Campagne {
   envoisMessage        EnvoiMessage[]
   assetsMarketing      AssetMarketingCampagne[]
   publicationsSociales PublicationSociale[]
+  promotions           Promotion[]
+  coupons              Coupon[]
 
   creeParId Int
   creePar   User @relation("CampagneCreePar", fields: [creeParId], references: [id])

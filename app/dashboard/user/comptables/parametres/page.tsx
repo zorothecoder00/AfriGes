@@ -64,6 +64,11 @@ export default function ConfigurationInitialePage() {
   useEffect(() => {
     if (configInitialeData?.data.config && !configFormInit) {
       const c = configInitialeData.data.config;
+      // Initialisation unique du formulaire depuis les données chargées de façon
+      // asynchrone (useApi) — impossible à faire en lazy useState (les données
+      // n'existent pas encore au premier rendu). Le flag configFormInit garantit
+      // que ça n'écrase jamais une saisie utilisateur en cours.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setConfigForm({
         pays: c.pays, devise: c.devise, referentiel: c.referentiel, typeEntite: c.typeEntite,
         compteAchatDefaut: c.compteAchatDefaut ?? "", compteVenteDefaut: c.compteVenteDefaut ?? "",

@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Megaphone, Users, MessageCircle, Image as ImageIcon, Zap, Settings } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, MessageCircle, Image as ImageIcon, Zap, Settings, Tag, Gift, Users2 } from "lucide-react";
 
 const BASE = "/dashboard/admin/marketing";
 
@@ -14,6 +14,9 @@ const NAV_ITEMS = [
   { href: `${BASE}/communication`, label: "Communication",   icon: MessageCircle },
   { href: `${BASE}/contenu`,       label: "Contenu",         icon: ImageIcon },
   { href: `${BASE}/automatisation`, label: "Automatisation", icon: Zap },
+  { href: `${BASE}/promotions`,    label: "Promotions",      icon: Tag },
+  { href: `${BASE}/fidelisation`,  label: "Fidélisation",    icon: Gift },
+  { href: `${BASE}/parrainage`,    label: "Parrainage",      icon: Users2 },
   { href: `${BASE}/parametres`,    label: "Paramètres",      icon: Settings },
 ];
 

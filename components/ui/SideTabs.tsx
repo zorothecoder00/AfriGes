@@ -47,6 +47,10 @@ export default function SideTabs({
   // Repli/dépli de la colonne d'onglets (desktop uniquement) — préférence mémorisée.
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
+    // Lecture localStorage impossible pendant le rendu serveur (SSR) — lazy
+    // useState provoquerait un mismatch d'hydratation ; l'effet est le seul
+    // point sûr pour synchroniser depuis cette source externe.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (localStorage.getItem(COLLAPSE_STORAGE_KEY) === "1") setCollapsed(true);
   }, []);
   const toggleCollapsed = () => {

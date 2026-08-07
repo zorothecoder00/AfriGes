@@ -16,6 +16,10 @@
       "schedule": "30 8 * * *"
     },
     {
+      "path": "/api/cron/marketing/fidelisation?secret=${CRON_SECRET}",
+      "schedule": "0 10 * * *"
+    },
+    {
       "path": "/api/cron/appro-alertes?secret=${CRON_SECRET}",
       "schedule": "30 7 * * *"
     },

@@ -123,6 +123,13 @@ export default function PromotionFormModal({ promotionId, refs, pdvs, onClose, o
   const [actif, setActif] = useState(true);
   const [priorite, setPriorite] = useState("0");
 
+  const [campagneId, setCampagneId] = useState<number | null>(null);
+  const [campagnes, setCampagnes] = useState<{ id: number; code: string; nom: string }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/admin/marketing/campagnes").then((r) => r.json()).then((j) => setCampagnes(j.data ?? [])).catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (!promotionId) return;
     (async () => {
@@ -143,6 +150,7 @@ export default function PromotionFormModal({ promotionId, refs, pdvs, onClose, o
         setClientLabel(p.client ? `${p.client.prenom} ${p.client.nom}` : null);
         setDateDebut(toDateInput(p.dateDebut)); setDateFin(toDateInput(p.dateFin));
         setActif(p.actif); setPriorite(String(p.priorite ?? 0));
+        setCampagneId(p.campagneId ?? null);
       } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
       finally { setLoading(false); }
     })();
@@ -172,6 +180,7 @@ export default function PromotionFormModal({ promotionId, refs, pdvs, onClose, o
         lotPaye: typeRemise === "LOT" ? Number(lotPaye) : null,
         pointDeVenteId, segment: segment || null, clientId,
         dateDebut, dateFin, actif, priorite: Number(priorite) || 0,
+        campagneId,
       };
       const url = promotionId ? `/api/admin/catalogue/promotions/${promotionId}` : "/api/admin/catalogue/promotions";
       const r = await fetch(url, {
@@ -309,6 +318,15 @@ export default function PromotionFormModal({ promotionId, refs, pdvs, onClose, o
                 </div>
               </div>
             </div>
+
+            {/* Attribution CA à une campagne marketing (§32, Phase 5) */}
+            <label className="block"><span className={lbl}>Campagne marketing associée</span>
+              <select value={campagneId ?? ""} onChange={(e) => setCampagneId(e.target.value ? Number(e.target.value) : null)} className={field}>
+                <option value="">Aucune</option>
+                {campagnes.map((c) => <option key={c.id} value={c.id}>{c.nom} ({c.code})</option>)}
+              </select>
+              <span className="text-[11px] text-gray-400">Permet d&apos;attribuer le CA généré par cette promotion à une campagne.</span>
+            </label>
 
             {/* Période & activation */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

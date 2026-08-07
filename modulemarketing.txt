@@ -1,411 +1,375 @@
-╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
- Module Marketing — Phase 1 : Marketing Core
+Module Marketing — Phase 5 : Fidélisation (Promotions, Coupons, Récompenses,
+ Gamification, Parrainage)
 
  Contexte
 
- AfriSime a fourni un cahier des charges de 89 sections pour un module
- Marketing global (Acquisition, Communication, Promotion, Fidélisation,
- Animation commerciale, Data Marketing, Analyse, Automatisation). Le principe
- directeur (§85-86, 89) est strict : le marketing ne recrée rien — il consomme
- en lecture les données déjà gérées par les modules existants (CRM/Client,
- Ventes, Stock, Crédit, Comptabilité, Agences) pour piloter par-dessus :
- campagnes, audiences, budgets, communication, automatisation.
+ Les Phases 1 (Core), 2 (Communication), 3 (Content & Social Media) et 4
+ (Automation) sont livrées et déployées (dev + prod Neon). Cette Phase 5 couvre
+ le CDC §32-37 (Promotions/Coupons/Fidélisation/Gamification) + le hub
+ "Parrainage" (§2, structure de données §84 :
+ marketing_referral_programs/marketing_referrals).
 
- Le CDC lui-même découpe le développement en 7 phases (§88) pour éviter de tout
- coder simultanément. Ce plan couvre uniquement la Phase 1 — Marketing Core :
- campagnes, types de campagne, objectifs, brief marketing,
- segmentation/audiences (statique/dynamique/RFM), budgets, KPI (dashboard
- global + par agence), hiérarchie marketing, canaux (référentiel), et le
- branchement RBAC/navigation. Les phases 2-7 (Communication, Content/Social,
- Automation, Fidélisation, Terrain/Événementiel, Analytics/IA) ne sont pas dans
- ce lot — les modèles posés en Phase 1 sont conçus pour qu'elles s'y
- raccrochent sans reprise de schéma.
+ Constat majeur de l'audit — deux briques entières existent déjà et ne doivent
+ pas être dupliquées :
+ - Promotion (modèle + moteur, Catalogue §9) est déjà 100% construit :
+ app/api/admin/catalogue/promotions/{route.ts,[id]/route.ts} (CRUD complet,
+ lib/promotionValidation.ts::validerPromotion()),
+ lib/promotions.ts/lib/promotionsServer.ts (résolution + calcul de remise), et
+ déjà appliqué automatiquement à la vente via lib/venteTarification.ts →
+ prixPromotionnel() (consommé par Ventes/Caisse/Crédit, cf. mémoire
+ catalogue-branchement-flux-vente). C'est exactement ce que le §32 demande ("le
+ moteur commercial existant applique ensuite les règles de vente") — déjà vrai
+ aujourd'hui. Il ne manque qu'une surface Marketing (menu, lien vers la
+ campagne) — pas un nouveau moteur.
+ - RecompenseFidelite (catalogue de récompenses :
+ nom/type/coûtPoints/valeur/produit/expiration, enums
+ TypeRecompense/StatutRecompense) existe déjà en base mais n'est référencé
+ nulle part dans le code applicatif (0 résultat sur RecompenseFidelite hors
+ schéma) — modèle orphelin, jamais branché. Sa table de rachat
+ UtilisationRecompense pointe vers PointsFidelite (le grand livre legacy,
+ confirmé mort en Phase 2 — la source de vérité active est CompteFidelite/Trans
+ actionFidelite/lib/fidelite.ts::attribuerPointsFidelite()). Décision :
+ réutiliser RecompenseFidelite tel quel comme catalogue, mais créer une
+ nouvelle table de rachat branchée sur CompteFidelite (la legacy
+ PointsFidelite/UtilisationRecompense reste intouchée, comme toujours dans ce
+ chantier).
+ - Rien n'existe pour : Coupons (commentaire déjà présent dans le schéma : //
+ Coupon (Phase 5 Fidélisation) n'existe pas.), Gamification
+ (challenges/badges/classement), Parrainage.
 
- Audit du code existant déjà fait (voir échanges précédents) :
- RESPONSABLE_MARKETING existe déjà dans l'enum RoleGestionnaire mais n'a aucun
- droit RBAC ni menu. Aucun modèle Campagne/Audience/Coupon n'existe. Des
- briques réutilisables existent (Promotion, Tag/ClientTag, CompteFidelite,
- EligibiliteClientRIA) — consommées en lecture, jamais dupliquées.
+ Principe directeur (§85, redit dans ce nouveau passage du CDC) : le marketing
+ ne duplique rien.
 
- Décisions de conception validées avec l'utilisateur
+ Décisions de conception (scope assumé)
 
- - Attribution du CA (§56-57) : ajout d'un champ nullable campagneId sur
- VenteDirecte et CreditClient (tagging à la saisie). Changement additif, non
- cassant, sur 2 modèles centraux existants.
- - Nommage des modèles : PascalCase français (Campagne, AudienceMarketing,
- BudgetMarketing…), cohérent à 100 % avec l'existant (CreditClient,
- PointDeVente…) — pas les noms marketing_campaigns etc. du §84, qui n'étaient
- qu'une illustration conceptuelle en anglais/snake_case.
- - Types de campagne (§7) et canaux (§21+) : tables paramétrables sans code
- (§81), pas des enums Prisma figés — un admin/responsable marketing doit
- pouvoir en ajouter depuis l'UI.
- - Objectifs de campagne (§8) : liste fixe métier (8 valeurs) → enum Prisma,
- avec table pivot pour le multi-objectif (§8 : "une campagne peut avoir
- plusieurs objectifs").
- - Audiences (§10-15) : moteur de règles simple (combinables en ET pour la V1,
- pas d'arbre OR/ET complexe), matérialisé dans une table de membres pour
- lecture uniforme, recalculé pour les dynamiques, figé pour les statiques.
- - Portail : mono-page à onglets (patron responsablesPointDeVente/chefAgence)
- pour RESPONSABLE_MARKETING, + entrée admin globale pour la Direction (§4 :
- Direction voit tout, responsable d'agence voit son agence).
+ - Promotions & Offres (§32-34) = surface Marketing fine sur le moteur
+ existant, pas un nouveau CRUD. Ajout additif Promotion.campagneId Int? (même
+ pattern que VenteDirecte.campagneId/CreditClient.campagneId en Phase 1) pour
+ l'attribution CA à une campagne ; validerPromotion() étendu pour l'accepter.
+ Nouvelle page /dashboard/admin/marketing/promotions qui consomme les endpoints
+ /api/admin/catalogue/promotions existants (GET/POST/PATCH), rien de nouveau
+ côté API sauf le champ campagneId.
+ - Coupons (§35) = nouveau, mais volontairement scoping restreint à la vente
+ admin (app/api/admin/ventes) pour cette phase : le code coupon est appliqué au
+ niveau du panier (remise sur montantTotal), pas ligne par ligne comme les
+ promotions. Câbler Caissier/RPV/Agent terrain (3 routes de création de vente
+ distinctes, aucune fonction partagée entre elles — confirmé à l'audit) est une
+ extension triviale du même appel une fois le pattern validé, explicitement
+ différée — pas la peine de gonfler cette phase déjà chargée pour un besoin non
+ confirmé sur les 3 autres surfaces.
+ - Fidélisation avancée (§36) = catalogue RecompenseFidelite (réutilisé) +
+ nouvelle table de rachat RecompenseEchange branchée sur CompteFidelite,
+ dépense de points via attribuerPointsFidelite(tx, {type:"DEPENSE", ...})
+ (fonction déjà existante, Phase 4). Pas d'auto-service client (aucune appli
+ client n'existe dans ce codebase, cf. mémoire catalogue "reste = appli
+ mobile") — le rachat est déclenché côté staff (marketing/agence) sur la fiche
+ d'un client, comme tout le reste du module.
+ - Gamification (§37) = objectif quantifiable minimal fidèle à l'exemple unique
+ du CDC ("achetez 5 fois ce mois-ci") : NB_ACHATS ou MONTANT_ACHATS sur une
+ période, pas de moteur de règles générique. Badges = attribution automatique
+ sur condition simple (niveau de fidélité atteint, ou nb d'achats total) — pas
+ de système de règles composables (aurait démesurément gonflé le scope, même
+ raisonnement qu'en Phase 4 pour la condition d'arrêt). Classement = requête de
+ lecture agrégée sur CompteFidelite.totalGagnes (déjà la donnée qui existe),
+ pas un nouveau modèle de score.
+ - Parrainage = structure simple confirmée par le CDC lui-même (§84 : seulement
+ 2 tables marketing_referral_programs/marketing_referrals) : un parrain
+ (Client), un filleul (Client, un seul parrain possible), qualification =
+ premier achat du filleul (réutilise le même principe de détection que
+ PREMIER_ACHAT en Phase 4), récompense en points aux deux via
+ attribuerPointsFidelite. Saisie du code parrain scopée à la création client
+ côté admin (app/api/admin/clients POST) pour cette phase, même logique
+ d'extension différée que les coupons.
+ - Évaluation planifiée (qualification parrainage, progression challenges,
+ attribution badges) = nouveau cron dédié /api/cron/marketing/fidelisation
+ (même gabarit ?secret=CRON_SECRET que alertes/marketing/automatisation),
+ distinct du cron Automation (Phase 4) pour rester lisible — ce n'est pas le
+ même domaine fonctionnel.
+ - RBAC : aucun nouveau module, réutilise "marketing" (déjà branché Phases
+ 1-4). Aucun nouveau rôle.
 
- Modèles Prisma à ajouter (prisma/schema.prisma)
+ Modèles Prisma à ajouter
 
- Tous en lecture seule vers les modèles existants (FK simples, pas de
- duplication de données).
-
- Enums
  prisma
- enum StatutCampagne { BROUILLON PLANIFIEE APPROUVEE ACTIVE PAUSE TERMINEE
- ARCHIVEE }
- enum PorteeCampagne { NATIONALE REGIONALE AGENCE POINT_DE_VENTE COMMERCIALE }
- // §5 hiérarchie
- enum ObjectifCampagneType { ACQUISITION CONVERSION FIDELISATION REACTIVATION
- CROSS_SELLING UPSELLING NOTORIETE TRAFIC }  // §8
- enum TypeAudience { STATIQUE DYNAMIQUE }  // §12-13
- enum ChampAudience { SEGMENT TYPE_CLIENT VILLE COMMUNE QUARTIER SEXE
- DATE_NAISSANCE POINT_DE_VENTE MONTANT_ACHAT_TOTAL FREQUENCE_ACHAT
- DERNIER_ACHAT_JOURS PRODUIT_ACHETE FAMILLE_PRODUIT_ACHETEE STATUT_CREDIT
- NIVEAU_FIDELITE TAG }  // §11
- enum OperateurAudience { EGAL DIFFERENT SUPERIEUR INFERIEUR SUPERIEUR_EGAL
- INFERIEUR_EGAL CONTIENT DEPUIS_JOURS }
- enum StatutBudgetMarketing { BROUILLON DEMANDE APPROUVE REJETE }  // §54
- enum CategorieDepenseMarketing { PUBLICITE IMPRESSION INFLUENCE EVENEMENT
- TRANSPORT TERRAIN SMS WHATSAPP EMAIL MEDIA SPONSORING CREATION_GRAPHIQUE AUTRE
- }  // §53
+ // ── Promotions : lien Campagne (additif)
+ ────────────────────────────────────
+ // Sur le modèle Promotion existant : + campagneId Int? / campagne Campagne?
+ // Sur Campagne existant : + promotions Promotion[]
 
- Campagne (§6) — cœur du module :
- prisma
- model Campagne {
-   id           Int             @id @default(autoincrement())
-   code         String          @unique   // ex CAMP-2026-0001, auto-généré
-   nom          String
-   description  String?
-   statut       StatutCampagne  @default(BROUILLON)
-   portee       PorteeCampagne  @default(AGENCE)
-
-   responsableId Int
-   responsable   User            @relation("CampagneResponsable", fields:
- [responsableId], references: [id])
-   commercialId  Int?            // §5 marketing commercial : action portée par
- un commercial précis
-   commercial    User?           @relation("CampagneCommercial", fields:
- [commercialId], references: [id])
-
-   typeCampagneId Int
-   typeCampagne   TypeCampagne   @relation(fields: [typeCampagneId],
- references: [id])
-
-   // Brief marketing (§9)
-   brief          Json?          // { probleme, cible, message, offre, zone,
- resultatAttendu }
-
-   audienceId     Int?
-   audience       AudienceMarketing? @relation(fields: [audienceId],
- references: [id])
-
-   dateDebut      DateTime
-   dateFin        DateTime
-
-   budget         BudgetMarketing?
-   objectifs      CampagneObjectif[]
-   agences        CampagneAgence[]
-   produits       CampagneProduit[]
-   canaux         CampagneCanal[]
-   depenses       DepenseMarketing[]
-   ventesAttribuees    VenteDirecte[]   @relation("VenteCampagne")
-   creditsAttribues    CreditClient[]   @relation("CreditCampagne")
-
-   creeParId    Int
-   createdAt    DateTime @default(now())
-   updatedAt    DateTime @updatedAt
-
-   @@index([statut])
-   @@index([dateDebut, dateFin])
-   @@index([responsableId])
- }
-
- model CampagneObjectif {
-   campagneId Int
-   objectif   ObjectifCampagneType
-   campagne   Campagne @relation(fields: [campagneId], references: [id],
- onDelete: Cascade)
-   @@id([campagneId, objectif])
- }
-
- model CampagneAgence {
-   campagneId     Int
-   pointDeVenteId Int
-   campagne       Campagne     @relation(fields: [campagneId], references:
- [id], onDelete: Cascade)
-   pointDeVente   PointDeVente @relation(fields: [pointDeVenteId], references:
- [id])
-   @@id([campagneId, pointDeVenteId])
- }
-
- model CampagneProduit {
-   campagneId Int
-   produitId  Int?
-   familleId  Int?
-   campagne   Campagne        @relation(fields: [campagneId], references: [id],
- onDelete: Cascade)
-   produit    Produit?        @relation(fields: [produitId], references: [id])
-   famille    FamilleProduit? @relation(fields: [familleId], references: [id])
-   @@id([campagneId, id])
-   id Int @default(autoincrement())  // couple produit/famille optionnels → pas
- de clé naturelle simple
- }
-
- model CampagneCanal {
-   campagneId Int
-   canalId    Int
-   campagne   Campagne       @relation(fields: [campagneId], references: [id],
- onDelete: Cascade)
-   canal      CanalMarketing @relation(fields: [canalId], references: [id])
-   @@id([campagneId, canalId])
- }
- (le double PK de CampagneProduit sera ajusté en implémentation — probablement
- id autoincrement + @@unique([campagneId, produitId, familleId]), à trancher au
- moment du code, détail mineur)
-
- Référentiels paramétrables (§7, §81)
- prisma
- model TypeCampagne {
-   id        Int    @id @default(autoincrement())
-   code      String @unique   // ex "ACQUISITION", "RAMADAN"
-   libelle   String
-   actif     Boolean @default(true)
-   ordre     Int     @default(0)
-   campagnes Campagne[]
- }
-
- model CanalMarketing {
-   id       Int    @id @default(autoincrement())
-   code     String @unique   // "WHATSAPP", "SMS", "FACEBOOK", "TERRAIN"...
-   libelle  String
-   actif    Boolean @default(true)
-   campagnesCanaux CampagneCanal[]
- }
- Seedés à la migration avec les valeurs listées au §7 (types) et une première
- liste de canaux (§21) — modifiables ensuite sans code.
-
- Audiences (§10-15)
- prisma
- model AudienceMarketing {
-   id             Int           @id @default(autoincrement())
+ // ── Coupons
+ ──────────────────────────────────────────────────────────────────
+ model Coupon {
+   id             Int                 @id @default(autoincrement())
+   code           String              @unique // ex AFRI10 (saisi ou généré)
    nom            String
    description    String?
-   type           TypeAudience  @default(DYNAMIQUE)
-   regles         AudienceMarketingRegle[]
-   membres        AudienceMarketingMembre[]
-   tailleCalculee Int?
-   dateDernierCalcul DateTime?
+   campagneId     Int?
+   campagne       Campagne?           @relation(fields: [campagneId],
+ references: [id])
+   typeRemise     TypeRemisePromotion // réutilise l'enum existant
+ (POURCENTAGE/MONTANT/LOT)
+   valeur         Decimal             @default(0)
+   audienceId     Int?                // ciblage optionnel via le moteur
+ d'audience (Phase 1)
+   audience       AudienceMarketing?  @relation(fields: [audienceId],
+ references: [id])
+   pointDeVenteId Int?
+   pointDeVente   PointDeVente?       @relation(fields: [pointDeVenteId],
+ references: [id])
+   produitId      Int?
+   produit        Produit?            @relation(fields: [produitId],
+ references: [id])
+   dateDebut      DateTime
+   dateFin        DateTime
+   utilisationMax Int?                // null = illimité (global)
+   actif          Boolean             @default(true)
+   utilisations   CouponUtilisation[]
    creeParId      Int
-   campagnes      Campagne[]
-   createdAt      DateTime @default(now())
+   creePar        User                @relation(fields: [creeParId],
+ references: [id])
+   createdAt      DateTime            @default(now())
+   updatedAt      DateTime            @updatedAt
+   @@index([actif, dateDebut, dateFin])
+ }
+
+ model CouponUtilisation {
+   id              Int          @id @default(autoincrement())
+   couponId        Int
+   coupon          Coupon       @relation(fields: [couponId], references: [id],
+ onDelete: Cascade)
+   clientId        Int
+   client          Client       @relation(fields: [clientId], references: [id])
+   venteId         Int?
+   vente           VenteDirecte? @relation(fields: [venteId], references: [id])
+   montantRemise   Decimal
+   dateUtilisation DateTime     @default(now())
+   @@unique([couponId, clientId]) // un client n'utilise un coupon qu'une fois
+ — simplification assumée
+   @@index([couponId])
+ }
+ // Additif sur VenteDirecte : + couponId Int? / coupon Coupon?
+
+ // ── Fidélisation : rachat de récompenses (branché CompteFidelite, pas la
+ legacy) ─
+ model RecompenseEchange {
+   id               Int                @id @default(autoincrement())
+   recompenseId     Int
+   recompense       RecompenseFidelite @relation(fields: [recompenseId],
+ references: [id])
+   compteFideliteId Int
+   compteFidelite   CompteFidelite     @relation(fields: [compteFideliteId],
+ references: [id])
+   pointsUtilises   Int
+   statut           StatutRecompense   @default(DISPONIBLE) // réutilise l'enum
+ existant
+   dateUtilisation  DateTime?
+   creeParId        Int
+   creePar          User               @relation(fields: [creeParId],
+ references: [id])
+   createdAt        DateTime           @default(now())
+ }
+ // Additif : RecompenseFidelite.echanges RecompenseEchange[] /
+ CompteFidelite.echangesRecompenses RecompenseEchange[]
+
+ // ── Gamification
+ ─────────────────────────────────────────────────────────────
+ enum TypeObjectifChallenge { NB_ACHATS MONTANT_ACHATS }
+ enum StatutChallenge { ACTIF TERMINE }
+ enum StatutParticipationChallenge { EN_COURS REUSSI }
+
+ model ChallengeMarketing {
+   id               Int                       @id @default(autoincrement())
+   nom              String
+   description      String?
+   typeObjectif     TypeObjectifChallenge
+   seuil            Int
+   recompensePoints Int
+   dateDebut        DateTime
+   dateFin          DateTime
+   statut           StatutChallenge           @default(ACTIF)
+   segment          SegmentClient?            // ciblage optionnel, réutilise
+ l'enum existant
+   participations   ParticipationChallenge[]
+   creeParId        Int
+   creePar          User                      @relation(fields: [creeParId],
+ references: [id])
+   createdAt        DateTime                  @default(now())
+   updatedAt        DateTime                  @updatedAt
+ }
+
+ model ParticipationChallenge {
+   id            Int                          @id @default(autoincrement())
+   challengeId   Int
+   challenge     ChallengeMarketing           @relation(fields: [challengeId],
+ references: [id], onDelete: Cascade)
+   clientId      Int
+   client        Client                       @relation(fields: [clientId],
+ references: [id], onDelete: Cascade)
+   progression   Int                          @default(0)
+   statut        StatutParticipationChallenge @default(EN_COURS)
+   dateReussite  DateTime?
+   @@unique([challengeId, clientId])
+ }
+
+ model BadgeMarketing {
+   id           Int          @id @default(autoincrement())
+   nom          String
+   description  String?
+   icone        String?      // nom d'icône lucide ou emoji
+   condition    Json         // {type:"NIVEAU_FIDELITE",niveau:"OR"} |
+ {type:"NB_ACHATS",seuil:N}
+   actif        Boolean      @default(true)
+   attributions BadgeClient[]
+   createdAt    DateTime     @default(now())
+ }
+
+ model BadgeClient {
+   id              Int            @id @default(autoincrement())
+   badgeId         Int
+   badge           BadgeMarketing @relation(fields: [badgeId], references:
+ [id], onDelete: Cascade)
+   clientId        Int
+   client          Client         @relation(fields: [clientId], references:
+ [id], onDelete: Cascade)
+   dateAttribution DateTime       @default(now())
+   @@unique([badgeId, clientId])
+ }
+
+ // ── Parrainage
+ ────────────────────────────────────────────────────────────────
+ model ParametrageParrainage {
+   id             Int      @id @default(1)
+   actif          Boolean  @default(true)
+   pointsParrain  Int      @default(500)
+   pointsFilleul  Int      @default(200)
    updatedAt      DateTime @updatedAt
  }
 
- model AudienceMarketingRegle {
-   id          Int               @id @default(autoincrement())
-   audienceId  Int
-   champ       ChampAudience
-   operateur   OperateurAudience
-   valeur      String            // valeur brute, castée selon `champ` au
- moment de l'évaluation
-   audience    AudienceMarketing @relation(fields: [audienceId], references:
- [id], onDelete: Cascade)
+ enum StatutParrainage { EN_ATTENTE QUALIFIE RECOMPENSE }
+
+ model Parrainage {
+   id                Int              @id @default(autoincrement())
+   parrainId         Int
+   parrain           Client           @relation("ParrainageParrain", fields:
+ [parrainId], references: [id])
+   filleulId         Int              @unique // un filleul n'a qu'un seul
+ parrain
+   filleul           Client           @relation("ParrainageFilleul", fields:
+ [filleulId], references: [id])
+   statut            StatutParrainage @default(EN_ATTENTE)
+   dateInscription   DateTime         @default(now())
+   dateQualification DateTime?
+   dateRecompense    DateTime?
  }
+ // Additif sur Client : + codeParrainage String? @unique (généré à la
+ création)
 
- model AudienceMarketingMembre {
-   audienceId Int
-   clientId   Int
-   audience   AudienceMarketing @relation(fields: [audienceId], references:
- [id], onDelete: Cascade)
-   client     Client            @relation(fields: [clientId], references: [id])
-   @@id([audienceId, clientId])
- }
- lib/audienceMarketing.ts (nouveau) : evaluerRegles(regles) →
- Prisma.ClientWhereInput (traduction champ/opérateur → filtre Prisma, y compris
- les champs calculés comme
- DERNIER_ACHAT_JOURS/MONTANT_ACHAT_TOTAL/FREQUENCE_ACHAT via agrégation sur
- VenteDirecte) + recalculerAudience(audienceId) (ré-exécute la requête,
- remplace les lignes AudienceMarketingMembre si type=DYNAMIQUE, no-op si
- STATIQUE). RFM (§14) : fonction calculerSegmentsRFM() qui étiquette les
- clients (Champions/Fidèles/Gros acheteurs/Nouveaux/À risque/Dormants/Perdus) à
- partir de VenteDirecte — exposée comme audiences "système" pré-calculées (pas
- de nouveau modèle, juste une fonction + audiences générées).
+ Logique métier
 
- Budget & dépenses (§52-54)
- prisma
- model BudgetMarketing {
-   id              Int    @id @default(autoincrement())
-   campagneId      Int    @unique
-   campagne        Campagne @relation(fields: [campagneId], references: [id])
-   montantPrevu    Decimal
-   montantApprouve Decimal @default(0)
-   montantEngage   Decimal @default(0)
-   statut          StatutBudgetMarketing @default(BROUILLON)
-   demandeParId    Int?
-   approuveParId   Int?
-   dateApprobation DateTime?
-   depenses        DepenseMarketing[]
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
- }
+ - lib/coupon.ts : genererCodeCoupon() (si non fourni), validerCoupon(code,
+ ctx: {clientId, pointDeVenteId, produitIds}) → vérifie actif/fenêtre de
+ dates/agence/produit/audience (réutilise AudienceMarketingMembre si audienceId
+ renseigné)/plafond global/déjà utilisé par ce client, appliquerCoupon(tx,
+ {couponId, clientId, venteId, montantAvant}) → calcule la remise (réutilise la
+ logique POURCENTAGE/MONTANT de lib/promotions.ts::appliquerPromotion, adaptée
+ au panier) + crée CouponUtilisation. Câblé dans app/api/admin/ventes/route.ts
+ (accepte couponCode optionnel dans le body).
+ - lib/recompensesFidelite.ts : echangerRecompense(tx, {clientId, recompenseId,
+ creeParId}) → vérifie actif/dateExpiration/solde suffisant
+ (CompteFidelite.soldePoints >= coutPoints), dépense via
+ attribuerPointsFidelite(tx, {type:"DEPENSE", points:-coutPoints,
+ source:"RECOMPENSE"}), crée RecompenseEchange (statut DISPONIBLE). Action
+ distincte pour marquer UTILISEE (remise physique confirmée par le staff).
+ - lib/gamificationMarketing.ts : evaluerChallenges() — pour chaque
+ ChallengeMarketing ACTIF dans sa fenêtre, calcule la progression par client
+ (count/sum VenteDirecte filtré statut notIn [ANNULEE,BROUILLON] depuis
+ dateDebut, même filtre que Phase 4), upsert ParticipationChallenge, attribue
+ les points + marque REUSSI au franchissement du seuil (une seule fois,
+ @@unique protège l'idempotence). evaluerBadges() — scanne les conditions
+ simples (niveau CompteFidelite.niveau, ou total achats) et crée BadgeClient si
+ absent.
+ - lib/parrainage.ts : evaluerParrainagesQualifies() — pour chaque Parrainage
+ EN_ATTENTE, vérifie si le filleul a un premier achat (VenteDirecte valide) →
+ passe QUALIFIE → attribue les points aux deux (attribuerPointsFidelite ×2) →
+ passe RECOMPENSE. Génération de codeParrainage à la création client
+ (app/api/admin/clients POST) : si codeParrainageUtilise fourni dans le body,
+ résout le Client parrain correspondant et crée le Parrainage (EN_ATTENTE).
+ - app/api/cron/marketing/fidelisation/route.ts : orchestre evaluerChallenges()
+ + evaluerBadges() + evaluerParrainagesQualifies(), même gabarit CRON_SECRET
+ que les crons existants. Entrée vercel.json (nouveau créneau, ex. 0 9 * * *).
 
- model DepenseMarketing {
-   id            Int      @id @default(autoincrement())
-   campagneId    Int
-   budgetId      Int?
-   categorie     CategorieDepenseMarketing
-   montant       Decimal
-   date          DateTime @default(now())
-   description   String?
-   ecritureComptableId Int?  // lien optionnel vers une écriture comptable
- existante (pas de duplication)
-   creeParId     Int
-   campagne      Campagne @relation(fields: [campagneId], references: [id])
-   budget        BudgetMarketing? @relation(fields: [budgetId], references:
- [id])
- }
- montantDepense = SUM(DepenseMarketing.montant), calculé à la volée (pas
- stocké) ; montantRestant = montantApprouve - montantDepense.
+ RBAC
 
- Champ d'attribution sur modèles existants (additif, nullable) :
- prisma
- // dans VenteDirecte
- campagneId Int?
- campagne   Campagne? @relation("VenteCampagne", fields: [campagneId],
- references: [id])
-
- // dans CreditClient
- campagneId Int?
- campagne   Campagne? @relation("CreditCampagne", fields: [campagneId],
- references: [id])
-
- RBAC (lib/permissionsRegistry.ts, lib/permissions.ts)
-
- - Ajouter { key: "marketing", label: "Marketing" } à PERMISSION_MODULES.
- - DEFAULT_MATRIX :
-   - RESPONSABLE_MARKETING: { marketing: FULL }
-   - DIRECTEUR_GENERAL: { marketing: FULL } (validation budgets §54, lecture
- stratégique globale §79)
-   - CHEF_AGENCE, RESPONSABLE_POINT_DE_VENTE: { marketing: RO } (§4 :
- responsable d'agence voit ses campagnes)
- - Pas de changement à can()/requirePermission()/resolveUserPermissions() —
- déjà génériques.
-
- Workflow de statut (lib/marketingCampagneWorkflow.ts, nouveau)
-
- Calqué sur lib/dossierInterCommissionWorkflow.ts::appliquerActionDossier :
- - TRANSITIONS: Record<CampagneAction, StatutCampagne> (ex.
- SOUMETTRE→PLANIFIEE, APPROUVER→APPROUVEE, ACTIVER→ACTIVE,
- METTRE_EN_PAUSE→PAUSE, REPRENDRE→ACTIVE, TERMINER→TERMINEE,
- ARCHIVER→ARCHIVEE).
- - PRECONDITIONS: Record<CampagneAction, StatutCampagne[]> (statuts source
- autorisés), vérifiées avant tout gating de rôle.
- - Gating via can(session, "marketing", "VALIDATION") pour APPROUVER,
- "MODIFICATION" pour le reste.
- - notifyRoles(tx, ["RESPONSABLE_MARKETING"], {...}) + auditLog(tx, userId,
- "ACTION_CAMPAGNE", "Campagne", campagneId, {avant, apres}) sur chaque
- transition (§80 audit obligatoire).
- - Retourne la campagne mise à jour avec include (responsable, budget,
- objectifs).
-
- RBAC + Auth helper
-
- lib/authMarketing.ts (nouveau, calqué sur lib/authRPV.ts) :
- export async function getMarketingSession() {
-   const session = await getAuthSession();
-   if (!session) return null;
-   const role = session.user.role, gRole = session.user.gestionnaireRole;
-   if (role === "ADMIN" || role === "SUPER_ADMIN" || gRole ===
- "RESPONSABLE_MARKETING") return session;
-   return null;
- }
+ Aucun nouveau module : réutilise "marketing". CREATION/MODIFICATION pour gérer
+ coupons/récompenses/challenges/badges/paramétrage parrainage, LECTURE pour
+ consulter classement/historique.
 
  Routes API (app/api/admin/marketing/...)
 
- - campagnes/route.ts — GET (liste + filtres statut/type/agence/responsable),
- POST (création, statut initial BROUILLON, inclut le brief §9).
- - campagnes/[id]/route.ts — GET détail (avec budget, objectifs, agences,
- produits, canaux, audience, dépenses), PATCH (édition champs hors statut).
- - campagnes/[id]/action/route.ts — POST, appelle appliquerActionCampagne
- (transitions de statut).
- - audiences/route.ts — GET liste (avec tailleCalculee), POST création (règles
- + type statique/dynamique → calcule immédiatement les membres).
- - audiences/[id]/route.ts — GET détail (règles + aperçu échantillon de
- membres).
- - audiences/[id]/recalculer/route.ts — POST, force recalculerAudience() (utile
- aussi pour un futur cron §12 "chaque jour").
- - audiences/rfm/route.ts — GET, calcule et retourne les segments RFM courants
- (§14) sans forcément créer une audience persistée à chaque appel.
- - budgets/[id]/action/route.ts — POST (workflow DEMANDE→APPROUVE/REJETE, §54).
- - types-campagne/route.ts, canaux/route.ts — CRUD simple des référentiels
- paramétrables (§81, réservé à l'admin/responsable marketing).
- - stats/route.ts — GET, KPIs §3 (budget, dépenses, campagnes
- actives/terminées, nouveaux clients, CA/marge attribués via campagneId, CAC,
- ROI...) + parAgence (§4, tableau agence×budget×leads×clients×CA×ROI) — pattern
- scoping identique à app/api/rpv/ventes/route.ts (bypass admin, sinon
- restreint aux agences du gestionnaire pour
- CHEF_AGENCE/RESPONSABLE_POINT_DE_VENTE).
- - Alerte stock (§61) intégrée à la réponse de campagnes/[id] : pour chaque
- produit ciblé × agence ciblée, comparer StockSite.quantite à
- alerteStock/seuilCritique et renvoyer un tableau alertesStock.
-
- Toutes les routes protégées par requirePermission(session, "marketing",
- action) en plus de getMarketingSession().
+ - coupons/route.ts (GET liste, POST création), coupons/[id]/route.ts (GET,
+ PATCH actif/dates).
+ - recompenses/route.ts (GET/POST catalogue), recompenses/[id]/route.ts
+ (PATCH), recompenses/echanger/route.ts (POST — déclenche echangerRecompense),
+ recompenses/echanges/[id]/route.ts (PATCH statut → UTILISEE).
+ - challenges/route.ts (GET/POST), challenges/[id]/route.ts (PATCH),
+ challenges/[id]/classement/route.ts (GET — top participants).
+ - badges/route.ts (GET/POST), badges/[id]/route.ts (PATCH).
+ - parrainage/parametrage/route.ts (GET/PATCH singleton), parrainage/route.ts
+ (GET liste des parrainages + statuts).
+ - promotions/route.ts : pas de nouvelle route — la page consomme directement
+ /api/admin/catalogue/promotions (existant), avec campagneId ajouté au payload
+ accepté par validerPromotion.
+ - app/api/admin/ventes/route.ts (existant) : accepte couponCode optionnel,
+ appelle validerCoupon/appliquerCoupon.
+ - app/api/admin/clients/route.ts (existant) : accepte codeParrainageUtilise
+ optionnel, crée le Parrainage.
 
  Pages front
 
- - app/dashboard/admin/marketing/page.tsx — Dashboard Direction (§3-4) :
- KpiCard × (budget, dépenses, campagnes actives/terminées, leads, nouveaux
- clients, réactivés, CA attribué, marge attribuée, CAC, ROI...) + tableau
- comparatif par agence + top campagnes.
- - app/dashboard/admin/marketing/campagnes/page.tsx — Campaign Manager : liste
- filtrable + modal de création avec formulaire de brief (§9) en premier écran,
- puis détails (audience/produits/agences/canaux/budget).
- - app/dashboard/admin/marketing/campagnes/[id]/page.tsx — détail campagne :
- bandeau statut + boutons d'action (workflow), onglets Brief / Audience /
- Produits & Stock / Budget & Dépenses / Ventes attribuées.
- - app/dashboard/admin/marketing/audiences/page.tsx — liste + créateur
- d'audience (constructeur de règles combinables §11, toggle statique/dynamique
- §12-13, raccourcis RFM §14).
- - app/dashboard/admin/marketing/parametres/page.tsx — gestion des référentiels
- TypeCampagne/CanalMarketing (§81, no-code).
- - app/dashboard/user/responsablesMarketing/page.tsx — portail dédié
- RESPONSABLE_MARKETING, patron mono-page à onglets (Synthèse / Campagnes /
- Audiences / Budgets), scope filtré par usePageAccess().
- - Entrée AdminSidebar.tsx : { href: "/dashboard/admin/marketing", label:
- t("nav_marketing"), icon: <Megaphone size={19} /> } + entrée i18n
- nav_marketing dans lib/translations.ts (FR/EN/AR/ES/PT) + entrées
- HAS_PDV_BADGE_PREFIXES/OWN_TOPBAR_PREFIXES dans app/dashboard/user/layout.tsx
- pour responsablesMarketing.
+ - Nouveaux onglets Promotions, Fidélisation, Parrainage dans
+ app/dashboard/admin/marketing/layout.tsx (+ onglets portail
+ responsablesMarketing, même pattern répété Phases 1-4).
+   - Promotions : liste + création/édition consommant
+ /api/admin/catalogue/promotions (réutilisation, pas de nouveau composant de
+ logique métier) + sous-vue Coupons (liste, création, historique
+ d'utilisation).
+   - Fidélisation : sous-vues Récompenses (catalogue + échanger pour un client
+ + historique), Challenges (liste + création + classement par challenge),
+ Badges (catalogue + clients badgés).
+   - Parrainage : paramétrage (points parrain/filleul) + liste des parrainages
+ avec statuts.
+ - Composants partagés
+ components/marketing/{PromotionsMarketing,CouponsMarketing,RecompensesFidelite
+ ,ChallengesMarketing,BadgesMarketing,ParrainageMarketing}.tsx (pattern déjà
+ établi : partagés admin+portail).
 
  Migration Prisma
 
- Une seule migration npx prisma migrate dev --name marketing_core_phase1
- couvrant tous les modèles/enums ci-dessus + les 2 colonnes additives
- (campagneId sur VenteDirecte/CreditClient) + seed des
- TypeCampagne/CanalMarketing initiaux (script séparé ou db seed, à confirmer
- avec l'utilisateur qui gère ses migrations lui-même — cf. mémoire projet).
+ npx prisma migrate dev --name marketing_phase5_fidelisation en dev, puis npm
+ run migrate:deploy:prod vers Neon une fois vérifié (confirmation explicite
+ avant déploiement prod, comme pour les Phases 1-4).
 
  Vérification
 
- 1. npx tsc --noEmit puis npm run build (batché après l'ensemble des fichiers,
- pas à chaque fichier — cf. préférence utilisateur).
- 2. Test API bout en bout sur le serveur dev (session forgée comme pour les
- tests précédents) : créer un TypeCampagne, créer une Campagne en BROUILLON
- avec un brief, créer une AudienceMarketing dynamique sur des clients réels de
- la DB dev et vérifier tailleCalculee, faire transiter la campagne
- BROUILLON→PLANIFIEE→APPROUVEE→ACTIVE via action/route.ts, tagger une
- VenteDirecte existante avec campagneId et vérifier que stats/route.ts remonte
- le CA attribué.
- 3. Vérifier le RBAC : requête avec une session CAISSIER (sans droit marketing)
- → 403 sur les routes marketing.
- 4. Vérifier au navigateur (Playwright, comme pour les chantiers précédents) :
- dashboard /dashboard/admin/marketing, création de campagne, portail
- /dashboard/user/responsablesMarketing.
- 5. Nettoyage des données de test créées en dev après vérification (pattern
- déjà suivi dans cette session).
+ Note de session : npm run build est abandonné pour ce projet (plantages
+ Turbopack/RAM récurrents, décision utilisateur). Vérification = npx tsc
+ --noEmit + npm run lint uniquement, lancés en arrière-plan.
+
+ 1. npx tsc --noEmit + npm run lint, chacun en run_in_background: true,
+ attendre la notification.
+ 2. Test API bout en bout (session forgée, pattern rodé Phase 4) : création
+ promotion liée à une campagne (via l'API catalogue existante), création +
+ application d'un coupon sur une vente admin (vérifier montantTotal réduit +
+ CouponUtilisation créée + rejet si code déjà utilisé/expiré/plafond atteint),
+ échange d'une récompense (solde de points décrémenté, RecompenseEchange créé),
+ création d'un challenge + vente de test franchissant le seuil + vérification
+ cron evaluerChallenges (points attribués, badge éventuel), parrainage
+ (création client avec codeParrainageUtilise → Parrainage EN_ATTENTE → vente du
+ filleul → cron evaluerParrainagesQualifies → RECOMPENSE + points aux deux),
+ vérification RBAC (403 hors permission marketing).
+ 3. Vérification navigateur (Playwright) sur une instance dev dédiée (le
+ serveur dev principal peut avoir un client Prisma périmé après migration —
+ leçon de la Phase 4, prévoir un redémarrage ou une instance secondaire) : les
+ 3 nouveaux onglets sur dashboard admin et portail.
+ 4. Nettoyage des données de test (dans l'ordre des FK, leçon de la Phase 4 sur
+ les onDelete) + fichiers scratch en fin de vérification.
