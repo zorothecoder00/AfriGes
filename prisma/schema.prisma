@@ -1090,6 +1090,7 @@ model Client {
   quartier            String?
   ville               String?
   commune             String? // commune de rattachement (texte libre)
+  region              String? // CDC Marketing §51 — ciblage géo par région (texte libre)
   photoUrl            String? // URL stockage photo client
   pieceIdentiteUrl    String? // URL scan pièce d'identité
   numeroCNI           String?   @unique // numéro CNI (unique si renseigné)
@@ -8822,6 +8823,8 @@ enum ChampAudience {
   /// CDC §11 — canal déjà utilisé pour toucher le client ; `valeur` =
   /// CanalMarketing.code (ex "SMS"). Agrégé sur EnvoiMessage.
   CANAL
+  /// CDC §51 — ciblage géo par région (Client.region, texte libre).
+  REGION
 }
 
 enum OperateurAudience {
@@ -8838,6 +8841,8 @@ enum OperateurAudience {
 enum StatutBudgetMarketing {
   BROUILLON
   DEMANDE
+  /// CDC §54 — 1ère validation (Responsable Marketing) passée, en attente de la Direction.
+  EN_VALIDATION_DIRECTION
   APPROUVE
   REJETE
 }
@@ -9061,6 +9066,10 @@ model BudgetMarketing {
   statut          StatutBudgetMarketing @default(BROUILLON)
 
   demandeParId    Int?
+  // CDC §54 — 1er palier (Responsable Marketing).
+  valideParResponsableId   Int?
+  dateValidationResponsable DateTime?
+  // 2e palier (Direction) — mêmes champs historiques, dernière validation qui débloque la dépense.
   approuveParId   Int?
   dateApprobation DateTime?
 

@@ -317,10 +317,10 @@ export interface LigneProduitMarketing {
 /**
  * Produits les plus promus / les plus vendus après campagne / rotation / marge
  * (CDC §60) + disponibilité stock consultable côté marketing (CDC §61 — lecture
- * seule, ne gère pas le stock). "Produits complémentaires" et "saisonniers" ne
- * sont PAS couverts : aucune donnée de catalogue croisée (liens produits
- * complémentaires, tag saisonnier) n'existe dans ce codebase — limite honnête,
- * pas un oubli d'implémentation.
+ * seule, ne gère pas le stock). "Produits complémentaires" et "saisonniers" sont
+ * couverts séparément (cf. `produitsComplementaires`/`produitsSaisonniers`
+ * ci-dessous) — calculés à la volée sur les ventes existantes, pas de nouveau
+ * modèle de catalogue.
  */
 export async function rapportProduitsMarketing(debut: Date, fin: Date, limit = 20): Promise<LigneProduitMarketing[]> {
   const lignesCampagne = await prisma.ligneVenteDirecte.groupBy({
@@ -368,5 +368,108 @@ export async function rapportProduitsMarketing(debut: Date, fin: Date, limit = 2
       };
     })
     .sort((a, b) => b.caApresCampagne - a.caApresCampagne)
+    .slice(0, limit);
+}
+
+export interface PaireComplementaire {
+  produitAId: number; produitANom: string;
+  produitBId: number; produitBNom: string;
+  nbPaniers: number; // nombre de paniers où les deux apparaissent ensemble
+}
+
+/**
+ * Produits complémentaires (CDC §60) — analyse du panier (market basket) :
+ * paires de produits qui apparaissent le plus souvent ensemble dans une même
+ * vente, sur les 6 derniers mois. Calculé à la volée (pas de table de liens
+ * produits-complémentaires) ; capé à 3000 ventes pour rester borné.
+ */
+export async function produitsComplementaires(limit = 15): Promise<PaireComplementaire[]> {
+  const depuis = new Date(Date.now() - 180 * JOUR_MS);
+  const ventes = await prisma.venteDirecte.findMany({
+    where: { createdAt: { gte: depuis }, statut: { notIn: VENTES_EXCLUES as never } },
+    orderBy: { createdAt: "desc" },
+    take: 3000,
+    select: { lignes: { select: { produitId: true } } },
+  });
+
+  const paireCount = new Map<string, number>();
+  for (const v of ventes) {
+    const ids = [...new Set(v.lignes.map((l) => l.produitId).filter((id): id is number => id != null))].sort((a, b) => a - b);
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const cle = `${ids[i]}:${ids[j]}`;
+        paireCount.set(cle, (paireCount.get(cle) ?? 0) + 1);
+      }
+    }
+  }
+  if (!paireCount.size) return [];
+
+  const top = [...paireCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit);
+  const produitIds = [...new Set(top.flatMap(([cle]) => cle.split(":").map(Number)))];
+  const produits = await prisma.produit.findMany({ where: { id: { in: produitIds } }, select: { id: true, nom: true } });
+  const nomMap = new Map(produits.map((p) => [p.id, p.nom]));
+
+  return top.map(([cle, nbPaniers]) => {
+    const [a, b] = cle.split(":").map(Number);
+    return {
+      produitAId: a, produitANom: nomMap.get(a) ?? `Produit #${a}`,
+      produitBId: b, produitBNom: nomMap.get(b) ?? `Produit #${b}`,
+      nbPaniers,
+    };
+  });
+}
+
+export interface ProduitSaisonnier {
+  produitId: number; nom: string;
+  moisPic: string; // ex "Décembre"
+  partMoisPic: number; // % des ventes annuelles concentrées sur ce mois
+  quantiteTotale: number;
+}
+
+const NOMS_MOIS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+const SEUIL_SAISONNALITE = 0.30; // un mois normal "plat" pèserait ~8.3% (1/12) — 30%+ = pic net
+
+/**
+ * Produits saisonniers (CDC §60) — détecte les produits dont les ventes se
+ * concentrent fortement sur un mois de l'année (12 derniers mois glissants).
+ * Heuristique simple (part du mois pic ≥ 30%), pas de série temporelle/ML.
+ */
+export async function produitsSaisonniers(limit = 15): Promise<ProduitSaisonnier[]> {
+  const depuis = new Date(Date.now() - 365 * JOUR_MS);
+  const lignes = await prisma.ligneVenteDirecte.findMany({
+    where: { produitId: { not: null }, vente: { createdAt: { gte: depuis }, statut: { notIn: VENTES_EXCLUES as never } } },
+    select: { produitId: true, quantite: true, vente: { select: { createdAt: true } } },
+  });
+  if (!lignes.length) return [];
+
+  const parProduit = new Map<number, { total: number; parMois: number[] }>();
+  for (const l of lignes) {
+    const produitId = l.produitId as number;
+    const entree = parProduit.get(produitId) ?? { total: 0, parMois: new Array(12).fill(0) };
+    const mois = l.vente.createdAt.getUTCMonth();
+    entree.parMois[mois] += l.quantite;
+    entree.total += l.quantite;
+    parProduit.set(produitId, entree);
+  }
+
+  const candidats: ProduitSaisonnier[] = [];
+  const produitIds: number[] = [];
+  for (const [produitId, { total, parMois }] of parProduit) {
+    if (total < 5) continue; // volume trop faible pour être significatif
+    const maxQte = Math.max(...parMois);
+    const part = maxQte / total;
+    if (part >= SEUIL_SAISONNALITE) {
+      produitIds.push(produitId);
+      candidats.push({ produitId, nom: "", moisPic: NOMS_MOIS[parMois.indexOf(maxQte)], partMoisPic: Math.round(part * 1000) / 10, quantiteTotale: total });
+    }
+  }
+  if (!candidats.length) return [];
+
+  const produits = await prisma.produit.findMany({ where: { id: { in: produitIds } }, select: { id: true, nom: true } });
+  const nomMap = new Map(produits.map((p) => [p.id, p.nom]));
+
+  return candidats
+    .map((c) => ({ ...c, nom: nomMap.get(c.produitId) ?? `Produit #${c.produitId}` }))
+    .sort((a, b) => b.partMoisPic - a.partMoisPic)
     .slice(0, limit);
 }

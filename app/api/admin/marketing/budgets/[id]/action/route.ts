@@ -3,26 +3,30 @@ import { prisma } from "@/lib/prisma";
 import { getMarketingSession } from "@/lib/authMarketing";
 import { requirePermission } from "@/lib/permissions";
 import { notifyRoles, auditLog } from "@/lib/notifications";
+import { estDirection } from "@/lib/authMarketing";
 import type { StatutBudgetMarketing } from "@prisma/client";
 
 type Ctx = { params: Promise<{ id: string }> };
-type BudgetAction = "DEMANDER" | "APPROUVER" | "REJETER";
+type BudgetAction = "DEMANDER" | "VALIDER_RESPONSABLE" | "APPROUVER" | "REJETER";
 
 const TRANSITIONS: Record<BudgetAction, StatutBudgetMarketing> = {
-  DEMANDER:  "DEMANDE",
-  APPROUVER: "APPROUVE",
-  REJETER:   "REJETE",
+  DEMANDER:            "DEMANDE",
+  VALIDER_RESPONSABLE: "EN_VALIDATION_DIRECTION",
+  APPROUVER:           "APPROUVE",
+  REJETER:             "REJETE",
 };
 const PRECONDITIONS: Record<BudgetAction, StatutBudgetMarketing[]> = {
-  DEMANDER:  ["BROUILLON", "REJETE"],
-  APPROUVER: ["DEMANDE"],
-  REJETER:   ["DEMANDE"],
+  DEMANDER:            ["BROUILLON", "REJETE"],
+  VALIDER_RESPONSABLE: ["DEMANDE"],
+  APPROUVER:           ["EN_VALIDATION_DIRECTION"],
+  REJETER:             ["DEMANDE", "EN_VALIDATION_DIRECTION"],
 };
 
 /**
  * POST /api/admin/marketing/budgets/[id]/action
- * Workflow budget (CDC §54) : Marketing demande → Responsable/Direction valide.
- * Body: { action: "DEMANDER"|"APPROUVER"|"REJETER", montantApprouve? }
+ * Workflow budget à 2 paliers (CDC §54) : Marketing demande → Responsable
+ * Marketing valide → Direction approuve → dépense possible.
+ * Body: { action: "DEMANDER"|"VALIDER_RESPONSABLE"|"APPROUVER"|"REJETER", montantApprouve? }
  */
 export async function POST(req: Request, { params }: Ctx) {
   try {
@@ -37,9 +41,15 @@ export async function POST(req: Request, { params }: Ctx) {
     const action = body.action as BudgetAction | undefined;
     if (!action || !TRANSITIONS[action]) return NextResponse.json({ error: "Action invalide" }, { status: 400 });
 
-    const permission = action === "APPROUVER" || action === "REJETER" ? "VALIDATION" : "MODIFICATION";
+    const permission = action === "VALIDER_RESPONSABLE" || action === "APPROUVER" || action === "REJETER" ? "VALIDATION" : "MODIFICATION";
     const denied = await requirePermission(session, "marketing", permission);
     if (denied) return denied;
+
+    // CDC §54 — le 2e palier (Direction) est réservé à Admin/Super Admin, même
+    // si un autre rôle possède la permission "VALIDATION" marketing.
+    if (action === "APPROUVER" && !estDirection(session)) {
+      return NextResponse.json({ error: "Réservé à la Direction (Admin/Super Admin)" }, { status: 403 });
+    }
 
     const userId = Number(session.user.id);
     const result = await prisma.$transaction(async (tx) => {
@@ -51,6 +61,10 @@ export async function POST(req: Request, { params }: Ctx) {
 
       const data: Record<string, unknown> = { statut: TRANSITIONS[action] };
       if (action === "DEMANDER") data.demandeParId = userId;
+      if (action === "VALIDER_RESPONSABLE") {
+        data.valideParResponsableId = userId;
+        data.dateValidationResponsable = new Date();
+      }
       if (action === "APPROUVER") {
         data.approuveParId = userId;
         data.dateApprobation = new Date();
@@ -65,9 +79,16 @@ export async function POST(req: Request, { params }: Ctx) {
       });
 
       if (action === "DEMANDER") {
-        await notifyRoles(tx, ["DIRECTEUR_GENERAL"], {
+        await notifyRoles(tx, ["RESPONSABLE_MARKETING"], {
           titre: "Budget marketing à valider",
           message: `Le budget de la campagne « ${current.campagne.nom} » (${current.campagne.code}) attend une validation.`,
+          priorite: "HAUTE",
+          actionUrl: `/dashboard/admin/marketing/campagnes/${current.campagneId}`,
+        });
+      } else if (action === "VALIDER_RESPONSABLE") {
+        await notifyRoles(tx, [], {
+          titre: "Budget en attente de validation Direction",
+          message: `Le budget de la campagne « ${current.campagne.nom} » (${current.campagne.code}) a franchi le palier marketing — validation Direction requise.`,
           priorite: "HAUTE",
           actionUrl: `/dashboard/admin/marketing/campagnes/${current.campagneId}`,
         });

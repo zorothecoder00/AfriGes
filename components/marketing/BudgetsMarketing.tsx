@@ -1,25 +1,32 @@
 "use client";
 
 import { useRef } from "react";
+import { useSession } from "next-auth/react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
 import { Loader2, Wallet } from "lucide-react";
 
-/** Budgets marketing (CDC §52-54) — workflow Prévu→Approuvé→Engagé→Dépense. */
+/** Budgets marketing (CDC §52-54) — workflow Prévu→Approuvé→Engagé→Dépense, validation à 2 paliers. */
 
 interface CampagneItem {
   id: number; code: string; nom: string;
   budget: { id: number; montantPrevu: number | string; montantApprouve: number | string; montantEngage: number | string; statut: string } | null;
 }
 
-const STATUT_LABEL: Record<string, string> = { BROUILLON: "Brouillon", DEMANDE: "En attente", APPROUVE: "Approuvé", REJETE: "Rejeté" };
+const STATUT_LABEL: Record<string, string> = {
+  BROUILLON: "Brouillon", DEMANDE: "En attente (Responsable)", EN_VALIDATION_DIRECTION: "Attente Direction",
+  APPROUVE: "Approuvé", REJETE: "Rejeté",
+};
 const STATUT_STYLE: Record<string, string> = {
   BROUILLON: "bg-slate-100 text-slate-500", DEMANDE: "bg-amber-100 text-amber-700",
+  EN_VALIDATION_DIRECTION: "bg-purple-100 text-purple-700",
   APPROUVE: "bg-emerald-100 text-emerald-700", REJETE: "bg-rose-100 text-rose-600",
 };
 
 export default function BudgetsMarketing() {
   const { data: res, loading, refetch } = useApi<{ data: CampagneItem[] }>("/api/admin/marketing/campagnes");
+  const { data: session } = useSession();
+  const estDirection = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN";
   const budgetIdRef = useRef<number | null>(null);
   const { mutate: agirBudget } = useMutation<unknown, { action: string }>(
     () => `/api/admin/marketing/budgets/${budgetIdRef.current}/action`, "POST",
@@ -53,8 +60,16 @@ export default function BudgetsMarketing() {
               )}
               {c.budget!.statut === "DEMANDE" && (
                 <>
+                  <button onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "VALIDER_RESPONSABLE" })) refetch(); }}
+                    className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700">Valider (Responsable)</button>
+                  <button onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "REJETER" })) refetch(); }}
+                    className="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-semibold hover:bg-rose-600">Rejeter</button>
+                </>
+              )}
+              {c.budget!.statut === "EN_VALIDATION_DIRECTION" && estDirection && (
+                <>
                   <button onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "APPROUVER" })) refetch(); }}
-                    className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">Approuver</button>
+                    className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700">Valider (Direction)</button>
                   <button onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "REJETER" })) refetch(); }}
                     className="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-semibold hover:bg-rose-600">Rejeter</button>
                 </>

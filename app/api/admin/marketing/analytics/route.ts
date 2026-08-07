@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMarketingSession } from "@/lib/authMarketing";
 import { requirePermission } from "@/lib/permissions";
-import { rapportAttribution, topClientsCLV, tauxRetention, recommandationsMarketing, rapportParCanal, rapportProduitsMarketing } from "@/lib/analyticsMarketing";
+import { rapportAttribution, topClientsCLV, tauxRetention, recommandationsMarketing, rapportParCanal, rapportProduitsMarketing, produitsComplementaires, produitsSaisonniers } from "@/lib/analyticsMarketing";
 import { MODELES_ATTRIBUTION, type ModeleAttribution } from "@/lib/attributionModeles";
 
 /**
@@ -23,16 +23,18 @@ export async function GET(req: NextRequest) {
     const modeleParam = sp.get("modele");
     const modele: ModeleAttribution = modeleParam && MODELES_ATTRIBUTION.includes(modeleParam as ModeleAttribution) ? (modeleParam as ModeleAttribution) : "CAMPAIGN_BASED";
 
-    const [attribution, clv, retention, recommandations, parCanal, produits] = await Promise.all([
+    const [attribution, clv, retention, recommandations, parCanal, produits, complementaires, saisonniers] = await Promise.all([
       rapportAttribution(debut, fin, modele),
       topClientsCLV(20),
       tauxRetention(debut, fin),
       recommandationsMarketing(),
       rapportParCanal(debut, fin),
       rapportProduitsMarketing(debut, fin, 20),
+      produitsComplementaires(15),
+      produitsSaisonniers(15),
     ]);
 
-    return NextResponse.json({ data: { attribution, clv, retention, ...recommandations, parCanal, produits, modele } });
+    return NextResponse.json({ data: { attribution, clv, retention, ...recommandations, parCanal, produits, complementaires, saisonniers, modele } });
   } catch (e) {
     console.error("GET /api/admin/marketing/analytics", e);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

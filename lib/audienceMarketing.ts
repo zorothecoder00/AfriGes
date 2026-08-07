@@ -17,7 +17,7 @@ const jourMs = 24 * 60 * 60 * 1000;
  * sous-requête dédiée — traités séparément dans `calculerAudience`.
  */
 const CHAMPS_DIRECTS: ChampAudience[] = [
-  "SEGMENT", "TYPE_CLIENT", "VILLE", "COMMUNE", "QUARTIER", "SEXE", "POINT_DE_VENTE", "STATUT_CREDIT", "ACTIVITE", "AGE",
+  "SEGMENT", "TYPE_CLIENT", "VILLE", "COMMUNE", "QUARTIER", "SEXE", "POINT_DE_VENTE", "STATUT_CREDIT", "ACTIVITE", "AGE", "REGION",
 ];
 
 /** Date de naissance correspondant à un âge de `annees` révolues, à la date du jour. */
@@ -66,6 +66,7 @@ function construireWhereDirect(regles: RegleAudience[]): Prisma.ClientWhereInput
         break;
       case "ACTIVITE":        where.activite = appliquerOperateurTexte(r) as never; break;
       case "AGE":             where.dateNaissance = appliquerOperateurAge(r); break;
+      case "REGION":          where.region = appliquerOperateurTexte(r) as never; break;
     }
   }
   return where;

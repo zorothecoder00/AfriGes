@@ -18,6 +18,7 @@ const CHAMPS = [
   { value: "ACTIVITE", label: "Activité (B2B : revendeur, grossiste, hôtel…)" },
   { value: "AGE", label: "Âge (années)" },
   { value: "CANAL", label: "Canal déjà utilisé (code, ex SMS)" },
+  { value: "REGION", label: "Région" },
 ];
 const OPERATEURS = [
   { value: "EGAL", label: "=" }, { value: "DIFFERENT", label: "≠" }, { value: "SUPERIEUR", label: ">" },
