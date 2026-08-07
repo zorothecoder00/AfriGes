@@ -15,6 +15,7 @@ const CHAMPS = [
   { value: "FAMILLE_PRODUIT_ACHETEE", label: "Famille de produit achetée (ID)" }, { value: "STATUT_CREDIT", label: "Statut crédit" },
   { value: "NIVEAU_FIDELITE", label: "Niveau fidélité" }, { value: "TAG", label: "Tag (ID)" },
   { value: "DISTANCE_AGENCE_KM", label: "Distance à une agence (rayon)" },
+  { value: "ACTIVITE", label: "Activité (B2B : revendeur, grossiste, hôtel…)" },
 ];
 const OPERATEURS = [
   { value: "EGAL", label: "=" }, { value: "DIFFERENT", label: "≠" }, { value: "SUPERIEUR", label: ">" },

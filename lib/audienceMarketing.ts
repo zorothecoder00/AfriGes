@@ -16,7 +16,7 @@ const jourMs = 24 * 60 * 60 * 1000;
  * sous-requête dédiée — traités séparément dans `calculerAudience`.
  */
 const CHAMPS_DIRECTS: ChampAudience[] = [
-  "SEGMENT", "TYPE_CLIENT", "VILLE", "COMMUNE", "QUARTIER", "SEXE", "POINT_DE_VENTE", "STATUT_CREDIT",
+  "SEGMENT", "TYPE_CLIENT", "VILLE", "COMMUNE", "QUARTIER", "SEXE", "POINT_DE_VENTE", "STATUT_CREDIT", "ACTIVITE",
 ];
 
 function appliquerOperateurTexte(regle: RegleAudience): Prisma.ClientWhereInput[keyof Prisma.ClientWhereInput] {
@@ -43,6 +43,7 @@ function construireWhereDirect(regles: RegleAudience[]): Prisma.ClientWhereInput
       case "STATUT_CREDIT":
         where.creditsClients = { some: { statut: r.valeur as never } };
         break;
+      case "ACTIVITE":        where.activite = appliquerOperateurTexte(r) as never; break;
     }
   }
   return where;

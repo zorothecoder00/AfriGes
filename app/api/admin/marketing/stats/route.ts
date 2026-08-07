@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMarketingSession } from "@/lib/authMarketing";
 import { requirePermission } from "@/lib/permissions";
+import { tauxRetention as calculerTauxRetention } from "@/lib/analyticsMarketing";
 
 const JOUR_MS = 24 * 60 * 60 * 1000;
 const SEUIL_REACTIVATION_JOURS = 60; // écart d'inactivité minimal pour compter un "client réactivé" (CDC §15)
@@ -128,6 +129,9 @@ export async function GET(req: NextRequest) {
     const nbLus = envois.filter((e) => e.statut === "LU" || e.statut === "REPONSE").length;
     const engagement = envois.length > 0 ? (nbLus / envois.length) * 100 : null;
 
+    // ── Rétention (CDC §7, Phase 7) — réutilise lib/analyticsMarketing.ts ────
+    const { tauxRetention } = await calculerTauxRetention(debut, fin);
+
     // ── Comparatif par agence (CDC §4) ────────────────────────────────────────
     const budgetsParCampagne = await prisma.budgetMarketing.findMany({ select: { campagneId: true, montantApprouve: true } });
     const budgetParCampagneMap = new Map(budgetsParCampagne.map((b) => [b.campagneId, Number(b.montantApprouve)]));
@@ -197,7 +201,7 @@ export async function GET(req: NextRequest) {
           coutParLead,
           cac, tauxConversion,
           roi, roas,
-          engagement, tauxRetention: null, // Phase 7 (définition churn/rétention)
+          engagement, tauxRetention,
         },
         parAgence,
         topCampagnes,

@@ -6,6 +6,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Menu, Plus, Loader2, Megaphone, Users, Wallet, LayoutDashboard, MessageCircle, Image as ImageIcon, Zap,
   Send, CheckCircle2, XCircle, Play, Pause, RotateCcw, Flag, Archive, Sparkles, Tag, Gift, Users2, MapPin, Rocket, Star, BarChart3,
+  Building2, Briefcase, CalendarDays, Share2,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import AccountMenuButton from "@/components/AccountMenuButton";
@@ -38,8 +39,14 @@ import AnalyticsMarketing from "@/components/marketing/AnalyticsMarketing";
 import TestsABMarketing from "@/components/marketing/TestsABMarketing";
 import ZonesChalandiseMarketing from "@/components/marketing/ZonesChalandiseMarketing";
 import DepensesMarketing from "@/components/marketing/DepensesMarketing";
+import BudgetsMarketing from "@/components/marketing/BudgetsMarketing";
+import AnimationAgencesMarketing from "@/components/marketing/AnimationAgencesMarketing";
+import MarketingB2BMarketing from "@/components/marketing/MarketingB2BMarketing";
 
-type TabKey = "synthese" | "campagnes" | "audiences" | "communication" | "contenu" | "automatisation" | "budgets" | "promotions" | "fidelisation" | "parrainage" | "terrain" | "acquisition" | "partenaires" | "analytics";
+type TabKey =
+  | "synthese" | "campagnes" | "audiences" | "communication" | "contenu" | "promotions" | "fidelisation" | "parrainage"
+  | "animationAgences" | "b2b" | "evenementiel" | "terrain" | "socialMedia" | "acquisition" | "automatisation"
+  | "analytics" | "budgets" | "partenaires";
 
 interface StatsResponse {
   data: {
@@ -99,16 +106,20 @@ export default function ResponsableMarketingPage() {
     { key: "campagnes", label: "Campagnes", icon: Megaphone },
     { key: "audiences", label: "Audiences", icon: Users },
     { key: "communication", label: "Communication", icon: MessageCircle },
-    { key: "contenu", label: "Contenu", icon: ImageIcon },
-    { key: "automatisation", label: "Automatisation", icon: Zap },
+    { key: "contenu", label: "Bibliothèque", icon: ImageIcon },
     { key: "promotions", label: "Promotions", icon: Tag },
     { key: "fidelisation", label: "Fidélisation", icon: Gift },
     { key: "parrainage", label: "Parrainage", icon: Users2 },
-    { key: "terrain", label: "Terrain", icon: MapPin },
-    { key: "acquisition", label: "Acquisition", icon: Rocket },
-    { key: "partenaires", label: "Partenaires", icon: Star },
+    { key: "animationAgences", label: "Animation agences", icon: Building2 },
+    { key: "b2b", label: "Marketing B2B", icon: Briefcase },
+    { key: "evenementiel", label: "Événementiel", icon: CalendarDays },
+    { key: "terrain", label: "Marketing terrain", icon: MapPin },
+    { key: "socialMedia", label: "Social Media", icon: Share2 },
+    { key: "acquisition", label: "Marketing Digital", icon: Rocket },
+    { key: "automatisation", label: "Automatisation", icon: Zap },
     { key: "analytics", label: "Analytics", icon: BarChart3 },
-    { key: "budgets", label: "Budgets", icon: Wallet },
+    { key: "budgets", label: "Budget", icon: Wallet },
+    { key: "partenaires", label: "Partenaires", icon: Star },
   ];
 
   return (
@@ -156,16 +167,20 @@ export default function ResponsableMarketingPage() {
           {activeTab === "campagnes" && <Campagnes />}
           {activeTab === "audiences" && <Audiences />}
           {activeTab === "communication" && <Communication />}
-          {activeTab === "contenu" && <Contenu />}
-          {activeTab === "automatisation" && <Automatisation />}
+          {activeTab === "contenu" && <BibliothequeContenu />}
           {activeTab === "promotions" && <Promotions />}
           {activeTab === "fidelisation" && <Fidelisation />}
           {activeTab === "parrainage" && <ParrainageMarketing />}
+          {activeTab === "animationAgences" && <AnimationAgencesMarketing />}
+          {activeTab === "b2b" && <MarketingB2BMarketing />}
+          {activeTab === "evenementiel" && <EvenementsMarketing />}
           {activeTab === "terrain" && <Terrain />}
+          {activeTab === "socialMedia" && <CalendrierEditorial />}
           {activeTab === "acquisition" && <Acquisition />}
-          {activeTab === "partenaires" && <PartenairesMarketing />}
+          {activeTab === "automatisation" && <Automatisation />}
           {activeTab === "analytics" && <Analytics />}
           {activeTab === "budgets" && <Budgets />}
+          {activeTab === "partenaires" && <PartenairesMarketing />}
         </main>
       </div>
     </div>
@@ -337,22 +352,6 @@ function Communication() {
   );
 }
 
-function Contenu() {
-  const [vue, setVue] = useState<"bibliotheque" | "calendrier">("bibliotheque");
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-slate-800">Contenu</h2>
-        <div className="flex bg-slate-100 rounded-xl p-1">
-          <button onClick={() => setVue("bibliotheque")} className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${vue === "bibliotheque" ? "bg-white shadow-sm" : "text-slate-500"}`}>Bibliothèque</button>
-          <button onClick={() => setVue("calendrier")} className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${vue === "calendrier" ? "bg-white shadow-sm" : "text-slate-500"}`}>Calendrier</button>
-        </div>
-      </div>
-      {vue === "bibliotheque" ? <BibliothequeContenu /> : <CalendrierEditorial />}
-    </div>
-  );
-}
-
 function Automatisation() {
   return (
     <div className="space-y-4">
@@ -399,16 +398,14 @@ function Fidelisation() {
 }
 
 function Terrain() {
-  const [vue, setVue] = useState<"operations" | "evenements" | "zones">("operations");
+  const [vue, setVue] = useState<"operations" | "zones">("operations");
   return (
     <div className="space-y-4">
       <div className="flex bg-slate-100 rounded-xl p-1 w-fit">
         <button onClick={() => setVue("operations")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "operations" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Opérations</button>
-        <button onClick={() => setVue("evenements")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "evenements" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Événements</button>
         <button onClick={() => setVue("zones")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "zones" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Zones de chalandise</button>
       </div>
       {vue === "operations" && <OperationsTerrainMarketing />}
-      {vue === "evenements" && <EvenementsMarketing />}
       {vue === "zones" && <ZonesChalandiseMarketing />}
     </div>
   );
@@ -445,40 +442,13 @@ function Analytics() {
 
 function Budgets() {
   const [vue, setVue] = useState<"budgets" | "depenses">("budgets");
-  const { data: res, loading, refetch } = useApi<{ data: CampagneItem[] }>("/api/admin/marketing/campagnes");
-  const budgetIdRef = useRef<number | null>(null);
-  const { mutate: agirBudget } = useMutation<unknown, { action: string }>(
-    () => `/api/admin/marketing/budgets/${budgetIdRef.current}/action`, "POST",
-    { invalidate: "/api/admin/marketing/campagnes" }
-  );
-  const avecBudget = (res?.data ?? []).filter((c) => c.budget);
-
   return (
     <div className="space-y-4">
       <div className="flex bg-slate-100 rounded-xl p-1 w-fit">
         <button onClick={() => setVue("budgets")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "budgets" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Budgets</button>
         <button onClick={() => setVue("depenses")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "depenses" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Dépenses</button>
       </div>
-      {vue === "depenses" ? <DepensesMarketing /> : (
-      <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-50">
-        {loading && !res ? (
-          <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
-        ) : avecBudget.length === 0 ? (
-          <p className="text-center text-slate-400 py-16">Aucun budget pour l&apos;instant</p>
-        ) : avecBudget.map((c) => (
-          <div key={c.id} className="flex items-center justify-between px-4 py-3">
-            <div>
-              <p className="font-medium text-slate-800">{c.nom}</p>
-              <p className="text-xs text-slate-400">{formatCurrency(c.budget!.montantPrevu)} · statut {c.budget!.statut}</p>
-            </div>
-            {c.budget!.statut === "BROUILLON" && (
-              <button onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "DEMANDER" })) refetch(); }}
-                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700">Demander validation</button>
-            )}
-          </div>
-        ))}
-      </div>
-      )}
+      {vue === "budgets" ? <BudgetsMarketing /> : <DepensesMarketing />}
     </div>
   );
 }

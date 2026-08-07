@@ -8810,6 +8810,9 @@ enum ChampAudience {
   /// CDC §51 — géolocalisation : `valeur` au format "pointDeVenteId:rayonKm".
   /// L'opérateur n'est pas utilisé pour ce champ (toujours "dans le rayon").
   DISTANCE_AGENCE_KM
+  /// CDC §39-40 — Marketing B2B : Client.activite (texte libre : revendeur,
+  /// grossiste, hôtel, restaurant, entreprise, institution, association…).
+  ACTIVITE
 }
 
 enum OperateurAudience {
