@@ -25,13 +25,17 @@ export async function GET() {
       },
     });
 
-    const presentsParEvt = await prisma.participantEvenement.groupBy({
-      by: ["evenementId"], where: { statut: "PRESENT" }, _count: { _all: true },
-    });
+    const [presentsParEvt, leadsParEvt] = await Promise.all([
+      prisma.participantEvenement.groupBy({ by: ["evenementId"], where: { statut: "PRESENT" }, _count: { _all: true } }),
+      prisma.participantEvenement.groupBy({ by: ["evenementId"], where: { clientId: { not: null } }, _count: { _all: true } }),
+    ]);
     const presentsMap = new Map(presentsParEvt.map((p) => [p.evenementId, p._count._all]));
+    const leadsMap = new Map(leadsParEvt.map((l) => [l.evenementId, l._count._all]));
 
     return NextResponse.json({
-      data: evenements.map((e) => ({ ...e, budget: Number(e.budget), nbPresents: presentsMap.get(e.id) ?? 0 })),
+      data: evenements.map((e) => ({
+        ...e, budget: Number(e.budget), nbPresents: presentsMap.get(e.id) ?? 0, leadsGeneres: leadsMap.get(e.id) ?? 0,
+      })),
     });
   } catch (e) {
     console.error("GET /api/admin/marketing/evenements", e);

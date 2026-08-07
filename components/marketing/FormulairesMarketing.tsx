@@ -6,7 +6,7 @@ import { ClipboardList, Plus, Loader2, X, Power, PowerOff, Trash2 } from "lucide
 
 /** Form builder marketing (CDC §45-46) — champs dynamiques. */
 
-interface Champ { cle: string; label: string; type: "text" | "tel" | "email" | "select"; requis: boolean }
+interface Champ { cle: string; label: string; type: "text" | "tel" | "email" | "select"; requis: boolean; options?: string[] }
 interface Formulaire {
   id: number; nom: string; actif: boolean;
   campagne: { id: number; code: string; nom: string } | null;
@@ -14,9 +14,16 @@ interface Formulaire {
 }
 interface Campagne { id: number; code: string; nom: string }
 
+// CDC §45 — 8 champs par défaut du Form Builder simple.
 const CHAMPS_DEFAUT: Champ[] = [
   { cle: "nom", label: "Nom", type: "text", requis: true },
+  { cle: "prenom", label: "Prénom", type: "text", requis: false },
   { cle: "telephone", label: "Téléphone", type: "tel", requis: true },
+  { cle: "whatsapp", label: "WhatsApp", type: "tel", requis: false },
+  { cle: "email", label: "Email", type: "email", requis: false },
+  { cle: "ville", label: "Ville", type: "text", requis: false },
+  { cle: "type_client", label: "Type client", type: "select", requis: false, options: ["Comptant", "Crédit"] },
+  { cle: "produit_recherche", label: "Produit recherché", type: "text", requis: false },
 ];
 
 function NouveauFormulaireModal({ campagnes, onClose, onCreated }: { campagnes: Campagne[]; onClose: () => void; onCreated: () => void }) {
@@ -73,19 +80,28 @@ function NouveauFormulaireModal({ campagnes, onClose, onCreated }: { campagnes: 
             </div>
             <div className="mt-2 space-y-2">
               {champs.map((c, i) => (
-                <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-xl p-2">
-                  <input value={c.cle} onChange={(e) => majChamp(i, { cle: e.target.value })} placeholder="cle" className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
-                  <input value={c.label} onChange={(e) => majChamp(i, { label: e.target.value })} placeholder="Libellé" className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
-                  <select value={c.type} onChange={(e) => majChamp(i, { type: e.target.value as Champ["type"] })} className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs">
-                    <option value="text">Texte</option>
-                    <option value="tel">Téléphone</option>
-                    <option value="email">Email</option>
-                    <option value="select">Liste</option>
-                  </select>
-                  <label className="flex items-center gap-1 text-[11px] text-slate-500">
-                    <input type="checkbox" checked={c.requis} onChange={(e) => majChamp(i, { requis: e.target.checked })} className="w-3.5 h-3.5" /> requis
-                  </label>
-                  <button onClick={() => retirerChamp(i)} className="p-1 text-slate-400 hover:text-rose-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                <div key={i} className="bg-slate-50 rounded-xl p-2 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <input value={c.cle} onChange={(e) => majChamp(i, { cle: e.target.value })} placeholder="cle" className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
+                    <input value={c.label} onChange={(e) => majChamp(i, { label: e.target.value })} placeholder="Libellé" className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
+                    <select value={c.type} onChange={(e) => majChamp(i, { type: e.target.value as Champ["type"] })} className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs">
+                      <option value="text">Texte</option>
+                      <option value="tel">Téléphone</option>
+                      <option value="email">Email</option>
+                      <option value="select">Liste</option>
+                    </select>
+                    <label className="flex items-center gap-1 text-[11px] text-slate-500 shrink-0">
+                      <input type="checkbox" checked={c.requis} onChange={(e) => majChamp(i, { requis: e.target.checked })} className="w-3.5 h-3.5" /> requis
+                    </label>
+                    <button onClick={() => retirerChamp(i)} className="p-1 text-slate-400 hover:text-rose-500 shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                  {c.type === "select" && (
+                    <input
+                      value={(c.options ?? []).join(", ")}
+                      onChange={(e) => majChamp(i, { options: e.target.value.split(",").map((o) => o.trim()).filter(Boolean) })}
+                      placeholder="Options séparées par des virgules (ex : Comptant, Crédit)"
+                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
+                  )}
                 </div>
               ))}
             </div>

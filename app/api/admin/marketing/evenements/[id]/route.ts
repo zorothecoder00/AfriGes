@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getMarketingSession } from "@/lib/authMarketing";
 import { requirePermission } from "@/lib/permissions";
 import { auditLog } from "@/lib/notifications";
+import { statsEvenement } from "@/lib/evenementMarketing";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -27,7 +28,9 @@ export async function GET(_req: Request, { params }: Ctx) {
     });
     if (!evenement) return NextResponse.json({ error: "Événement introuvable" }, { status: 404 });
 
-    return NextResponse.json({ data: { ...evenement, budget: Number(evenement.budget) } });
+    const stats = await statsEvenement(evenementId);
+
+    return NextResponse.json({ data: { ...evenement, budget: Number(evenement.budget) }, stats });
   } catch (e) {
     console.error("GET /api/admin/marketing/evenements/[id]", e);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

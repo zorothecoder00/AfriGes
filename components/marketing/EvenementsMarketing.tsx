@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { CalendarDays, Plus, Loader2, X, ChevronDown, ChevronUp, UserPlus, UserCheck } from "lucide-react";
+import { CalendarDays, Plus, Loader2, X, ChevronDown, ChevronUp, UserPlus, UserCheck, TrendingUp, Wallet } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 
 /** Événements marketing (CDC §42). */
 
@@ -11,9 +12,10 @@ interface Evenement {
   id: number; nom: string; lieu: string | null; dateDebut: string; dateFin: string; budget: number; statut: string;
   campagne: { id: number; code: string; nom: string } | null;
   _count: { participants: number; soumissions: number };
-  nbPresents: number;
+  nbPresents: number; leadsGeneres: number;
 }
 interface Campagne { id: number; code: string; nom: string }
+interface StatsEvenement { nbInvites: number; nbInscrits: number; nbPresents: number; nbAbsents: number; leadsGeneres: number; nbVentes: number; caGenere: number }
 
 const STATUT_LABEL: Record<string, string> = { PLANIFIE: "Planifié", EN_COURS: "En cours", TERMINE: "Terminé", ANNULE: "Annulé" };
 const STATUT_STYLE: Record<string, string> = {
@@ -94,6 +96,7 @@ function NouvelEvenementModal({ campagnes, onClose, onCreated }: { campagnes: Ca
 
 function ParticipantsPanel({ evenementId }: { evenementId: number }) {
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [stats, setStats] = useState<StatsEvenement | null>(null);
   const [loading, setLoading] = useState(true);
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
@@ -105,7 +108,7 @@ function ParticipantsPanel({ evenementId }: { evenementId: number }) {
       const r = await fetch(`/api/admin/marketing/evenements/${evenementId}`);
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Erreur");
-      setParticipants(j.data.participants);
+      setParticipants(j.data.participants); setStats(j.stats);
     } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
     finally { setLoading(false); }
   }, [evenementId]);
@@ -146,6 +149,29 @@ function ParticipantsPanel({ evenementId }: { evenementId: number }) {
 
   return (
     <div className="space-y-3">
+      {stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {[
+            { label: "Invités", value: stats.nbInvites },
+            { label: "Inscrits", value: stats.nbInscrits },
+            { label: "Présents", value: stats.nbPresents },
+            { label: "Leads générés", value: stats.leadsGeneres },
+          ].map((s) => (
+            <div key={s.label} className="bg-white rounded-lg border border-slate-100 px-3 py-2 text-center">
+              <p className="text-sm font-bold text-slate-800">{s.value}</p>
+              <p className="text-[10px] text-slate-400">{s.label}</p>
+            </div>
+          ))}
+          <div className="bg-white rounded-lg border border-slate-100 px-3 py-2 text-center flex flex-col items-center justify-center">
+            <p className="text-sm font-bold text-emerald-700 flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5" /> {stats.nbVentes}</p>
+            <p className="text-[10px] text-slate-400">Ventes générées</p>
+          </div>
+          <div className="bg-white rounded-lg border border-slate-100 px-3 py-2 text-center flex flex-col items-center justify-center col-span-2 sm:col-span-2">
+            <p className="text-sm font-bold text-indigo-700 flex items-center gap-1"><Wallet className="w-3.5 h-3.5" /> {formatCurrency(stats.caGenere)}</p>
+            <p className="text-[10px] text-slate-400">CA généré</p>
+          </div>
+        </div>
+      )}
       <div className="flex gap-2 flex-wrap">
         <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom" className={field} />
         <input value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="Téléphone" className={field} />
@@ -223,7 +249,7 @@ export default function EvenementsMarketing() {
             <button onClick={() => setOuvert(ouvert === e.id ? null : e.id)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50/60 text-left">
               <div>
                 <p className="font-medium text-slate-800">{e.nom}</p>
-                <p className="text-xs text-slate-400">{e.lieu ?? "—"} · {e._count.participants} participant(s) · {e.nbPresents} présent(s)</p>
+                <p className="text-xs text-slate-400">{e.lieu ?? "—"} · {e._count.participants} participant(s) · {e.nbPresents} présent(s) · {e.leadsGeneres} lead(s)</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${STATUT_STYLE[e.statut]}`}>{STATUT_LABEL[e.statut]}</span>

@@ -92,3 +92,39 @@ export async function convertirParticipantEnClient(
   await tx.participantEvenement.update({ where: { id: participant.id }, data: { clientId: client.id } });
   return client;
 }
+
+const VENTES_EXCLUES = ["ANNULEE", "BROUILLON"];
+
+export interface StatsEvenement {
+  nbInvites: number; nbInscrits: number; nbPresents: number; nbAbsents: number;
+  leadsGeneres: number; // participants convertis en Client
+  nbVentes: number;
+  caGenere: number;
+}
+
+/** Statistiques d'un événement : présence + leads générés + ventes générées (CDC §42). */
+export async function statsEvenement(evenementId: number): Promise<StatsEvenement> {
+  const [evenement, parStatut, convertis] = await Promise.all([
+    prisma.evenementMarketing.findUniqueOrThrow({ where: { id: evenementId }, select: { dateDebut: true } }),
+    prisma.participantEvenement.groupBy({ by: ["statut"], where: { evenementId }, _count: { _all: true } }),
+    prisma.participantEvenement.findMany({ where: { evenementId, clientId: { not: null } }, select: { clientId: true } }),
+  ]);
+
+  const compte = (s: string) => parStatut.find((p) => p.statut === s)?._count._all ?? 0;
+  const clientIds = convertis.map((c) => c.clientId as number);
+
+  let nbVentes = 0, caGenere = 0;
+  if (clientIds.length) {
+    const agg = await prisma.venteDirecte.aggregate({
+      where: { clientId: { in: clientIds }, createdAt: { gte: evenement.dateDebut }, statut: { notIn: VENTES_EXCLUES as never } },
+      _count: { _all: true }, _sum: { montantTotal: true },
+    });
+    nbVentes = agg._count._all;
+    caGenere = Number(agg._sum.montantTotal ?? 0);
+  }
+
+  return {
+    nbInvites: compte("INVITE"), nbInscrits: compte("INSCRIT"), nbPresents: compte("PRESENT"), nbAbsents: compte("ABSENT"),
+    leadsGeneres: clientIds.length, nbVentes, caGenere,
+  };
+}
