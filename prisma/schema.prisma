@@ -913,6 +913,9 @@ model User {
   formulairesMarketingCrees FormulaireMarketing[]   @relation("FormulaireMarketingCreePar")
   partenairesMarketingCrees PartenaireMarketing[]   @relation("PartenaireMarketingCreePar")
 
+  // Marketing (Phase 7 — Analytics & IA)
+  testsABCrees TestAB[] @relation("TestABCreePar")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -1173,6 +1176,9 @@ model Client {
   // Marketing (Phase 6 — Terrain & Événementiel)
   participationsEvenement ParticipantEvenement[]
   soumissionsFormulaires  SoumissionFormulaire[]
+
+  // Marketing (Phase 7 — Analytics & IA)
+  assignationsTestAB TestABAssignation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8850,6 +8856,7 @@ model CanalMarketing {
   modelesMessage  ModeleMessage[]
   envoisMessage   EnvoiMessage[]
   publications    PublicationSociale[]
+  testsAB         TestAB[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8952,6 +8959,9 @@ model Campagne {
   formulaires       FormulaireMarketing[]
   soumissions       SoumissionFormulaire[]
   liensAffiliation  LienAffiliation[]
+
+  // Marketing (Phase 7 — Analytics & IA)
+  testsAB TestAB[]
 
   creeParId Int
   creePar   User @relation("CampagneCreePar", fields: [creeParId], references: [id])
@@ -9109,7 +9119,9 @@ model ModeleMessage {
   creeParId Int
   creePar   User @relation("ModeleMessageCreePar", fields: [creeParId], references: [id])
 
-  envois EnvoiMessage[]
+  envois           EnvoiMessage[]
+  testsABVarianteA TestAB[]       @relation("TestABModeleA")
+  testsABVarianteB TestAB[]       @relation("TestABModeleB")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -9678,4 +9690,66 @@ model LienAffiliation {
 
   @@index([partenaireId])
   @@index([campagneId])
+}
+
+// ============================================================
+// MARKETING — Phase 7 : Analytics & IA (CDC §7 — A/B Testing)
+// ============================================================
+// Attribution/CLV/rétention/recommandations n'ajoutent aucun modèle : ce sont
+// des agrégations lues sur les données déjà en base (VenteDirecte.campagneId
+// Phase 1, RFM lib/audienceMarketing.ts). Seul l'A/B testing est un besoin
+// réellement nouveau — deux variantes de message sur une même campagne,
+// assignation aléatoire, comparaison des taux de lecture/conversion.
+
+enum StatutTestAB {
+  BROUILLON
+  EN_COURS
+  TERMINE
+}
+
+enum VarianteTestAB {
+  A
+  B
+}
+
+model TestAB {
+  id            Int            @id @default(autoincrement())
+  nom           String
+  campagneId    Int
+  campagne      Campagne       @relation(fields: [campagneId], references: [id])
+  canalId       Int
+  canal         CanalMarketing @relation(fields: [canalId], references: [id])
+  modeleAId     Int
+  modeleA       ModeleMessage  @relation("TestABModeleA", fields: [modeleAId], references: [id])
+  modeleBId     Int
+  modeleB       ModeleMessage  @relation("TestABModeleB", fields: [modeleBId], references: [id])
+  statut        StatutTestAB   @default(BROUILLON)
+  dateLancement DateTime?
+
+  assignations TestABAssignation[]
+
+  creeParId Int
+  creePar   User     @relation("TestABCreePar", fields: [creeParId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campagneId])
+}
+
+/// Assignation aléatoire d'un client à la variante A ou B d'un test — un seul
+/// groupe par client par test (@@unique). `converti` est évalué par le cron
+/// (achat détecté depuis le lancement, même principe que Phase 4/5).
+model TestABAssignation {
+  id             Int            @id @default(autoincrement())
+  testId         Int
+  test           TestAB         @relation(fields: [testId], references: [id], onDelete: Cascade)
+  clientId       Int
+  client         Client         @relation(fields: [clientId], references: [id])
+  variante       VarianteTestAB
+  converti       Boolean        @default(false)
+  dateConversion DateTime?
+  createdAt      DateTime       @default(now())
+
+  @@unique([testId, clientId])
+  @@index([testId])
 }

@@ -5,7 +5,7 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Menu, Plus, Loader2, Megaphone, Users, Wallet, LayoutDashboard, MessageCircle, Image as ImageIcon, Zap,
-  Send, CheckCircle2, XCircle, Play, Pause, RotateCcw, Flag, Archive, Sparkles, Tag, Gift, Users2, MapPin, Rocket, Star,
+  Send, CheckCircle2, XCircle, Play, Pause, RotateCcw, Flag, Archive, Sparkles, Tag, Gift, Users2, MapPin, Rocket, Star, BarChart3,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import AccountMenuButton from "@/components/AccountMenuButton";
@@ -34,8 +34,10 @@ import QrCodesMarketing from "@/components/marketing/QrCodesMarketing";
 import LandingPagesMarketing from "@/components/marketing/LandingPagesMarketing";
 import FormulairesMarketing from "@/components/marketing/FormulairesMarketing";
 import PartenairesMarketing from "@/components/marketing/PartenairesMarketing";
+import AnalyticsMarketing from "@/components/marketing/AnalyticsMarketing";
+import TestsABMarketing from "@/components/marketing/TestsABMarketing";
 
-type TabKey = "synthese" | "campagnes" | "audiences" | "communication" | "contenu" | "automatisation" | "budgets" | "promotions" | "fidelisation" | "parrainage" | "terrain" | "acquisition" | "partenaires";
+type TabKey = "synthese" | "campagnes" | "audiences" | "communication" | "contenu" | "automatisation" | "budgets" | "promotions" | "fidelisation" | "parrainage" | "terrain" | "acquisition" | "partenaires" | "analytics";
 
 interface StatsResponse {
   data: {
@@ -103,6 +105,7 @@ export default function ResponsableMarketingPage() {
     { key: "terrain", label: "Terrain", icon: MapPin },
     { key: "acquisition", label: "Acquisition", icon: Rocket },
     { key: "partenaires", label: "Partenaires", icon: Star },
+    { key: "analytics", label: "Analytics", icon: BarChart3 },
     { key: "budgets", label: "Budgets", icon: Wallet },
   ];
 
@@ -159,6 +162,7 @@ export default function ResponsableMarketingPage() {
           {activeTab === "terrain" && <Terrain />}
           {activeTab === "acquisition" && <Acquisition />}
           {activeTab === "partenaires" && <PartenairesMarketing />}
+          {activeTab === "analytics" && <Analytics />}
           {activeTab === "budgets" && <Budgets />}
         </main>
       </div>
@@ -417,6 +421,19 @@ function Acquisition() {
       {vue === "landing" && <LandingPagesMarketing />}
       {vue === "formulaires" && <FormulairesMarketing />}
       {vue === "qr" && <QrCodesMarketing />}
+    </div>
+  );
+}
+
+function Analytics() {
+  const [vue, setVue] = useState<"analytics" | "tests-ab">("analytics");
+  return (
+    <div className="space-y-4">
+      <div className="flex bg-slate-100 rounded-xl p-1 w-fit">
+        <button onClick={() => setVue("analytics")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "analytics" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Analytics</button>
+        <button onClick={() => setVue("tests-ab")} className={`px-4 py-1.5 text-xs font-semibold rounded-lg ${vue === "tests-ab" ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}>Tests A/B</button>
+      </div>
+      {vue === "analytics" ? <AnalyticsMarketing /> : <TestsABMarketing />}
     </div>
   );
 }

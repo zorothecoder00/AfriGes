@@ -10,10 +10,12 @@ const SEUIL_REACTIVATION_JOURS = 60; // écart d'inactivité minimal pour compte
  * GET /api/admin/marketing/stats
  * KPIs du dashboard Marketing (CDC §3) + comparatif par agence (CDC §4).
  *
- * Simplifications assumées (Phase 1, documentées) :
- * - "Leads générés" et "engagement"/"taux de rétention" sont à 0 : ces données
- *   dépendent des formulaires/landing pages (Phase 6) et du moteur de
- *   communication (Phase 2), pas encore construits.
+ * Simplifications assumées :
+ * - "Leads générés" = soumissions de formulaire (Phase 6) + participants
+ *   d'événements sur la période ; "taux de conversion" = part de ces leads
+ *   devenue Client. "Engagement" = taux de lecture des messages envoyés
+ *   (Phase 2, EnvoiMessage). "Taux de rétention" reste à 0 (Phase 7 —
+ *   définition churn/rétention pas encore construite).
  * - "Marge attribuée" est estimée à partir de Produit.prixAchat (pas d'un coût
  *   réel figé à la vente) — approximation raisonnable en l'absence de CMUP.
  * - Le budget d'une campagne multi-agences est réparti à parts égales entre
@@ -30,7 +32,7 @@ export async function GET(req: NextRequest) {
     const debut = sp.get("debut") ? new Date(sp.get("debut")!) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const fin = sp.get("fin") ? new Date(sp.get("fin")!) : new Date();
 
-    const [campagnes, budgets, depenses, ventesAttribuees, creditsAttribues] = await Promise.all([
+    const [campagnes, budgets, depenses, ventesAttribuees, creditsAttribues, soumissions, participants, envois] = await Promise.all([
       prisma.campagne.findMany({
         select: { id: true, code: true, nom: true, statut: true, agences: { select: { pointDeVenteId: true } } },
       }),
@@ -49,6 +51,18 @@ export async function GET(req: NextRequest) {
       prisma.creditClient.findMany({
         where: { campagneId: { not: null }, createdAt: { gte: debut, lte: fin } },
         select: { id: true, campagneId: true, clientId: true, montantTotal: true },
+      }),
+      prisma.soumissionFormulaire.findMany({
+        where: { createdAt: { gte: debut, lte: fin } },
+        select: { id: true, pointDeVenteId: true, clientIdCree: true },
+      }),
+      prisma.participantEvenement.findMany({
+        where: { createdAt: { gte: debut, lte: fin } },
+        select: { id: true, clientId: true },
+      }),
+      prisma.envoiMessage.findMany({
+        where: { dateEnvoi: { gte: debut, lte: fin }, statut: { not: "EN_ATTENTE" } },
+        select: { statut: true },
       }),
     ]);
 
@@ -104,9 +118,25 @@ export async function GET(req: NextRequest) {
     const roi = depensesTotal > 0 ? ((caAttribue - depensesTotal) / depensesTotal) * 100 : null;
     const roas = depensesTotal > 0 ? caAttribue / depensesTotal : null;
 
+    // ── Leads & conversion (CDC §46, Phase 6) ─────────────────────────────────
+    const leadsGeneres = soumissions.length + participants.length;
+    const leadsConvertis = soumissions.filter((s) => s.clientIdCree != null).length + participants.filter((p) => p.clientId != null).length;
+    const coutParLead = leadsGeneres > 0 ? depensesTotal / leadsGeneres : null;
+    const tauxConversion = leadsGeneres > 0 ? (leadsConvertis / leadsGeneres) * 100 : null;
+
+    // ── Engagement (CDC §21-26, Phase 2) — taux de lecture des messages ──────
+    const nbLus = envois.filter((e) => e.statut === "LU" || e.statut === "REPONSE").length;
+    const engagement = envois.length > 0 ? (nbLus / envois.length) * 100 : null;
+
     // ── Comparatif par agence (CDC §4) ────────────────────────────────────────
     const budgetsParCampagne = await prisma.budgetMarketing.findMany({ select: { campagneId: true, montantApprouve: true } });
     const budgetParCampagneMap = new Map(budgetsParCampagne.map((b) => [b.campagneId, Number(b.montantApprouve)]));
+
+    const leadsParAgenceMap = new Map<number, number>();
+    for (const s of soumissions) {
+      if (!s.pointDeVenteId) continue;
+      leadsParAgenceMap.set(s.pointDeVenteId, (leadsParAgenceMap.get(s.pointDeVenteId) ?? 0) + 1);
+    }
 
     const parAgenceMap = new Map<number, { budget: number; caAttribue: number; clientIds: Set<number> }>();
     for (const c of campagnes) {
@@ -125,6 +155,9 @@ export async function GET(req: NextRequest) {
       if (v.clientId) entry.clientIds.add(v.clientId);
       parAgenceMap.set(v.pointDeVenteId, entry);
     }
+    for (const pdvId of leadsParAgenceMap.keys()) {
+      if (!parAgenceMap.has(pdvId)) parAgenceMap.set(pdvId, { budget: 0, caAttribue: 0, clientIds: new Set<number>() });
+    }
     const pdvInfos = await prisma.pointDeVente.findMany({
       where: { id: { in: [...parAgenceMap.keys()] } },
       select: { id: true, nom: true, code: true },
@@ -136,7 +169,7 @@ export async function GET(req: NextRequest) {
         nom: pdv.nom,
         code: pdv.code,
         budget: e.budget,
-        leads: 0, // Phase 6 (formulaires/landing pages) non construite
+        leads: leadsParAgenceMap.get(pdv.id) ?? 0,
         clients: e.clientIds.size,
         caAttribue: e.caAttribue,
         roi: e.budget > 0 ? ((e.caAttribue - e.budget) / e.budget) * 100 : null,
@@ -157,14 +190,14 @@ export async function GET(req: NextRequest) {
         totaux: {
           budgetPrevu, budgetApprouve, depenses: depensesTotal,
           campagnesActives, campagnesTerminees,
-          leadsGeneres: 0, // Phase 6
+          leadsGeneres,
           nouveauxClients, clientsReactives,
           ventesAttribuees: ventesAttribuees.length + creditsAttribues.length,
           caAttribue, margeAttribuee,
-          coutParLead: null, // Phase 6
-          cac, tauxConversion: null, // Phase 6 (funnel lead→client)
+          coutParLead,
+          cac, tauxConversion,
           roi, roas,
-          engagement: null, tauxRetention: null, // Phase 2/7
+          engagement, tauxRetention: null, // Phase 7 (définition churn/rétention)
         },
         parAgence,
         topCampagnes,
