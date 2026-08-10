@@ -66,4 +66,51 @@ describe("SouscriptionPack.campagneId", () => {
       await prisma.user.delete({ where: { id: user.id } });
     }
   });
+
+  it("alimente le CA attribué en montant total engagé, pas montantVerse (fix 2026-08-10)", async () => {
+    const s = suffixeUnique();
+    const user = await prisma.user.create({ data: { nom: "Test", prenom: "Marketing", email: `mkt-souscr-ca-${s}@afriges.test`, role: "ADMIN" } });
+    const typeCampagne = await prisma.typeCampagne.create({ data: { code: `TYPE-SOUSCR-CA-${s}`, libelle: "Type test" } });
+    const campagne = await prisma.campagne.create({
+      data: {
+        code: `CAMP-SOUSCR-CA-${s}`, nom: `Campagne souscription CA ${s}`,
+        responsable: { connect: { id: user.id } },
+        typeCampagne: { connect: { id: typeCampagne.id } },
+        creePar: { connect: { id: user.id } },
+        dateDebut: new Date(), dateFin: new Date(Date.now() + 30 * 86_400_000),
+        statut: "ACTIVE",
+      },
+    });
+    const client = await prisma.client.create({ data: { nom: "Client", prenom: "Test", telephone: `+228${s}`.slice(0, 15) } });
+    const pack = await prisma.pack.create({ data: { nom: `Pack test CA ${s}`, type: "ALIMENTAIRE" } });
+
+    let souscription: { id: number } | null = null;
+    try {
+      // montantTotal 20 000, seulement 5 000 versé pour l'instant.
+      souscription = await prisma.souscriptionPack.create({
+        data: {
+          pack: { connect: { id: pack.id } }, client: { connect: { id: client.id } },
+          statut: "ACTIF", montantTotal: 20_000, montantVerse: 5000, montantRestant: 15_000,
+          campagne: { connect: { id: campagne.id } },
+        },
+      });
+
+      // Même requête que /api/admin/marketing/stats (souscriptionsAttribuees).
+      const fenetreDebut = new Date(Date.now() - 60_000);
+      const fenetreFin = new Date(Date.now() + 60_000);
+      const souscriptionsPeriode = await prisma.souscriptionPack.findMany({
+        where: { campagneId: campagne.id, createdAt: { gte: fenetreDebut, lte: fenetreFin } },
+        select: { montantTotal: true },
+      });
+      const caAttribue = souscriptionsPeriode.reduce((sum, sp) => sum + Number(sp.montantTotal), 0);
+      expect(caAttribue).toBe(20_000); // montantTotal engagé, pas les 5 000 déjà versés
+    } finally {
+      if (souscription) await prisma.souscriptionPack.delete({ where: { id: souscription.id } });
+      await prisma.pack.delete({ where: { id: pack.id } });
+      await prisma.client.delete({ where: { id: client.id } });
+      await prisma.campagne.delete({ where: { id: campagne.id } });
+      await prisma.typeCampagne.delete({ where: { id: typeCampagne.id } });
+      await prisma.user.delete({ where: { id: user.id } });
+    }
+  });
 });

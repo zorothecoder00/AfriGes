@@ -29,8 +29,8 @@ describe("Attribution d'une vente à une campagne marketing", () => {
       },
     });
 
-    let venteAttribuee: { id: number } | null = null;
-    let venteSansCampagne: { id: number } | null = null;
+    let venteAttribuee: { id: number; campagneId: number | null } | null = null;
+    let venteSansCampagne: { id: number; campagneId: number | null } | null = null;
 
     try {
       // Body simulé tel qu'envoyé par le sélecteur "Campagne marketing (optionnel)".

@@ -22,6 +22,10 @@ const SEUIL_REACTIVATION_JOURS = 60; // écart d'inactivité minimal pour compte
  *   réel figé à la vente) — approximation raisonnable en l'absence de CMUP.
  * - Le budget d'une campagne multi-agences est réparti à parts égales entre
  *   ses agences ciblées pour le tableau `parAgence`.
+ * - Souscriptions pack attribuées (campagneId) : comptées en montant total
+ *   engagé (montantTotal), pas montantVerse — même logique que Vente/Crédit.
+ *   Alimentent le CA attribué global et `topCampagnes`, mais PAS le tableau
+ *   `parAgence` (SouscriptionPack n'a pas de pointDeVenteId direct).
  */
 export async function GET(req: NextRequest) {
   try {
@@ -38,7 +42,7 @@ export async function GET(req: NextRequest) {
     const debut = sp.get("debut") ? new Date(sp.get("debut")!) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const fin = sp.get("fin") ? new Date(sp.get("fin")!) : new Date();
 
-    const [campagnes, budgets, depenses, ventesAttribuees, creditsAttribues, soumissions, participants, envois] = await Promise.all([
+    const [campagnes, budgets, depenses, ventesAttribuees, creditsAttribues, souscriptionsAttribuees, soumissions, participants, envois] = await Promise.all([
       prisma.campagne.findMany({
         select: { id: true, code: true, nom: true, statut: true, agences: { select: { pointDeVenteId: true } } },
       }),
@@ -55,6 +59,14 @@ export async function GET(req: NextRequest) {
         },
       }),
       prisma.creditClient.findMany({
+        where: { campagneId: { not: null }, createdAt: { gte: debut, lte: fin } },
+        select: { id: true, campagneId: true, clientId: true, montantTotal: true },
+      }),
+      // Montant total engagé (pas seulement montantVerse) — même logique que
+      // Vente/Crédit : compté dès la souscription, pas au fil des versements.
+      // Pas de pointDeVenteId direct sur SouscriptionPack → n'alimente que le
+      // CA attribué global et topCampagnes, pas le comparatif `parAgence`.
+      prisma.souscriptionPack.findMany({
         where: { campagneId: { not: null }, createdAt: { gte: debut, lte: fin } },
         select: { id: true, campagneId: true, clientId: true, montantTotal: true },
       }),
@@ -78,7 +90,8 @@ export async function GET(req: NextRequest) {
 
     const caAttribueVentes = ventesAttribuees.reduce((s, v) => s + Number(v.montantTotal), 0);
     const caAttribueCredits = creditsAttribues.reduce((s, c) => s + Number(c.montantTotal), 0);
-    const caAttribue = caAttribueVentes + caAttribueCredits;
+    const caAttribueSouscriptions = souscriptionsAttribuees.reduce((s, sp) => s + Number(sp.montantTotal), 0);
+    const caAttribue = caAttribueVentes + caAttribueCredits + caAttribueSouscriptions;
 
     const margeAttribuee = ventesAttribuees.reduce((s, v) => {
       const margeVente = v.lignes.reduce((sl, l) => sl + (Number(l.montant) - l.quantite * Number(l.produit?.prixAchat ?? 0)), 0);
@@ -191,7 +204,8 @@ export async function GET(req: NextRequest) {
       .map((c) => ({
         id: c.id, code: c.code, nom: c.nom, statut: c.statut,
         caAttribue: ventesAttribuees.filter((v) => v.campagneId === c.id).reduce((s, v) => s + Number(v.montantTotal), 0)
-          + creditsAttribues.filter((cr) => cr.campagneId === c.id).reduce((s, cr) => s + Number(cr.montantTotal), 0),
+          + creditsAttribues.filter((cr) => cr.campagneId === c.id).reduce((s, cr) => s + Number(cr.montantTotal), 0)
+          + souscriptionsAttribuees.filter((sp) => sp.campagneId === c.id).reduce((s, sp) => s + Number(sp.montantTotal), 0),
       }))
       .sort((a, b) => b.caAttribue - a.caAttribue)
       .slice(0, 5);

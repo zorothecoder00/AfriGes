@@ -28,8 +28,8 @@ describe("Attribution d'un crédit à une campagne marketing", () => {
       },
     });
 
-    let creditAttribue: { id: number } | null = null;
-    let creditSansCampagne: { id: number } | null = null;
+    let creditAttribue: { id: number; campagneId: number | null } | null = null;
+    let creditSansCampagne: { id: number; campagneId: number | null } | null = null;
 
     try {
       const debut = new Date();
