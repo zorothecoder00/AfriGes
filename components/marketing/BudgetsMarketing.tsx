@@ -40,7 +40,7 @@ export default function BudgetsMarketing() {
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Wallet className="w-5 h-5 text-fuchsia-600" /> Budgets</h2>
-      <p className="text-sm text-slate-400">Prévu → Approuvé → Engagé → Dépense (CDC §52-54).</p>
+      <p className="text-sm text-slate-400">Prévu → Approuvé → Engagé → Dépense.</p>
 
       <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-50">
         {loading && !res ? (

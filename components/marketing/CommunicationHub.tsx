@@ -58,7 +58,7 @@ export default function CommunicationHub() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Communication</h2>
-          <p className="text-slate-500 text-sm mt-0.5">Interface unique — WhatsApp, SMS, Email, notifications, messages internes, réseaux sociaux (CDC §21).</p>
+          <p className="text-slate-500 text-sm mt-0.5">Interface unique — WhatsApp, SMS, Email, notifications, messages internes, réseaux sociaux.</p>
         </div>
         <div className="flex bg-slate-100 rounded-xl p-1 flex-wrap">
           {TABS.map(({ key, label, icon: Icon }) => (
@@ -241,7 +241,7 @@ function Parametres() {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
       <div className="bg-white rounded-2xl border border-slate-200 p-5">
         <h3 className="font-semibold text-slate-800 mb-1">Frequency capping</h3>
-        <p className="text-xs text-slate-400 mb-4">Nombre maximum de communications marketing envoyées à un même client sur 7 jours glissants (CDC §73).</p>
+        <p className="text-xs text-slate-400 mb-4">Nombre maximum de communications marketing envoyées à un même client sur 7 jours glissants.</p>
         <div className="flex items-center gap-2">
           <input type="number" min={1} placeholder={String(actuel)} value={valeur} onChange={(e) => setValeur(e.target.value)}
             className="w-24 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
@@ -256,7 +256,7 @@ function Parametres() {
       </div>
       <div className="bg-white rounded-2xl border border-slate-200 p-5">
         <h3 className="font-semibold text-slate-800 mb-1">Coût SMS</h3>
-        <p className="text-xs text-slate-400 mb-4">Coût forfaitaire estimé par SMS envoyé (CDC §25), utilisé pour le suivi budgétaire.</p>
+        <p className="text-xs text-slate-400 mb-4">Coût forfaitaire estimé par SMS envoyé, utilisé pour le suivi budgétaire.</p>
         <div className="flex items-center gap-2">
           <input type="number" min={0} placeholder={actuelCout} value={coutSms} onChange={(e) => setCoutSms(e.target.value)}
             className="w-24 px-3 py-2 border border-slate-200 rounded-lg text-sm" />

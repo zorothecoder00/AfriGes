@@ -46,7 +46,7 @@ export default function MarketingB2BMarketing() {
       <div className="bg-white rounded-2xl border border-slate-200 p-5">
         <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5"><Users className="w-4 h-4 text-fuchsia-500" /> Cibler une audience B2B</h3>
         <p className="text-xs text-slate-500 mb-3">
-          Le CDC ne prévoit pas de type de client dédié pour ces profils — le filtre se fait sur le champ « Activité »
+          Il n&apos;existe pas de type de client dédié pour ces profils — le filtre se fait sur le champ « Activité »
           du client (ex : « revendeur », « grossiste », « hôtel »…), via le générateur d&apos;audiences.
         </p>
         <div className="flex flex-wrap gap-1.5 mb-4">

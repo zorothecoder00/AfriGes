@@ -30,7 +30,7 @@ export default function AnimationAgencesMarketing() {
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Building2 className="w-5 h-5 text-fuchsia-600" /> Animation des agences</h2>
-      <p className="text-sm text-slate-400">Pilotage marketing local (CDC §4-5) — comparatif budget/leads/clients/CA/ROI par agence, mois en cours.</p>
+      <p className="text-sm text-slate-400">Pilotage marketing local — comparatif budget/leads/clients/CA/ROI par agence, mois en cours.</p>
 
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         {rows.length === 0 ? (

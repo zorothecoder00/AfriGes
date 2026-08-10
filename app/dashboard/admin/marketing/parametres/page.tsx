@@ -105,7 +105,7 @@ function ParametrageRFMSection() {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-5">
       <div className="flex items-center gap-2 mb-1"><Target className="w-4 h-4 text-fuchsia-600" /><h3 className="font-semibold text-slate-800">Seuils de segmentation RFM</h3></div>
-      <p className="text-xs text-slate-400 mb-4">Récence/Fréquence/Montant (CDC §14) — champions/fidèles/à risque/dormants/perdus.</p>
+      <p className="text-xs text-slate-400 mb-4">Récence/Fréquence/Montant — champions/fidèles/à risque/dormants/perdus.</p>
       {loading || !param ? (
         <div className="flex items-center justify-center py-8 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /></div>
       ) : (
@@ -134,7 +134,7 @@ export default function MarketingParametresPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-slate-800">Paramètres Marketing</h2>
-        <p className="text-slate-500 text-sm mt-0.5">Référentiels modifiables sans code (CDC §81) — types de campagne, objectifs, canaux, segmentation RFM.</p>
+        <p className="text-slate-500 text-sm mt-0.5">Référentiels modifiables sans code — types de campagne, objectifs, canaux, segmentation RFM.</p>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Referentiel titre="Types de campagne" sousTitre="Catégories proposées à la création d'une campagne" apiBase="/api/admin/marketing/types-campagne" icon={TagIcon} />

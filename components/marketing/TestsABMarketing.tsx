@@ -100,7 +100,7 @@ function NouveauTestModal({ campagnes, canaux, modeles, onClose, onCreated }: { 
               </select>
             </label>
           </div>
-          <label className="block"><span className={lbl}>Taille d&apos;échantillon par variante <span className="font-normal text-slate-400">(optionnel — CDC §72)</span></span>
+          <label className="block"><span className={lbl}>Taille d&apos;échantillon par variante <span className="font-normal text-slate-400">(optionnel)</span></span>
             <input type="number" value={tailleEchantillon} onChange={(e) => setTailleEchantillon(e.target.value)}
               placeholder="ex : 1000 (sur une audience de 10 000, teste sur 2000 puis permet de déployer le gagnant au reste)"
               className={field} />

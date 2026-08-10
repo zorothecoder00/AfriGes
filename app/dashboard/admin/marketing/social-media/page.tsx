@@ -7,7 +7,7 @@ export default function SocialMediaPage() {
     <div className="space-y-4">
       <div>
         <h2 className="text-2xl font-bold text-slate-800">Social Media</h2>
-        <p className="text-slate-500 text-sm mt-0.5">Calendrier de publications par réseau, agence, produit, responsable (CDC §27-28).</p>
+        <p className="text-slate-500 text-sm mt-0.5">Calendrier de publications par réseau, agence, produit, responsable.</p>
       </div>
       <CalendrierEditorial />
     </div>
