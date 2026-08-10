@@ -2,6 +2,7 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
@@ -41,6 +42,11 @@ const STATUT_STYLE: Record<string, string> = {
   ARCHIVEE: "bg-slate-100 text-slate-400",
 };
 
+const STATUT_BUDGET_LABEL: Record<string, string> = {
+  BROUILLON: "Brouillon", DEMANDE: "En attente (Responsable)", EN_VALIDATION_DIRECTION: "Attente Direction",
+  APPROUVE: "Approuvé", REJETE: "Rejeté",
+};
+
 const ACTIONS_PAR_STATUT: Record<string, { action: string; label: string; icon: typeof Send; style: string }[]> = {
   BROUILLON: [{ action: "SOUMETTRE", label: "Soumettre pour approbation", icon: Send, style: "bg-blue-600 hover:bg-blue-700" }],
   PLANIFIEE: [
@@ -62,6 +68,8 @@ const ACTIONS_PAR_STATUT: Record<string, { action: string; label: string; icon: 
 
 export default function CampagneDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const { data: session } = useSession();
+  const estDirection = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN" || session?.user?.gestionnaireRole === "DIRECTEUR_GENERAL";
   const { data: res, loading, refetch } = useApi<{ data: CampagneDetail }>(`/api/admin/marketing/campagnes/${id}`);
   const { mutate: agir, loading: agissant } = useMutation<unknown, { action: string }>(
     `/api/admin/marketing/campagnes/${id}/action`, "POST",
@@ -222,7 +230,7 @@ export default function CampagneDetailPage({ params }: { params: Promise<{ id: s
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div><p className="text-xs text-slate-400">Prévu</p><p className="font-semibold">{formatCurrency(c.budget.montantPrevu)}</p></div>
                   <div><p className="text-xs text-slate-400">Approuvé</p><p className="font-semibold">{formatCurrency(c.budget.montantApprouve)}</p></div>
-                  <div><p className="text-xs text-slate-400">Statut</p><p className="font-semibold">{c.budget.statut}</p></div>
+                  <div><p className="text-xs text-slate-400">Statut</p><p className="font-semibold">{STATUT_BUDGET_LABEL[c.budget.statut] ?? c.budget.statut}</p></div>
                 </div>
                 {c.budget.statut === "BROUILLON" && (
                   <button onClick={async () => { if (await agirBudget({ action: "DEMANDER" })) refetch(); }}
@@ -230,11 +238,23 @@ export default function CampagneDetailPage({ params }: { params: Promise<{ id: s
                 )}
                 {c.budget.statut === "DEMANDE" && (
                   <div className="flex gap-2">
-                    <button onClick={async () => { if (await agirBudget({ action: "APPROUVER" })) refetch(); }}
-                      className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">Approuver</button>
+                    <button onClick={async () => { if (await agirBudget({ action: "VALIDER_RESPONSABLE" })) refetch(); }}
+                      className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700">Valider (Responsable)</button>
                     <button onClick={async () => { if (await agirBudget({ action: "REJETER" })) refetch(); }}
                       className="px-3 py-2 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600">Rejeter</button>
                   </div>
+                )}
+                {c.budget.statut === "EN_VALIDATION_DIRECTION" && estDirection && (
+                  <div className="flex gap-2">
+                    <button onClick={async () => { if (await agirBudget({ action: "APPROUVER" })) refetch(); }}
+                      className="px-3 py-2 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700">Valider (Direction)</button>
+                    <button onClick={async () => { if (await agirBudget({ action: "REJETER" })) refetch(); }}
+                      className="px-3 py-2 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600">Rejeter</button>
+                  </div>
+                )}
+                {c.budget.statut === "REJETE" && (
+                  <button onClick={async () => { if (await agirBudget({ action: "DEMANDER" })) refetch(); }}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700">Redemander validation</button>
                 )}
               </div>
               <table className="w-full text-sm">
