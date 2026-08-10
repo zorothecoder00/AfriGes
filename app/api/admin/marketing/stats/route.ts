@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getMarketingSession } from "@/lib/authMarketing";
 import { requirePermission } from "@/lib/permissions";
 import { tauxRetention as calculerTauxRetention } from "@/lib/analyticsMarketing";
+import { resoudrePdvIdsAutorises } from "@/lib/marketingAgenceScope";
 
 const JOUR_MS = 24 * 60 * 60 * 1000;
 const SEUIL_REACTIVATION_JOURS = 60; // écart d'inactivité minimal pour compter un "client réactivé" (CDC §15)
@@ -28,6 +29,10 @@ export async function GET(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     const denied = await requirePermission(session, "marketing", "LECTURE");
     if (denied) return denied;
+
+    // Comparatif par agence scopé pour Chef Agence / RPV (double casquette) —
+    // voir lib/marketingAgenceScope.ts.
+    const pdvIdsAutorises = await resoudrePdvIdsAutorises(session);
 
     const sp = req.nextUrl.searchParams;
     const debut = sp.get("debut") ? new Date(sp.get("debut")!) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
@@ -166,19 +171,21 @@ export async function GET(req: NextRequest) {
       where: { id: { in: [...parAgenceMap.keys()] } },
       select: { id: true, nom: true, code: true },
     });
-    const parAgence = pdvInfos.map((pdv) => {
-      const e = parAgenceMap.get(pdv.id)!;
-      return {
-        pointDeVenteId: pdv.id,
-        nom: pdv.nom,
-        code: pdv.code,
-        budget: e.budget,
-        leads: leadsParAgenceMap.get(pdv.id) ?? 0,
-        clients: e.clientIds.size,
-        caAttribue: e.caAttribue,
-        roi: e.budget > 0 ? ((e.caAttribue - e.budget) / e.budget) * 100 : null,
-      };
-    }).sort((a, b) => b.caAttribue - a.caAttribue);
+    const parAgence = pdvInfos
+      .filter((pdv) => pdvIdsAutorises === null || pdvIdsAutorises.includes(pdv.id))
+      .map((pdv) => {
+        const e = parAgenceMap.get(pdv.id)!;
+        return {
+          pointDeVenteId: pdv.id,
+          nom: pdv.nom,
+          code: pdv.code,
+          budget: e.budget,
+          leads: leadsParAgenceMap.get(pdv.id) ?? 0,
+          clients: e.clientIds.size,
+          caAttribue: e.caAttribue,
+          roi: e.budget > 0 ? ((e.caAttribue - e.budget) / e.budget) * 100 : null,
+        };
+      }).sort((a, b) => b.caAttribue - a.caAttribue);
 
     const topCampagnes = campagnes
       .map((c) => ({

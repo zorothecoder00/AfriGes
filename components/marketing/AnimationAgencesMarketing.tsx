@@ -4,18 +4,35 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Building2, Loader2 } from "lucide-react";
 
-/** Animation des agences (CDC §4) — pilotage local du marketing, comparatif par agence. */
+/** Animation des agences — pilotage local du marketing, comparatif par agence. */
 
 interface LigneAgence { pointDeVenteId: number; nom: string; code: string; budget: number; leads: number; clients: number; caAttribue: number; roi: number | null }
 
 const fmt = (v: number) => Math.round(v).toLocaleString("fr-FR");
 
+/** "YYYY-MM" du mois en cours, pour la valeur par défaut du sélecteur. */
+function moisCourant(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Bornes [1er jour, dernier jour] du mois "YYYY-MM" sélectionné. */
+function bornesDuMois(mois: string): { debut: string; fin: string } {
+  const [annee, m] = mois.split("-").map(Number);
+  const debut = new Date(annee, m - 1, 1);
+  const fin = new Date(annee, m, 0, 23, 59, 59);
+  return { debut: debut.toISOString(), fin: fin.toISOString() };
+}
+
 export default function AnimationAgencesMarketing() {
+  const [mois, setMois] = useState(moisCourant());
   const [rows, setRows] = useState<LigneAgence[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/admin/marketing/stats")
+    setLoading(true);
+    const { debut, fin } = bornesDuMois(mois);
+    fetch(`/api/admin/marketing/stats?debut=${debut}&fin=${fin}`)
       .then(async (r) => {
         const j = await r.json();
         if (!r.ok) throw new Error(j.error ?? "Erreur");
@@ -23,15 +40,19 @@ export default function AnimationAgencesMarketing() {
       })
       .catch((e) => toast.error(e instanceof Error ? e.message : "Chargement impossible"))
       .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+  }, [mois]);
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Building2 className="w-5 h-5 text-fuchsia-600" /> Animation des agences</h2>
-      <p className="text-sm text-slate-400">Pilotage marketing local — comparatif budget/leads/clients/CA/ROI par agence, mois en cours.</p>
-
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Building2 className="w-5 h-5 text-fuchsia-600" /> Animation des agences</h2>
+          <p className="text-sm text-slate-400">Pilotage marketing local — comparatif budget/leads/clients/CA/ROI par agence.</p>
+        </div>
+        <input type="month" value={mois} onChange={(e) => setMois(e.target.value)}
+          className="px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white" />
+      </div>
+      {loading ? <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div> : (
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         {rows.length === 0 ? (
           <p className="text-center text-slate-400 py-16">Aucune donnée pour l&apos;instant</p>
@@ -67,9 +88,10 @@ export default function AnimationAgencesMarketing() {
           </div>
         )}
       </div>
+      )}
       <p className="text-[11px] text-slate-400">
-        Vue actuellement réservée aux profils marketing (Admin/Responsable Marketing) — un responsable d&apos;agence
-        n&apos;a pas encore d&apos;accès restreint à sa seule agence sur cet écran (extension possible, non construite).
+        Les profils marketing globaux (Admin, Responsable/Directeur Marketing…) voient toutes les agences ; un Chef
+        d&apos;agence ou Responsable de point de vente ne voit ici que sa ou ses propre(s) agence(s).
       </p>
     </div>
   );
