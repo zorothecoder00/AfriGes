@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useApi, useMutation } from "@/hooks/useApi";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency } from "@/lib/format";
 import { Loader2, Wallet } from "lucide-react";
 
@@ -27,6 +28,8 @@ export default function BudgetsMarketing() {
   const { data: res, loading, refetch } = useApi<{ data: CampagneItem[] }>("/api/admin/marketing/campagnes");
   const { data: session } = useSession();
   const estDirection = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN" || session?.user?.gestionnaireRole === "DIRECTEUR_GENERAL";
+  const { can } = usePermissions();
+  const peutValiderResponsable = can("marketing", "VALIDATION");
   const budgetIdRef = useRef<number | null>(null);
   const { mutate: agirBudget } = useMutation<unknown, { action: string }>(
     () => `/api/admin/marketing/budgets/${budgetIdRef.current}/action`, "POST",
@@ -58,7 +61,7 @@ export default function BudgetsMarketing() {
                 <button onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "DEMANDER" })) refetch(); }}
                   className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700">Demander validation</button>
               )}
-              {c.budget!.statut === "DEMANDE" && (
+              {c.budget!.statut === "DEMANDE" && peutValiderResponsable && (
                 <>
                   <button onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "VALIDER_RESPONSABLE" })) refetch(); }}
                     className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700">Valider (Responsable)</button>

@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useApi, useMutation } from "@/hooks/useApi";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   ChevronLeft, Loader2, Send, CheckCircle2, XCircle, Play, Pause,
@@ -70,6 +71,8 @@ export default function CampagneDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const { data: session } = useSession();
   const estDirection = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN" || session?.user?.gestionnaireRole === "DIRECTEUR_GENERAL";
+  const { can } = usePermissions();
+  const peutValiderResponsable = can("marketing", "VALIDATION");
   const { data: res, loading, refetch } = useApi<{ data: CampagneDetail }>(`/api/admin/marketing/campagnes/${id}`);
   const { mutate: agir, loading: agissant } = useMutation<unknown, { action: string }>(
     `/api/admin/marketing/campagnes/${id}/action`, "POST",
@@ -236,7 +239,7 @@ export default function CampagneDetailPage({ params }: { params: Promise<{ id: s
                   <button onClick={async () => { if (await agirBudget({ action: "DEMANDER" })) refetch(); }}
                     className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700">Demander validation</button>
                 )}
-                {c.budget.statut === "DEMANDE" && (
+                {c.budget.statut === "DEMANDE" && peutValiderResponsable && (
                   <div className="flex gap-2">
                     <button onClick={async () => { if (await agirBudget({ action: "VALIDER_RESPONSABLE" })) refetch(); }}
                       className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700">Valider (Responsable)</button>
