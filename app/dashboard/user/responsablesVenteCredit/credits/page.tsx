@@ -159,6 +159,9 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
   const [dateDebut,    setDateDebut]    = useState(new Date().toISOString().slice(0, 10));
   const [garantie,     setGarantie]     = useState("");
   const [observations, setObservations] = useState("");
+  const [campagneId, setCampagneId] = useState(""); // Attribution marketing (CDC §85)
+  const { data: campagnesActivesRes } = useApi<{ data: { id: number; code: string; nom: string }[] }>("/api/marketing/campagnes-actives");
+  const campagnesActivesOptions = campagnesActivesRes?.data ?? [];
   const [fraisDossier,    setFraisDossier]    = useState("0");
   const [assurance,       setAssurance]       = useState("0");
   const [autresFrais,     setAutresFrais]     = useState("0");
@@ -254,6 +257,7 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
           garantValeurEstimee: Number(garantValeurEstimee || 0),
           garantie:     garantie || undefined,
           observations: observations || undefined,
+          campagneId:   campagneId || undefined,
           lignes: lignes.map((l) => ({
             produitId:   l.produitId ? Number(l.produitId) : undefined,
             produitNom:  l.produitNom.trim(),
@@ -404,6 +408,14 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Observations</label>
                       <input type="text" value={observations} onChange={(e) => setObservations(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Campagne marketing (optionnel)</label>
+                      <select value={campagneId} onChange={(e) => setCampagneId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="">— aucune —</option>
+                        {campagnesActivesOptions.map((c) => <option key={c.id} value={c.id}>{c.nom} ({c.code})</option>)}
+                      </select>
                     </div>
                   </div>
 

@@ -274,6 +274,8 @@ export async function POST(req: Request) {
           clientId:        clientId        ? Number(clientId)        : null,
           clientNom:       clientNom       || null,
           clientTelephone: clientTelephone || null,
+          // Attribution marketing (CDC §85) — campagne active choisie manuellement à la vente.
+          campagneId:      body.campagneId ? Number(body.campagneId) : null,
           lignes:          { create: lignesData },
         },
       });

@@ -205,6 +205,8 @@ export async function POST(req: Request) {
           dateFin: dateFinRes,
           notes,
           enregistrePar: adminNom,
+          // Attribution marketing (CDC §85) — campagne active choisie manuellement à la souscription.
+          campagneId: body.campagneId ? Number(body.campagneId) : null,
         },
       });
 

@@ -277,7 +277,7 @@ export default function CreditsPage() {
     dateDebut: new Date().toISOString().slice(0, 10),
     fraisDossier: '0', assurance: '0', autresFrais: '0', fraisLivraison: '0', tauxInteret: '0', delaiGraceJours: '0',
     garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0',
-    tauxPenalite: '0', garantie: '', observations: '',
+    tauxPenalite: '0', garantie: '', observations: '', campagneId: '',
   });
   const [creditSubmitting, setCreditSubmitting] = useState(false);
   const [creditError,     setCreditError]     = useState('');
@@ -485,6 +485,8 @@ export default function CreditsPage() {
     return () => clearTimeout(t);
   }, [ligneActionProdSearch, ligneActionStatut]);
 
+  const { data: campagnesActivesRes } = useApi<{ data: { id: number; code: string; nom: string }[] }>('/api/marketing/campagnes-actives');
+  const campagnesActivesOptions = campagnesActivesRes?.data ?? [];
   const { data: pdvResponse } = useApi<{ data: PDVOption[] }>('/api/admin/pdv?limit=200&actif=true');
   const { data: collecteursRes } = useApi<{ data: { id: number; nom: string; prenom: string }[] }>('/api/admin/collecteurs');
   const { data: gestionnairesRes } = useApi<{ data: { id: number; nom: string; prenom: string }[] }>('/api/admin/credits/gestionnaires');
@@ -507,7 +509,7 @@ export default function CreditsPage() {
     setCreditSelectedClient(null); setEligibilite(null); setShowSetLimite(false); setLimiteInput(''); setCreditError('');
     setCreditPdvId(''); setCreditStockPdv([]); setCreditClientResults([]);
     setCreditLignes([{ produitId: null, produitNom: '', quantite: 1, prixUnitaire: 0, remise: 0, stockDisponible: Infinity }]);
-    setCreditParams({ formule: 'TRENTAINE', dateDebut: new Date().toISOString().slice(0, 10), fraisDossier: '0', assurance: '0', autresFrais: '0', fraisLivraison: '0', tauxInteret: '0', delaiGraceJours: '0', garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0', tauxPenalite: '0', garantie: '', observations: '' });
+    setCreditParams({ formule: 'TRENTAINE', dateDebut: new Date().toISOString().slice(0, 10), fraisDossier: '0', assurance: '0', autresFrais: '0', fraisLivraison: '0', tauxInteret: '0', delaiGraceJours: '0', garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0', tauxPenalite: '0', garantie: '', observations: '', campagneId: '' });
   };
 
   const checkEligibilite = async (clientId: number) => {
@@ -605,6 +607,7 @@ export default function CreditsPage() {
           tauxPenalite: Number(creditParams.tauxPenalite),
           garantie:     creditParams.garantie || undefined,
           observations: creditParams.observations || undefined,
+          campagneId:   creditParams.campagneId || undefined,
         }),
       });
       const j = await r.json();
@@ -2180,6 +2183,16 @@ export default function CreditsPage() {
                     <textarea rows={2} value={creditParams.observations}
                       onChange={e => setCreditParams(p => ({ ...p, observations: e.target.value }))} placeholder="Notes complémentaires…"
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 resize-none" />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Campagne marketing (optionnel)</label>
+                    <select value={creditParams.campagneId}
+                      onChange={e => setCreditParams(p => ({ ...p, campagneId: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
+                      <option value="">— aucune —</option>
+                      {campagnesActivesOptions.map(c => <option key={c.id} value={c.id}>{c.nom} ({c.code})</option>)}
+                    </select>
                   </div>
                 </div>
               )}

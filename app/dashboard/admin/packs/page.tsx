@@ -2050,6 +2050,9 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
   const [acompte, setAcompte] = useState("");
   const [dateDebut, setDateDebut] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
+  const [campagneId, setCampagneId] = useState(""); // Attribution marketing (CDC §85)
+  const { data: campagnesActivesRes } = useApi<{ data: { id: number; code: string; nom: string }[] }>("/api/marketing/campagnes-actives");
+  const campagnesActivesOptions = campagnesActivesRes?.data ?? [];
 
   // Étape 3 — produits demandés
   const [createdSouscId, setCreatedSouscId] = useState<number | null>(null);
@@ -2131,6 +2134,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
       montantTotal: parseFloat(montantTotal),
       dateDebut,
       notes: notes || undefined,
+      campagneId: campagneId || undefined,
     };
     if (acompte && parseFloat(acompte) > 0) payload.acompteInitial = parseFloat(acompte);
     if (selectedPack?.type === "REVENDEUR" && formuleRevendeur) payload.formuleRevendeur = formuleRevendeur;
@@ -2389,6 +2393,15 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
               <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
               <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" placeholder="Observations…" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Campagne marketing (optionnel)</label>
+              <select value={campagneId} onChange={(e) => setCampagneId(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+                <option value="">— aucune —</option>
+                {campagnesActivesOptions.map((c) => <option key={c.id} value={c.id}>{c.nom} ({c.code})</option>)}
+              </select>
             </div>
 
             <div className="flex gap-3 pt-1">

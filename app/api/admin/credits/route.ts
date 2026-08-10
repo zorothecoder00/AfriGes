@@ -320,6 +320,8 @@ export async function POST(req: Request) {
           garantValeurEstimee: garantValeurEstimee != null ? Math.max(0, Number(garantValeurEstimee)) : 0,
           observations: observations || null,
           creeParId: Number(session.user.id),
+          // Attribution marketing (CDC §85) — campagne active choisie manuellement au crédit.
+          campagneId: body.campagneId ? Number(body.campagneId) : null,
           lignes: {
             create: lignesCalculees.map((l) => ({
               produitId:        l.produitId ? Number(l.produitId) : null,

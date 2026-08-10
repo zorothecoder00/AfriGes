@@ -169,6 +169,7 @@ export default function VentesPage() {
   const [montantPaye, setMontantPaye]               = useState('');
   const [notesVente, setNotesVente]                 = useState('');
   const [couponCode, setCouponCode]                 = useState(''); // Coupon marketing (CDC §35)
+  const [campagneId, setCampagneId]                 = useState(''); // Attribution marketing (CDC §85)
   // Paiement (partiel ou total) via le compte courant client (CDC §3)
   const [ccInfo, setCcInfo]                         = useState<{ id: number; numeroCompte: string; statut: string; solde: number } | null>(null);
   const [ccMontant, setCcMontant]                   = useState('');
@@ -242,6 +243,12 @@ export default function VentesPage() {
   const receptions = packsResponse?.receptions ?? [];
   const packsStats = packsResponse?.stats;
   const packsMeta  = packsResponse?.meta;
+
+  // ── API – Campagnes actives (attribution marketing, CDC §85) ───────────────
+  const { data: campagnesActivesResponse } = useApi<{ data: { id: number; code: string; nom: string }[] }>(
+    '/api/marketing/campagnes-actives'
+  );
+  const campagnesActivesOptions = campagnesActivesResponse?.data ?? [];
 
   // ── API – Recherche clients (modal vente) ──────────────────────────────────
   const { data: venteClientsResponse } = useApi<{ data: ClientOption[] }>(
@@ -401,6 +408,7 @@ export default function VentesPage() {
     setUseCC(false);
     setNotesVente('');
     setCouponCode('');
+    setCampagneId('');
   };
 
   const goToStep2 = async () => {
@@ -486,6 +494,7 @@ export default function VentesPage() {
         : selectedClient?.telephone ?? null,
       notes: notesVente || null,
       couponCode: couponCode.trim() || undefined,
+      campagneId: campagneId || undefined,
       lignes: lignes.map(l => ({ produitId: l.produitId, quantite: l.quantite, prixUnitaire: l.prixUnitaire })),
     });
     if (res) { closeVenteModal(); refetchVentes(); }
@@ -990,11 +999,21 @@ export default function VentesPage() {
                     ) : null}
                   </div>
 
-                  {/* Coupon marketing (CDC §35) */}
+                  {/* Coupon marketing */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Code coupon (optionnel)</label>
                     <input value={couponCode} onChange={e => setCouponCode(e.target.value.toUpperCase())} placeholder="AFRI10"
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                  </div>
+
+                  {/* Attribution à une campagne marketing (optionnel) */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Campagne marketing (optionnel)</label>
+                    <select value={campagneId} onChange={e => setCampagneId(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white">
+                      <option value="">— aucune —</option>
+                      {campagnesActivesOptions.map(c => <option key={c.id} value={c.id}>{c.nom} ({c.code})</option>)}
+                    </select>
                   </div>
 
                   {/* Notes */}

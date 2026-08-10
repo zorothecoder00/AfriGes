@@ -298,6 +298,8 @@ export async function POST(req: Request) {
           creeParId: userId,
           valideParId: userId,
           dateValidation: maintenant,
+          // Attribution marketing (CDC §85) — campagne active choisie manuellement au crédit.
+          campagneId: body.campagneId ? Number(body.campagneId) : null,
           lignes: {
             create: lignesCalc.map((l) => ({
               produitId:        l.produitId ? Number(l.produitId) : null,

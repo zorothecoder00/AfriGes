@@ -77,6 +77,7 @@ interface NouveauCreditForm {
   dateDebut: string;
   garantie: string;
   observations: string;
+  campagneId: string; // Attribution marketing (CDC §85)
   lignes: { produitId: string; produitNomSaisi: string; quantite: string; prixUnitaire: string; remise: string }[];
 }
 
@@ -428,8 +429,11 @@ function NouveauCreditModal({
     dateDebut: new Date().toISOString().slice(0, 10),
     garantie: "",
     observations: "",
+    campagneId: "",
     lignes: [{ produitId: "", produitNomSaisi: "", quantite: "1", prixUnitaire: "", remise: "0" }],
   });
+  const { data: campagnesActivesRes } = useApi<{ data: { id: number; code: string; nom: string }[] }>("/api/marketing/campagnes-actives");
+  const campagnesActivesOptions = campagnesActivesRes?.data ?? [];
   const [loading, setLoading] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -483,6 +487,7 @@ function NouveauCreditModal({
           dateDebut:    form.dateDebut,
           garantie:     form.garantie || undefined,
           observations: form.observations || undefined,
+          campagneId:   form.campagneId || undefined,
           lignes: form.lignes.map((l) => ({
             produitId:      l.produitId ? Number(l.produitId) : undefined,
             produitNomSaisi: l.produitNomSaisi.trim(),
@@ -584,6 +589,14 @@ function NouveauCreditModal({
                 onChange={(e) => setForm((f) => ({ ...f, observations: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Campagne marketing (optionnel)</label>
+              <select value={form.campagneId} onChange={(e) => setForm((f) => ({ ...f, campagneId: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">— aucune —</option>
+                {campagnesActivesOptions.map((c) => <option key={c.id} value={c.id}>{c.nom} ({c.code})</option>)}
+              </select>
             </div>
           </div>
 

@@ -1275,6 +1275,9 @@ function ModalNouvelleSouscription({
   const [formuleRevendeur, setFormuleRevendeur] = useState("FORMULE_1");
   const [frequenceVersement, setFrequenceVersement] = useState("");
   const [notes, setNotes] = useState("");
+  const [campagneId, setCampagneId] = useState(""); // Attribution marketing (CDC §85)
+  const { data: campagnesActivesRes } = useApi<{ data: { id: number; code: string; nom: string }[] }>("/api/marketing/campagnes-actives");
+  const campagnesActivesOptions = campagnesActivesRes?.data ?? [];
 
   // Étape 3 — produits demandés
   const [createdSouscId, setCreatedSouscId] = useState<number | null>(null);
@@ -1333,6 +1336,7 @@ function ModalNouvelleSouscription({
       formuleRevendeur: selectedPack.type === "REVENDEUR" ? formuleRevendeur : undefined,
       frequenceVersement: frequenceVersement || undefined,
       notes: notes || undefined,
+      campagneId: campagneId || undefined,
     });
     if (res && res.id) {
       setCreatedSouscId(res.id);
@@ -1538,6 +1542,15 @@ function ModalNouvelleSouscription({
                     <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
                       className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500"
                       placeholder="Informations utiles pour l'admin…" />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Campagne marketing (optionnel)</label>
+                    <select value={campagneId} onChange={(e) => setCampagneId(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
+                      <option value="">— aucune —</option>
+                      {campagnesActivesOptions.map((c) => <option key={c.id} value={c.id}>{c.nom} ({c.code})</option>)}
+                    </select>
                   </div>
 
                   <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -1813,6 +1826,7 @@ export default function AgentTerrainPage() {
   const [vModePaiement, setVModePaiement] = useState("ESPECES");
   const [vMontantPaye, setVMontantPaye]   = useState("");
   const [vNotes, setVNotes]               = useState("");
+  const [vCampagneId, setVCampagneId]     = useState(""); // Attribution marketing (CDC §85)
   const [vLignes, setVLignes]             = useState<{ produitId: string; quantite: string; prixUnitaire: string }[]>([
     { produitId: "", quantite: "", prixUnitaire: "" },
   ]);
@@ -1823,6 +1837,9 @@ export default function AgentTerrainPage() {
 
   const cancelVenteIdRef  = useRef<number | null>(null);
   const livrerVenteIdRef  = useRef<number | null>(null);
+
+  const { data: campagnesActivesRes } = useApi<{ data: { id: number; code: string; nom: string }[] }>("/api/marketing/campagnes-actives");
+  const campagnesActivesOptions = campagnesActivesRes?.data ?? [];
 
   const { data: ventesRes, loading: ventesLoading, refetch: refetchVentes } =
     useApi<VentesTerrainResponse>(activeTab === "ventes" ? "/api/agentTerrain/ventes" : null);
@@ -1870,6 +1887,7 @@ export default function AgentTerrainPage() {
       clientNom: !vClientId ? vClientNom || undefined : undefined,
       clientTelephone: !vClientId ? vClientTel || undefined : undefined,
       notes: vNotes || undefined,
+      campagneId: vCampagneId || undefined,
       lignes: lignesValides.map(l => ({
         produitId: Number(l.produitId),
         quantite:  Number(l.quantite),
@@ -1888,7 +1906,7 @@ export default function AgentTerrainPage() {
       }
       setShowVenteForm(false);
       setVClientId(""); setVClientNom(""); setVClientTel("");
-      setVMontantPaye(""); setVNotes("");
+      setVMontantPaye(""); setVNotes(""); setVCampagneId("");
       setVCcInfo(null); setVCcMontant(""); setVUseCC(false);
       setVLignes([{ produitId: "", quantite: "", prixUnitaire: "" }]);
       refetchVentes();
@@ -3140,6 +3158,15 @@ export default function AgentTerrainPage() {
 
                   <textarea placeholder="Notes (optionnel)" rows={2} value={vNotes} onChange={e => setVNotes(e.target.value)}
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500" />
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Campagne marketing (optionnel)</label>
+                    <select value={vCampagneId} onChange={e => setVCampagneId(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
+                      <option value="">— aucune —</option>
+                      {campagnesActivesOptions.map(c => <option key={c.id} value={c.id}>{c.nom} ({c.code})</option>)}
+                    </select>
+                  </div>
 
                   <div className="flex gap-3 pt-1">
                     <button type="button" onClick={() => setShowVenteForm(false)}

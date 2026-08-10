@@ -3624,6 +3624,12 @@ model SouscriptionPack {
   notes              String?
   enregistrePar      String?
 
+  // Attribution marketing (CDC §85) — campagne active choisie à la souscription,
+  // même mécanique que VenteDirecte.campagneId/CreditClient.campagneId : fixée
+  // à la création, jamais réévaluée sur la durée de vie de la souscription.
+  campagneId Int?
+  campagne   Campagne? @relation("SouscriptionPackCampagne", fields: [campagneId], references: [id])
+
   versements     VersementPack[]
   echeances      EcheancePack[]
   receptions     ReceptionProduitPack[]
@@ -3632,6 +3638,8 @@ model SouscriptionPack {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([campagneId])
 }
 
 model VersementPack {
@@ -8992,6 +9000,7 @@ model Campagne {
   depenses             DepenseMarketing[]
   ventesAttribuees     VenteDirecte[]           @relation("VenteCampagne")
   creditsAttribues     CreditClient[]           @relation("CreditCampagne")
+  souscriptionsAttribuees SouscriptionPack[]    @relation("SouscriptionPackCampagne")
   envoisMessage        EnvoiMessage[]
   assetsMarketing      AssetMarketingCampagne[]
   publicationsSociales PublicationSociale[]
