@@ -48,9 +48,7 @@ export async function POST(req: NextRequest) {
     const userId = Number(session.user.id);
     const depense = await prisma.$transaction(async (tx) => {
       const d = await tx.depenseMarketing.create({ data: { ...valid.data, creeParId: userId } });
-      if (valid.data.budgetId) {
-        await tx.budgetMarketing.update({ where: { id: valid.data.budgetId }, data: { montantEngage: { increment: valid.data.montant } } });
-      }
+      await tx.budgetMarketing.update({ where: { id: valid.data.budgetId }, data: { montantEngage: { increment: valid.data.montant } } });
       await creerEcritureDepenseMarketing(tx, d.id, userId);
       await auditLog(tx, userId, "DEPENSE_MARKETING_CREEE", "DepenseMarketing", d.id);
       return tx.depenseMarketing.findUniqueOrThrow({ where: { id: d.id } });
