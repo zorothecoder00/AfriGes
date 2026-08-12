@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
         pack: { select: { nom: true, type: true, frequenceVersement: true } },
         user: { select: { nom: true, prenom: true, telephone: true } },
         client: { select: { nom: true, prenom: true, telephone: true } },
-        _count: { select: { versements: true } },
+        _count: { select: { versements: true, receptions: { where: { statut: "LIVREE" } } } },
         echeances: {
           where: {
             statut: { in: ["EN_ATTENTE", "EN_RETARD"] },

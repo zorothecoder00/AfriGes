@@ -339,6 +339,7 @@ interface SouscriptionItem {
 
   _count: {
     versements: number;
+    receptions: number; // réceptions LIVREE uniquement (voir GET /api/caissier/packs)
   };
 
   echeances: EcheanceItem[];
@@ -3207,16 +3208,23 @@ export default function CaissierPage() {
                               {annulationSouscId === s.id ? "Annulation..." : "Annuler"}
                             </button>
                           )}
-                          <button
-                            onClick={() => handleSupprimerSouscription(s.id)}
-                            disabled={annulationSouscId === s.id || suppressionSouscId === s.id}
-                            title="Erreur de saisie : supprimer définitivement cette souscription"
-                            className="flex-1 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40"
-                          >
-                            <XCircle size={13} />
-                            {suppressionSouscId === s.id ? "Suppression..." : "Supprimer"}
-                          </button>
+                          {s._count.receptions === 0 && (
+                            <button
+                              onClick={() => handleSupprimerSouscription(s.id)}
+                              disabled={annulationSouscId === s.id || suppressionSouscId === s.id}
+                              title="Erreur de saisie : supprimer définitivement cette souscription"
+                              className="flex-1 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40"
+                            >
+                              <XCircle size={13} />
+                              {suppressionSouscId === s.id ? "Suppression..." : "Supprimer"}
+                            </button>
+                          )}
                         </div>
+                        {s._count.receptions > 0 && s.statut !== "ANNULE" && (
+                          <p className="text-[11px] text-slate-400 text-center">
+                            Produit déjà livré — utilisez « Annuler » pour corriger, la suppression est désactivée
+                          </p>
+                        )}
                       </div>
                     </div>
                   );

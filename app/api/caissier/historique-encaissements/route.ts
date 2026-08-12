@@ -67,7 +67,11 @@ export async function GET(req: Request) {
     const periode = { gte, lt };
 
     const creditScope = pdvId ? { credit: { client: { pointDeVenteId: pdvId } } } : {};
-    const souscScope = pdvId ? { souscription: souscriptionPdvWhere(pdvId) } : {};
+    // Exclut les versements des souscriptions annulées — une souscription annulée
+    // (erreur de saisie corrigée par la caissière) ne doit plus polluer l'historique
+    // ni être éditable ; les souscriptions supprimées disparaissent déjà via cascade delete.
+    const souscConditions = [{ statut: { not: "ANNULE" as const } }, ...(pdvId ? [souscriptionPdvWhere(pdvId)] : [])];
+    const souscScope = { souscription: { AND: souscConditions } };
     const venteScope = pdvId ? { pointDeVenteId: pdvId } : {};
     const opScope = pdvId ? { session: { pointDeVenteId: pdvId } } : {};
 
