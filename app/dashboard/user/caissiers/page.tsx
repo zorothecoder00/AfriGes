@@ -344,8 +344,22 @@ interface SouscriptionItem {
   echeances: EcheanceItem[];
 }
 
-interface PackItem { id: number; nom: string; type: string }
+interface PackItem {
+  id: number;
+  nom: string;
+  type: string;
+  description?: string | null;
+  actif?: boolean;
+  dureeJours?: number | null;
+  frequenceVersement?: string;
+  montantVersement?: string | null;
+  formuleRevendeur?: string | null;
+  montantCredit?: string | null;
+  acomptePercent?: string | null;
+}
 interface PacksResponse { souscriptions: SouscriptionItem[]; packs: PackItem[] }
+
+interface ClientOptionCaissier { id: number; nom: string; prenom: string; telephone: string | null }
 
 interface ReceptionPackLivree {
   id: number;
@@ -399,16 +413,17 @@ function alertBg(type: "danger" | "warning" | "info") {
   return "bg-blue-50 border-blue-200";
 }
 
+const PACK_TYPE_INFO: Record<string, { label: string; cls: string }> = {
+  ALIMENTAIRE:     { label: "Alimentaire",     cls: "bg-emerald-100 text-emerald-700" },
+  REVENDEUR:       { label: "Revendeur",        cls: "bg-sky-100 text-sky-700"         },
+  FAMILIAL:        { label: "Familial",         cls: "bg-violet-100 text-violet-700"   },
+  URGENCE:         { label: "Urgence",          cls: "bg-red-100 text-red-700"         },
+  EPARGNE_PRODUIT: { label: "Épargne-Produit",  cls: "bg-amber-100 text-amber-700"     },
+  FIDELITE:        { label: "Fidélité",         cls: "bg-pink-100 text-pink-700"       },
+};
+
 function packTypeBadge(type: string) {
-  const map: Record<string, { label: string; cls: string }> = {
-    ALIMENTAIRE:     { label: "Alimentaire",     cls: "bg-emerald-100 text-emerald-700" },
-    REVENDEUR:       { label: "Revendeur",        cls: "bg-sky-100 text-sky-700"         },
-    FAMILIAL:        { label: "Familial",         cls: "bg-violet-100 text-violet-700"   },
-    URGENCE:         { label: "Urgence",          cls: "bg-red-100 text-red-700"         },
-    EPARGNE_PRODUIT: { label: "Épargne-Produit",  cls: "bg-amber-100 text-amber-700"     },
-    FIDELITE:        { label: "Fidélité",         cls: "bg-pink-100 text-pink-700"       },
-  };
-  const d = map[type] ?? { label: type, cls: "bg-slate-100 text-slate-700" };
+  const d = PACK_TYPE_INFO[type] ?? { label: type, cls: "bg-slate-100 text-slate-700" };
   return <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${d.cls}`}>{d.label}</span>;
 }
 
@@ -813,6 +828,7 @@ export default function CaissierPage() {
   // ── Recherche encaissement ───────────────────────────────────────────────
   const [encaissementSearch, setEncaissementSearch] = useState("");
   const [debouncedEncSearch, setDebouncedEncSearch] = useState("");
+  const [showNouvelleSouscription, setShowNouvelleSouscription] = useState(false);
 
   // ── Pagination ───────────────────────────────────────────────────────────
   const [versementsPage, setVersementsPage] = useState(1);
@@ -1146,6 +1162,38 @@ export default function CaissierPage() {
       else toast.error(j.message ?? "Erreur lors de l'annulation");
     } catch { toast.error("Erreur réseau"); }
     finally { setAnnulationCreditId(null); }
+  };
+
+  // ── Annulation / suppression d'une souscription pack (erreur de saisie) ────
+  const [annulationSouscId, setAnnulationSouscId] = useState<number | null>(null);
+  const [suppressionSouscId, setSuppressionSouscId] = useState<number | null>(null);
+
+  const handleAnnulerSouscription = async (id: number) => {
+    if (!confirm("Annuler cette souscription ? Elle disparaîtra de la liste active. Les versements déjà encaissés restent conservés (audit, clôture de caisse).")) return;
+    setAnnulationSouscId(id);
+    try {
+      const r = await fetch(`/api/caissier/packs/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "ANNULER" }),
+      });
+      const j = await r.json();
+      if (r.ok) { toast.success("Souscription annulée"); refetchPacks(); refetchDashboard(); }
+      else toast.error(j.error ?? "Erreur lors de l'annulation");
+    } catch { toast.error("Erreur réseau"); }
+    finally { setAnnulationSouscId(null); }
+  };
+
+  const handleSupprimerSouscription = async (id: number) => {
+    if (!confirm("Supprimer définitivement cette souscription et tous ses versements ? Cette action est irréversible.")) return;
+    setSuppressionSouscId(id);
+    try {
+      const r = await fetch(`/api/caissier/packs/${id}`, { method: "DELETE" });
+      const j = await r.json();
+      if (r.ok) { toast.success("Souscription supprimée"); refetchPacks(); refetchDashboard(); }
+      else toast.error(j.error ?? "Erreur lors de la suppression");
+    } catch { toast.error("Erreur réseau"); }
+    finally { setSuppressionSouscId(null); }
   };
 
   // ── Bordereau de remboursement (accès direct depuis la liste) ───────────────
@@ -1562,6 +1610,13 @@ export default function CaissierPage() {
       {factureVenteId     && <FactureModal venteDirecteId={factureVenteId}       onClose={() => setFactureVenteId(null)} />}
       {factureReceptionId && <FactureModal receptionPackId={factureReceptionId} onClose={() => setFactureReceptionId(null)} />}
       {factureCreditId    && <FactureModal creditClientId={factureCreditId}      onClose={() => setFactureCreditId(null)} />}
+      {showNouvelleSouscription && (
+        <ModalNouvelleSouscriptionPack
+          packs={packsRes?.packs ?? []}
+          onClose={() => setShowNouvelleSouscription(false)}
+          onSuccess={() => refetchPacks()}
+        />
+      )}
 
       {bordereauData && (
         <BordereauRemboursement
@@ -2920,7 +2975,15 @@ export default function CaissierPage() {
                   <Banknote size={20} className="text-emerald-600" />
                   Souscriptions en cours — Collecte de versements packs
                 </h3>
-                <span className="text-xs text-slate-400">{souscriptions?.length} souscription(s)</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-slate-400">{souscriptions?.length} souscription(s)</span>
+                  <button
+                    onClick={() => setShowNouvelleSouscription(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                  >
+                    <Plus size={14} /> Nouvelle souscription
+                  </button>
+                </div>
               </div>
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -3011,7 +3074,7 @@ export default function CaissierPage() {
               <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200/60">
                 <ShoppingCart className="w-12 h-12 text-slate-200 mx-auto mb-3" />
                 <p className="text-slate-400 font-medium">Aucune souscription en cours</p>
-                <p className="text-slate-400 text-sm mt-1">Créez une souscription depuis le panneau admin</p>
+                <p className="text-slate-400 text-sm mt-1">Utilisez le bouton « Nouvelle souscription » ci-dessus pour en créer une</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -3083,7 +3146,7 @@ export default function CaissierPage() {
                           </div>
                         )}
                       </div>
-                      <div className="px-5 pb-5">
+                      <div className="px-5 pb-5 space-y-2">
                         <button
                           onClick={() => openVersementModal(s)}
                           disabled={Number(s.montantRestant) <= 0}
@@ -3092,6 +3155,26 @@ export default function CaissierPage() {
                           <Plus size={15} />
                           {Number(s.montantRestant) <= 0 ? "Pack soldé" : "Encaisser versement"}
                         </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleAnnulerSouscription(s.id)}
+                            disabled={annulationSouscId === s.id || suppressionSouscId === s.id}
+                            title="Erreur de saisie : annuler cette souscription (versements conservés)"
+                            className="flex-1 py-2 border border-amber-200 text-amber-700 hover:bg-amber-50 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40"
+                          >
+                            <Ban size={13} />
+                            {annulationSouscId === s.id ? "Annulation..." : "Annuler"}
+                          </button>
+                          <button
+                            onClick={() => handleSupprimerSouscription(s.id)}
+                            disabled={annulationSouscId === s.id || suppressionSouscId === s.id}
+                            title="Erreur de saisie : supprimer définitivement cette souscription"
+                            className="flex-1 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40"
+                          >
+                            <XCircle size={13} />
+                            {suppressionSouscId === s.id ? "Suppression..." : "Supprimer"}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -4625,6 +4708,307 @@ export default function CaissierPage() {
         )}
 
       </main>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// MODAL — Nouvelle souscription pack (permet de recommencer après annulation/
+// suppression d'une souscription mal saisie)
+// ============================================================================
+function ModalNouvelleSouscriptionPack({
+  packs,
+  onClose,
+  onSuccess,
+}: {
+  packs: PackItem[];
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [step, setStep] = useState<1 | 2>(1);
+  const [clientSearch, setClientSearch] = useState("");
+  const [dClientSearch, setDClientSearch] = useState("");
+  const [selectedClient, setSelectedClient] = useState<ClientOptionCaissier | null>(null);
+  const [packId, setPackId] = useState("");
+  const [formuleRevendeur, setFormuleRevendeur] = useState("");
+  const [frequenceVersement, setFrequenceVersement] = useState("HEBDOMADAIRE");
+  const [montantTotal, setMontantTotal] = useState("");
+  const [acompte, setAcompte] = useState("");
+  const [dateDebut, setDateDebut] = useState(new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState("");
+  const [campagneId, setCampagneId] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDClientSearch(clientSearch), 400);
+    return () => clearTimeout(t);
+  }, [clientSearch]);
+
+  const { data: clientsRes } = useApi<{ success: boolean; data: ClientOptionCaissier[] }>(
+    step === 1 && dClientSearch.length >= 2
+      ? `/api/caissier/clients?search=${encodeURIComponent(dClientSearch)}&limit=6`
+      : null
+  );
+  const clients = clientsRes?.data ?? [];
+
+  const { data: campagnesRes } = useApi<{ data: { id: number; code: string; nom: string }[] }>("/api/marketing/campagnes-actives");
+  const campagnes = campagnesRes?.data ?? [];
+
+  const selectedPack = packs.find((p) => p.id === parseInt(packId));
+
+  useEffect(() => {
+    if (!selectedPack) return;
+    if (selectedPack.montantCredit) setMontantTotal(String(selectedPack.montantCredit));
+    else if (selectedPack.montantVersement) setMontantTotal(String(selectedPack.montantVersement));
+    if (selectedPack.acomptePercent && selectedPack.montantCredit) {
+      const a = (Number(selectedPack.acomptePercent) / 100) * Number(selectedPack.montantCredit);
+      setAcompte(String(Math.round(a)));
+    }
+    if (selectedPack.type === "REVENDEUR") setFormuleRevendeur(selectedPack.formuleRevendeur ?? "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [packId]);
+
+  useEffect(() => {
+    if (selectedPack?.type !== "URGENCE" || !selectedPack.acomptePercent || !montantTotal) return;
+    const a = (parseFloat(montantTotal) * Number(selectedPack.acomptePercent)) / 100;
+    if (!isNaN(a) && a > 0) setAcompte(String(Math.round(a)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [montantTotal]);
+
+  const { mutate, loading } = useMutation<{ id: number }, Record<string, unknown>>(
+    "/api/caissier/packs",
+    "POST",
+    { successMessage: "Souscription créée ✓" }
+  );
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedClient || !packId || !montantTotal) return;
+
+    const payload: Record<string, unknown> = {
+      packId: parseInt(packId),
+      clientId: selectedClient.id,
+      montantTotal: parseFloat(montantTotal),
+      dateDebut,
+      notes: notes || undefined,
+      campagneId: campagneId || undefined,
+    };
+    if (acompte && parseFloat(acompte) > 0) payload.acompteInitial = parseFloat(acompte);
+    if (selectedPack?.type === "REVENDEUR" && formuleRevendeur) payload.formuleRevendeur = formuleRevendeur;
+    if (selectedPack?.type === "FAMILIAL") payload.frequenceVersement = frequenceVersement;
+
+    const res = await mutate(payload);
+    if (res) { onSuccess(); onClose(); }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto relative">
+        <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg transition-colors">×</button>
+
+        <h2 className="text-xl font-bold text-slate-800 mb-1">Nouvelle souscription</h2>
+        <p className="text-sm text-slate-500 mb-5">
+          {step === 1 ? "Sélectionnez le client" : "Configurez la souscription"}
+        </p>
+
+        {/* Étape 1 : Recherche client */}
+        {step === 1 && (
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                autoFocus
+                value={clientSearch}
+                onChange={(e) => { setClientSearch(e.target.value); setSelectedClient(null); }}
+                placeholder="Nom, prénom ou téléphone…"
+                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+              />
+            </div>
+            {clients.length > 0 && (
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                {clients.map((c, idx) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => { setSelectedClient(c); setStep(2); }}
+                    className={`w-full text-left px-4 py-3 hover:bg-emerald-50 transition-colors flex items-center justify-between group ${idx < clients.length - 1 ? "border-b border-slate-100" : ""}`}
+                  >
+                    <div>
+                      <p className="font-medium text-slate-800 text-sm">{c.prenom} {c.nom}</p>
+                      <p className="text-xs text-slate-500">{c.telephone}</p>
+                    </div>
+                    <ChevronRight className="text-slate-300 group-hover:text-emerald-500 w-4 h-4 transition-colors" />
+                  </button>
+                ))}
+              </div>
+            )}
+            {dClientSearch.length >= 2 && clients.length === 0 && (
+              <p className="text-center text-slate-400 text-sm py-4">Aucun client trouvé</p>
+            )}
+            {dClientSearch.length < 2 && (
+              <p className="text-center text-slate-400 text-xs py-1">Saisissez au moins 2 caractères</p>
+            )}
+          </div>
+        )}
+
+        {/* Étape 2 : Configuration */}
+        {step === 2 && selectedClient && (
+          <form onSubmit={submit} className="space-y-4">
+            <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="text-emerald-500 w-4 h-4 shrink-0" />
+                <div>
+                  <p className="font-semibold text-slate-800 text-sm">{selectedClient.prenom} {selectedClient.nom}</p>
+                  <p className="text-xs text-slate-500">{selectedClient.telephone}</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => { setStep(1); setSelectedClient(null); }}
+                className="text-xs text-emerald-600 hover:text-emerald-800 font-medium underline underline-offset-2">
+                Changer
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Pack *</label>
+              <select required value={packId} onChange={(e) => setPackId(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                <option value="">— Sélectionner —</option>
+                {packs.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nom} ({PACK_TYPE_INFO[p.type]?.label ?? p.type})</option>
+                ))}
+              </select>
+            </div>
+
+            {selectedPack?.description && (
+              <div className="p-3 bg-slate-50 rounded-xl text-sm text-slate-600">{selectedPack.description}</div>
+            )}
+
+            {selectedPack?.type === "REVENDEUR" && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Formule *</label>
+                {selectedPack.formuleRevendeur ? (
+                  <div className="p-3 rounded-xl border border-blue-300 bg-blue-50 text-blue-800 text-sm">
+                    <p className="font-semibold">{selectedPack.formuleRevendeur === "FORMULE_1" ? "Formule 1" : "Formule 2"}</p>
+                    <p className="text-xs mt-0.5 text-blue-600">
+                      {selectedPack.formuleRevendeur === "FORMULE_1"
+                        ? "50% upfront + tontine hebdo — définie par le pack"
+                        : "Crédit total, remb. quotidien 16j — définie par le pack"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { val: "FORMULE_1", label: "Formule 1", desc: "50% upfront + tontine hebdo" },
+                      { val: "FORMULE_2", label: "Formule 2", desc: "Crédit total, remb. 16j" },
+                    ].map((f) => (
+                      <button key={f.val} type="button" onClick={() => setFormuleRevendeur(f.val)}
+                        className={`p-3 rounded-xl border text-left text-sm transition-colors ${formuleRevendeur === f.val ? "border-blue-500 bg-blue-50 text-blue-800" : "border-slate-200 text-slate-600 hover:border-slate-300"}`}>
+                        <p className="font-medium">{f.label}</p>
+                        <p className="text-xs mt-0.5 opacity-80">{f.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {selectedPack?.type === "FAMILIAL" && (
+              <div className="p-4 bg-violet-50 rounded-xl border border-violet-200">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Fréquence de versement *</label>
+                <select value={frequenceVersement} onChange={(e) => setFrequenceVersement(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                  <option value="HEBDOMADAIRE">Hebdomadaire</option>
+                  <option value="BIMENSUEL">Bimensuel</option>
+                </select>
+                <p className="text-xs text-violet-600 mt-1">Cycles de 30 jours — hebdomadaire ou bimensuel uniquement</p>
+              </div>
+            )}
+
+            {selectedPack?.type === "URGENCE" ? (
+              <div className="p-4 bg-red-50 rounded-xl border border-red-200 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Prix du produit (FCFA) *</label>
+                  <input type="number" min="1" required value={montantTotal} onChange={(e) => setMontantTotal(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-white" placeholder="Ex : 40 000" />
+                  <p className="text-xs text-slate-400 mt-1">Montant total du produit que le client souhaite acquérir</p>
+                </div>
+                {montantTotal && parseFloat(montantTotal) > 0 && selectedPack.acomptePercent && selectedPack.dureeJours && (
+                  <div className="p-3 bg-red-100 rounded-xl text-sm text-red-800 space-y-1">
+                    <p className="font-semibold">Récapitulatif automatique</p>
+                    <div className="flex justify-between text-xs">
+                      <span>Acompte à payer maintenant ({Number(selectedPack.acomptePercent)}%)</span>
+                      <span className="font-bold">{Math.round(parseFloat(montantTotal) * Number(selectedPack.acomptePercent) / 100).toLocaleString("fr-FR")} FCFA</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span>Reste à rembourser</span>
+                      <span className="font-bold">{Math.round(parseFloat(montantTotal) * (1 - Number(selectedPack.acomptePercent) / 100)).toLocaleString("fr-FR")} FCFA</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span>Versement/jour ({selectedPack.dureeJours} jours)</span>
+                      <span className="font-bold">{Math.ceil((parseFloat(montantTotal) * (1 - Number(selectedPack.acomptePercent) / 100)) / Number(selectedPack.dureeJours)).toLocaleString("fr-FR")} FCFA</span>
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Acompte initial (calculé automatiquement)</label>
+                  <div className="w-full border border-red-300 rounded-xl px-3 py-2.5 text-sm bg-white text-slate-700 font-semibold">
+                    {acompte ? `${parseFloat(acompte).toLocaleString("fr-FR")} FCFA` : "—"}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Montant total *</label>
+                  <input type="number" min="1" required value={montantTotal} onChange={(e) => setMontantTotal(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="FCFA" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Acompte initial
+                    {selectedPack?.acomptePercent && <span className="ml-1 text-xs text-slate-400">({Number(selectedPack.acomptePercent)}% min)</span>}
+                  </label>
+                  <input type="number" min="0" value={acompte} onChange={(e) => setAcompte(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="0" />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Date de début</label>
+              <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" placeholder="Observations…" />
+            </div>
+
+            {campagnes.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Campagne marketing (optionnel)</label>
+                <select value={campagneId} onChange={(e) => setCampagneId(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                  <option value="">— aucune —</option>
+                  {campagnes.map((c) => <option key={c.id} value={c.id}>{c.nom} ({c.code})</option>)}
+                </select>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button type="button" onClick={() => setStep(1)}
+                className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium transition-colors">
+                Retour
+              </button>
+              <button type="submit" disabled={loading || !packId || !montantTotal}
+                className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                {loading ? "Création..." : <><Package className="w-4 h-4" /> Créer la souscription</>}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

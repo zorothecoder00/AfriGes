@@ -7,7 +7,6 @@
 
 -Playwright pour les tests visuels
 
-
 -Chromium headless est une lib qui permet le rendu pdf
 
 -Print CSS et window.print() pour les export PDF/Excel
@@ -49,6 +48,8 @@ netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriét�
   en iframe, salle générée par réunion, aucun backend à héberger) — ce qui donne
   une vraie réunion dans l'application — tout en gardant la possibilité de
   coller un lien Meet/Zoom externe.  
+
+https://claude.ai/code/artifact/85ca1992-834f-491c-a227-0d0823885d85 ( un lien pour comprendre le module marketing d'afriges)
 
 
  Voilà. Ce que tu dois remplir obligatoirement pour activer les alertes :
@@ -168,9 +169,16 @@ Vérifie si ces choses seront bénéfiques et rendront l'app plus puissantes SEO
 Il reste aussi les sections du CDC non repassées au crible dans
   cette re-vérification (§1-15, §21-23, §27-45 hors §40/§43, §51-56) 
 
-
-Euh en fait je remarque que quand j'encaisse un crédit client sur dashboard/admin/credit , le jour sélectionné et le montant sélectionné notammment n'ont aucun impact sur le bordereau de remboursement ( ça ne update pas pourtant logiquement après chaque remboursement , le bordereau automatiquement devrait prendre en compte les jours , les montants collectés et restant  ); et aussi au niveau de dashboard/admin/clients/id , onglet crédits ( ici ça affiche le montant collecté en effet mais le statut du jour de collecte reste sur retard ce qui n'a pas de sens) ; en plus même au moment de collecter un remboursement de crédit client , on peut choisir 2 fois le même jour de collecte . Revois moi tout ça stp , c'est inconcevable ce genre de bugs faciles dans une app qui vise tant l'excellence 
-
 normalement le comptable doit recevoir les notifications quand le caissier fait ses enregistrements ( entrées , sorties que lui doit confirmer avec pièces justificatives) et même quand les agents font des collectes , quand le rvc ou celui concerné crée des dettes
+
+
+ tu vois au niveau de dashboard/user/caissiers , c'est vrai tu as permis de
+  modifier le montant du versement etc etc des packs , mais c'est pas suffisant
+  en cas d'erreur ( je veux pouvoir supprimer carrément une souscription ou
+  l'annuler pour recommencer ) . Je ne sais pas si c'est possible vu que les
+  caissiers n'ont pas la main sur la création de souscription , mais tu peux
+  rendre ça possible ?? ça va beaucoup aidernotre caissière à rattraper ses
+  erreurs de saisie
+
 
 
