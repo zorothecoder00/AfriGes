@@ -1170,8 +1170,7 @@ export default function CaissierPage() {
   const [annulationSouscId, setAnnulationSouscId] = useState<number | null>(null);
   const [suppressionSouscId, setSuppressionSouscId] = useState<number | null>(null);
 
-  const handleAnnulerSouscription = async (id: number) => {
-    if (!confirm("Annuler cette souscription ? Elle disparaîtra de la liste active. Les versements déjà encaissés restent conservés (audit, clôture de caisse).")) return;
+  const doAnnulerSouscription = async (id: number) => {
     setAnnulationSouscId(id);
     try {
       const r = await fetch(`/api/caissier/packs/${id}`, {
@@ -1186,8 +1185,16 @@ export default function CaissierPage() {
     finally { setAnnulationSouscId(null); }
   };
 
-  const handleSupprimerSouscription = async (id: number) => {
-    if (!confirm("Supprimer définitivement cette souscription et tous ses versements ? Cette action est irréversible.")) return;
+  const handleAnnulerSouscription = (id: number) => {
+    toast.warning("Annuler cette souscription ?", {
+      description: "Elle disparaîtra de la liste active. Les versements déjà encaissés restent conservés (audit, clôture de caisse).",
+      duration: 10000,
+      action: { label: "Oui, annuler", onClick: () => doAnnulerSouscription(id) },
+      cancel: { label: "Non", onClick: () => {} },
+    });
+  };
+
+  const doSupprimerSouscription = async (id: number) => {
     setSuppressionSouscId(id);
     try {
       const r = await fetch(`/api/caissier/packs/${id}`, { method: "DELETE" });
@@ -1196,6 +1203,15 @@ export default function CaissierPage() {
       else toast.error(j.error ?? "Erreur lors de la suppression");
     } catch { toast.error("Erreur réseau"); }
     finally { setSuppressionSouscId(null); }
+  };
+
+  const handleSupprimerSouscription = (id: number) => {
+    toast.warning("Supprimer définitivement cette souscription ?", {
+      description: "Cette action est irréversible : la souscription et tous ses versements seront effacés.",
+      duration: 10000,
+      action: { label: "Oui, supprimer", onClick: () => doSupprimerSouscription(id) },
+      cancel: { label: "Non", onClick: () => {} },
+    });
   };
 
   // ── Bordereau de remboursement (accès direct depuis la liste) ───────────────
