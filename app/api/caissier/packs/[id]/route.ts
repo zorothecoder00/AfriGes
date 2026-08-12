@@ -126,9 +126,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (souscription.statut === "ANNULE") {
       return NextResponse.json({ error: "Souscription déjà annulée" }, { status: 400 });
     }
-    if (souscription.statut === "COMPLETE") {
-      return NextResponse.json({ error: "Impossible d'annuler une souscription déjà soldée" }, { status: 400 });
-    }
+    // Une souscription soldée (COMPLETE) peut aussi être annulée : la caissière
+    // doit pouvoir corriger une vieille erreur de saisie découverte plus tard,
+    // même après clôture du pack, pour que les totaux ne restent pas faussés.
 
     const caissierNom = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
 

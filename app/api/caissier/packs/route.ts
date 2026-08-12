@@ -7,8 +7,9 @@ import { resolveViewAs } from "@/lib/viewAs";
 /**
  * GET — Souscriptions actives + en attente (vue caissier).
  *   ?search=nom&statut=ACTIF
+ *   ?statut=TOUS — historique complet (soldées/annulées incluses), borné à 50 résultats.
  * POST — Crée une nouvelle souscription pour un client/membre.
- */    
+ */
 export async function GET(req: NextRequest) {
   try {
     const session = await getCaissierSession();
@@ -23,13 +24,18 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const search = (searchParams.get("search") ?? "").trim();
     const statut = searchParams.get("statut");
+    // statut=TOUS — recherche élargie à tout l'historique (soldées, annulées
+    // incluses), pour corriger une vieille souscription mal saisie découverte
+    // plus tard. Bornée par un `take` pour éviter de renvoyer tout l'historique.
+    const toutHistorique = statut === "TOUS";
 
     // Filtre PDV — restreint les souscriptions au périmètre du caissier
     // Utilise AND explicite pour éviter que le filtre search (OR) écrase le filtre PDV (OR)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const andConditions: any[] = [
-      { statut: statut ? (statut as never) : { in: ["EN_ATTENTE", "ACTIF", "SUSPENDU"] } },
-    ];
+    const andConditions: any[] = [];
+    if (!toutHistorique) {
+      andConditions.push({ statut: statut ? (statut as never) : { in: ["EN_ATTENTE", "ACTIF", "SUSPENDU"] } });
+    }
     if (pdvId) andConditions.push(souscriptionPdvWhere(pdvId));
     if (search) {
       const parts = search.split(/\s+/);
@@ -51,8 +57,9 @@ export async function GET(req: NextRequest) {
     }
 
     const souscriptions = await prisma.souscriptionPack.findMany({
-      where: { AND: andConditions },
-      orderBy: [{ statut: "asc" }, { createdAt: "desc" }],
+      where: andConditions.length > 0 ? { AND: andConditions } : {},
+      orderBy: toutHistorique ? [{ createdAt: "desc" }] : [{ statut: "asc" }, { createdAt: "desc" }],
+      take: toutHistorique ? 50 : undefined,
       include: {
         pack: { select: { nom: true, type: true, frequenceVersement: true } },
         user: { select: { nom: true, prenom: true, telephone: true } },

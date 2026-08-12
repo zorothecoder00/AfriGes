@@ -172,13 +172,4 @@ Il reste aussi les sections du CDC non repassées au crible dans
 normalement le comptable doit recevoir les notifications quand le caissier fait ses enregistrements ( entrées , sorties que lui doit confirmer avec pièces justificatives) et même quand les agents font des collectes , quand le rvc ou celui concerné crée des dettes
 
 
- tu vois au niveau de dashboard/user/caissiers , c'est vrai tu as permis de
-  modifier le montant du versement etc etc des packs , mais c'est pas suffisant
-  en cas d'erreur ( je veux pouvoir supprimer carrément une souscription ou
-  l'annuler pour recommencer ) . Je ne sais pas si c'est possible vu que les
-  caissiers n'ont pas la main sur la création de souscription , mais tu peux
-  rendre ça possible ?? ça va beaucoup aidernotre caissière à rattraper ses
-  erreurs de saisie
-
-
 

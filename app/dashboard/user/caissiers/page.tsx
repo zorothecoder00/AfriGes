@@ -829,6 +829,7 @@ export default function CaissierPage() {
   const [encaissementSearch, setEncaissementSearch] = useState("");
   const [debouncedEncSearch, setDebouncedEncSearch] = useState("");
   const [showNouvelleSouscription, setShowNouvelleSouscription] = useState(false);
+  const [encaissementTousStatuts, setEncaissementTousStatuts] = useState(false);
 
   // ── Pagination ───────────────────────────────────────────────────────────
   const [versementsPage, setVersementsPage] = useState(1);
@@ -946,8 +947,9 @@ export default function CaissierPage() {
   const encaissementParams = useMemo(() => {
     const p = new URLSearchParams();
     if (debouncedEncSearch) p.set("search", debouncedEncSearch);
+    if (encaissementTousStatuts) p.set("statut", "TOUS");
     return p.toString();
-  }, [debouncedEncSearch]);
+  }, [debouncedEncSearch, encaissementTousStatuts]);
 
   // ── Fetches ──────────────────────────────────────────────────────────────
   const { data: dashboardRes,  refetch: refetchDashboard  } = useApi<DashboardResponse>("/api/caissier/dashboard");
@@ -2995,6 +2997,15 @@ export default function CaissierPage() {
                   className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-sm"
                 />
               </div>
+              <label className="flex items-center gap-2 mt-3 text-xs text-slate-500 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={encaissementTousStatuts}
+                  onChange={(e) => setEncaissementTousStatuts(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-emerald-600"
+                />
+                Inclure les souscriptions soldées / annulées (pour corriger une vieille erreur de saisie)
+              </label>
             </div>
 
             {/* Échéances en retard — rappel */}
@@ -3073,8 +3084,12 @@ export default function CaissierPage() {
             {souscriptions?.length === 0 ? (
               <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200/60">
                 <ShoppingCart className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-                <p className="text-slate-400 font-medium">Aucune souscription en cours</p>
-                <p className="text-slate-400 text-sm mt-1">Utilisez le bouton « Nouvelle souscription » ci-dessus pour en créer une</p>
+                <p className="text-slate-400 font-medium">{encaissementTousStatuts ? "Aucune souscription trouvée" : "Aucune souscription en cours"}</p>
+                <p className="text-slate-400 text-sm mt-1">
+                  {encaissementTousStatuts
+                    ? "Affinez la recherche par nom de client ou de pack"
+                    : "Utilisez le bouton « Nouvelle souscription » ci-dessus pour en créer une"}
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -3113,6 +3128,15 @@ export default function CaissierPage() {
                           {s.statut === "EN_ATTENTE" && (
                             <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">En attente</span>
                           )}
+                          {s.statut === "SUSPENDU" && (
+                            <span className="text-xs px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded font-medium">Suspendu</span>
+                          )}
+                          {s.statut === "COMPLETE" && (
+                            <span className="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded font-medium">Soldé</span>
+                          )}
+                          {s.statut === "ANNULE" && (
+                            <span className="text-xs px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded font-medium">Annulé</span>
+                          )}
                         </div>
 
                         {/* Barre de progression */}
@@ -3149,22 +3173,24 @@ export default function CaissierPage() {
                       <div className="px-5 pb-5 space-y-2">
                         <button
                           onClick={() => openVersementModal(s)}
-                          disabled={Number(s.montantRestant) <= 0}
+                          disabled={Number(s.montantRestant) <= 0 || s.statut === "ANNULE" || s.statut === "COMPLETE"}
                           className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <Plus size={15} />
-                          {Number(s.montantRestant) <= 0 ? "Pack soldé" : "Encaisser versement"}
+                          {s.statut === "ANNULE" ? "Souscription annulée" : Number(s.montantRestant) <= 0 ? "Pack soldé" : "Encaisser versement"}
                         </button>
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleAnnulerSouscription(s.id)}
-                            disabled={annulationSouscId === s.id || suppressionSouscId === s.id}
-                            title="Erreur de saisie : annuler cette souscription (versements conservés)"
-                            className="flex-1 py-2 border border-amber-200 text-amber-700 hover:bg-amber-50 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40"
-                          >
-                            <Ban size={13} />
-                            {annulationSouscId === s.id ? "Annulation..." : "Annuler"}
-                          </button>
+                          {s.statut !== "ANNULE" && (
+                            <button
+                              onClick={() => handleAnnulerSouscription(s.id)}
+                              disabled={annulationSouscId === s.id || suppressionSouscId === s.id}
+                              title="Erreur de saisie : annuler cette souscription (versements conservés)"
+                              className="flex-1 py-2 border border-amber-200 text-amber-700 hover:bg-amber-50 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40"
+                            >
+                              <Ban size={13} />
+                              {annulationSouscId === s.id ? "Annulation..." : "Annuler"}
+                            </button>
+                          )}
                           <button
                             onClick={() => handleSupprimerSouscription(s.id)}
                             disabled={annulationSouscId === s.id || suppressionSouscId === s.id}
