@@ -372,6 +372,29 @@ export default function CompteCourantDetailPage() {
     } finally { setEmSaving(false); }
   };
 
+  // ── Suppression d'un mouvement (erreur de manipulation) ──
+  const [deletingMvtId, setDeletingMvtId] = useState<number | null>(null);
+  const doSupprimerMvt = async (m: Mouvement) => {
+    setDeletingMvtId(m.id);
+    try {
+      const r = await fetch(`/api/comptes-courants/${params.id}/mouvements/${m.id}`, { method: "DELETE" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Erreur");
+      toast.success("Mouvement supprimé ✓");
+      refetchMvt();
+      refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally { setDeletingMvtId(null); }
+  };
+  const handleSupprimerMvt = (m: Mouvement) => {
+    toast.warning("Supprimer définitivement ce mouvement ?", {
+      description: "Erreur de manipulation : le solde et l'historique postérieur sont recalculés. Cette action est irréversible.",
+      duration: 10000,
+      action: { label: "Oui, supprimer", onClick: () => doSupprimerMvt(m) },
+      cancel: { label: "Non", onClick: () => {} },
+    });
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -666,6 +689,12 @@ export default function CompteCourantDetailPage() {
                                   <button onClick={() => openEditMvt(m)} title="Corriger ce mouvement"
                                     className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-600">
                                     <Pencil className="w-3.5 h-3.5" /> Corriger
+                                  </button>
+                                )}
+                                {canCorrigerCC && !annule && (m.nature === "DEPOT" || m.nature === "RETRAIT") && (
+                                  <button onClick={() => handleSupprimerMvt(m)} disabled={deletingMvtId === m.id} title="Supprimer ce mouvement (erreur de manipulation)"
+                                    className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-rose-600 disabled:opacity-50">
+                                    <Trash2 className="w-3.5 h-3.5" /> Supprimer
                                   </button>
                                 )}
                                 <a href={recuUrl(m.id)} target="_blank" rel="noopener noreferrer" title="Reçu PDF"

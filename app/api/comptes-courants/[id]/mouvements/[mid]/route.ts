@@ -163,3 +163,101 @@ export async function PATCH(req: Request, { params }: Ctx) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Erreur serveur" }, { status });
   }
 }
+
+/**
+ * DELETE /api/comptes-courants/[id]/mouvements/[mid]
+ * Supprime définitivement un mouvement saisi par erreur (« la caissière s'est
+ * trompée de compte/montant »). Réservé aux DÉPÔT/RETRAIT « autonomes » : un
+ * paiement crédit/comptant a des répercussions sur d'autres modèles (crédit,
+ * échéances, RIA...) qu'une simple suppression ne réverserait pas — ceux-là se
+ * corrigent via leur propre flux d'annulation.
+ * Recalcule la chaîne des soldes postérieurs, les totaux du compte, et
+ * supprime l'écriture comptable liée (1 mouvement ⇔ 1 écriture).
+ * Réservé ADMIN / SUPER_ADMIN / CAISSIER. Journalisé.
+ */
+export async function DELETE(req: Request, { params }: Ctx) {
+  const session = await getAuthSession();
+  const role = session?.user?.role;
+  const gestionnaireRole = session?.user?.gestionnaireRole;
+  const autorise = role === "ADMIN" || role === "SUPER_ADMIN" || gestionnaireRole === "CAISSIER";
+  if (!session || !autorise) {
+    return NextResponse.json({ error: "Accès réservé à l'administrateur" }, { status: 403 });
+  }
+
+  const { id, mid } = await params;
+  const compteId = Number(id);
+  const mvtId = Number(mid);
+  if (!compteId || !mvtId) return NextResponse.json({ error: "Identifiant invalide" }, { status: 400 });
+
+  const userId = Number(session.user.id);
+  const { ip, userAgent } = extraireMetaRequete(req);
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const mvt = await tx.mouvementCompteCourant.findUnique({
+        where: { id: mvtId },
+        select: { id: true, compteId: true, nature: true, montant: true, soldeAvant: true, statut: true, ecritureId: true, reference: true },
+      });
+      if (!mvt || mvt.compteId !== compteId) throw httpError("Mouvement introuvable", 404);
+      if (mvt.statut !== "VALIDE") {
+        throw httpError("Seuls les mouvements validés sont supprimables (un retrait en attente se valide ou se rejette).", 422);
+      }
+      if (!NATURES_MONTANT_EDITABLE.has(mvt.nature)) {
+        throw httpError(
+          "Ce type de mouvement ne se supprime pas directement (répercussions sur crédit/vente/RIA) : utilisez son flux d'annulation dédié.",
+          422,
+        );
+      }
+
+      const ancienMontant = Number(mvt.montant);
+      const delta = -ancienMontant;
+
+      // Garde-fou : aucun solde ne doit devenir négatif après retrait de ce mouvement.
+      const aggSub = await tx.mouvementCompteCourant.aggregate({
+        where: { compteId, statut: "VALIDE", id: { gt: mvtId } },
+        _min: { soldeApres: true },
+      });
+      const minSuivants = aggSub._min.soldeApres != null ? Number(aggSub._min.soldeApres) + delta : Infinity;
+      if (minSuivants < -0.009) {
+        throw httpError("Cette suppression rendrait le solde négatif à un moment de l'historique.", 422);
+      }
+
+      // Décale la chaîne des soldes postérieurs du même delta (chaîne = ordre des id).
+      await tx.mouvementCompteCourant.updateMany({
+        where: { compteId, statut: "VALIDE", id: { gt: mvtId } },
+        data: { soldeAvant: { increment: delta }, soldeApres: { increment: delta } },
+      });
+
+      await tx.compteCourant.update({
+        where: { id: compteId },
+        data: {
+          solde: { increment: delta },
+          nbMouvements: { decrement: 1 },
+          ...(mvt.nature === "DEPOT" ? { totalDepose: { decrement: Math.abs(ancienMontant) } } : {}),
+          ...(mvt.nature === "RETRAIT" ? { totalRetire: { decrement: Math.abs(ancienMontant) } } : {}),
+        },
+      });
+
+      await tx.mouvementCompteCourant.delete({ where: { id: mvtId } });
+
+      // Supprime l'écriture comptable liée (cascade sur ses lignes) — le
+      // mouvement est annulé dans son ensemble, pas juste corrigé.
+      if (mvt.ecritureId) {
+        await tx.ecritureComptable.delete({ where: { id: mvt.ecritureId } }).catch(() => {});
+      }
+
+      await auditLog(tx, userId, "CC_MOUVEMENT_SUPPRIME", "MouvementCompteCourant", mvtId, {
+        nature: mvt.nature, montant: ancienMontant, reference: mvt.reference,
+      }, { ip, userAgent });
+
+      const compte = await tx.compteCourant.findUnique({ where: { id: compteId }, select: { solde: true } });
+      return { solde: compte?.solde ?? null };
+    }, { timeout: 15000 });
+
+    return NextResponse.json({ data: result });
+  } catch (e) {
+    const status = (e as { status?: number }).status ?? 500;
+    if (status === 500) console.error("DELETE /api/comptes-courants/[id]/mouvements/[mid]", e);
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Erreur serveur" }, { status });
+  }
+}
