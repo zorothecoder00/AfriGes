@@ -1349,6 +1349,7 @@ export default function CaissierPage() {
       refetchDashboard();
       refetchVersements();
       refetchPacks();
+      refetchHistoEnc();
       if (result.versement?.id) handleVoirRecu(result.versement.id);
     }
   };
@@ -1633,7 +1634,7 @@ export default function CaissierPage() {
         <ModalNouvelleSouscriptionPack
           packs={packsRes?.packs ?? []}
           onClose={() => setShowNouvelleSouscription(false)}
-          onSuccess={() => refetchPacks()}
+          onSuccess={() => { refetchPacks(); refetchDashboard(); refetchHistoEnc(); }}
         />
       )}
 
