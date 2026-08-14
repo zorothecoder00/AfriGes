@@ -246,6 +246,20 @@ export async function DELETE(req: Request, { params }: Ctx) {
         await tx.ecritureComptable.delete({ where: { id: mvt.ecritureId } }).catch(() => {});
       }
 
+      // Si le mouvement supprimé était la dernière opération du compte, fait
+      // reculer derniereOperationAt sur la précédente restante (utilisé par les
+      // crons d'inactivité) — sinon le compte semblerait avoir bougé plus
+      // récemment qu'en réalité.
+      const dernierRestant = await tx.mouvementCompteCourant.findFirst({
+        where: { compteId, statut: "VALIDE" },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      });
+      await tx.compteCourant.update({
+        where: { id: compteId },
+        data: { derniereOperationAt: dernierRestant?.createdAt ?? null },
+      });
+
       await auditLog(tx, userId, "CC_MOUVEMENT_SUPPRIME", "MouvementCompteCourant", mvtId, {
         nature: mvt.nature, montant: ancienMontant, reference: mvt.reference,
       }, { ip, userAgent });
