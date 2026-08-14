@@ -989,10 +989,11 @@ export default function CaissierPage() {
   const histoPeriodeLabel = useMemo(() => {
     const jour = (d: Date) => d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
     const court = (s: string) => new Date(s).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
-    if (!filtreAujourdHui && (dateDebut || dateFin)) {
+    if (!filtreAujourdHui) {
       if (dateDebut && dateFin) return `Du ${court(dateDebut)} au ${court(dateFin)}`;
       if (dateDebut) return `Depuis le ${court(dateDebut)}`;
-      return `Jusqu'au ${court(dateFin)}`;
+      if (dateFin) return `Jusqu'au ${court(dateFin)}`;
+      return "Historique complet";
     }
     return `Aujourd'hui · ${jour(new Date())}`;
   }, [filtreAujourdHui, dateDebut, dateFin]);

@@ -54,9 +54,12 @@ export async function GET(req: Request) {
     const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") || 30)));
 
     // Bornes de la période
+    // Note : « Aujourd'hui » désactivé sans dates explicites = tout l'historique
+    // (pas un repli silencieux sur aujourd'hui) — sinon une caissière qui
+    // ressaisit des versements antidatés (rattrapage) ne les retrouve jamais.
     const now = new Date();
     let gte: Date, lt: Date;
-    if (aujourdHui || (!fromStr && !toStr)) {
+    if (aujourdHui) {
       gte = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       lt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
     } else {
@@ -75,25 +78,66 @@ export async function GET(req: Request) {
     const venteScope = pdvId ? { pointDeVenteId: pdvId } : {};
     const opScope = pdvId ? { session: { pointDeVenteId: pdvId } } : {};
 
+    // La recherche texte est poussée en SQL (pas seulement filtrée en mémoire
+    // après coup) : sur un PDV à fort volume, le plafond `take` ci-dessous peut
+    // être atteint avant même d'arriver aux lignes récentes correspondant à la
+    // recherche — les remplacer par un filtre serveur évite de les couper.
+    const rembSearch = search ? {
+      OR: [
+        { credit: { client: { nom: { contains: search, mode: "insensitive" as const } } } },
+        { credit: { client: { prenom: { contains: search, mode: "insensitive" as const } } } },
+        { credit: { reference: { contains: search, mode: "insensitive" as const } } },
+      ],
+    } : null;
+    const versSearch = search ? {
+      OR: [
+        { souscription: { client: { nom: { contains: search, mode: "insensitive" as const } } } },
+        { souscription: { client: { prenom: { contains: search, mode: "insensitive" as const } } } },
+        { souscription: { user: { nom: { contains: search, mode: "insensitive" as const } } } },
+        { souscription: { user: { prenom: { contains: search, mode: "insensitive" as const } } } },
+        { souscription: { pack: { nom: { contains: search, mode: "insensitive" as const } } } },
+        { reference: { contains: search, mode: "insensitive" as const } },
+      ],
+    } : null;
+    const venteSearch = search ? {
+      OR: [
+        { client: { nom: { contains: search, mode: "insensitive" as const } } },
+        { client: { prenom: { contains: search, mode: "insensitive" as const } } },
+        { clientNom: { contains: search, mode: "insensitive" as const } },
+        { reference: { contains: search, mode: "insensitive" as const } },
+      ],
+    } : null;
+    const opSearch = search ? {
+      OR: [
+        { motif: { contains: search, mode: "insensitive" as const } },
+        { reference: { contains: search, mode: "insensitive" as const } },
+        { operateurNom: { contains: search, mode: "insensitive" as const } },
+      ],
+    } : null;
+
     const [remboursements, versements, ventes, operations] = await Promise.all([
       prisma.remboursementCredit.findMany({
-        where: { statut: "CONFIRME", dateRemboursement: periode, ...creditScope },
+        where: { statut: "CONFIRME", dateRemboursement: periode, AND: [creditScope, ...(rembSearch ? [rembSearch] : [])] },
         select: { id: true, montant: true, dateRemboursement: true, modePaiement: true, numeroJour: true, notes: true, agentCollecteurId: true, credit: { select: { reference: true, client: { select: { nom: true, prenom: true } } } } },
+        orderBy: { dateRemboursement: "desc" },
         take: 1000,
       }),
       prisma.versementPack.findMany({
-        where: { statut: { not: "EN_ATTENTE" }, datePaiement: periode, ...souscScope },
+        where: { statut: { not: "EN_ATTENTE" }, datePaiement: periode, AND: [souscScope, ...(versSearch ? [versSearch] : [])] },
         select: { id: true, montant: true, datePaiement: true, type: true, reference: true, notes: true, souscription: { select: { montantTotal: true, pack: { select: { nom: true } }, client: { select: { nom: true, prenom: true } }, user: { select: { nom: true, prenom: true } } } } },
+        orderBy: { datePaiement: "desc" },
         take: 1000,
       }),
       prisma.venteDirecte.findMany({
-        where: { createdAt: periode, statut: { in: ["PAID", "CONFIRMEE", "SORTIE_VALIDEE", "LIVREE"] }, ...venteScope },
+        where: { createdAt: periode, statut: { in: ["PAID", "CONFIRMEE", "SORTIE_VALIDEE", "LIVREE"] }, AND: [venteScope, ...(venteSearch ? [venteSearch] : [])] },
         select: { id: true, reference: true, montantTotal: true, montantPaye: true, createdAt: true, modePaiement: true, clientNom: true, client: { select: { nom: true, prenom: true } } },
+        orderBy: { createdAt: "desc" },
         take: 1000,
       }),
       prisma.operationCaisse.findMany({
-        where: { type: "ENCAISSEMENT", createdAt: periode, ...opScope },
+        where: { type: "ENCAISSEMENT", createdAt: periode, AND: [opScope, ...(opSearch ? [opSearch] : [])] },
         select: { id: true, montant: true, motif: true, reference: true, mode: true, operateurNom: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
         take: 1000,
       }),
     ]);
