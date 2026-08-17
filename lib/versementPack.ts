@@ -241,3 +241,111 @@ export async function confirmerVersementPackExistant(
 
   return { ok: true, versementId, montantEffectif, estSolde };
 }
+
+/**
+ * Recalcule montantVerse/montantRestant/statut d'une souscription pack à
+ * partir de la somme réelle de TOUS ses versements restants (pas d'un delta
+ * incrémental comme `imputerSurSouscription`), puis réaligne les échéances
+ * (reset + re-marquage PAYE en ordre croissant selon le budget disponible).
+ * Utilisé après correction du montant d'un versement ou suppression d'un
+ * versement, pour ne jamais laisser la souscription/les échéances
+ * désynchronisées des versements réellement présents en base.
+ *
+ * `dateReference` sert à horodater les échéances re-marquées PAYE ; à défaut,
+ * la date du versement restant le plus récent est utilisée (now() si plus
+ * aucun versement).
+ */
+export async function recalculerSouscriptionApresVersements(
+  tx: TX,
+  souscriptionId: number,
+  dateReference?: Date
+) {
+  const souscription = await tx.souscriptionPack.findUniqueOrThrow({
+    where: { id: souscriptionId },
+    include: { pack: true },
+  });
+
+  const agg = await tx.versementPack.aggregate({
+    where: { souscriptionId },
+    _sum: { montant: true },
+    _max: { datePaiement: true },
+  });
+  const nouveauMontantVerse = Number(agg._sum.montant ?? 0);
+  const montantTotal = Number(souscription.montantTotal);
+  const nouveauMontantRestant = montantTotal - nouveauMontantVerse;
+  const estSolde = nouveauMontantRestant <= 0;
+  const refDate = dateReference ?? agg._max.datePaiement ?? new Date();
+
+  if (nouveauMontantVerse > montantTotal) {
+    throw new Error(
+      `Le montant corrigé dépasse le montant total de la souscription (${montantTotal.toLocaleString("fr-FR")} FCFA)`
+    );
+  }
+
+  let nouveauStatut: string;
+  if (estSolde) {
+    nouveauStatut = "COMPLETE";
+  } else if (souscription.pack.type === "REVENDEUR" && souscription.formuleRevendeur === "FORMULE_1") {
+    const seuil50 = montantTotal * 0.5;
+    nouveauStatut = nouveauMontantVerse >= seuil50 ? "ACTIF" : "EN_ATTENTE";
+  } else if (souscription.pack.type === "URGENCE" && souscription.pack.acomptePercent) {
+    const seuilAcompte = (montantTotal * Number(souscription.pack.acomptePercent)) / 100;
+    nouveauStatut = nouveauMontantVerse >= seuilAcompte ? "ACTIF" : "EN_ATTENTE";
+  } else {
+    nouveauStatut = nouveauMontantVerse > 0 ? "ACTIF" : "EN_ATTENTE";
+  }
+
+  await tx.souscriptionPack.update({
+    where: { id: souscriptionId },
+    data: {
+      montantVerse: nouveauMontantVerse,
+      montantRestant: estSolde ? 0 : nouveauMontantRestant,
+      statut: nouveauStatut as never,
+      dateCloture: estSolde ? (souscription.dateCloture ?? new Date()) : null,
+    },
+  });
+
+  const now = new Date();
+  const toutesEcheances = await tx.echeancePack.findMany({
+    where: { souscriptionId },
+    orderBy: { numero: "asc" },
+  });
+
+  for (const ec of toutesEcheances) {
+    await tx.echeancePack.update({
+      where: { id: ec.id },
+      data: {
+        statut: new Date(ec.datePrevue) < now ? "EN_RETARD" : "EN_ATTENTE",
+        datePaiement: null,
+      },
+    });
+  }
+
+  if (estSolde) {
+    await tx.echeancePack.updateMany({
+      where: { souscriptionId },
+      data: { statut: "PAYE", datePaiement: refDate },
+    });
+  } else {
+    const idsAPayer: number[] = [];
+    let budget = nouveauMontantVerse;
+    for (const ec of toutesEcheances) {
+      if (budget >= Number(ec.montant) - 0.01) {
+        idsAPayer.push(ec.id);
+        budget -= Number(ec.montant);
+      } else break;
+    }
+    // Budget partiel : marquer quand même la première échéance (paiement partiel).
+    if (idsAPayer.length === 0 && toutesEcheances.length > 0 && nouveauMontantVerse > 0) {
+      idsAPayer.push(toutesEcheances[0].id);
+    }
+    if (idsAPayer.length > 0) {
+      await tx.echeancePack.updateMany({
+        where: { id: { in: idsAPayer } },
+        data: { statut: "PAYE", datePaiement: refDate },
+      });
+    }
+  }
+
+  return { montantVerse: nouveauMontantVerse, montantRestant: estSolde ? 0 : nouveauMontantRestant, statut: nouveauStatut };
+}

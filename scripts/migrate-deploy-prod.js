@@ -2,15 +2,22 @@
 /**
  * Applique les migrations Prisma en PRODUCTION via l'endpoint DIRECT de Neon.
  *
- * Pourquoi ce script : `DATABASE_URL` (.env.production) vise l'endpoint *pooler*
+ * Pourquoi ce script : `DATABASE_URL` (.env.prod) vise l'endpoint *pooler*
  * de Neon (`ep-...-pooler.c-2...`), en mode transaction. Les advisory locks de
  * session de Prisma n'y survivent pas → `prisma migrate deploy` échoue avec
  *   P1002 ... Timed out trying to acquire a postgres advisory lock (pg_advisory_lock(72707369)).
  * On force donc l'endpoint DIRECT = même host SANS `-pooler`, uniquement pour la
  * durée du deploy. Le pooler reste utilisé par le runtime de l'app (serverless).
  *
+ * Le fichier s'appelle `.env.prod` (et non `.env.production`) volontairement :
+ * `.env.production` est auto-chargé par Next.js pendant `next build` (NODE_ENV
+ * passe en "production"), ce qui faisait pointer tout build/check LOCAL vers la
+ * base de PRODUCTION en écrasant `.env` — cassait le service pour les vrais
+ * utilisateurs pendant qu'un dev buildait chez lui. `.env.prod` n'est reconnu
+ * par aucune convention Next.js : il ne peut être chargé que volontairement, ici.
+ *
  * Lancement :
- *   npm run migrate:deploy:prod       → base de PRODUCTION (.env.production)
+ *   npm run migrate:deploy:prod       → base de PRODUCTION (.env.prod)
  *   node scripts/migrate-deploy-prod.js --env-file=chemin/vers/.env
  *
  * Idempotent : `migrate deploy` n'applique que les migrations non encore appliquées.
@@ -26,9 +33,9 @@ function parseArgs() {
   return { envFile: envFileArg ? envFileArg.split("=")[1] : null };
 }
 
-// Charge DATABASE_URL depuis .env.production (ou --env-file). Choix explicite → écrase l'existant.
+// Charge DATABASE_URL depuis .env.prod (ou --env-file). Choix explicite → écrase l'existant.
 function chargerEnv({ envFile }) {
-  const fichiers = envFile ? [envFile] : [".env.production.local", ".env.production"];
+  const fichiers = envFile ? [envFile] : [".env.prod.local", ".env.prod"];
   for (const nom of fichiers) {
     const p = path.isAbsolute(nom) ? nom : path.resolve(__dirname, "..", nom);
     if (!fs.existsSync(p)) continue;
@@ -53,7 +60,7 @@ const options = parseArgs();
 chargerEnv(options);
 
 if (!process.env.DATABASE_URL) {
-  console.error("✖ DATABASE_URL introuvable. Vérifiez votre .env.production (ou --env-file=…).");
+  console.error("✖ DATABASE_URL introuvable. Vérifiez votre .env.prod (ou --env-file=…).");
   process.exit(1);
 }
 

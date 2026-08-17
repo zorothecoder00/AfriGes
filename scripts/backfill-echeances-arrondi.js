@@ -22,7 +22,7 @@
  * Lancement :
  *   node scripts/backfill-echeances-arrondi.js --dry-run   → simulation (aucune écriture)
  *   npm run backfill:echeances                             → base de dev (.env / .env.local)
- *   npm run backfill:echeances:prod                        → base de PRODUCTION (.env.production)
+ *   npm run backfill:echeances:prod                        → base de PRODUCTION (.env.prod)
  *   node scripts/backfill-echeances-arrondi.js --env-file=chemin/vers/.env
  */
 
@@ -43,7 +43,7 @@ function chargerEnv({ prod, envFile }) {
   const fichiers = envFile
     ? [envFile]
     : prod
-      ? [".env.production.local", ".env.production"]
+      ? [".env.prod.local", ".env.prod"]
       : [".env", ".env.local"];
   const override = Boolean(envFile || prod);
   for (const nom of fichiers) {
@@ -62,7 +62,7 @@ const options = parseArgs();
 chargerEnv(options);
 
 if (!process.env.DATABASE_URL) {
-  console.error("✖ DATABASE_URL introuvable. Vérifiez votre .env (ou .env.production avec --prod).");
+  console.error("✖ DATABASE_URL introuvable. Vérifiez votre .env (ou .env.prod avec --prod).");
   process.exit(1);
 }
 

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId, souscriptionPdvWhere } from "@/lib/authCaissier";
+import { recalculerSouscriptionApresVersements } from "@/lib/versementPack";
+import { auditLog, notifyAdmins } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -86,92 +88,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         return { id: versementId };
       }
 
-      // Recalculer montantVerse en sommant TOUS les versements de cette souscription
-      const agg = await tx.versementPack.aggregate({
-        where: { souscriptionId: souscription.id },
-        _sum: { montant: true },
-      });
-      const nouveauMontantVerse = Number(agg._sum.montant ?? 0);
-      const montantTotal = Number(souscription.montantTotal);
-      const nouveauMontantRestant = montantTotal - nouveauMontantVerse;
-      const estSolde = nouveauMontantRestant <= 0;
-
-      if (nouveauMontantVerse > montantTotal) {
-        throw new Error(
-          `Le montant corrigé dépasse le montant total de la souscription (${montantTotal.toLocaleString("fr-FR")} FCFA)`
-        );
-      }
-
-      // Calculer le nouveau statut
-      let nouveauStatut: string;
-      if (estSolde) {
-        nouveauStatut = "COMPLETE";
-      } else if (souscription.pack.type === "REVENDEUR" && souscription.formuleRevendeur === "FORMULE_1") {
-        const seuil50 = montantTotal * 0.5;
-        nouveauStatut = nouveauMontantVerse >= seuil50 ? "ACTIF" : "EN_ATTENTE";
-      } else if (souscription.pack.type === "URGENCE" && souscription.pack.acomptePercent) {
-        const seuilAcompte = (montantTotal * Number(souscription.pack.acomptePercent)) / 100;
-        nouveauStatut = nouveauMontantVerse >= seuilAcompte ? "ACTIF" : "EN_ATTENTE";
-      } else {
-        nouveauStatut = nouveauMontantVerse > 0 ? "ACTIF" : "EN_ATTENTE";
-      }
-
-      await tx.souscriptionPack.update({
-        where: { id: souscription.id },
-        data: {
-          montantVerse: nouveauMontantVerse,
-          montantRestant: estSolde ? 0 : nouveauMontantRestant,
-          statut: nouveauStatut as never,
-          dateCloture: estSolde ? (souscription.dateCloture ?? new Date()) : null,
-        },
-      });
-
-      // Recalculer les échéances ─────────────────────────────────────────────
-      // 1. Reset toutes les échéances de la souscription
-      const now = new Date();
-      const toutesEcheances = await tx.echeancePack.findMany({
-        where: { souscriptionId: souscription.id },
-        orderBy: { numero: "asc" },
-      });
-
-      // Remettre toutes à EN_ATTENTE ou EN_RETARD selon leur date
-      for (const ec of toutesEcheances) {
-        await tx.echeancePack.update({
-          where: { id: ec.id },
-          data: {
-            statut: new Date(ec.datePrevue) < now ? "EN_RETARD" : "EN_ATTENTE",
-            datePaiement: null,
-          },
-        });
-      }
-
-      // 2. Re-marquer payées en ordre croissant selon le budget total versé
-      if (estSolde) {
-        await tx.echeancePack.updateMany({
-          where: { souscriptionId: souscription.id },
-          data: { statut: "PAYE", datePaiement: newDate ?? versement.datePaiement },
-        });
-      } else {
-        const idsAPayer: number[] = [];
-        let budget = nouveauMontantVerse;
-        for (const ec of toutesEcheances) {
-          if (budget >= Number(ec.montant) - 0.01) {
-            idsAPayer.push(ec.id);
-            budget -= Number(ec.montant);
-          } else break;
-        }
-        // Si le budget couvre partiellement mais pas intégralement la première,
-        // marquer quand même la première (paiement partiel d'une échéance)
-        if (idsAPayer.length === 0 && toutesEcheances.length > 0 && nouveauMontantVerse > 0) {
-          idsAPayer.push(toutesEcheances[0].id);
-        }
-        if (idsAPayer.length > 0) {
-          await tx.echeancePack.updateMany({
-            where: { id: { in: idsAPayer } },
-            data: { statut: "PAYE", datePaiement: newDate ?? versement.datePaiement },
-          });
-        }
-      }
+      await recalculerSouscriptionApresVersements(tx, souscription.id, newDate ?? versement.datePaiement);
 
       return { id: versementId };
     });
@@ -186,6 +103,87 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (msg === "Versement introuvable") {
       return NextResponse.json({ error: msg }, { status: 404 });
     }
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/caissier/versements/[id]
+ * Supprime un versement pack saisi par erreur (ex. doublon après suppression
+ * puis recréation d'une souscription). Recalcule montantVerse/montantRestant/
+ * statut/échéances de la souscription à partir des versements restants.
+ * Bloqué si un produit a déjà été livré sur la souscription (incohérence
+ * client livré mais plus versé), ou si le versement est lié à une collecte
+ * terrain (intégrité référentielle).
+ */
+export async function DELETE(_req: Request, { params }: Ctx) {
+  try {
+    const session = await getCaissierSession();
+    if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    const { id } = await params;
+    const versementId = parseInt(id);
+    if (isNaN(versementId)) return NextResponse.json({ error: "ID invalide" }, { status: 400 });
+
+    const userId = parseInt(session.user.id);
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const pdvId = isAdmin ? null : await getCaissierPdvId(userId);
+
+    if (pdvId) {
+      const allowed = await prisma.versementPack.findFirst({
+        where: { id: versementId, souscription: souscriptionPdvWhere(pdvId) },
+      });
+      if (!allowed) {
+        return NextResponse.json({ error: "Accès refusé à ce versement" }, { status: 403 });
+      }
+    }
+
+    const versement = await prisma.versementPack.findUnique({
+      where: { id: versementId },
+      include: {
+        souscription: {
+          include: {
+            pack: { select: { nom: true } },
+            receptions: { select: { statut: true } },
+          },
+        },
+        ligneCollecte: { select: { id: true } },
+      },
+    });
+    if (!versement) return NextResponse.json({ error: "Versement introuvable" }, { status: 404 });
+
+    if (versement.souscription.receptions.some((r) => r.statut === "LIVREE")) {
+      return NextResponse.json(
+        { error: "Un produit a déjà été livré sur cette souscription : suppression du versement impossible. Contactez un administrateur." },
+        { status: 400 }
+      );
+    }
+    if (versement.ligneCollecte) {
+      return NextResponse.json(
+        { error: "Ce versement est lié à une collecte terrain : suppression impossible. Contactez un administrateur." },
+        { status: 400 }
+      );
+    }
+
+    const caissierNom = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
+    const souscriptionId = versement.souscriptionId;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.versementPack.delete({ where: { id: versementId } });
+      await recalculerSouscriptionApresVersements(tx, souscriptionId);
+
+      await notifyAdmins(tx, {
+        titre: `Versement supprimé — ${versement.souscription.pack.nom}`,
+        message: `${caissierNom} a supprimé un versement de ${Number(versement.montant).toLocaleString("fr-FR")} FCFA sur la souscription #${souscriptionId} (${versement.souscription.pack.nom}) — erreur de saisie.`,
+        priorite: "HAUTE",
+        actionUrl: "/dashboard/admin/packs",
+      });
+      await auditLog(tx, userId, "VERSEMENT_PACK_SUPPRIME", "VersementPack", versementId);
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE /api/caissier/versements/[id]:", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }

@@ -9,7 +9,7 @@
  *
  * Lancement :
  *   npm run backfill:codes         → base de dev (.env / .env.local)
- *   npm run backfill:codes:prod    → base de PRODUCTION (.env.production)
+ *   npm run backfill:codes:prod    → base de PRODUCTION (.env.prod)
  *   node scripts/backfill-code-client.js --env-file=chemin/vers/.env  → fichier explicite
  *
  * Un DATABASE_URL déjà présent dans l'environnement (CI, shell prod) est utilisé tel quel
@@ -31,7 +31,7 @@ function chargerEnv({ prod, envFile }) {
   const fichiers = envFile
     ? [envFile]
     : prod
-      ? [".env.production.local", ".env.production"]
+      ? [".env.prod.local", ".env.prod"]
       : [".env", ".env.local"];
   const override = Boolean(envFile || prod); // choix explicite → écrase l'existant
   for (const nom of fichiers) {
@@ -51,7 +51,7 @@ const options = parseArgs();
 chargerEnv(options);
 
 if (!process.env.DATABASE_URL) {
-  console.error("✖ DATABASE_URL introuvable. Vérifiez votre .env (ou .env.production avec --prod).");
+  console.error("✖ DATABASE_URL introuvable. Vérifiez votre .env (ou .env.prod avec --prod).");
   process.exit(1);
 }
 

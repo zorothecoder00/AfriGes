@@ -8,7 +8,7 @@ import {
   Users, AlertTriangle, AlertCircle, Info, ChevronLeft, ChevronRight,
   Lock, Calendar, FileText, Filter, Layers, Eye, XCircle, Package,
   Wallet, Power, Pause, Play, ArrowDownCircle, ArrowUpCircle,
-  ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil, Loader2, FolderTree, Ban, Menu,
+  ArrowLeftRight, CreditCard, Building2, Send, ShoppingBag, Pencil, Loader2, FolderTree, Ban, Menu, Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import NotificationBell from "@/components/NotificationBell";
@@ -1181,7 +1181,7 @@ export default function CaissierPage() {
         body: JSON.stringify({ action: "ANNULER" }),
       });
       const j = await r.json();
-      if (r.ok) { toast.success("Souscription annulée"); refetchPacks(); refetchDashboard(); }
+      if (r.ok) { toast.success("Souscription annulée"); refetchPacks(); refetchDashboard(); refetchHistoEnc(); }
       else toast.error(j.error ?? "Erreur lors de l'annulation");
     } catch { toast.error("Erreur réseau"); }
     finally { setAnnulationSouscId(null); }
@@ -1201,7 +1201,7 @@ export default function CaissierPage() {
     try {
       const r = await fetch(`/api/caissier/packs/${id}`, { method: "DELETE" });
       const j = await r.json();
-      if (r.ok) { toast.success("Souscription supprimée"); refetchPacks(); refetchDashboard(); }
+      if (r.ok) { toast.success("Souscription supprimée"); refetchPacks(); refetchDashboard(); refetchHistoEnc(); }
       else toast.error(j.error ?? "Erreur lors de la suppression");
     } catch { toast.error("Erreur réseau"); }
     finally { setSuppressionSouscId(null); }
@@ -1212,6 +1212,35 @@ export default function CaissierPage() {
       description: "Cette action est irréversible : la souscription et tous ses versements seront effacés.",
       duration: 10000,
       action: { label: "Oui, supprimer", onClick: () => doSupprimerSouscription(id) },
+      cancel: { label: "Non", onClick: () => {} },
+    });
+  };
+
+  // ── Suppression d'un versement pack isolé depuis l'Historique (doublon après
+  // suppression + recréation d'une souscription) ─────────────────────────────
+  const [suppressionVersId, setSuppressionVersId] = useState<number | null>(null);
+
+  const doSupprimerVersement = async (id: number) => {
+    setSuppressionVersId(id);
+    try {
+      const r = await fetch(`/api/caissier/versements/${id}`, { method: "DELETE" });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success("Versement supprimé");
+        refetchHistoEnc();
+        refetchPacks();
+        refetchDashboard();
+        refetchVersements();
+      } else toast.error(j.error ?? "Erreur lors de la suppression");
+    } catch { toast.error("Erreur réseau"); }
+    finally { setSuppressionVersId(null); }
+  };
+
+  const handleSupprimerVersement = (it: HistoEncItem) => {
+    toast.warning("Supprimer ce versement ?", {
+      description: "Le montant est retiré de la souscription et les échéances sont recalculées. Irréversible.",
+      duration: 10000,
+      action: { label: "Oui, supprimer", onClick: () => doSupprimerVersement(it.sourceId) },
       cancel: { label: "Non", onClick: () => {} },
     });
   };
@@ -3409,6 +3438,16 @@ export default function CaissierPage() {
                             <div className="flex items-center gap-1">
                               {it.type === "VERSEMENT_PACK" && <button onClick={() => handleVoirRecu(it.sourceId)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg" title="Voir le reçu"><Eye size={15} /></button>}
                               {it.type === "VERSEMENT_PACK" && <button onClick={() => openEditPack(it)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg" title="Corriger le versement"><Pencil size={14} /></button>}
+                              {it.type === "VERSEMENT_PACK" && (
+                                <button
+                                  onClick={() => handleSupprimerVersement(it)}
+                                  disabled={suppressionVersId === it.sourceId}
+                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40"
+                                  title="Supprimer ce versement"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
                               {it.type === "VENTE_DIRECTE" && <button onClick={() => handleVoirRecuVente(it.sourceId)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg" title="Voir le reçu"><Eye size={15} /></button>}
                               {it.type === "OPERATION_CAISSE" && <button onClick={() => handleVoirRecuOp(it.sourceId)} className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg" title="Voir le reçu"><Eye size={15} /></button>}
                               {it.editable && <button onClick={() => openEditRemb(it)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg" title="Corriger le remboursement"><Pencil size={14} /></button>}
