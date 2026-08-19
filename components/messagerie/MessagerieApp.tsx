@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { generateUploadButton } from "@uploadthing/react";
 import {
   ArrowLeft, Search, X, Send, MessageSquarePlus, Loader2, MessageSquare,
-  Smile, Paperclip, FileText, Download,
+  Smile, Paperclip, FileText, Download, Pencil, Trash2, Check,
 } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
@@ -23,7 +23,7 @@ interface PieceJointe { url: string; nom: string; type: string; taille: number }
 interface ConversationRow {
   id: number;
   autreParticipant: Personne;
-  dernierMessage: { contenu: string; createdAt: string; expediteurId: number; pieceJointeNom: string | null } | null;
+  dernierMessage: { contenu: string; createdAt: string; expediteurId: number; pieceJointeNom: string | null; supprime: boolean } | null;
   dernierMessageAt: string;
   nonLus: number;
 }
@@ -31,6 +31,7 @@ interface MessageRow {
   id: number; conversationId: number; expediteurId: number; contenu: string;
   lu: boolean; dateLecture: string | null; createdAt: string;
   pieceJointeUrl: string | null; pieceJointeNom: string | null; pieceJointeType: string | null; pieceJointeTaille: number | null;
+  modifie: boolean; supprime: boolean;
 }
 
 const EMOJIS = ["👋","😊","✅","❌","⚠️","📦","💰","📝","🔔","👍","👎","🎉","📊","🤝","💬","📞","✉️","🕐","🔍","📋","💡","🚀","✨","🙏","😅","🤔","👏","🎯","📈","📉"];
@@ -138,6 +139,9 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
   const [contactCible, setContactCible] = useState<Personne | null>(null);
   const [pieceJointeEnAttente, setPieceJointeEnAttente] = useState<PieceJointe | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTexte, setEditTexte] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const loadConversations = useCallback(async (silencieux = false) => {
@@ -171,6 +175,8 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
 
   // Fil actif : chargement + rafraîchissement périodique + marquage lu
   useEffect(() => {
+    setEditingId(null);
+    setEditTexte("");
     if (!activeId) return;
     if (activeId < 0) { setMessages([]); return; } // conversation virtuelle (nouveau contact) : pas encore créée côté serveur
     loadMessages(activeId);
@@ -247,6 +253,46 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
     finally { setSending(false); }
   };
 
+  const commencerEdition = (m: MessageRow) => {
+    setEditingId(m.id);
+    setEditTexte(m.contenu);
+  };
+
+  const annulerEdition = () => {
+    setEditingId(null);
+    setEditTexte("");
+  };
+
+  const enregistrerEdition = async () => {
+    if (!editingId || !activeId || savingEdit) return;
+    const contenu = editTexte.trim();
+    if (!contenu) return;
+    setSavingEdit(true);
+    try {
+      const r = await fetch(`/api/messages/conversations/${activeId}/messages/${editingId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contenu }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.message ?? "Erreur");
+      setMessages((prev) => prev.map((m) => (m.id === editingId ? j.data : m)));
+      annulerEdition();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setSavingEdit(false); }
+  };
+
+  const supprimerMessage = async (messageId: number) => {
+    if (!activeId) return;
+    if (!window.confirm("Supprimer ce message ? Il sera remplacé par « Message supprimé » dans le fil.")) return;
+    try {
+      const r = await fetch(`/api/messages/conversations/${activeId}/messages/${messageId}`, { method: "DELETE" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.message ?? "Erreur");
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? j.data : m)));
+      if (editingId === messageId) annulerEdition();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+  };
+
   const conversationActive = conversations.find((c) => c.id === activeId);
   const autreActuel = conversationActive?.autreParticipant ?? contactCible;
 
@@ -311,7 +357,8 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs text-slate-500 truncate">
                       {c.dernierMessage
-                        ? (c.dernierMessage.expediteurId === meId ? "Vous : " : "") + (c.dernierMessage.contenu || (c.dernierMessage.pieceJointeNom ? `📎 ${c.dernierMessage.pieceJointeNom}` : ""))
+                        ? (c.dernierMessage.expediteurId === meId ? "Vous : " : "") +
+                          (c.dernierMessage.supprime ? "Message supprimé" : (c.dernierMessage.contenu || (c.dernierMessage.pieceJointeNom ? `📎 ${c.dernierMessage.pieceJointeNom}` : "")))
                         : roleLabel(c.autreParticipant)}
                     </p>
                     {c.nonLus > 0 && (
@@ -354,14 +401,61 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
                 <p className="text-center text-sm text-slate-400 py-10">Aucun message. Dites bonjour 👋</p>
               ) : messages.map((m) => {
                 const mine = m.expediteurId === meId;
+                const editionEnCours = editingId === m.id;
                 return (
-                  <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[70%] px-3.5 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${mine ? "bg-primary-600 text-white rounded-br-sm" : "bg-white border border-slate-200 text-slate-800 rounded-bl-sm"}`}>
-                      {m.pieceJointeUrl && (
-                        <PieceJointeBulle url={m.pieceJointeUrl} nom={m.pieceJointeNom} type={m.pieceJointeType} taille={m.pieceJointeTaille} />
+                  <div key={m.id} className={`group flex items-end gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
+                    {mine && !m.supprime && !editionEnCours && (
+                      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 mb-0.5">
+                        <button onClick={() => commencerEdition(m)} title="Modifier"
+                          className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-colors">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => supprimerMessage(m.id)} title="Supprimer"
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    <div className={`max-w-[70%] px-3.5 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
+                      m.supprime ? "bg-slate-100 border border-slate-200 text-slate-400 italic rounded-bl-sm"
+                        : mine ? "bg-primary-600 text-white rounded-br-sm" : "bg-white border border-slate-200 text-slate-800 rounded-bl-sm"
+                    }`}>
+                      {m.supprime ? (
+                        <span>Message supprimé</span>
+                      ) : editionEnCours ? (
+                        <div className="flex items-end gap-1.5 min-w-[180px]">
+                          <input
+                            autoFocus
+                            value={editTexte}
+                            onChange={(e) => setEditTexte(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") { e.preventDefault(); enregistrerEdition(); }
+                              if (e.key === "Escape") { e.preventDefault(); annulerEdition(); }
+                            }}
+                            className="flex-1 bg-white/10 border border-white/30 rounded-lg px-2 py-1 text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-1 focus:ring-white/60"
+                          />
+                          <button onClick={enregistrerEdition} disabled={savingEdit || !editTexte.trim()} title="Enregistrer"
+                            className="p-1.5 text-white hover:bg-white/20 rounded-full transition-colors disabled:opacity-40">
+                            {savingEdit ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                          </button>
+                          <button onClick={annulerEdition} title="Annuler"
+                            className="p-1.5 text-white hover:bg-white/20 rounded-full transition-colors">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          {m.pieceJointeUrl && (
+                            <PieceJointeBulle url={m.pieceJointeUrl} nom={m.pieceJointeNom} type={m.pieceJointeType} taille={m.pieceJointeTaille} />
+                          )}
+                          {m.contenu}
+                        </>
                       )}
-                      {m.contenu}
-                      <div className={`text-[10px] mt-1 ${mine ? "text-primary-100" : "text-slate-400"}`}>{formatDate(m.createdAt)}</div>
+                      {!editionEnCours && (
+                        <div className={`text-[10px] mt-1 ${m.supprime ? "text-slate-400" : mine ? "text-primary-100" : "text-slate-400"}`}>
+                          {formatDate(m.createdAt)}{m.modifie && !m.supprime ? " · modifié" : ""}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

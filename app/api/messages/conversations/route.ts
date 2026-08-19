@@ -26,7 +26,7 @@ export async function GET() {
     include: {
       utilisateurA: { select: { id: true, nom: true, prenom: true, email: true, photo: true, role: true, gestionnaire: { select: { role: true, actif: true } } } },
       utilisateurB: { select: { id: true, nom: true, prenom: true, email: true, photo: true, role: true, gestionnaire: { select: { role: true, actif: true } } } },
-      messages: { orderBy: { createdAt: "desc" }, take: 1, select: { contenu: true, createdAt: true, expediteurId: true, pieceJointeNom: true } },
+      messages: { orderBy: { createdAt: "desc" }, take: 1, select: { contenu: true, createdAt: true, expediteurId: true, pieceJointeNom: true, supprime: true } },
     },
   });
 
@@ -43,7 +43,10 @@ export async function GET() {
           role: autre.role, gestionnaireRole: autre.gestionnaire?.actif ? autre.gestionnaire.role : null,
         },
         dernierMessage: c.messages[0]
-          ? { contenu: c.messages[0].contenu, createdAt: c.messages[0].createdAt, expediteurId: c.messages[0].expediteurId, pieceJointeNom: c.messages[0].pieceJointeNom }
+          ? {
+              contenu: c.messages[0].contenu, createdAt: c.messages[0].createdAt, expediteurId: c.messages[0].expediteurId,
+              pieceJointeNom: c.messages[0].pieceJointeNom, supprime: c.messages[0].supprime,
+            }
           : null,
         dernierMessageAt: c.dernierMessageAt,
         nonLus,

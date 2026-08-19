@@ -4015,6 +4015,13 @@ model MessageChat {
   pieceJointeNom    String?
   pieceJointeType   String?
   pieceJointeTaille Int?
+  /// Édition par l'expéditeur — `contenu` est remplacé, `modifie` affiche un indicateur "(modifié)" dans le fil.
+  modifie           Boolean   @default(false)
+  modifieAt         DateTime?
+  /// Suppression douce par l'expéditeur (façon WhatsApp) — contenu et pièce jointe effacés,
+  /// le message reste dans le fil sous forme de placeholder "Message supprimé".
+  supprime          Boolean   @default(false)
+  supprimeAt        DateTime?
   createdAt         DateTime  @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
