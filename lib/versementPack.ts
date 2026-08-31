@@ -244,8 +244,10 @@ export async function confirmerVersementPackExistant(
 
 /**
  * Recalcule montantVerse/montantRestant/statut d'une souscription pack à
- * partir de la somme réelle de TOUS ses versements restants (pas d'un delta
- * incrémental comme `imputerSurSouscription`), puis réaligne les échéances
+ * partir de la somme réelle de ses versements PAYE restants (pas d'un delta
+ * incrémental comme `imputerSurSouscription`) — les versements EN_ATTENTE
+ * n'ont aucun effet financier tant qu'ils ne sont pas confirmés, ils sont
+ * donc exclus de l'agrégat, puis réaligne les échéances
  * (reset + re-marquage PAYE en ordre croissant selon le budget disponible).
  * Utilisé après correction du montant d'un versement ou suppression d'un
  * versement, pour ne jamais laisser la souscription/les échéances
@@ -266,7 +268,7 @@ export async function recalculerSouscriptionApresVersements(
   });
 
   const agg = await tx.versementPack.aggregate({
-    where: { souscriptionId },
+    where: { souscriptionId, statut: "PAYE" },
     _sum: { montant: true },
     _max: { datePaiement: true },
   });
