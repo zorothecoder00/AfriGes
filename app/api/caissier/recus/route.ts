@@ -155,6 +155,24 @@ export async function GET(req: Request) {
     const souscription = versement.souscription;
     const person = souscription.client ?? souscription.user;
 
+    // Total versé / reste à verser figés à l'état de la souscription juste après CE
+    // versement (comme un vrai reçu historique), pas le total actuel de la souscription
+    // qui continue d'évoluer avec les versements suivants. Seuls les versements PAYE
+    // comptent (même règle que recalculerSouscriptionApresVersements).
+    const cumulAvant = await prisma.versementPack.aggregate({
+      where: {
+        souscriptionId: souscription.id,
+        statut: "PAYE",
+        OR: [
+          { datePaiement: { lt: versement.datePaiement } },
+          { datePaiement: versement.datePaiement, id: { lte: versement.id } },
+        ],
+      },
+      _sum: { montant: true },
+    });
+    const montantVerseAuMoment = Number(cumulAvant._sum.montant ?? 0);
+    const montantRestantAuMoment = Math.max(0, Number(souscription.montantTotal) - montantVerseAuMoment);
+
     // Paramètres app (nom entreprise, etc.)
     const params = await prisma.parametre.findMany({
       where: { cle: { in: ["APP_NOM", "APP_ADRESSE", "APP_TELEPHONE"] } },
@@ -188,8 +206,8 @@ export async function GET(req: Request) {
           packNom:        souscription.pack.nom,
           packType:       souscription.pack.type,
           montantTotal:   Number(souscription.montantTotal),
-          montantVerse:   Number(souscription.montantVerse),
-          montantRestant: Number(souscription.montantRestant),
+          montantVerse:   montantVerseAuMoment,
+          montantRestant: montantRestantAuMoment,
           statut:         souscription.statut,
         },
         client: {
