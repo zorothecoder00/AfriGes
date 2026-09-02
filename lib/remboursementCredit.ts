@@ -656,3 +656,102 @@ export async function modifierRemboursementCredit(p: ParamsModification): Promis
     return { ok: true as const, remboursementId: remb.id, montantEffectif, recalculFinancier: recalcul };
   });
 }
+
+// ── Suppression d'un remboursement déjà enregistré (erreur de saisie) ────────────
+
+export interface ParamsSuppression {
+  remboursementId: number;
+  userId: number;
+  /** Portée facultative : le crédit doit correspondre (scoping PDV caissier). */
+  pdvId?: number | null;
+}
+
+export type ResultatSuppression =
+  | { ok: true; recalculFinancier: boolean }
+  | { ok: false; error: string; status: number };
+
+/**
+ * Supprime un remboursement de crédit déjà enregistré (erreur de saisie).
+ *
+ * - Remboursement EN_ATTENTE_CAISSIER ou REJETE : aucun effet financier n'a
+ *   jamais été appliqué → simple suppression de la ligne.
+ * - Remboursement CONFIRME : réversion complète — recouvrement RIA annulé,
+ *   échéancier intégralement réimputé à partir du total des remboursements
+ *   CONFIRME restants (le crédit peut se rouvrir si celui-ci l'avait soldé),
+ *   et soldeActuel du client recrédité du montant.
+ *
+ * Bloquée si le remboursement est lié à une collecte terrain (LigneCollecte)
+ * ou provient d'un paiement par compte courant : ces flux ont des effets de
+ * bord propres (session de collecte, blocage/débit CC) que cette fonction ne
+ * couvre pas — la suppression relève alors d'un administrateur.
+ */
+export async function supprimerRemboursementCredit(p: ParamsSuppression): Promise<ResultatSuppression> {
+  return prisma.$transaction(async (tx) => {
+    const remb = await tx.remboursementCredit.findUnique({
+      where: { id: p.remboursementId },
+      include: {
+        credit: {
+          select: {
+            id: true, clientId: true, reference: true, statut: true,
+            montantTotal: true, montantRembourse: true, soldeRestant: true,
+            dureeJours: true, dateDebut: true,
+            client: { select: { pointDeVenteId: true } },
+          },
+        },
+        ligneCollecte: { select: { id: true } },
+      },
+    });
+    if (!remb) return { ok: false as const, error: "Remboursement introuvable", status: 404 };
+
+    const credit = remb.credit;
+    if (p.pdvId != null && credit.client.pointDeVenteId !== p.pdvId) {
+      return { ok: false as const, error: "Ce remboursement n'appartient pas à votre point de vente", status: 403 };
+    }
+    if (credit.statut === StatutCredit.ANNULE || credit.statut === StatutCredit.REJETE) {
+      return { ok: false as const, error: "Le crédit associé n'est pas modifiable", status: 422 };
+    }
+    if (remb.ligneCollecte) {
+      return {
+        ok: false as const,
+        error: "Ce remboursement est lié à une collecte terrain : suppression impossible depuis cet écran. Contactez un administrateur.",
+        status: 400,
+      };
+    }
+    if (remb.compteCourantId) {
+      return {
+        ok: false as const,
+        error: "Ce remboursement provient d'un paiement par compte courant : suppression impossible depuis cet écran. Contactez un administrateur.",
+        status: 400,
+      };
+    }
+
+    const montant = Number(remb.montant);
+    const recalcul = remb.statut === "CONFIRME";
+
+    if (recalcul) {
+      // 1. Annuler l'effet RIA de ce remboursement.
+      await reverserEffetRIA(tx, remb.id, credit.reference);
+
+      // 2. Réimputer intégralement l'échéancier à partir du total CONFIRME restant
+      //    (hors ce remboursement) — recalcule montantRembourse/soldeRestant/statut,
+      //    y compris la réouverture d'un crédit SOLDE si c'était le dernier versement.
+      const agg = await tx.remboursementCredit.aggregate({
+        where: { creditId: credit.id, statut: "CONFIRME", id: { not: remb.id } },
+        _sum:  { montant: true },
+      });
+      const newTotal = Number(agg._sum.montant ?? 0);
+      await regenererEcheancesEtStatut(tx, credit, newTotal);
+
+      // 3. Recréditer le solde du client (annule le décrément fait à l'encaissement).
+      await tx.client.update({ where: { id: credit.clientId }, data: { soldeActuel: { increment: montant } } });
+    }
+
+    await tx.remboursementCredit.delete({ where: { id: remb.id } });
+
+    await auditLog(tx, p.userId, "SUPPRESSION_REMBOURSEMENT_CREDIT", "RemboursementCredit", remb.id, {
+      montant, statutAvant: remb.statut, recalculFinancier: recalcul,
+    });
+
+    return { ok: true as const, recalculFinancier: recalcul };
+  });
+}

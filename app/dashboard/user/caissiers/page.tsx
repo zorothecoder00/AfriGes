@@ -1245,6 +1245,33 @@ export default function CaissierPage() {
     });
   };
 
+  // ── Suppression d'un remboursement crédit enregistré par erreur depuis l'Historique ──
+  const [suppressionRembId, setSuppressionRembId] = useState<number | null>(null);
+
+  const doSupprimerRemboursement = async (id: number) => {
+    setSuppressionRembId(id);
+    try {
+      const r = await fetch(`/api/caissier/remboursements/${id}`, { method: "DELETE" });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success("Remboursement supprimé");
+        refetchHistoEnc();
+        refetchCredits();
+        refetchDashboard();
+      } else toast.error(j.error ?? "Erreur lors de la suppression");
+    } catch { toast.error("Erreur réseau"); }
+    finally { setSuppressionRembId(null); }
+  };
+
+  const handleSupprimerRemboursement = (it: HistoEncItem) => {
+    toast.warning("Supprimer ce remboursement ?", {
+      description: "Le montant est retiré de l'échéancier et du solde du crédit et du client, et le recouvrement RIA lié est annulé. Un crédit soldé peut se rouvrir. Irréversible.",
+      duration: 10000,
+      action: { label: "Oui, supprimer", onClick: () => doSupprimerRemboursement(it.sourceId) },
+      cancel: { label: "Non", onClick: () => {} },
+    });
+  };
+
   // ── Bordereau de remboursement (accès direct depuis la liste) ───────────────
   const [bordereauData, setBordereauData] = useState<{ credit: BordereauCredit; client: BordereauClient } | null>(null);
   const [bordereauLoadingId, setBordereauLoadingId] = useState<number | null>(null);
@@ -3451,6 +3478,16 @@ export default function CaissierPage() {
                               {it.type === "VENTE_DIRECTE" && <button onClick={() => handleVoirRecuVente(it.sourceId)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg" title="Voir le reçu"><Eye size={15} /></button>}
                               {it.type === "OPERATION_CAISSE" && <button onClick={() => handleVoirRecuOp(it.sourceId)} className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg" title="Voir le reçu"><Eye size={15} /></button>}
                               {it.editable && <button onClick={() => openEditRemb(it)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg" title="Corriger le remboursement"><Pencil size={14} /></button>}
+                              {it.editable && (
+                                <button
+                                  onClick={() => handleSupprimerRemboursement(it)}
+                                  disabled={suppressionRembId === it.sourceId}
+                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40"
+                                  title="Supprimer ce remboursement"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
