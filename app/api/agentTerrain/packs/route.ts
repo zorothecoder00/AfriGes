@@ -79,6 +79,14 @@ export async function GET(req: NextRequest) {
           take: 1,
         },
         _count: { select: { versements: true } },
+        // Versements collectés par cet agent, pas encore confirmés par le caissier —
+        // seuls ceux-là restent corrigibles depuis le terrain (cf. PATCH .../versements/[id]).
+        versements: {
+          where: { statut: "EN_ATTENTE", encaisseParId: effectiveUserId },
+          select: { id: true, montant: true, datePaiement: true, notes: true },
+          orderBy: { datePaiement: "desc" },
+          take: 5,
+        },
       },
       orderBy: [{ statut: "asc" }, { createdAt: "asc" }],
     });

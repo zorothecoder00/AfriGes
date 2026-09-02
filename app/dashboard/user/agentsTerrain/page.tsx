@@ -114,7 +114,7 @@ interface CreditItem {
   dateEcheanceFin: string;
   client: { id: number; nom: string; prenom: string; telephone: string };
   echeances: { id: number; montantDu: string; montantPaye: string; dateEcheance: string; statut: string }[];
-  remboursements: { id: number; montant: string; dateRemboursement: string }[];
+  remboursements: { id: number; montant: string; dateRemboursement: string; statut: string; enregistreParId: number | null }[];
 }
 
 interface CreditsResponse {
@@ -166,6 +166,7 @@ interface Souscription {
   user?: { id: number; nom: string; prenom: string; telephone: string } | null;
   echeances: Echeance[];
   _count: { versements: number };
+  versements: { id: number; montant: string; datePaiement: string; notes: string | null }[];
 }
 
 interface PacksResponse {
@@ -1769,6 +1770,68 @@ export default function AgentTerrainPage() {
     finally { setDureeLoading(false); }
   };
 
+  // ── Correction d'un remboursement crédit déjà collecté ──────────────────────
+  const [editRemb, setEditRemb] = useState<{ id: number; montant: string; dateRemboursement: string } | null>(null);
+  const [editRembForm, setEditRembForm] = useState({ montant: "", dateCollecte: "" });
+  const [editRembLoading, setEditRembLoading] = useState(false);
+  const [editRembError, setEditRembError] = useState("");
+  const openEditRemb = (r: { id: number; montant: string; dateRemboursement: string }) => {
+    setEditRemb(r);
+    setEditRembForm({ montant: String(Number(r.montant)), dateCollecte: r.dateRemboursement.slice(0, 10) });
+    setEditRembError("");
+  };
+  const saveEditRemb = async () => {
+    if (!editRemb) return;
+    const montantNum = Number(editRembForm.montant);
+    if (!montantNum || montantNum <= 0) { setEditRembError("Montant invalide"); return; }
+    setEditRembLoading(true);
+    setEditRembError("");
+    try {
+      const r = await fetch(`/api/agentTerrain/remboursements/${editRemb.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          montant: montantNum !== Number(editRemb.montant) ? montantNum : undefined,
+          dateCollecte: editRembForm.dateCollecte || undefined,
+        }),
+      });
+      const j = await r.json();
+      if (r.ok) { toast.success("Remboursement corrigé"); setEditRemb(null); refetchCredits(); }
+      else setEditRembError(j.error ?? "Erreur");
+    } catch { setEditRembError("Erreur réseau"); }
+    finally { setEditRembLoading(false); }
+  };
+
+  // ── Correction d'un versement pack collecté, encore en attente de confirmation ──
+  const [editVersement, setEditVersement] = useState<{ id: number; montant: string; datePaiement: string } | null>(null);
+  const [editVersForm, setEditVersForm] = useState({ montant: "", dateCollecte: "" });
+  const [editVersLoading, setEditVersLoading] = useState(false);
+  const [editVersError, setEditVersError] = useState("");
+  const openEditVersement = (v: { id: number; montant: string; datePaiement: string }) => {
+    setEditVersement(v);
+    setEditVersForm({ montant: String(Number(v.montant)), dateCollecte: v.datePaiement.slice(0, 10) });
+    setEditVersError("");
+  };
+  const saveEditVersement = async () => {
+    if (!editVersement) return;
+    const montantNum = Number(editVersForm.montant);
+    if (!montantNum || montantNum <= 0) { setEditVersError("Montant invalide"); return; }
+    setEditVersLoading(true);
+    setEditVersError("");
+    try {
+      const r = await fetch(`/api/agentTerrain/versements/${editVersement.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          montant: montantNum !== Number(editVersement.montant) ? montantNum : undefined,
+          datePaiement: editVersForm.dateCollecte || undefined,
+        }),
+      });
+      const j = await r.json();
+      if (r.ok) { toast.success("Versement corrigé"); setEditVersement(null); refetchPacks(); }
+      else setEditVersError(j.error ?? "Erreur");
+    } catch { setEditVersError("Erreur réseau"); }
+    finally { setEditVersLoading(false); }
+  };
+
   const { mutate: demarrerSession, loading: demarrantSession } = useMutation<unknown, object>(
     "/api/agentTerrain/collecteJour", "POST",
     { successMessage: "Tournée démarrée !" }
@@ -2610,11 +2673,24 @@ export default function AgentTerrainPage() {
                                   <span>Échéances à jour</span>
                                 </div>
                               )}
-                              {/* Derniers remboursements */}
+                              {/* Derniers remboursements — corrigibles (sauf rejetés) */}
                               {credit.remboursements.length > 0 && (
-                                <p className="text-xs text-slate-400 mt-2">
-                                  Dernier rembours. : {formatCurrency(Number(credit.remboursements[0].montant))} le {formatDate(credit.remboursements[0].dateRemboursement)}
-                                </p>
+                                <div className="mt-2 space-y-1">
+                                  {credit.remboursements.map((r) => (
+                                    <div key={r.id} className="flex items-center justify-between gap-2 text-xs text-slate-400">
+                                      <span>Rembours. : {formatCurrency(Number(r.montant))} le {formatDate(r.dateRemboursement)}</span>
+                                      {r.statut !== "REJETE" && (
+                                        <button
+                                          onClick={() => openEditRemb(r)}
+                                          className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded"
+                                          title="Corriger ce remboursement"
+                                        >
+                                          <Pencil size={11} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
                               )}
                             </div>
                             <div className="flex flex-col gap-2 shrink-0">
@@ -2750,6 +2826,24 @@ export default function AgentTerrainPage() {
                         <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2">
                           <CheckCircle size={14} className="shrink-0" />
                           <span>{t('field_due_up_to_date')}</span>
+                        </div>
+                      )}
+
+                      {/* Mes versements en attente de confirmation caissier — corrigibles */}
+                      {s.versements.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {s.versements.map((v) => (
+                            <div key={v.id} className="flex items-center justify-between gap-2 text-xs text-amber-600 bg-amber-50 rounded-lg px-2.5 py-1.5">
+                              <span>En attente : {formatCurrency(Number(v.montant))} le {formatDate(v.datePaiement)}</span>
+                              <button
+                                onClick={() => openEditVersement(v)}
+                                className="p-1 text-amber-500 hover:text-amber-700 hover:bg-amber-100 rounded"
+                                title="Corriger ce versement"
+                              >
+                                <Pencil size={11} />
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -3672,6 +3766,94 @@ export default function AgentTerrainPage() {
                 <button onClick={saveDuree} disabled={dureeLoading}
                   className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
                   {dureeLoading ? <><Loader2 size={14} className="animate-spin" /> Enregistrement…</> : "Enregistrer"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal correction remboursement crédit */}
+      {editRemb && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-amber-600" /> Corriger le remboursement
+              </h2>
+              <button onClick={() => setEditRemb(null)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">×</button>
+            </div>
+            <p className="text-xs text-slate-500 mb-3">
+              Le montant recalcule automatiquement l&apos;échéancier, le solde du crédit et du client, ainsi que le recouvrement RIA des financements liés.
+            </p>
+            <div className="space-y-3">
+              {editRembError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />{editRembError}
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Montant (FCFA) *</label>
+                <input type="number" min={1} value={editRembForm.montant}
+                  onChange={(e) => setEditRembForm(f => ({ ...f, montant: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Date de collecte</label>
+                <input type="date" value={editRembForm.dateCollecte}
+                  onChange={(e) => setEditRembForm(f => ({ ...f, dateCollecte: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setEditRemb(null)}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">Annuler</button>
+                <button onClick={saveEditRemb} disabled={editRembLoading}
+                  className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
+                  {editRembLoading ? <><Loader2 size={14} className="animate-spin" /> Enregistrement…</> : "Enregistrer"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal correction versement pack (en attente de confirmation caissier) */}
+      {editVersement && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-amber-600" /> Corriger le versement
+              </h2>
+              <button onClick={() => setEditVersement(null)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">×</button>
+            </div>
+            <p className="text-xs text-slate-500 mb-3">
+              Uniquement possible tant que le caissier n&apos;a pas encore confirmé ce versement.
+            </p>
+            <div className="space-y-3">
+              {editVersError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />{editVersError}
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Montant (FCFA) *</label>
+                <input type="number" min={1} value={editVersForm.montant}
+                  onChange={(e) => setEditVersForm(f => ({ ...f, montant: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Date de collecte</label>
+                <input type="date" value={editVersForm.dateCollecte}
+                  onChange={(e) => setEditVersForm(f => ({ ...f, dateCollecte: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setEditVersement(null)}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">Annuler</button>
+                <button onClick={saveEditVersement} disabled={editVersLoading}
+                  className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2">
+                  {editVersLoading ? <><Loader2 size={14} className="animate-spin" /> Enregistrement…</> : "Enregistrer"}
                 </button>
               </div>
             </div>

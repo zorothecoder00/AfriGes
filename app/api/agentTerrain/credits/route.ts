@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
           take: 1,
         },
         remboursements: {
-          select: { id: true, montant: true, dateRemboursement: true },
+          select: { id: true, montant: true, dateRemboursement: true, statut: true, enregistreParId: true },
           orderBy: { dateRemboursement: "desc" },
           take: 3,
         },
