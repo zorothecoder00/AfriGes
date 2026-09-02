@@ -395,7 +395,10 @@ export async function POST(req: NextRequest) {
         where: { receptionPackId: body.receptionPackId },
         include: INCLUDE_FULL,
       });
-      if (existing) return NextResponse.json({ data: buildResponse(existing as unknown as FactureRow, getParam) });
+      // Facture déjà annulée : document figé, on ne la resynchronise pas.
+      if (existing && existing.statut === "ANNULEE") {
+        return NextResponse.json({ data: buildResponse(existing as unknown as FactureRow, getParam) });
+      }
 
       const reception = await prisma.receptionProduitPack.findUnique({
         where: { id: body.receptionPackId },
@@ -424,36 +427,55 @@ export async function POST(req: NextRequest) {
       // Versements déjà effectués sur la souscription = montant payé à date
       const montantPaye = Number(reception.souscription.montantVerse);
 
+      const lignesFacture = reception.lignes.map(l => ({
+        designation:  l.produit.nom,
+        unite:        l.produit.unite ?? null,
+        quantite:     l.quantite,
+        prixUnitaire: Number(l.prixUnitaire),
+        montant:      Number(l.prixUnitaire) * l.quantite,
+      }));
+
+      const factureData = {
+        pointDeVenteId:  reception.pointDeVenteId ?? undefined,
+        pdvNom:          reception.pointDeVente?.nom,
+        pdvAdresse:      reception.pointDeVente?.adresse,
+        pdvTelephone:    reception.pointDeVente?.telephone,
+        clientId:        sClient?.id ?? undefined,
+        clientNom,
+        clientTelephone: sClient?.telephone ?? null,
+        clientAdresse:   sClient?.adresse ?? null,
+        montantHT:       montantTTC,
+        montantTVA:      0,
+        montantTTC,
+        montantPaye,
+        dateEcheance:    reception.souscription.dateFin ?? undefined,
+        notes:           reception.notes,
+      };
+
+      // Une facture pack non-annulée existe déjà : on la resynchronise avec le montant
+      // versé actuel de la souscription (les versements continuent après la livraison)
+      // plutôt que de renvoyer un instantané figé au moment de la première génération.
+      if (existing) {
+        const updated = await prisma.$transaction(async (tx) => {
+          await tx.ligneFactureVente.deleteMany({ where: { factureId: existing.id } });
+          return tx.factureVente.update({
+            where: { id: existing.id },
+            data: { ...factureData, lignes: { create: lignesFacture } },
+            include: INCLUDE_FULL,
+          });
+        });
+        return NextResponse.json({ data: buildResponse(updated as unknown as FactureRow, getParam) });
+      }
+
       const created = await createFactureWithRetry({
           type:            "CREDIT",   // paiement échelonné via versements pack
           statut:          "EMISE",
           receptionPackId: body.receptionPackId,
-          pointDeVenteId:  reception.pointDeVenteId ?? undefined,
-          pdvNom:          reception.pointDeVente?.nom,
-          pdvAdresse:      reception.pointDeVente?.adresse,
-          pdvTelephone:    reception.pointDeVente?.telephone,
-          clientId:        sClient?.id ?? undefined,
-          clientNom,
-          clientTelephone: sClient?.telephone ?? null,
-          clientAdresse:   sClient?.adresse ?? null,
           emiseParId:      userId,
           emiseParNom,
           emiseParFonction,
-          montantHT:       montantTTC,
-          montantTVA:      0,
-          montantTTC,
-          montantPaye,
-          dateEcheance:    reception.souscription.dateFin ?? undefined,
-          notes:           reception.notes,
-          lignes: {
-            create: reception.lignes.map(l => ({
-              designation:  l.produit.nom,
-              unite:        l.produit.unite ?? null,
-              quantite:     l.quantite,
-              prixUnitaire: Number(l.prixUnitaire),
-              montant:      Number(l.prixUnitaire) * l.quantite,
-            })),
-          },
+          ...factureData,
+          lignes: { create: lignesFacture },
         },
         INCLUDE_FULL,
       );
