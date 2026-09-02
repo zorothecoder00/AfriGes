@@ -35,7 +35,7 @@ export default function Modal({
       <div
         className="absolute inset-0"
         onClick={onClose}
-      />
+      /> 
 
       {/* Modal */}
       <div className="relative bg-white w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl shadow-xl overflow-hidden animate-[slideUp_0.3s_ease-out]">

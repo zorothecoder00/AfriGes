@@ -2,7 +2,7 @@
  * Export PDF via la boîte de dialogue d'impression du navigateur.
  * Aucune dépendance externe.
  */
-
+  
 export type PdfSection = {
   heading?: string;
   content: string; // HTML (table, div, p…)

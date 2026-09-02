@@ -44,13 +44,13 @@ export async function GET() {
       email: user.email,
       photo: user.photo,
       telephone: user.telephone,
-      adresse: user.adresse,
+      adresse: user.adresse,   
       role: user.role,
       gestionnaireRole: user.gestionnaire?.role ?? null,
       dateAdhesion: user.dateAdhesion,
       hasPassword: !!user.passwordHash,
     },
-  });
+  });   
 }
 
 export async function PATCH(req: Request) {
