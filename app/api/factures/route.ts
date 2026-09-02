@@ -291,7 +291,10 @@ export async function POST(req: NextRequest) {
         where: { creditClientId: body.creditClientId, type: "CREDIT" },
         include: INCLUDE_FULL,
       });
-      if (existing) return NextResponse.json({ data: buildResponse(existing as unknown as FactureRow, getParam) });
+      // Facture déjà annulée : document figé, on ne la resynchronise pas.
+      if (existing && existing.statut === "ANNULEE") {
+        return NextResponse.json({ data: buildResponse(existing as unknown as FactureRow, getParam) });
+      }
 
       const credit = await prisma.creditClient.findUnique({
         where: { id: body.creditClientId },
@@ -333,29 +336,48 @@ export async function POST(req: NextRequest) {
         ...(Number(credit.montantInteret) > 0 ? [ligneFrais("Intérêt",            Number(credit.montantInteret))] : []),
       ];
 
+      const factureData = {
+        pointDeVenteId: credit.pointDeVenteId ?? undefined,
+        pdvNom:         pdvInfo?.nom,
+        pdvAdresse:     pdvInfo?.adresse,
+        pdvTelephone:   pdvInfo?.telephone,
+        clientId:       credit.clientId,
+        clientNom:      `${credit.client.prenom} ${credit.client.nom}`,
+        clientTelephone: credit.client.telephone,
+        clientAdresse:  credit.client.adresse,
+        montantHT:    montantTTC,
+        montantTVA:   0,
+        montantTTC,
+        montantPaye:  Number(credit.montantRembourse),
+        modePaiement: "CREDIT",
+        dateEcheance: credit.dateEcheanceFin,
+        notes:        credit.observations,
+        garantie:     credit.garantie,
+      };
+
+      // Une facture crédit non-annulée existe déjà : on la resynchronise avec l'état
+      // actuel du crédit (montant remboursé, éventuelles corrections) plutôt que de
+      // renvoyer un instantané figé au moment de la première génération.
+      if (existing) {
+        const updated = await prisma.$transaction(async (tx) => {
+          await tx.ligneFactureVente.deleteMany({ where: { factureId: existing.id } });
+          return tx.factureVente.update({
+            where: { id: existing.id },
+            data: { ...factureData, lignes: { create: lignesFacture } },
+            include: INCLUDE_FULL,
+          });
+        });
+        return NextResponse.json({ data: buildResponse(updated as unknown as FactureRow, getParam) });
+      }
+
       const created = await createFactureWithRetry({
           type:           "CREDIT",
           statut:         "EMISE",
           creditClientId: body.creditClientId,
-          pointDeVenteId: credit.pointDeVenteId ?? undefined,
-          pdvNom:         pdvInfo?.nom,
-          pdvAdresse:     pdvInfo?.adresse,
-          pdvTelephone:   pdvInfo?.telephone,
-          clientId:       credit.clientId,
-          clientNom:      `${credit.client.prenom} ${credit.client.nom}`,
-          clientTelephone: credit.client.telephone,
-          clientAdresse:  credit.client.adresse,
           emiseParId:   userId,
           emiseParNom,
           emiseParFonction,
-          montantHT:    montantTTC,
-          montantTVA:   0,
-          montantTTC,
-          montantPaye:  Number(credit.montantRembourse),
-          modePaiement: "CREDIT",
-          dateEcheance: credit.dateEcheanceFin,
-          notes:        credit.observations,
-          garantie:     credit.garantie,
+          ...factureData,
           lignes: { create: lignesFacture },
         },
         INCLUDE_FULL,
