@@ -71,8 +71,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
       });
 
       if (!versement) throw new Error("Versement introuvable");
+      if (versement.statut === "ANNULE") throw new Error("VERSEMENT_ANNULE");
 
       const souscription = versement.souscription;
+      if (souscription.statut === "ANNULE") throw new Error("SOUSCRIPTION_ANNULEE");
 
       // Construire les données de mise à jour du versement
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,6 +104,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
     }
     if (msg === "Versement introuvable") {
       return NextResponse.json({ error: msg }, { status: 404 });
+    }
+    if (msg === "VERSEMENT_ANNULE") {
+      return NextResponse.json({ error: "Un versement annulé ne peut pas être modifié" }, { status: 422 });
+    }
+    if (msg === "SOUSCRIPTION_ANNULEE") {
+      return NextResponse.json({ error: "La souscription associée n'est pas modifiable" }, { status: 422 });
     }
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
