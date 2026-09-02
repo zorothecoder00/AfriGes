@@ -36,6 +36,7 @@ type Item = {
   observation?: string | null;
   agentCollecteurId?: number | null;
   montantMax?: number;          // versement pack (plafond de correction)
+  creditId?: number | null;     // remboursement crédit — pour la facture crédit liée
 };
 
 type RawRow = {
@@ -52,6 +53,7 @@ type RawRow = {
   observation: string | null;
   agent_collecteur_id: number | string | null;
   montant_max: number | string | null;
+  credit_id: number | string | null;
 };
 
 const TYPE_LABEL: Record<Item["type"], string> = {
@@ -97,7 +99,8 @@ function buildUnion(gte: Date, lt: Date, pdvId: number | null, search: string | 
       rc."numeroJour" AS numero_jour,
       rc.notes AS observation,
       rc."agentCollecteurId" AS agent_collecteur_id,
-      NULL::numeric AS montant_max
+      NULL::numeric AS montant_max,
+      cc.id AS credit_id
     FROM "RemboursementCredit" rc
     JOIN "CreditClient" cc ON cc.id = rc."creditId"
     JOIN "Client" cl ON cl.id = cc."clientId"
@@ -120,7 +123,8 @@ function buildUnion(gte: Date, lt: Date, pdvId: number | null, search: string | 
       NULL::int AS numero_jour,
       vp.notes AS observation,
       NULL::int AS agent_collecteur_id,
-      sp."montantTotal" AS montant_max
+      sp."montantTotal" AS montant_max,
+      NULL::int AS credit_id
     FROM "VersementPack" vp
     JOIN "SouscriptionPack" sp ON sp.id = vp."souscriptionId"
     JOIN "Pack" pk ON pk.id = sp."packId"
@@ -151,7 +155,8 @@ function buildUnion(gte: Date, lt: Date, pdvId: number | null, search: string | 
       NULL::int AS numero_jour,
       NULL::text AS observation,
       NULL::int AS agent_collecteur_id,
-      NULL::numeric AS montant_max
+      NULL::numeric AS montant_max,
+      NULL::int AS credit_id
     FROM "VenteDirecte" vd
     LEFT JOIN "Client" cl ON cl.id = vd."clientId"
     WHERE vd.statut IN ('PAID','CONFIRMEE','SORTIE_VALIDEE','LIVREE')
@@ -174,7 +179,8 @@ function buildUnion(gte: Date, lt: Date, pdvId: number | null, search: string | 
       NULL::int AS numero_jour,
       NULL::text AS observation,
       NULL::int AS agent_collecteur_id,
-      NULL::numeric AS montant_max
+      NULL::numeric AS montant_max,
+      NULL::int AS credit_id
     FROM "OperationCaisse" oc
     JOIN "SessionCaisse" sc ON sc.id = oc."sessionId"
     WHERE oc.type = 'ENCAISSEMENT'
@@ -262,6 +268,7 @@ export async function GET(req: Request) {
       observation: r.observation,
       agentCollecteurId: r.agent_collecteur_id != null ? Number(r.agent_collecteur_id) : null,
       montantMax: r.montant_max != null ? Number(r.montant_max) : undefined,
+      creditId: r.credit_id != null ? Number(r.credit_id) : null,
     }));
 
     const stats = { total, montantTotal, parType };

@@ -98,6 +98,7 @@ interface HistoEncItem {
   typeLabel: string; sourceId: number; client: string; libelle: string;
   reference: string; mode: string | null; montant: number; date: string;
   editable?: boolean; numeroJour?: number | null; observation?: string | null; agentCollecteurId?: number | null; montantMax?: number;
+  creditId?: number | null;
 }
 interface HistoEncResponse {
   data: HistoEncItem[];
@@ -3477,6 +3478,9 @@ export default function CaissierPage() {
                               )}
                               {it.type === "VENTE_DIRECTE" && <button onClick={() => handleVoirRecuVente(it.sourceId)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg" title="Voir le reçu"><Eye size={15} /></button>}
                               {it.type === "OPERATION_CAISSE" && <button onClick={() => handleVoirRecuOp(it.sourceId)} className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg" title="Voir le reçu"><Eye size={15} /></button>}
+                              {it.type === "REMBOURSEMENT_CREDIT" && it.creditId != null && (
+                                <button onClick={() => setFactureCreditId(it.creditId!)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg" title="Facture crédit"><Receipt size={14} /></button>
+                              )}
                               {it.editable && <button onClick={() => openEditRemb(it)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg" title="Corriger le remboursement"><Pencil size={14} /></button>}
                               {it.editable && (
                                 <button
