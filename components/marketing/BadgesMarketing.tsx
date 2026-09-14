@@ -103,6 +103,7 @@ export default function BadgesMarketing() {
   const [ouvert, setOuvert] = useState<number | null>(null);
   const [attributions, setAttributions] = useState<Attribution[]>([]);
   const [loadingAttr, setLoadingAttr] = useState(false);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -118,12 +119,16 @@ export default function BadgesMarketing() {
   useEffect(() => { load(); }, [load]);
 
   const toggleActif = async (b: Badge) => {
-    const r = await fetch(`/api/admin/marketing/badges/${b.id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !b.actif }),
-    });
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
-    toast.success(b.actif ? "Badge désactivé" : "Badge activé"); load();
+    if (togglingId !== null) return;
+    setTogglingId(b.id);
+    try {
+      const r = await fetch(`/api/admin/marketing/badges/${b.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !b.actif }),
+      });
+      const j = await r.json();
+      if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
+      toast.success(b.actif ? "Badge désactivé" : "Badge activé"); load();
+    } finally { setTogglingId(null); }
   };
 
   const ouvrirAttributions = async (b: Badge) => {
@@ -166,8 +171,8 @@ export default function BadgesMarketing() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={(e) => { e.stopPropagation(); toggleActif(b); }} title={b.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50">
-                  {b.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+                <button onClick={(e) => { e.stopPropagation(); toggleActif(b); }} disabled={togglingId === b.id} title={b.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 disabled:opacity-50">
+                  {togglingId === b.id ? <Loader2 className="w-4 h-4 animate-spin" /> : b.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
                 </button>
                 {ouvert === b.id ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
               </div>

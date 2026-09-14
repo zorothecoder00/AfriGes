@@ -96,7 +96,7 @@ export default function ImmobilisationsPage() {
   const { mutate: amortirImmo, loading: amortissantImmo } = useMutation<{ data?: { montant: number } }, object>(
     () => `/api/comptable/immobilisations/${immoActionIdRef.current}/amortir`, "POST",
   );
-  const { mutate: cederImmo } = useMutation<unknown, object>(
+  const { mutate: cederImmo, loading: cedantImmo } = useMutation<unknown, object>(
     () => `/api/comptable/immobilisations/${immoActionIdRef.current}/ceder`, "POST",
     { successMessage: "Immobilisation cédée" }
   );
@@ -306,8 +306,8 @@ export default function ImmobilisationsPage() {
                               className="flex items-center gap-1 px-2 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50">
                               Amortir
                             </button>
-                            <button onClick={() => handleCederImmo(immo.id)}
-                              className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg" title="Céder / sortir"><Trash2 size={14} /></button>
+                            <button onClick={() => handleCederImmo(immo.id)} disabled={cedantImmo}
+                              className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg disabled:opacity-40" title="Céder / sortir"><Trash2 size={14} /></button>
                           </>
                         )}
                       </div>

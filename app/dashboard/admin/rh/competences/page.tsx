@@ -394,14 +394,19 @@ function CategoryGroup({ categorie, items, onEdit, onRefetch }: {
   onRefetch: () => void;
 }) {
   const [open, setOpen] = useState(true);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const handleDelete = async (c: Competence) => {
+    if (deletingId !== null) return;
     if (!confirm(`Supprimer "${c.nom}" ?`)) return;
-    const res = await fetch(`/api/admin/rh/competences/${c.id}`, { method: "DELETE" });
-    const data = await res.json();
-    if (!res.ok) { toast.error(data.error ?? "Erreur"); return; }
-    toast.success(data.desactive ? data.message : "Compétence supprimée");
-    onRefetch();
+    setDeletingId(c.id);
+    try {
+      const res = await fetch(`/api/admin/rh/competences/${c.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error ?? "Erreur"); return; }
+      toast.success(data.desactive ? data.message : "Compétence supprimée");
+      onRefetch();
+    } finally { setDeletingId(null); }
   };
 
   return (
@@ -463,7 +468,8 @@ function CategoryGroup({ categorie, items, onEdit, onRefetch }: {
                   </button>
                   <button
                     onClick={() => handleDelete(item)}
-                    className="p-2 rounded-lg hover:bg-red-50">
+                    disabled={deletingId !== null}
+                    className="p-2 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed">
                     <Trash2 className="w-4 h-4 text-red-500" />
                   </button>
                 </div>
@@ -502,7 +508,8 @@ function CategoryGroup({ categorie, items, onEdit, onRefetch }: {
                     </button>
                     <button
                       onClick={() => handleDelete(item)}
-                      className="p-2 rounded-lg bg-red-50 hover:bg-red-100">
+                      disabled={deletingId !== null}
+                      className="p-2 rounded-lg bg-red-50 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed">
                       <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
                   </div>
@@ -529,6 +536,7 @@ function CollaborateurCompetences({ collab, referentiel }: { collab: ProfilRH; r
   const assignedIds = new Set(competencesCollab.map((c) => c.competenceId));
   const [showAdd, setShowAdd] = useState(false);
   const [editComp, setEditComp] = useState<{ competenceId: number; niveau: string; notes: string } | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
 
   const grouped: Record<string, typeof competencesCollab> = {};
   for (const c of competencesCollab) {
@@ -538,22 +546,29 @@ function CollaborateurCompetences({ collab, referentiel }: { collab: ProfilRH; r
   }
 
   const handleRemove = async (competenceId: number) => {
-    const res2 = await fetch(`/api/admin/rh/collaborateurs/${collab.id}/competences`, {
-      method: "DELETE", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ competenceId }),
-    });
-    if (res2.ok) { toast.success("Compétence retirée"); refetch(); }
-    else { const d = await res2.json(); toast.error(d.error ?? "Erreur"); }
+    if (busyId !== null) return;
+    setBusyId(competenceId);
+    try {
+      const res2 = await fetch(`/api/admin/rh/collaborateurs/${collab.id}/competences`, {
+        method: "DELETE", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ competenceId }),
+      });
+      if (res2.ok) { toast.success("Compétence retirée"); refetch(); }
+      else { const d = await res2.json(); toast.error(d.error ?? "Erreur"); }
+    } finally { setBusyId(null); }
   };
 
   const handleSaveEdit = async () => {
-    if (!editComp) return;
-    const res2 = await fetch(`/api/admin/rh/collaborateurs/${collab.id}/competences`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ competenceId: editComp.competenceId, niveau: editComp.niveau, notes: editComp.notes || null }),
-    });
-    if (res2.ok) { toast.success("Niveau mis à jour"); setEditComp(null); refetch(); }
-    else { const d = await res2.json(); toast.error(d.error ?? "Erreur"); }
+    if (!editComp || busyId !== null) return;
+    setBusyId(editComp.competenceId);
+    try {
+      const res2 = await fetch(`/api/admin/rh/collaborateurs/${collab.id}/competences`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ competenceId: editComp.competenceId, niveau: editComp.niveau, notes: editComp.notes || null }),
+      });
+      if (res2.ok) { toast.success("Niveau mis à jour"); setEditComp(null); refetch(); }
+      else { const d = await res2.json(); toast.error(d.error ?? "Erreur"); }
+    } finally { setBusyId(null); }
   };
 
   return (
@@ -623,10 +638,10 @@ function CollaborateurCompetences({ collab, referentiel }: { collab: ProfilRH; r
                             <input value={editComp.notes}
                               onChange={(e) => setEditComp((prev) => prev ? { ...prev, notes: e.target.value } : null)}
                               placeholder="Notes…" className="w-full sm:w-40 px-2 py-1 border border-slate-200 rounded-lg text-xs w-28 focus:outline-none focus:ring-2 focus:ring-primary-500" />
-                            <button onClick={handleSaveEdit} className="flex items-center justify-center p-2 p-1 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+                            <button onClick={handleSaveEdit} disabled={busyId !== null} className="flex items-center justify-center p-2 p-1 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed">
                               <Save className="w-3.5 h-3.5" />
                             </button>
-                            <button onClick={() => setEditComp(null)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400">
+                            <button onClick={() => setEditComp(null)} disabled={busyId !== null} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed">
                               <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -637,11 +652,13 @@ function CollaborateurCompetences({ collab, referentiel }: { collab: ProfilRH; r
                             </span>
                             <div className="flex items-center gap-1">
                               <button onClick={() => setEditComp({ competenceId: c.competenceId, niveau: c.niveau, notes: c.notes ?? "" })}
-                                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600">
+                                disabled={busyId !== null}
+                                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed">
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={() => handleRemove(c.competenceId)}
-                                className="p-1 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500">
+                                disabled={busyId !== null}
+                                className="p-1 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 disabled:opacity-50 disabled:cursor-not-allowed">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>

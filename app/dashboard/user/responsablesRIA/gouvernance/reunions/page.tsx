@@ -43,6 +43,7 @@ const COMM_LABELS: Record<string, string> = {
 export default function MesReunionsPage() {
   const [filterStatut, setFilterStatut] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const [signingId, setSigningId] = useState<number | null>(null);
 
   const params = new URLSearchParams();
   if (filterStatut) params.set("statut", filterStatut);
@@ -50,17 +51,23 @@ export default function MesReunionsPage() {
   const { data, loading } = useApi<Data>(`/api/membreCommission/reunions?${params.toString()}`);
 
   async function handleSigner(reunionId: number) {
-    const res = await fetch(`/api/admin/ria/commissions/gouvernance/reunions/${reunionId}/presences/signer`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
-    const json = await res.json();
-    if (json?.id || json?.signatureNumerique) {
-      toast.success("Présence signée numériquement");
-      setRefresh(r => r + 1);
-    } else {
-      toast.error(json?.error || "Erreur lors de la signature");
+    if (signingId !== null) return;
+    setSigningId(reunionId);
+    try {
+      const res = await fetch(`/api/admin/ria/commissions/gouvernance/reunions/${reunionId}/presences/signer`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      if (json?.id || json?.signatureNumerique) {
+        toast.success("Présence signée numériquement");
+        setRefresh(r => r + 1);
+      } else {
+        toast.error(json?.error || "Erreur lors de la signature");
+      }
+    } finally {
+      setSigningId(null);
     }
   }
 
@@ -149,8 +156,9 @@ export default function MesReunionsPage() {
                               </span>
                             ) : peutSigner ? (
                               <button onClick={() => handleSigner(r.id)}
-                                className="text-xs px-2 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700">
-                                Signer
+                                disabled={signingId === r.id}
+                                className="text-xs px-2 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+                                {signingId === r.id ? "Signature..." : "Signer"}
                               </button>
                             ) : null}
                           </>

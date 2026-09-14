@@ -142,17 +142,24 @@ export default function RapportsGouvernancePage() {
   );
 
   const allRapports = data?.rapports || [];
+  const [actionId, setActionId] = useState<number | null>(null);
 
   async function handleAction(id: number, statut: string) {
+    if (actionId !== null) return;
+    setActionId(id);
     const labels: Record<string, string> = { SOUMIS: "Rapport soumis", VALIDE: "Rapport validé", ARCHIVE: "Rapport archivé" };
-    const res = await fetch(`/api/admin/ria/commissions/gouvernance/rapports/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ statut }),
-    });
-    const json = await res.json();
-    if (json?.id) { toast.success(labels[statut] || "Mis à jour"); setRefresh(r => r + 1); }
-    else toast.error(json?.error || "Erreur");
+    try {
+      const res = await fetch(`/api/admin/ria/commissions/gouvernance/rapports/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ statut }),
+      });
+      const json = await res.json();
+      if (json?.id) { toast.success(labels[statut] || "Mis à jour"); setRefresh(r => r + 1); }
+      else toast.error(json?.error || "Erreur");
+    } finally {
+      setActionId(null);
+    }
   }
 
   function done() { setShowCreate(false); setRefresh(r => r + 1); }
@@ -261,20 +268,20 @@ export default function RapportsGouvernancePage() {
 
                 <div className="flex items-center gap-2 shrink-0">
                   {r.statut === "BROUILLON" && (
-                    <button onClick={() => handleAction(r.id, "SOUMIS")}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-amber-700 border border-amber-200 hover:bg-amber-50 rounded-lg">
+                    <button onClick={() => handleAction(r.id, "SOUMIS")} disabled={actionId === r.id}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-amber-700 border border-amber-200 hover:bg-amber-50 rounded-lg disabled:opacity-50">
                       <Send className="w-3.5 h-3.5" /> Soumettre
                     </button>
                   )}
                   {r.statut === "SOUMIS" && (
-                    <button onClick={() => handleAction(r.id, "VALIDE")}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-emerald-700 border border-emerald-200 hover:bg-emerald-50 rounded-lg">
+                    <button onClick={() => handleAction(r.id, "VALIDE")} disabled={actionId === r.id}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-emerald-700 border border-emerald-200 hover:bg-emerald-50 rounded-lg disabled:opacity-50">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Valider
                     </button>
                   )}
                   {r.statut === "VALIDE" && (
-                    <button onClick={() => handleAction(r.id, "ARCHIVE")}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-lg">
+                    <button onClick={() => handleAction(r.id, "ARCHIVE")} disabled={actionId === r.id}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-lg disabled:opacity-50">
                       <Archive className="w-3.5 h-3.5" /> Archiver
                     </button>
                   )}

@@ -210,7 +210,7 @@ function CommandeDetail({ id, onClose, onUpdated }: { id: number; onClose: () =>
               </button>
             )}
             {c && ["SOUMISE", "EN_COURS"].includes(c.statut) && (
-              <button onClick={rejeter} title="Rejeter" className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"><Ban className="w-4 h-4" /></button>
+              <button onClick={rejeter} disabled={saving} title="Rejeter" className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-50"><Ban className="w-4 h-4" /></button>
             )}
             <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
           </div>

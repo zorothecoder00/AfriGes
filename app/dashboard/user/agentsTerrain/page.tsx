@@ -1837,9 +1837,11 @@ export default function AgentTerrainPage() {
     { successMessage: "Tournée démarrée !" }
   );
 
+  const [visitingClientId, setVisitingClientId] = useState<number | null>(null);
   const marquerVisite = async (clientId: number) => {
     const collecteId = collecteJourData?.session?.id;
     if (!collecteId) { toast.error("Démarrez d'abord la tournée du jour"); return; }
+    setVisitingClientId(clientId);
     try {
       const res = await fetch(`/api/agentTerrain/collecteJour/${collecteId}/visiter`, {
         method: "POST",
@@ -1852,6 +1854,8 @@ export default function AgentTerrainPage() {
       refetchCollecteJour();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur réseau");
+    } finally {
+      setVisitingClientId(null);
     }
   };
 
@@ -1914,7 +1918,7 @@ export default function AgentTerrainPage() {
   const { mutate: submitVente, loading: venteSubmitLoading } =
     useMutation<{ id: number }, object>("/api/agentTerrain/ventes", "POST");
 
-  const { mutate: doCancelVente } = useMutation<unknown, object>(
+  const { mutate: doCancelVente, loading: cancelVenteLoading } = useMutation<unknown, object>(
     () => cancelVenteIdRef.current ? `/api/agentTerrain/ventes/${cancelVenteIdRef.current}` : "",
     "PATCH",
     { successMessage: "Demande annulée." }
@@ -2501,9 +2505,10 @@ export default function AgentTerrainPage() {
                               </button>
                               <button
                                 onClick={() => marquerVisite(client.id)}
-                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 text-xs font-medium flex items-center gap-1"
+                                disabled={visitingClientId === client.id}
+                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 text-xs font-medium flex items-center gap-1 disabled:opacity-50"
                               >
-                                <CheckCircle size={12} /> Marquer visité
+                                <CheckCircle size={12} /> {visitingClientId === client.id ? "…" : "Marquer visité"}
                               </button>
                             </div>
                           </div>
@@ -3340,7 +3345,8 @@ export default function AgentTerrainPage() {
                         </div>
                         {v.statut === "BROUILLON" && (
                           <button onClick={() => handleCancelVente(v.id)}
-                            className="flex items-center gap-1.5 px-3 py-2 text-red-600 border border-red-200 rounded-xl hover:bg-red-50 text-xs font-medium shrink-0">
+                            disabled={cancelVenteLoading && cancelVenteIdRef.current === v.id}
+                            className="flex items-center gap-1.5 px-3 py-2 text-red-600 border border-red-200 rounded-xl hover:bg-red-50 text-xs font-medium shrink-0 disabled:opacity-50">
                             <XCircle size={14} /> {t('field_cancel')}
                           </button>
                         )}

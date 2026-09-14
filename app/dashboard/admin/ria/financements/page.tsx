@@ -287,13 +287,16 @@ function FinancementRow({ fin, onRefetch }: { fin: FinancementItem; onRefetch: (
   const inv = fin.portefeuille.profilRIA.gestionnaire.member;
 
   const changeStatut = async (action: string) => {
-    const r = await fetch(`/api/admin/ria/financements/${fin.id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
-    const json = await r.json();
-    if (r.ok) { toast.success("Statut mis à jour"); onRefetch(); }
-    else toast.error(json.error ?? "Erreur");
+    setSubmitting(true);
+    try {
+      const r = await fetch(`/api/admin/ria/financements/${fin.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const json = await r.json();
+      if (r.ok) { toast.success("Statut mis à jour"); onRefetch(); }
+      else toast.error(json.error ?? "Erreur");
+    } finally { setSubmitting(false); }
   };
 
   const addRemboursement = async () => {
@@ -353,19 +356,19 @@ function FinancementRow({ fin, onRefetch }: { fin: FinancementItem; onRefetch: (
                 <div className="flex flex-wrap gap-2">
                   {fin.statut === "ACTIF" && (
                     <>
-                      <button onClick={() => changeStatut("MARQUER_EN_RETARD")}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-medium hover:bg-amber-100">
+                      <button onClick={() => changeStatut("MARQUER_EN_RETARD")} disabled={submitting}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-medium hover:bg-amber-100 disabled:opacity-50">
                         <AlertTriangle className="w-3 h-3" /> En retard
                       </button>
-                      <button onClick={() => changeStatut("ANNULER")}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100">
+                      <button onClick={() => changeStatut("ANNULER")} disabled={submitting}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100 disabled:opacity-50">
                         <XCircle className="w-3 h-3" /> Annuler
                       </button>
                     </>
                   )}
                   {fin.statut === "EN_RETARD" && (
-                    <button onClick={() => changeStatut("MARQUER_DEFAUT")}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100">
+                    <button onClick={() => changeStatut("MARQUER_DEFAUT")} disabled={submitting}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100 disabled:opacity-50">
                       <XCircle className="w-3 h-3" /> Défaut
                     </button>
                   )}

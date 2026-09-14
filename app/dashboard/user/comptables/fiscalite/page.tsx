@@ -41,7 +41,7 @@ export default function FiscaliteTvaPage() {
     "/api/comptable/tva", "POST",
     { successMessage: "Déclaration TVA enregistrée" }
   );
-  const { mutate: validerTva } = useMutation<unknown, object>(
+  const { mutate: validerTva, loading: validantTva } = useMutation<unknown, object>(
     "/api/comptable/tva", "PATCH",
     { successMessage: "Déclaration validée" }
   );
@@ -150,7 +150,8 @@ export default function FiscaliteTvaPage() {
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${d.statut === "VALIDE" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{d.statut === "VALIDE" ? "Validée" : "Brouillon"}</span>
                           {d.statut === "BROUILLON" && (
                             <button onClick={() => validerTva({ id: d.id, statut: "VALIDE" }).then(() => refetchTva())}
-                              className="text-xs px-2 py-0.5 bg-violet-600 text-white rounded-lg hover:bg-violet-700">Valider</button>
+                              disabled={validantTva}
+                              className="text-xs px-2 py-0.5 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50">Valider</button>
                           )}
                         </div>
                       </div>

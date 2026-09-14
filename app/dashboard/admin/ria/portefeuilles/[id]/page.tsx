@@ -550,8 +550,8 @@ export default function PortefeuilleDetailPage({ params }: { params: Promise<{ i
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button onClick={toggleActif}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+          <button onClick={toggleActif} disabled={saving}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors disabled:opacity-50 ${
               pf.actif
                 ? "border-red-200 text-red-600 hover:bg-red-50"
                 : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"

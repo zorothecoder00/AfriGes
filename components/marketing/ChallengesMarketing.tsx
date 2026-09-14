@@ -97,6 +97,7 @@ export default function ChallengesMarketing() {
   const [ouvert, setOuvert] = useState<number | null>(null);
   const [classement, setClassement] = useState<Participant[]>([]);
   const [loadingClassement, setLoadingClassement] = useState(false);
+  const [terminatingId, setTerminatingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -112,12 +113,16 @@ export default function ChallengesMarketing() {
   useEffect(() => { load(); }, [load]);
 
   const terminer = async (c: Challenge) => {
-    const r = await fetch(`/api/admin/marketing/challenges/${c.id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statut: "TERMINE" }),
-    });
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
-    toast.success("Challenge terminé"); load();
+    if (terminatingId !== null) return;
+    setTerminatingId(c.id);
+    try {
+      const r = await fetch(`/api/admin/marketing/challenges/${c.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statut: "TERMINE" }),
+      });
+      const j = await r.json();
+      if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
+      toast.success("Challenge terminé"); load();
+    } finally { setTerminatingId(null); }
   };
 
   const ouvrirClassement = async (c: Challenge) => {
@@ -163,8 +168,8 @@ export default function ChallengesMarketing() {
                   {c.statut === "ACTIF" ? "Actif" : "Terminé"}
                 </span>
                 {c.statut === "ACTIF" && (
-                  <button onClick={(e) => { e.stopPropagation(); terminer(c); }} title="Terminer" className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100">
-                    <Flag className="w-4 h-4" />
+                  <button onClick={(e) => { e.stopPropagation(); terminer(c); }} disabled={terminatingId === c.id} title="Terminer" className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 disabled:opacity-50">
+                    {terminatingId === c.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Flag className="w-4 h-4" />}
                   </button>
                 )}
                 {ouvert === c.id ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}

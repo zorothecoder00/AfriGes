@@ -182,28 +182,50 @@ export default function SaisieEcrituresPage() {
     }
   }
 
+  const [actioningEcritureId, setActioningEcritureId] = useState<number | null>(null);
+
   async function handleValider(id: number) {
     ecritureActionIdRef.current = id;
-    const res = await validerEcriture({ statut: "VALIDE" });
-    if (res) refetchEcritures();
+    setActioningEcritureId(id);
+    try {
+      const res = await validerEcriture({ statut: "VALIDE" });
+      if (res) refetchEcritures();
+    } finally {
+      setActioningEcritureId(null);
+    }
   }
   // CDC §44 — étape intermédiaire "contrôle" (Agent → Comptable → Chef
   // comptable) : passe BROUILLON → A_CONTROLER, par un utilisateur distinct du
   // créateur ; la validation finale devra ensuite venir d'un 3e utilisateur.
   async function handleControler(id: number) {
     ecritureActionIdRef.current = id;
-    const res = await validerEcriture({ statut: "A_CONTROLER" });
-    if (res) refetchEcritures();
+    setActioningEcritureId(id);
+    try {
+      const res = await validerEcriture({ statut: "A_CONTROLER" });
+      if (res) refetchEcritures();
+    } finally {
+      setActioningEcritureId(null);
+    }
   }
   async function handleSupprimerEcriture(id: number) {
     ecritureActionIdRef.current = id;
-    const res = await supprimerEcriture({});
-    if (res) refetchEcritures();
+    setActioningEcritureId(id);
+    try {
+      const res = await supprimerEcriture({});
+      if (res) refetchEcritures();
+    } finally {
+      setActioningEcritureId(null);
+    }
   }
   async function handleContrepasserEcriture(id: number) {
     ecritureActionIdRef.current = id;
-    const res = await contrepasserEcritureApi({});
-    if (res) refetchEcritures();
+    setActioningEcritureId(id);
+    try {
+      const res = await contrepasserEcritureApi({});
+      if (res) refetchEcritures();
+    } finally {
+      setActioningEcritureId(null);
+    }
   }
 
   // ── Synchronisation automatique des journaux ─────────────────────────
@@ -416,23 +438,23 @@ export default function SaisieEcrituresPage() {
                     </button>
                     {e.statut === "BROUILLON" && (
                       <>
-                        <button onClick={() => handleControler(e.id)}
+                        <button onClick={() => handleControler(e.id)} disabled={actioningEcritureId === e.id}
                           title="Étape intermédiaire de contrôle (CDC §44), par un utilisateur distinct du créateur"
-                          className="flex items-center gap-1 px-2.5 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-50">
+                          className="flex items-center gap-1 px-2.5 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-50 disabled:opacity-40">
                           <Eye size={13} /> Contrôler
                         </button>
-                        <button onClick={() => handleValider(e.id)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">
+                        <button onClick={() => handleValider(e.id)} disabled={actioningEcritureId === e.id}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40">
                           <BadgeCheck size={13} /> Valider
                         </button>
-                        <button onClick={() => handleSupprimerEcriture(e.id)}
-                          className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
+                        <button onClick={() => handleSupprimerEcriture(e.id)} disabled={actioningEcritureId === e.id}
+                          className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg disabled:opacity-40"><Trash2 size={14} /></button>
                       </>
                     )}
                     {e.statut === "A_CONTROLER" && (
-                      <button onClick={() => handleValider(e.id)}
+                      <button onClick={() => handleValider(e.id)} disabled={actioningEcritureId === e.id}
                         title="Validation finale (CDC §44), par un 3e utilisateur distinct du créateur et du contrôleur"
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40">
                         <BadgeCheck size={13} /> Valider
                       </button>
                     )}
@@ -440,8 +462,8 @@ export default function SaisieEcrituresPage() {
                       // CDC §13 — une écriture validée ne se modifie/annule jamais
                       // directement : seule la contrepassation (écriture inverse
                       // automatique, originale intacte) est autorisée.
-                      <button onClick={() => handleContrepasserEcriture(e.id)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 border border-violet-200 text-violet-600 rounded-lg text-xs font-semibold hover:bg-violet-50"
+                      <button onClick={() => handleContrepasserEcriture(e.id)} disabled={actioningEcritureId === e.id}
+                        className="flex items-center gap-1 px-2.5 py-1.5 border border-violet-200 text-violet-600 rounded-lg text-xs font-semibold hover:bg-violet-50 disabled:opacity-40"
                         title="Génère l'écriture inverse — l'originale reste intacte">
                         <RefreshCw size={13} /> Contrepasser
                       </button>

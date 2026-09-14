@@ -167,6 +167,7 @@ export default function OperationsTerrainMarketing() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [ouvert, setOuvert] = useState<number | null>(null);
+  const [changingId, setChangingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -186,12 +187,16 @@ export default function OperationsTerrainMarketing() {
   }, []);
 
   const changerStatut = async (o: Operation, statut: string) => {
-    const r = await fetch(`/api/admin/marketing/operations-terrain/${o.id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statut }),
-    });
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
-    toast.success("Statut mis à jour"); load();
+    if (changingId !== null) return;
+    setChangingId(o.id);
+    try {
+      const r = await fetch(`/api/admin/marketing/operations-terrain/${o.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statut }),
+      });
+      const j = await r.json();
+      if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
+      toast.success("Statut mis à jour"); load();
+    } finally { setChangingId(null); }
   };
 
   return (
@@ -227,7 +232,7 @@ export default function OperationsTerrainMarketing() {
               <div className="px-4 pb-4 bg-slate-50/50 space-y-3">
                 <div className="flex gap-2 flex-wrap">
                   {["PLANIFIEE", "EN_COURS", "TERMINEE", "ANNULEE"].filter((s) => s !== o.statut).map((s) => (
-                    <button key={s} onClick={() => changerStatut(o, s)} className="px-3 py-1 text-xs font-semibold bg-white border border-slate-200 rounded-lg hover:bg-slate-100">
+                    <button key={s} onClick={() => changerStatut(o, s)} disabled={changingId === o.id} className="px-3 py-1 text-xs font-semibold bg-white border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-50">
                       → {STATUT_LABEL[s]}
                     </button>
                   ))}

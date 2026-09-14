@@ -42,6 +42,7 @@ export default function MesPlansActionsPage() {
   const [filterStatut, setFilterStatut] = useState("");
   const [showRetard, setShowRetard] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
 
   const params = new URLSearchParams();
   if (filterStatut) params.set("statut", filterStatut);
@@ -53,18 +54,24 @@ export default function MesPlansActionsPage() {
   const nbRetard = allPlans.filter(p => p.enRetard).length;
 
   async function updateProgression(id: number) {
+    if (updatingId !== null) return;
     const val = window.prompt("Progression (0-100) :");
     if (val === null) return;
     const num = Math.min(100, Math.max(0, parseInt(val)));
     if (isNaN(num)) { toast.error("Valeur invalide"); return; }
-    const res = await fetch(`/api/admin/ria/commissions/gouvernance/plans-actions/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ progression: num }),
-    });
-    const json = await res.json();
-    if (json?.id) { toast.success("Progression mise à jour"); setRefresh(r => r + 1); }
-    else toast.error(json?.error || "Erreur");
+    setUpdatingId(id);
+    try {
+      const res = await fetch(`/api/admin/ria/commissions/gouvernance/plans-actions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ progression: num }),
+      });
+      const json = await res.json();
+      if (json?.id) { toast.success("Progression mise à jour"); setRefresh(r => r + 1); }
+      else toast.error(json?.error || "Erreur");
+    } finally {
+      setUpdatingId(null);
+    }
   }
 
   return (
@@ -158,8 +165,9 @@ export default function MesPlansActionsPage() {
                   )}
                   {!["TERMINE", "ABANDONNE"].includes(p.statut) && (
                     <button onClick={() => updateProgression(p.id)}
-                      className="text-xs px-2 py-1 text-teal-600 border border-teal-200 rounded hover:bg-teal-50">
-                      Mettre à jour
+                      disabled={updatingId === p.id}
+                      className="text-xs px-2 py-1 text-teal-600 border border-teal-200 rounded hover:bg-teal-50 disabled:opacity-50">
+                      {updatingId === p.id ? "Mise à jour..." : "Mettre à jour"}
                     </button>
                   )}
                 </div>

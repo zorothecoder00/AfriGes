@@ -43,7 +43,7 @@ export default function FiscaliteTaxesPage() {
     "/api/comptable/taxes", "POST", { successMessage: "Taxe créée" }
   );
   const taxeActionIdRef = useRef<number | null>(null);
-  const { mutate: toggleTaxeApi } = useMutation<unknown, object>(
+  const { mutate: toggleTaxeApi, loading: togglingTaxe } = useMutation<unknown, object>(
     () => `/api/comptable/taxes/${taxeActionIdRef.current}`, "PATCH",
   );
   async function handleCreerTaxe() {
@@ -142,7 +142,7 @@ export default function FiscaliteTaxesPage() {
                   </span>
                 )}
               </div>
-              <button onClick={() => handleToggleTaxe(tx)} className={tx.actif ? "text-amber-500" : "text-emerald-500"}>
+              <button onClick={() => handleToggleTaxe(tx)} disabled={togglingTaxe} className={`${tx.actif ? "text-amber-500" : "text-emerald-500"} disabled:opacity-40`}>
                 {tx.actif ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
               </button>
             </div>

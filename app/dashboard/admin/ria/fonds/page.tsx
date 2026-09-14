@@ -403,6 +403,7 @@ function DepotsTab() {
   const [statut, setStatut] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<DepotItem | null>(null);
+  const [processingId, setProcessingId] = useState<number | null>(null);
 
   const { data: res, loading, refetch } = useApi<{ data: DepotItem[]; meta: { total: number } }>(
     `/api/admin/ria/fonds/depots?limit=50${statut ? `&statut=${statut}` : ""}`
@@ -410,14 +411,17 @@ function DepotsTab() {
   const depots = res?.data ?? [];
 
   const action = async (id: number, act: string) => {
-    const res = await fetch(`/api/admin/ria/fonds/depots/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: act }),
-    });
-    const json = await res.json();
-    if (res.ok) { toast.success(act === "VALIDER" ? "Dépôt validé — capital mis à jour" : "Dépôt rejeté"); refetch(); }
-    else toast.error(json.error ?? "Erreur");
+    setProcessingId(id);
+    try {
+      const res = await fetch(`/api/admin/ria/fonds/depots/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: act }),
+      });
+      const json = await res.json();
+      if (res.ok) { toast.success(act === "VALIDER" ? "Dépôt validé — capital mis à jour" : "Dépôt rejeté"); refetch(); }
+      else toast.error(json.error ?? "Erreur");
+    } finally { setProcessingId(null); }
   };
 
   return (
@@ -474,16 +478,16 @@ function DepotsTab() {
                   <td className="px-4 py-3">
                     {d.statut === "EN_ATTENTE" && (
                       <div className="flex items-center gap-1">
-                        <button onClick={() => setEditing(d)}
-                          className="p-1 text-slate-500 hover:bg-slate-100 rounded" title="Modifier">
+                        <button onClick={() => setEditing(d)} disabled={processingId === d.id}
+                          className="p-1 text-slate-500 hover:bg-slate-100 rounded disabled:opacity-50" title="Modifier">
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button onClick={() => action(d.id, "VALIDER")}
-                          className="p-1 text-emerald-600 hover:bg-emerald-50 rounded" title="Valider">
+                        <button onClick={() => action(d.id, "VALIDER")} disabled={processingId === d.id}
+                          className="p-1 text-emerald-600 hover:bg-emerald-50 rounded disabled:opacity-50" title="Valider">
                           <CheckCircle className="w-4 h-4" />
                         </button>
-                        <button onClick={() => action(d.id, "REJETER")}
-                          className="p-1 text-red-500 hover:bg-red-50 rounded" title="Rejeter">
+                        <button onClick={() => action(d.id, "REJETER")} disabled={processingId === d.id}
+                          className="p-1 text-red-500 hover:bg-red-50 rounded disabled:opacity-50" title="Rejeter">
                           <XCircle className="w-4 h-4" />
                         </button>
                       </div>
@@ -508,6 +512,7 @@ function RetraitsTab() {
   const [statut, setStatut] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<RetraitItem | null>(null);
+  const [processingId, setProcessingId] = useState<number | null>(null);
 
   const { data: res, loading, refetch } = useApi<{ data: RetraitItem[]; meta: { total: number } }>(
     `/api/admin/ria/fonds/retraits?limit=50${statut ? `&statut=${statut}` : ""}`
@@ -515,14 +520,17 @@ function RetraitsTab() {
   const retraits = res?.data ?? [];
 
   const action = async (id: number, act: string) => {
-    const r = await fetch(`/api/admin/ria/fonds/retraits/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: act }),
-    });
-    const json = await r.json();
-    if (r.ok) { toast.success(act === "PAYER" ? "Retrait payé — capital débité" : act === "VALIDER" ? "Retrait validé" : "Retrait rejeté"); refetch(); }
-    else toast.error(json.error ?? "Erreur");
+    setProcessingId(id);
+    try {
+      const r = await fetch(`/api/admin/ria/fonds/retraits/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: act }),
+      });
+      const json = await r.json();
+      if (r.ok) { toast.success(act === "PAYER" ? "Retrait payé — capital débité" : act === "VALIDER" ? "Retrait validé" : "Retrait rejeté"); refetch(); }
+      else toast.error(json.error ?? "Erreur");
+    } finally { setProcessingId(null); }
   };
 
   return (
@@ -580,14 +588,14 @@ function RetraitsTab() {
                     <div className="flex items-center gap-1">
                       {r.statut === "EN_ATTENTE" && (
                         <>
-                          <button onClick={() => setEditing(r)} className="p-1 text-slate-500 hover:bg-slate-100 rounded" title="Modifier"><Pencil className="w-4 h-4" /></button>
-                          <button onClick={() => action(r.id, "VALIDER")} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded" title="Valider"><CheckCircle className="w-4 h-4" /></button>
-                          <button onClick={() => action(r.id, "REJETER")} className="p-1 text-red-500 hover:bg-red-50 rounded" title="Rejeter"><XCircle className="w-4 h-4" /></button>
+                          <button onClick={() => setEditing(r)} disabled={processingId === r.id} className="p-1 text-slate-500 hover:bg-slate-100 rounded disabled:opacity-50" title="Modifier"><Pencil className="w-4 h-4" /></button>
+                          <button onClick={() => action(r.id, "VALIDER")} disabled={processingId === r.id} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded disabled:opacity-50" title="Valider"><CheckCircle className="w-4 h-4" /></button>
+                          <button onClick={() => action(r.id, "REJETER")} disabled={processingId === r.id} className="p-1 text-red-500 hover:bg-red-50 rounded disabled:opacity-50" title="Rejeter"><XCircle className="w-4 h-4" /></button>
                         </>
                       )}
                       {r.statut === "VALIDE" && (
-                        <button onClick={() => action(r.id, "PAYER")} className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
-                          <DollarSign className="w-3 h-3" /> Payer
+                        <button onClick={() => action(r.id, "PAYER")} disabled={processingId === r.id} className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                          <DollarSign className="w-3 h-3" /> {processingId === r.id ? "…" : "Payer"}
                         </button>
                       )}
                       {(r.statut === "VALIDE" || r.statut === "PAYE") && (

@@ -120,6 +120,7 @@ export default function CouponsMarketing() {
   const [ouvert, setOuvert] = useState<number | null>(null);
   const [utilisations, setUtilisations] = useState<Utilisation[]>([]);
   const [loadingHist, setLoadingHist] = useState(false);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -135,12 +136,16 @@ export default function CouponsMarketing() {
   useEffect(() => { load(); }, [load]);
 
   const toggleActif = async (c: CouponRow) => {
-    const r = await fetch(`/api/admin/marketing/coupons/${c.id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !c.actif }),
-    });
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
-    toast.success(c.actif ? "Coupon désactivé" : "Coupon activé"); load();
+    if (togglingId !== null) return;
+    setTogglingId(c.id);
+    try {
+      const r = await fetch(`/api/admin/marketing/coupons/${c.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !c.actif }),
+      });
+      const j = await r.json();
+      if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
+      toast.success(c.actif ? "Coupon désactivé" : "Coupon activé"); load();
+    } finally { setTogglingId(null); }
   };
 
   const ouvrirHistorique = async (c: CouponRow) => {
@@ -187,8 +192,8 @@ export default function CouponsMarketing() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${STATUT_STYLE[st]}`}>{STATUT_LABEL[st]}</span>
-                  <button onClick={(e) => { e.stopPropagation(); toggleActif(c); }} title={c.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50">
-                    {c.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+                  <button onClick={(e) => { e.stopPropagation(); toggleActif(c); }} disabled={togglingId === c.id} title={c.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 disabled:opacity-50">
+                    {togglingId === c.id ? <Loader2 className="w-4 h-4 animate-spin" /> : c.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
                   </button>
                   {ouvert === c.id ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                 </div>

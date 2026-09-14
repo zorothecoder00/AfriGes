@@ -22,6 +22,7 @@ export default function ZonesChalandiseMarketing() {
   const [type, setType] = useState("VILLE");
   const [nom, setNom] = useState("");
   const [saving, setSaving] = useState(false);
+  const [removingId, setRemovingId] = useState<number | null>(null);
 
   useEffect(() => { fetch("/api/admin/pdv?actif=true&limit=200").then((r) => r.json()).then((j) => setPdvs(j.data ?? [])).catch(() => {}); }, []);
 
@@ -55,9 +56,13 @@ export default function ZonesChalandiseMarketing() {
   };
 
   const retirer = async (z: Zone) => {
-    const r = await fetch(`/api/admin/marketing/zones-chalandise/${z.id}`, { method: "DELETE" });
-    if (!r.ok) { toast.error("Erreur"); return; }
-    toast.success("Zone retirée"); load();
+    if (removingId !== null) return;
+    setRemovingId(z.id);
+    try {
+      const r = await fetch(`/api/admin/marketing/zones-chalandise/${z.id}`, { method: "DELETE" });
+      if (!r.ok) { toast.error("Erreur"); return; }
+      toast.success("Zone retirée"); load();
+    } finally { setRemovingId(null); }
   };
 
   const field = "px-3 py-2 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-fuchsia-500";
@@ -95,7 +100,9 @@ export default function ZonesChalandiseMarketing() {
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-fuchsia-100 text-fuchsia-700 font-medium mr-2">{TYPE_LABEL[z.type]}</span>
                   <span className="text-sm text-slate-700">{z.nom}</span>
                 </div>
-                <button onClick={() => retirer(z)} className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50"><Trash2 className="w-4 h-4" /></button>
+                <button onClick={() => retirer(z)} disabled={removingId === z.id} className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 disabled:opacity-50">
+                  {removingId === z.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                </button>
               </div>
             ))}
           </div>

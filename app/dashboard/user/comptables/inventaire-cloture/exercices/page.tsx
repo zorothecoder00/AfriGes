@@ -41,7 +41,7 @@ export default function ExercicesPage() {
   const { mutate: cloturerExerciceApi, loading: cloturantExercice } = useMutation<{ error?: string; controles?: string[] }, object>(
     () => `/api/comptable/exercices/${exerciceActionIdRef.current}/cloturer`, "POST",
   );
-  const { mutate: archiverExerciceApi } = useMutation<unknown, object>(
+  const { mutate: archiverExerciceApi, loading: archivantExercice } = useMutation<unknown, object>(
     () => `/api/comptable/exercices/${exerciceActionIdRef.current}/archiver`, "POST",
     { successMessage: "Exercice archivé" }
   );
@@ -133,8 +133,8 @@ export default function ExercicesPage() {
                 </div>
               )}
               {ex.statut === "CLOTURE" && (
-                <button onClick={() => handleArchiverExercice(ex.id)}
-                  className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-50">
+                <button onClick={() => handleArchiverExercice(ex.id)} disabled={archivantExercice}
+                  className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-50 disabled:opacity-40">
                   Archiver
                 </button>
               )}

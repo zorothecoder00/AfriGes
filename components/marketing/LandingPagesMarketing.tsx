@@ -102,6 +102,7 @@ export default function LandingPagesMarketing() {
   const [formulaires, setFormulaires] = useState<Formulaire[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -121,12 +122,16 @@ export default function LandingPagesMarketing() {
   }, []);
 
   const toggleActif = async (p: LandingPage) => {
+    if (togglingId !== null) return;
+    setTogglingId(p.id);
+    try {
     const r = await fetch(`/api/admin/marketing/landing-pages/${p.id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !p.actif }),
     });
     const j = await r.json();
     if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
     toast.success(p.actif ? "Page désactivée" : "Page activée"); load();
+    } finally { setTogglingId(null); }
   };
 
   const copierLien = (slug: string) => {
@@ -160,8 +165,8 @@ export default function LandingPagesMarketing() {
             <div className="flex items-center gap-1.5">
               <button onClick={() => copierLien(p.slug)} title="Copier le lien" className="p-1.5 text-slate-400 hover:text-fuchsia-600 rounded-lg hover:bg-fuchsia-50"><Copy className="w-4 h-4" /></button>
               <a href={`/lp/${p.slug}`} target="_blank" rel="noreferrer" title="Ouvrir" className="p-1.5 text-slate-400 hover:text-fuchsia-600 rounded-lg hover:bg-fuchsia-50"><ExternalLink className="w-4 h-4" /></a>
-              <button onClick={() => toggleActif(p)} title={p.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50">
-                {p.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+              <button onClick={() => toggleActif(p)} disabled={togglingId === p.id} title={p.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 disabled:opacity-50">
+                {togglingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : p.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
               </button>
             </div>
           </div>

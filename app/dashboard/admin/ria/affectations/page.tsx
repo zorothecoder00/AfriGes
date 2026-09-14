@@ -544,6 +544,7 @@ export default function AffectationsPage() {
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [editingAffectation, setEditingAffectation] = useState<AffectationItem | null>(null);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const { data: res, loading, refetch } = useApi<{ data: AffectationItem[]; meta: { total: number } }>(
     `/api/admin/ria/affectations?limit=50&actif=${actif}`
@@ -559,13 +560,16 @@ export default function AffectationsPage() {
   });
 
   const toggleActif = async (id: number, current: boolean) => {
-    const r = await fetch(`/api/admin/ria/affectations/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actif: !current }),
-    });
-    if (r.ok) { toast.success(current ? "Affectation désactivée" : "Affectation réactivée"); refetch(); }
-    else { const j = await r.json(); toast.error(j.error ?? "Erreur"); }
+    setTogglingId(id);
+    try {
+      const r = await fetch(`/api/admin/ria/affectations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actif: !current }),
+      });
+      if (r.ok) { toast.success(current ? "Affectation désactivée" : "Affectation réactivée"); refetch(); }
+      else { const j = await r.json(); toast.error(j.error ?? "Erreur"); }
+    } finally { setTogglingId(null); }
   };
 
   return (
@@ -671,7 +675,8 @@ export default function AffectationsPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-400 text-xs">{fmtDate(a.dateDebut)}</td>
                   <td className="px-4 py-3">
-                    <button onClick={() => toggleActif(a.id, a.actif)} className="text-slate-400 hover:text-emerald-600">
+                    <button onClick={() => toggleActif(a.id, a.actif)} disabled={togglingId === a.id}
+                      className="text-slate-400 hover:text-emerald-600 disabled:opacity-50">
                       {a.actif ? <ToggleRight className="w-5 h-5 text-emerald-600" /> : <ToggleLeft className="w-5 h-5" />}
                     </button>
                   </td>

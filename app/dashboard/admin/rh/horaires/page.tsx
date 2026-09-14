@@ -130,9 +130,20 @@ function ConfigCard({ cfg, onEdit, onDelete, onToggleDefault }: {
   cfg:             ConfigHoraire;
   onEdit:          () => void;
   onDelete:        () => void;
-  onToggleDefault: () => void;
+  onToggleDefault: () => Promise<void>;
 }) {
   const joursOuvres = (cfg.joursOuvres as number[] | null) ?? [1,2,3,4,5];
+  const [settingDefault, setSettingDefault] = useState(false);
+
+  const handleToggleDefault = async () => {
+    if (settingDefault) return;
+    setSettingDefault(true);
+    try {
+      await onToggleDefault();
+    } finally {
+      setSettingDefault(false);
+    }
+  };
 
   return (
     <div className={`bg-white dark:bg-slate-800 rounded-2xl border shadow-sm overflow-hidden ${cfg.estDefaut ? "border-emerald-300 dark:border-emerald-700 ring-1 ring-emerald-200 dark:ring-emerald-800" : "border-slate-200 dark:border-slate-700"}`}>
@@ -188,8 +199,8 @@ function ConfigCard({ cfg, onEdit, onDelete, onToggleDefault }: {
 
         <div className="flex items-center gap-1 flex-shrink-0">
           {!cfg.estDefaut && (
-            <button onClick={onToggleDefault} title="Définir par défaut"
-              className="p-1.5 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg text-slate-400 dark:text-slate-500 hover:text-amber-500 transition-colors">
+            <button onClick={handleToggleDefault} disabled={settingDefault} title="Définir par défaut"
+              className="p-1.5 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg text-slate-400 dark:text-slate-500 hover:text-amber-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               <StarOff className="w-4 h-4" />
             </button>
           )}

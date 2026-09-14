@@ -281,6 +281,13 @@ export default function ArchivageClasseurs({ apiBase, backHref }: { apiBase: str
 function DetailJourModal({ apiBase, date, onClose }: { apiBase: string; date: string; onClose: () => void }) {
   const { data, loading } = useApi<{ data: DetailJour }>(`${apiBase}?date=${date}`);
   const d = data?.data;
+  const [exportingXlsx, setExportingXlsx] = useState(false);
+
+  async function handleExportXlsx() {
+    if (!d || exportingXlsx) return;
+    setExportingXlsx(true);
+    try { await exporterXlsxJour(d); } finally { setExportingXlsx(false); }
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -290,7 +297,9 @@ function DetailJourModal({ apiBase, date, onClose }: { apiBase: string; date: st
           <div className="flex items-center gap-1">
             {d && (
               <>
-                <button onClick={() => exporterXlsxJour(d)} title="Export Excel" className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100"><FileSpreadsheet className="w-3.5 h-3.5" /> Excel</button>
+                <button onClick={handleExportXlsx} disabled={exportingXlsx} title="Export Excel" className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 disabled:opacity-50">
+                  {exportingXlsx ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />} Excel
+                </button>
                 <button onClick={() => exporterPDFJour(d)} title="Export PDF" className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-rose-700 bg-rose-50 rounded-lg hover:bg-rose-100"><Printer className="w-3.5 h-3.5" /> PDF</button>
               </>
             )}

@@ -247,6 +247,9 @@ function FournisseurDetail({ id, onClose, onUpdated }: { id: number; onClose: ()
   const [saving, setSaving] = useState(false);
   const [showContratForm, setShowContratForm] = useState(false);
   const [showLitigeForm, setShowLitigeForm] = useState(false);
+  const [togglingActif, setTogglingActif] = useState(false);
+  const [busyLitigeId, setBusyLitigeId] = useState<number | null>(null);
+  const [busyContratId, setBusyContratId] = useState<number | null>(null);
 
   const f = data?.data;
   const evalu = data?.evaluation;
@@ -275,26 +278,35 @@ function FournisseurDetail({ id, onClose, onUpdated }: { id: number; onClose: ()
   };
 
   const resoudreLitige = async (litigeId: number, action: "RESOUDRE" | "REJETER") => {
-    const r = await fetch(`/api/logistique/fournisseurs/${id}/litiges/${litigeId}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
-    });
-    if (r.ok) { toast.success(action === "RESOUDRE" ? "Litige résolu" : "Litige rejeté"); refetch(); }
-    else toast.error("Erreur");
+    setBusyLitigeId(litigeId);
+    try {
+      const r = await fetch(`/api/logistique/fournisseurs/${id}/litiges/${litigeId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
+      });
+      if (r.ok) { toast.success(action === "RESOUDRE" ? "Litige résolu" : "Litige rejeté"); refetch(); }
+      else toast.error("Erreur");
+    } finally { setBusyLitigeId(null); }
   };
 
   const toggleActif = async () => {
-    if (!f) return;
-    const r = await fetch(`/api/logistique/fournisseurs/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actif: !f.actif }),
-    });
-    if (r.ok) { toast.success(f.actif ? "Fournisseur désactivé" : "Fournisseur réactivé"); refetch(); onUpdated(); }
+    if (!f || togglingActif) return;
+    setTogglingActif(true);
+    try {
+      const r = await fetch(`/api/logistique/fournisseurs/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actif: !f.actif }),
+      });
+      if (r.ok) { toast.success(f.actif ? "Fournisseur désactivé" : "Fournisseur réactivé"); refetch(); onUpdated(); }
+    } finally { setTogglingActif(false); }
   };
 
   const removeContrat = async (contratId: number) => {
     if (!confirm("Supprimer ce contrat ?")) return;
-    const r = await fetch(`/api/logistique/fournisseurs/${id}/contrats/${contratId}`, { method: "DELETE" });
-    if (r.ok) { toast.success("Contrat supprimé"); refetch(); }
+    setBusyContratId(contratId);
+    try {
+      const r = await fetch(`/api/logistique/fournisseurs/${id}/contrats/${contratId}`, { method: "DELETE" });
+      if (r.ok) { toast.success("Contrat supprimé"); refetch(); }
+    } finally { setBusyContratId(null); }
   };
 
   return (
@@ -309,8 +321,8 @@ function FournisseurDetail({ id, onClose, onUpdated }: { id: number; onClose: ()
             {!editMode && f && (
               <>
                 <button onClick={startEdit} title="Modifier" className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg"><Pencil className="w-4 h-4" /></button>
-                <button onClick={toggleActif} title={f.actif ? "Désactiver" : "Réactiver"}
-                  className={`p-1.5 rounded-lg ${f.actif ? "text-red-500 hover:bg-red-50" : "text-emerald-600 hover:bg-emerald-50"}`}>
+                <button onClick={toggleActif} disabled={togglingActif} title={f.actif ? "Désactiver" : "Réactiver"}
+                  className={`p-1.5 rounded-lg disabled:opacity-50 ${f.actif ? "text-red-500 hover:bg-red-50" : "text-emerald-600 hover:bg-emerald-50"}`}>
                   {f.actif ? <Ban className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                 </button>
               </>
@@ -414,7 +426,7 @@ function FournisseurDetail({ id, onClose, onUpdated }: { id: number; onClose: ()
                             {c.fichierUrl && <> · <a href={c.fichierUrl} target="_blank" rel="noreferrer" className="text-emerald-600 hover:underline">Fichier</a></>}
                           </p>
                         </div>
-                        <button onClick={() => removeContrat(c.id)} className="text-slate-300 hover:text-red-400 flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => removeContrat(c.id)} disabled={busyContratId === c.id} className="text-slate-300 hover:text-red-400 flex-shrink-0 disabled:opacity-40"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     ))}
                   </div>
@@ -449,8 +461,8 @@ function FournisseurDetail({ id, onClose, onUpdated }: { id: number; onClose: ()
                           </div>
                           {l.statut === "OUVERT" && (
                             <div className="flex items-center gap-2 flex-shrink-0">
-                              <button onClick={() => resoudreLitige(l.id, "RESOUDRE")} className="text-xs text-emerald-600 hover:underline font-medium">Résoudre</button>
-                              <button onClick={() => resoudreLitige(l.id, "REJETER")} className="text-xs text-slate-400 hover:underline font-medium">Rejeter</button>
+                              <button onClick={() => resoudreLitige(l.id, "RESOUDRE")} disabled={busyLitigeId === l.id} className="text-xs text-emerald-600 hover:underline font-medium disabled:opacity-40">Résoudre</button>
+                              <button onClick={() => resoudreLitige(l.id, "REJETER")} disabled={busyLitigeId === l.id} className="text-xs text-slate-400 hover:underline font-medium disabled:opacity-40">Rejeter</button>
                             </div>
                           )}
                         </div>

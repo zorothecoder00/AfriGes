@@ -36,6 +36,7 @@ export default function TarificationTab({ produitId }: { produitId: number }) {
   const [ville, setVille] = useState("");
   const [region, setRegion] = useState("");
   const [adding, setAdding] = useState(false);
+  const [rowBusyId, setRowBusyId] = useState<number | null>(null);
 
   // Moteur de prix auto
   const [autoParam, setAutoParam] = useState<{ actif: boolean; margeCiblePct: number; fraisLogistiquePct: number; arrondi: number; appliquerSurCredit: boolean; margeCreditPct: number; validationPrixObligatoire?: boolean } | null>(null);
@@ -113,18 +114,26 @@ export default function TarificationTab({ produitId }: { produitId: number }) {
   };
 
   const supprimer = async (id: number) => {
-    const r = await fetch(`/api/admin/catalogue/produits/${produitId}/prix/${id}`, { method: "DELETE" });
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.message ?? "Erreur"); return; }
-    toast.success("Supprimé"); load();
+    if (rowBusyId != null) return;
+    setRowBusyId(id);
+    try {
+      const r = await fetch(`/api/admin/catalogue/produits/${produitId}/prix/${id}`, { method: "DELETE" });
+      const j = await r.json();
+      if (!r.ok) { toast.error(j.message ?? "Erreur"); return; }
+      toast.success("Supprimé"); load();
+    } finally { setRowBusyId(null); }
   };
 
   const toggleActif = async (row: PrixRow) => {
-    const r = await fetch(`/api/admin/catalogue/produits/${produitId}/prix/${row.id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !row.actif }),
-    });
-    if (!r.ok) { const j = await r.json(); toast.error(j.message ?? "Erreur"); return; }
-    load();
+    if (rowBusyId != null) return;
+    setRowBusyId(row.id);
+    try {
+      const r = await fetch(`/api/admin/catalogue/produits/${produitId}/prix/${row.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !row.actif }),
+      });
+      if (!r.ok) { const j = await r.json(); toast.error(j.message ?? "Erreur"); return; }
+      load();
+    } finally { setRowBusyId(null); }
   };
 
   const apercuAuto = async () => {
@@ -273,12 +282,14 @@ export default function TarificationTab({ produitId }: { produitId: number }) {
                     <td className="py-2 text-xs text-gray-500"><span className="inline-flex items-center gap-1"><Icon className="w-3 h-3" /> {PORTEE_LABEL[r.portee]}{cible ? ` · ${cible}` : ""}</span></td>
                     <td className="py-2 text-right font-semibold text-gray-900">{formatCurrency(r.montant)}</td>
                     <td className="py-2 text-center">
-                      <button onClick={() => toggleActif(r)} className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${r.actif ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}>
+                      <button onClick={() => toggleActif(r)} disabled={rowBusyId != null} className={`text-[10px] px-2 py-0.5 rounded-full border font-medium disabled:opacity-50 ${r.actif ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}>
                         {r.actif ? "Actif" : "Inactif"}
                       </button>
                     </td>
                     <td className="py-2 text-right">
-                      <button onClick={() => supprimer(r.id)} className="text-gray-400 hover:text-rose-500" title="Supprimer"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => supprimer(r.id)} disabled={rowBusyId != null} className="text-gray-400 hover:text-rose-500 disabled:opacity-50" title="Supprimer">
+                        {rowBusyId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                      </button>
                     </td>
                   </tr>
                 );

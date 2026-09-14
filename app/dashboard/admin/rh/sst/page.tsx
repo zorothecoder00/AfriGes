@@ -907,13 +907,18 @@ function CreateIncidentModal({ onClose, onCreated }: { onClose: () => void; onCr
 function EvacuationTab() {
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<PlanEvac | null>(null);
+  const [removingId, setRemovingId] = useState<number | null>(null);
   const { data, loading, refetch } = useApi<{ data: PlanEvac[] }>("/api/admin/rh/documents-strategiques?type=PLAN_EVACUATION");
   const plans = data?.data ?? [];
 
   async function removePlan(id: number) {
+    if (removingId !== null) return;
     if (!confirm("Supprimer définitivement ce plan d'évacuation ?")) return;
-    const r = await fetch(`/api/admin/rh/documents-strategiques/${id}`, { method: "DELETE" });
-    if (r.ok) { toast.success("Plan d'évacuation supprimé"); refetch(); } else toast.error("Erreur");
+    setRemovingId(id);
+    try {
+      const r = await fetch(`/api/admin/rh/documents-strategiques/${id}`, { method: "DELETE" });
+      if (r.ok) { toast.success("Plan d'évacuation supprimé"); refetch(); } else toast.error("Erreur");
+    } finally { setRemovingId(null); }
   }
 
   return (
@@ -949,10 +954,10 @@ function EvacuationTab() {
                 <a href={p.fichierUrl} target="_blank" rel="noreferrer" className="text-xs text-red-600 hover:underline mt-2 inline-block">Voir le document</a>
               )}
               <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
-                <button onClick={() => setEditing(p)} className="flex items-center gap-1 text-xs text-slate-600 hover:text-slate-900">
+                <button onClick={() => setEditing(p)} disabled={removingId !== null} className="flex items-center gap-1 text-xs text-slate-600 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">
                   <Pencil className="w-3.5 h-3.5" /> Modifier
                 </button>
-                <button onClick={() => removePlan(p.id)} className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800">
+                <button onClick={() => removePlan(p.id)} disabled={removingId !== null} className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed">
                   <Trash2 className="w-3.5 h-3.5" /> Supprimer
                 </button>
               </div>

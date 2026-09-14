@@ -419,6 +419,7 @@ function OngletCompteRendu({ reunionId, membres }: {
 function OngletResolutions({ r }: { r: Reunion }) {
   const [showForm, setShowForm] = useState(false);
   const [refresh, setRefresh]   = useState(0);
+  const [executingId, setExecutingId] = useState<number | null>(null);
   const { data, loading } = useApi<{ resolutions: Resolution[] }>(
     `/api/admin/ria/commissions/gouvernance/resolutions?typeCommission=${r.typeCommission}&_r=${refresh}`
   );
@@ -442,12 +443,18 @@ function OngletResolutions({ r }: { r: Reunion }) {
   }
 
   async function executerAction(id: number, action: string) {
-    const res = await fetch(`/api/admin/ria/commissions/gouvernance/resolutions/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
-    });
-    const json = await res.json();
-    if (json.id) { toast.success("Résolution mise à jour"); setRefresh(x => x + 1); }
-    else toast.error(json.error || "Erreur");
+    if (executingId !== null) return;
+    setExecutingId(id);
+    try {
+      const res = await fetch(`/api/admin/ria/commissions/gouvernance/resolutions/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
+      });
+      const json = await res.json();
+      if (json.id) { toast.success("Résolution mise à jour"); setRefresh(x => x + 1); }
+      else toast.error(json.error || "Erreur");
+    } finally {
+      setExecutingId(null);
+    }
   }
 
   const resolutions = data?.resolutions ?? [];
@@ -532,7 +539,8 @@ function OngletResolutions({ r }: { r: Reunion }) {
                 <div className="flex flex-wrap items-center gap-1.5">
                   {(RESOLUTION_ACTIONS_PAR_STATUT[res.statut] ?? []).map(a => (
                     <button key={a.action} onClick={() => executerAction(res.id, a.action)}
-                      className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                      disabled={executingId === res.id}
+                      className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors disabled:opacity-50 ${
                         a.danger ? "bg-rose-50 text-rose-700 hover:bg-rose-100" : "bg-emerald-600 text-white hover:bg-emerald-700"
                       }`}>
                       {a.label}
@@ -556,6 +564,7 @@ function OngletResolutions({ r }: { r: Reunion }) {
 function OngletPlansAction({ r }: { r: Reunion }) {
   const [showForm, setShowForm] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const [changingId, setChangingId] = useState<number | null>(null);
   // Tâches issues de cette réunion (CDC : création automatique de tâches après réunion)
   const { data, loading } = useApi<{ plans: PlanAction[] }>(
     `/api/admin/ria/commissions/gouvernance/plans-actions?reunionId=${r.id}&_r=${refresh}`
@@ -584,12 +593,18 @@ function OngletPlansAction({ r }: { r: Reunion }) {
   }
 
   async function changerStatut(id: number, statut: string) {
-    const res = await fetch(`/api/admin/ria/commissions/gouvernance/plans-actions/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statut }),
-    });
-    const json = await res.json();
-    if (json.id) { toast.success("Statut mis à jour"); setRefresh(x => x + 1); }
-    else toast.error(json.error || "Erreur");
+    if (changingId !== null) return;
+    setChangingId(id);
+    try {
+      const res = await fetch(`/api/admin/ria/commissions/gouvernance/plans-actions/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statut }),
+      });
+      const json = await res.json();
+      if (json.id) { toast.success("Statut mis à jour"); setRefresh(x => x + 1); }
+      else toast.error(json.error || "Erreur");
+    } finally {
+      setChangingId(null);
+    }
   }
 
   async function changerProgression(id: number, progression: number) {
@@ -726,8 +741,8 @@ function OngletPlansAction({ r }: { r: Reunion }) {
                     const cfg = STATUT_PLAN[val];
                     return (
                       <button key={val} onClick={() => changerStatut(p.id, val)}
-                        disabled={p.statut === val}
-                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${
+                        disabled={p.statut === val || changingId === p.id}
+                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors disabled:opacity-50 ${
                           p.statut === val ? `${cfg.color} border-current cursor-default` : "border-slate-200 text-slate-500 hover:bg-slate-50"
                         }`}>
                         {cfg.label}

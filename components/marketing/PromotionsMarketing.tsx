@@ -36,6 +36,7 @@ export default function PromotionsMarketing() {
   const [pdvs, setPdvs] = useState<{ id: number; nom: string }[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -55,12 +56,16 @@ export default function PromotionsMarketing() {
   }, []);
 
   const toggleActif = async (p: PromoRow) => {
-    const r = await fetch(`/api/admin/catalogue/promotions/${p.id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !p.actif }),
-    });
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.message ?? "Erreur"); return; }
-    toast.success(p.actif ? "Promotion désactivée" : "Promotion activée"); load();
+    if (togglingId !== null) return;
+    setTogglingId(p.id);
+    try {
+      const r = await fetch(`/api/admin/catalogue/promotions/${p.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !p.actif }),
+      });
+      const j = await r.json();
+      if (!r.ok) { toast.error(j.message ?? "Erreur"); return; }
+      toast.success(p.actif ? "Promotion désactivée" : "Promotion activée"); load();
+    } finally { setTogglingId(null); }
   };
 
   return (
@@ -116,8 +121,8 @@ export default function PromotionsMarketing() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1.5">
-                          <button onClick={() => toggleActif(p)} title={p.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50">
-                            {p.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+                          <button onClick={() => toggleActif(p)} disabled={togglingId === p.id} title={p.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 disabled:opacity-50">
+                            {togglingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : p.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
                           </button>
                           <button onClick={() => { setEditId(p.id); setModalOpen(true); }} title="Modifier" className="p-1.5 text-slate-400 hover:text-fuchsia-600 rounded-lg hover:bg-fuchsia-50"><Pencil className="w-4 h-4" /></button>
                         </div>

@@ -315,10 +315,10 @@ export default function CongesPage() {
               ) : (
                 res.data.map((d) => (
                   <DemandeCard key={d.id} demande={d}
-                    onAction={(action) => {
+                    onAction={async (action) => {
                       if (action === "REJETER") { setRejetId(d.id); return; }
                       if (action === "ANNULER") { setAnnulerTarget(d); return; }
-                      handleAction(d.id, action, undefined, refetch);
+                      await handleAction(d.id, action, undefined, refetch);
                     }}
                   />
                 ))
@@ -628,9 +628,24 @@ export default function CongesPage() {
 
 // ── DemandeCard ───────────────────────────────────────────────────────────────
 
-function DemandeCard({ demande, onAction }: { demande: Demande; onAction: (action: string) => void }) {
+function DemandeCard({ demande, onAction }: { demande: Demande; onAction: (action: string) => void | Promise<void> }) {
   const actions = NEXT_ACTIONS[demande.statut] ?? [];
   const canAnnuler = ["EN_ATTENTE", "VALIDE_MANAGER", "VALIDE_RH", "APPROUVE"].includes(demande.statut);
+  const [processing, setProcessing] = useState(false);
+
+  // ANNULER/REJETER ouvrent une modale (déjà protégée individuellement) ; seules
+  // les actions directes (ex: APPROUVER, VALIDER_*) déclenchent un fetch immédiat
+  // depuis cette carte, d'où le verrou local ici.
+  async function handleDirectAction(action: string) {
+    if (action === "REJETER" || action === "ANNULER") { onAction(action); return; }
+    if (processing) return;
+    setProcessing(true);
+    try {
+      await onAction(action);
+    } finally {
+      setProcessing(false);
+    }
+  }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4">
@@ -686,14 +701,14 @@ function DemandeCard({ demande, onAction }: { demande: Demande; onAction: (actio
       {(actions.length > 0 || canAnnuler) && (
         <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100 flex-wrap">
           {actions.map((a) => (
-            <button key={a.action} onClick={() => onAction(a.action)}
-              className={`px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-colors ${a.color}`}>
+            <button key={a.action} onClick={() => handleDirectAction(a.action)} disabled={processing}
+              className={`px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${a.color}`}>
               {a.label}
             </button>
           ))}
           {canAnnuler && (
-            <button onClick={() => onAction("ANNULER")}
-              className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1">
+            <button onClick={() => handleDirectAction("ANNULER")} disabled={processing}
+              className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
               <Ban className="w-3 h-3" /> Annuler
             </button>
           )}

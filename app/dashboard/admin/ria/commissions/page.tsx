@@ -112,7 +112,7 @@ export default function CommissionsPage() {
   const { mutate: calculer, loading: calcLoading } = useMutation<CommissionsResp, { mois: number; annee: number }>(
     "/api/admin/ria/commissions", "POST"
   );
-  const { mutate: saveConfig } = useMutation<ConfigItem, { roleType: string; tauxBase: number; description: string }>(
+  const { mutate: saveConfig, loading: savingConfig } = useMutation<ConfigItem, { roleType: string; tauxBase: number; description: string }>(
     "/api/admin/ria/commissions/config", "POST"
   );
 
@@ -303,8 +303,9 @@ export default function CommissionsPage() {
                 </div>
                 <button
                   onClick={() => handleSaveConfig(roleType)}
-                  className="w-full py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors font-medium">
-                  Enregistrer
+                  disabled={savingConfig}
+                  className="w-full py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50">
+                  {savingConfig ? "Enregistrement…" : "Enregistrer"}
                 </button>
               </div>
             );

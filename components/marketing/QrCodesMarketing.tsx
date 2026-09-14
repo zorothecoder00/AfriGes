@@ -81,6 +81,7 @@ export default function QrCodesMarketing() {
   const [landingPages, setLandingPages] = useState<LandingPage[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,12 +101,16 @@ export default function QrCodesMarketing() {
   }, []);
 
   const toggleActif = async (q: QrRow) => {
-    const r = await fetch(`/api/admin/marketing/qr/${q.id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !q.actif }),
-    });
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
-    toast.success(q.actif ? "QR désactivé" : "QR activé"); load();
+    if (togglingId !== null) return;
+    setTogglingId(q.id);
+    try {
+      const r = await fetch(`/api/admin/marketing/qr/${q.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !q.actif }),
+      });
+      const j = await r.json();
+      if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
+      toast.success(q.actif ? "QR désactivé" : "QR activé"); load();
+    } finally { setTogglingId(null); }
   };
 
   const copierLien = (code: string) => {
@@ -138,8 +143,8 @@ export default function QrCodesMarketing() {
             </div>
             <div className="flex items-center gap-1.5">
               <button onClick={() => copierLien(q.code)} title="Copier le lien à encoder" className="p-1.5 text-slate-400 hover:text-fuchsia-600 rounded-lg hover:bg-fuchsia-50"><Copy className="w-4 h-4" /></button>
-              <button onClick={() => toggleActif(q)} title={q.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50">
-                {q.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+              <button onClick={() => toggleActif(q)} disabled={togglingId === q.id} title={q.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 disabled:opacity-50">
+                {togglingId === q.id ? <Loader2 className="w-4 h-4 animate-spin" /> : q.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
               </button>
             </div>
           </div>

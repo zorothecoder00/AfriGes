@@ -219,7 +219,9 @@ function TempPasswordModal({
 function CandidatureModal({
   cand, posteId: _posteId, onClose, onRefresh,
 }: { cand: Candidature; posteId: number; onClose: () => void; onRefresh: () => void }) {
-  const { mutate, loading } = useMutation(`/api/admin/rh/recrutement/candidatures/${cand.id}`, "PATCH");
+  const { mutate, loading: mutating } = useMutation(`/api/admin/rh/recrutement/candidatures/${cand.id}`, "PATCH");
+  const [accepting, setAccepting] = useState(false);
+  const loading = mutating || accepting;
   const [tempPassData, setTempPassData] = useState<{ tempPassword: string; profilRHId: number } | null>(null);
   const [form, setForm] = useState({
     noteEntretien:   cand.noteEntretien   ?? 0,
@@ -237,7 +239,9 @@ function CandidatureModal({
 
   async function handleAction(action: string) {
     if (action === "ACCEPTER") {
+      if (loading) return;
       // Fetch direct pour récupérer tempPassword hors du wrapper useMutation
+      setAccepting(true);
       try {
         const r = await fetch(`/api/admin/rh/recrutement/candidatures/${cand.id}`, {
           method: "PATCH",
@@ -253,7 +257,7 @@ function CandidatureModal({
         } else {
           onClose();
         }
-      } catch { toast.error("Erreur réseau"); }
+      } catch { toast.error("Erreur réseau"); } finally { setAccepting(false); }
       return;
     }
     const res = await mutate({ action, dateEntretien: form.dateEntretien || null, dateTest: form.dateTest || null });

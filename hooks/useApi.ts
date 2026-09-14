@@ -214,9 +214,16 @@ export function useMutation<TData = unknown, TBody = unknown>(
   urlRef.current = url;
   const optionsRef = useRef(options);
   optionsRef.current = options;
+  // Verrou synchrone anti double-soumission : `loading` (state React) ne se
+  // reflète qu'au prochain rendu, donc deux clics dans le même tick pourraient
+  // tous les deux passer avant que `disabled` ne s'applique. Cette ref bloque
+  // immédiatement tout appel concurrent, indépendamment du cycle de rendu.
+  const inFlightRef = useRef(false);
 
   const mutate = useCallback(
     async (body: TBody): Promise<TData | null> => {
+      if (inFlightRef.current) return null;
+
       // Bloquer toute mutation en mode lecture (viewAs actif)
       if (viewAs) {
         const msg = "Action impossible en mode lecture";
@@ -225,6 +232,7 @@ export function useMutation<TData = unknown, TBody = unknown>(
         return null;
       }
 
+      inFlightRef.current = true;
       const resolvedUrl =
         typeof urlRef.current === "function" ? urlRef.current() : urlRef.current;
       setLoading(true);
@@ -256,6 +264,7 @@ export function useMutation<TData = unknown, TBody = unknown>(
         toast.error(optionsRef.current?.errorMessage ?? msg);
         return null;
       } finally {
+        inFlightRef.current = false;
         setLoading(false);
       }
     },

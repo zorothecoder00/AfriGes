@@ -338,17 +338,24 @@ export default function RIAFondsPage() {
   const retraits = retraitsQ.data?.data ?? [];
   const mouvements = mvtsQ.data?.data   ?? [];
 
+  const [retraitTraitantId, setRetraitTraitantId] = useState<number | null>(null);
   const retraitAction = async (id: number, act: string) => {
-    const res = await fetch(`/api/admin/ria/fonds/retraits/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: act }),
-    });
-    const json = await res.json();
-    if (res.ok) {
-      toast.success(act === "PAYER" ? "Retrait payé — capital débité" : act === "VALIDER" ? "Retrait validé" : "Retrait rejeté");
-      retraitsQ.refetch();
-    } else toast.error(json.error ?? "Erreur");
+    if (retraitTraitantId !== null) return;
+    setRetraitTraitantId(id);
+    try {
+      const res = await fetch(`/api/admin/ria/fonds/retraits/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: act }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        toast.success(act === "PAYER" ? "Retrait payé — capital débité" : act === "VALIDER" ? "Retrait validé" : "Retrait rejeté");
+        retraitsQ.refetch();
+      } else toast.error(json.error ?? "Erreur");
+    } finally {
+      setRetraitTraitantId(null);
+    }
   };
 
   const filterStr = (items: { reference: string; portefeuille: Portefeuille }[]) =>
@@ -515,13 +522,13 @@ export default function RIAFondsPage() {
                             {r.statut === "EN_ATTENTE" && (
                               <>
                                 <button onClick={() => setEditingRetrait(r)} className="p-1 text-slate-500 hover:bg-slate-100 rounded" title="Modifier"><Pencil className="w-4 h-4" /></button>
-                                <button onClick={() => retraitAction(r.id, "VALIDER")} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded" title="Valider"><CheckCircle className="w-4 h-4" /></button>
-                                <button onClick={() => retraitAction(r.id, "REJETER")} className="p-1 text-red-500 hover:bg-red-50 rounded" title="Rejeter"><XCircle className="w-4 h-4" /></button>
+                                <button onClick={() => retraitAction(r.id, "VALIDER")} disabled={retraitTraitantId !== null} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded disabled:opacity-50" title="Valider"><CheckCircle className="w-4 h-4" /></button>
+                                <button onClick={() => retraitAction(r.id, "REJETER")} disabled={retraitTraitantId !== null} className="p-1 text-red-500 hover:bg-red-50 rounded disabled:opacity-50" title="Rejeter"><XCircle className="w-4 h-4" /></button>
                               </>
                             )}
                             {r.statut === "VALIDE" && (
-                              <button onClick={() => retraitAction(r.id, "PAYER")} className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
-                                <DollarSign className="w-3 h-3" /> Payer
+                              <button onClick={() => retraitAction(r.id, "PAYER")} disabled={retraitTraitantId !== null} className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                                <DollarSign className="w-3 h-3" /> {retraitTraitantId === r.id ? "…" : "Payer"}
                               </button>
                             )}
                             {(r.statut === "VALIDE" || r.statut === "PAYE") && (

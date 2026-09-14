@@ -155,7 +155,22 @@ function HierarchieSection({ type, childType, parentKey, items, onCreate, onPatc
   const [nouveau, setNouveau] = useState("");
   const [open, setOpen] = useState<Set<number>>(new Set());
   const [ajoutEnfant, setAjoutEnfant] = useState<Record<number, string>>({});
+  const [busy, setBusy] = useState(false);
   const toggleOpen = (id: number) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  const ajouterParent = async () => {
+    if (busy || !nouveau.trim()) return;
+    setBusy(true);
+    try { if (await onCreate(type, { nom: nouveau.trim() })) setNouveau(""); }
+    finally { setBusy(false); }
+  };
+  const ajouterEnfant = async (parentId: number) => {
+    const v = (ajoutEnfant[parentId] ?? "").trim();
+    if (busy || !v) return;
+    setBusy(true);
+    try { if (await onCreate(childType, { nom: v, [parentKey]: parentId })) setAjoutEnfant((a) => ({ ...a, [parentId]: "" })); }
+    finally { setBusy(false); }
+  };
 
   return (
     <div className="space-y-3">
@@ -163,9 +178,9 @@ function HierarchieSection({ type, childType, parentKey, items, onCreate, onPatc
         <input value={nouveau} onChange={(e) => setNouveau(e.target.value)}
           placeholder={`Nouvelle ${type === "familles" ? "famille" : "catégorie"}…`}
           className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        <button onClick={async () => { if (nouveau.trim() && await onCreate(type, { nom: nouveau.trim() })) setNouveau(""); }}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
-          <Plus className="w-4 h-4" /> Ajouter
+        <button onClick={ajouterParent} disabled={busy}
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Ajouter
         </button>
       </div>
 
@@ -188,8 +203,10 @@ function HierarchieSection({ type, childType, parentKey, items, onCreate, onPatc
                     <input value={ajoutEnfant[it.id] ?? ""} onChange={(e) => setAjoutEnfant((a) => ({ ...a, [it.id]: e.target.value }))}
                       placeholder="Ajouter un sous-élément…"
                       className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    <button onClick={async () => { const v = (ajoutEnfant[it.id] ?? "").trim(); if (v && await onCreate(childType, { nom: v, [parentKey]: it.id })) setAjoutEnfant((a) => ({ ...a, [it.id]: "" })); }}
-                      className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100"><Plus className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => ajouterEnfant(it.id)} disabled={busy}
+                      className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 disabled:opacity-50">
+                      {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                    </button>
                   </div>
                 </div>
               )}
@@ -206,6 +223,16 @@ function FlatSection({ type, items, extraLabel, extraKey, onCreate, onPatch, onR
   { type: string; items: FlatItem[]; extraLabel?: string; extraKey?: string; onCreate: Mut; onPatch: MutId; onRemove: Del }) {
   const [nom, setNom] = useState("");
   const [extra, setExtra] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const ajouter = async () => {
+    if (busy || !nom.trim()) return;
+    setBusy(true);
+    try {
+      if (await onCreate(type, { nom: nom.trim(), ...(extraKey ? { [extraKey]: extra.trim() || undefined } : {}) })) { setNom(""); setExtra(""); }
+    } finally { setBusy(false); }
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
@@ -215,9 +242,9 @@ function FlatSection({ type, items, extraLabel, extraKey, onCreate, onPatch, onR
           <input value={extra} onChange={(e) => setExtra(e.target.value)} placeholder={extraLabel}
             className="w-28 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
         )}
-        <button onClick={async () => { if (nom.trim() && await onCreate(type, { nom: nom.trim(), ...(extraKey ? { [extraKey]: extra.trim() || undefined } : {}) })) { setNom(""); setExtra(""); } }}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
-          <Plus className="w-4 h-4" /> Ajouter
+        <button onClick={ajouter} disabled={busy}
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Ajouter
         </button>
       </div>
       {items.length === 0 ? <p className="text-sm text-slate-400 py-4 text-center">Aucun élément.</p> : (
@@ -245,6 +272,20 @@ function RefRow({ item, type, onPatch, onRemove, small, childLabel, showExtra, c
     if (ok) setEdit(false);
   };
 
+  const toggleActif = async () => {
+    if (busy) return;
+    setBusy(true);
+    try { await onPatch(type, item.id, { actif: !item.actif }); }
+    finally { setBusy(false); }
+  };
+
+  const supprimer = async () => {
+    if (busy) return;
+    setBusy(true);
+    try { await onRemove(type, item.id); }
+    finally { setBusy(false); }
+  };
+
   return (
     <div className={comptable ? "flex-1" : ""}>
       <div className="flex items-center gap-2 flex-1">
@@ -263,19 +304,21 @@ function RefRow({ item, type, onPatch, onRemove, small, childLabel, showExtra, c
             </span>
             <span className="text-[10px] text-slate-400">{childLabel ?? `${item.count} produit(s)`}</span>
             {/* actif toggle */}
-            <button onClick={() => onPatch(type, item.id, { actif: !item.actif })}
+            <button onClick={toggleActif} disabled={busy}
               title={item.actif ? "Désactiver" : "Activer"}
-              className={`relative w-8 h-4.5 rounded-full transition-colors ${item.actif ? "bg-emerald-500" : "bg-slate-300"}`} style={{ height: 18, width: 32 }}>
+              className={`relative w-8 h-4.5 rounded-full transition-colors disabled:opacity-50 ${item.actif ? "bg-emerald-500" : "bg-slate-300"}`} style={{ height: 18, width: 32 }}>
               <span className="absolute top-0.5 bg-white rounded-full transition-transform" style={{ height: 14, width: 14, left: item.actif ? 15 : 2 }} />
             </button>
             {comptable && (
-              <button onClick={() => setComptaOpen((v) => !v)} title="Comptabilisation (CDC §52/§53)"
-                className={`hover:text-blue-600 ${comptaOpen ? "text-blue-600" : "text-slate-400"}`}>
+              <button onClick={() => setComptaOpen((v) => !v)} disabled={busy} title="Comptabilisation (CDC §52/§53)"
+                className={`hover:text-blue-600 disabled:opacity-50 ${comptaOpen ? "text-blue-600" : "text-slate-400"}`}>
                 <Landmark className="w-3.5 h-3.5" />
               </button>
             )}
-            <button onClick={() => setEdit(true)} className="text-slate-400 hover:text-blue-600" title="Renommer"><Pencil className="w-3.5 h-3.5" /></button>
-            <button onClick={() => onRemove(type, item.id)} className="text-slate-400 hover:text-rose-500" title="Supprimer"><Trash2 className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setEdit(true)} disabled={busy} className="text-slate-400 hover:text-blue-600 disabled:opacity-50" title="Renommer"><Pencil className="w-3.5 h-3.5" /></button>
+            <button onClick={supprimer} disabled={busy} className="text-slate-400 hover:text-rose-500 disabled:opacity-50" title="Supprimer">
+              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            </button>
           </>
         )}
       </div>

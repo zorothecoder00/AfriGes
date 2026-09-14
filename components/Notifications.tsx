@@ -34,6 +34,7 @@ export default function NotificationsPage() {
   // Mutations (bloquées automatiquement par useMutation en mode viewAs)
   const { mutate: markAllRead, loading: markingAll } = useMutation('/api/notifications/readAll', 'PATCH', { successMessage: 'Toutes les notifications marquées comme lues' });
   const { mutate: clearAll, loading: clearingAll } = useMutation('/api/notifications', 'DELETE', { successMessage: 'Toutes les notifications supprimées' });
+  const [processingUuids, setProcessingUuids] = useState<Set<string>>(new Set());
 
   const handleMarkAllRead = async () => {
     const result = await markAllRead({});
@@ -47,23 +48,31 @@ export default function NotificationsPage() {
 
   const handleMarkAsRead = async (uuid: string) => {
     if (viewAs) { toast.error('Action impossible en mode lecture'); return; }
+    if (processingUuids.has(uuid)) return;
+    setProcessingUuids(prev => new Set(prev).add(uuid));
     try {
       const res = await fetch(`/api/notifications/${uuid}/read`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
       });
       if (res.ok) refetch();
-    } catch {}
+    } catch {} finally {
+      setProcessingUuids(prev => { const next = new Set(prev); next.delete(uuid); return next; });
+    }
   };
 
   const handleDelete = async (uuid: string) => {
     if (viewAs) { toast.error('Action impossible en mode lecture'); return; }
+    if (processingUuids.has(uuid)) return;
+    setProcessingUuids(prev => new Set(prev).add(uuid));
     try {
       const res = await fetch(`/api/notifications/${uuid}`, {
         method: 'DELETE',
       });
       if (res.ok) refetch();
-    } catch {}
+    } catch {} finally {
+      setProcessingUuids(prev => { const next = new Set(prev); next.delete(uuid); return next; });
+    }
   };
 
   const stats = {
@@ -270,7 +279,8 @@ export default function NotificationsPage() {
                         {!notification.lue && (
                           <button
                             onClick={() => handleMarkAsRead(notification.uuid)}
-                            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors duration-200"
+                            disabled={processingUuids.has(notification.uuid)}
+                            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
                             title="Marquer comme lu"
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -280,7 +290,8 @@ export default function NotificationsPage() {
                         )}
                         <button
                           onClick={() => handleDelete(notification.uuid)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                          disabled={processingUuids.has(notification.uuid)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
                           title="Supprimer"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

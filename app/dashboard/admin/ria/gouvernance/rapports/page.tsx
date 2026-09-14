@@ -134,15 +134,23 @@ export default function RapportsPage() {
     !search || r.titre.toLowerCase().includes(search.toLowerCase())
   );
 
+  const [validatingId, setValidatingId] = useState<number | null>(null);
+
   async function handleValider(id: number) {
-    const res = await fetch(`/api/admin/ria/commissions/gouvernance/rapports/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "VALIDE" }),
-    });
-    const json = await res.json();
-    if (json?.id) { toast.success("Rapport validé"); setRefresh(r => r + 1); }
-    else toast.error(json?.error || "Erreur");
+    if (validatingId !== null) return;
+    setValidatingId(id);
+    try {
+      const res = await fetch(`/api/admin/ria/commissions/gouvernance/rapports/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "VALIDE" }),
+      });
+      const json = await res.json();
+      if (json?.id) { toast.success("Rapport validé"); setRefresh(r => r + 1); }
+      else toast.error(json?.error || "Erreur");
+    } finally {
+      setValidatingId(null);
+    }
   }
 
   function done() { setShowCreate(false); setRefresh(r => r + 1); }
@@ -238,8 +246,8 @@ export default function RapportsPage() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {r.statut === "BROUILLON" && (
-                    <button onClick={() => handleValider(r.id)}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-emerald-600 border border-emerald-200 hover:bg-emerald-50 rounded-lg transition-colors">
+                    <button onClick={() => handleValider(r.id)} disabled={validatingId === r.id}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-emerald-600 border border-emerald-200 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50">
                       <Shield className="w-3.5 h-3.5" /> Valider
                     </button>
                   )}

@@ -54,7 +54,7 @@ export default function AnalytiquePage() {
     { successMessage: "Section analytique créée" }
   );
   const sectionActionIdRef = useRef<number | null>(null);
-  const { mutate: toggleSectionApi } = useMutation<unknown, object>(
+  const { mutate: toggleSectionApi, loading: togglingSection } = useMutation<unknown, object>(
     () => `/api/comptable/analytique/sections/${sectionActionIdRef.current}`, "PATCH",
   );
   const { mutate: synchroniserDepartements, loading: synchronisingDepartements } = useMutation<{ data: { crees: string[] } }, object>(
@@ -174,7 +174,7 @@ export default function AnalytiquePage() {
                   {(sectionsData?.data ?? []).filter(s => s.axe === axe).map(s => (
                     <div key={s.id} className={`flex items-center justify-between px-3 py-1.5 rounded-lg border text-sm ${s.actif ? "border-slate-200" : "border-slate-100 opacity-50"}`}>
                       <span className="text-slate-700">{s.libelle} <span className="text-xs text-slate-400 font-mono">{s.code}</span></span>
-                      <button onClick={() => handleToggleSection(s)} className={s.actif ? "text-amber-500" : "text-emerald-500"}>
+                      <button onClick={() => handleToggleSection(s)} disabled={togglingSection} className={`${s.actif ? "text-amber-500" : "text-emerald-500"} disabled:opacity-40`}>
                         {s.actif ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                       </button>
                     </div>

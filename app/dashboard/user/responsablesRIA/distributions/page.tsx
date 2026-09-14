@@ -153,14 +153,21 @@ export default function DistributionsPage() {
   const totalDistribue = distributions.reduce((s, d) => s + toNum(d.montantDistribue), 0);
   const totalPlanifie  = distributions.filter((d) => d.statut === "PLANIFIE").length;
 
+  const [traitantId, setTraitantId] = useState<number | null>(null);
   const traiter = async (id: number) => {
-    const r = await fetch(`/api/admin/ria/distributions/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "TRAITER" }),
-    });
-    const json = await r.json();
-    if (r.ok) { toast.success("Distribution traitée — capital mis à jour"); refetch(); }
-    else toast.error(json.error ?? "Erreur");
+    if (traitantId !== null) return;
+    setTraitantId(id);
+    try {
+      const r = await fetch(`/api/admin/ria/distributions/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "TRAITER" }),
+      });
+      const json = await r.json();
+      if (r.ok) { toast.success("Distribution traitée — capital mis à jour"); refetch(); }
+      else toast.error(json.error ?? "Erreur");
+    } finally {
+      setTraitantId(null);
+    }
   };
 
   return (
@@ -245,9 +252,9 @@ export default function DistributionsPage() {
                   </td>
                   <td className="px-4 py-3">
                     {d.statut === "PLANIFIE" && (
-                      <button onClick={() => traiter(d.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700">
-                        <CheckCircle className="w-3 h-3" /> Traiter
+                      <button onClick={() => traiter(d.id)} disabled={traitantId !== null}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+                        <CheckCircle className="w-3 h-3" /> {traitantId === d.id ? "Traitement…" : "Traiter"}
                       </button>
                     )}
                   </td>

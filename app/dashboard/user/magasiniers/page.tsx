@@ -340,13 +340,13 @@ export default function MagasinierPage() {
     { successMessage: 'Anomalie signalee avec succes' }
   );
 
-  const { mutate: updateAnomalie } = useMutation<unknown, { statut: string; commentaire?: string }>(
+  const { mutate: updateAnomalie, loading: updatingAnomalie } = useMutation<unknown, { statut: string; commentaire?: string }>(
     () => `/api/magasinier/anomalies/${anomalieUpdateIdRef.current}`,
     'PATCH',
     { successMessage: 'Statut de l\'anomalie mis a jour' }
   );
 
-  const { mutate: updateBonSortie } = useMutation<unknown, { statut: string }>(
+  const { mutate: updateBonSortie, loading: updatingBonSortie } = useMutation<unknown, { statut: string }>(
     () => `/api/magasinier/bons-sortie/${bonSortieUpdateIdRef.current}`,
     'PATCH',
     { successMessage: 'Statut du bon de sortie mis a jour' }
@@ -2388,12 +2388,12 @@ export default function MagasinierPage() {
                         <span className="text-xs text-slate-500">{new Date(bon.createdAt).toLocaleDateString('fr-FR')}</span>
                         {bon.statut === 'EN_COURS' && (
                           <>
-                            <button onClick={() => handleUpdateBonStatut(bon.id, 'EXPEDIE')} className="ml-auto text-xs px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors font-medium flex items-center gap-1"><Send size={12} /> Marquer expédié</button>
-                            {canCancelBon && <button onClick={() => handleUpdateBonStatut(bon.id, 'ANNULE')} className="text-xs px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium flex items-center gap-1"><XCircle size={12} /> {t('btn_cancel')}</button>}
+                            <button onClick={() => handleUpdateBonStatut(bon.id, 'EXPEDIE')} disabled={updatingBonSortie && bonSortieUpdateIdRef.current === bon.id} className="ml-auto text-xs px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors font-medium flex items-center gap-1 disabled:opacity-50"><Send size={12} /> Marquer expédié</button>
+                            {canCancelBon && <button onClick={() => handleUpdateBonStatut(bon.id, 'ANNULE')} disabled={updatingBonSortie && bonSortieUpdateIdRef.current === bon.id} className="text-xs px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium flex items-center gap-1 disabled:opacity-50"><XCircle size={12} /> {t('btn_cancel')}</button>}
                           </>
                         )}
                         {bon.statut === 'EXPEDIE' && (
-                          <button onClick={() => handleUpdateBonStatut(bon.id, 'RECU')} className="ml-auto text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors font-medium flex items-center gap-1"><CheckSquare size={12} /> Marquer reçu</button>
+                          <button onClick={() => handleUpdateBonStatut(bon.id, 'RECU')} disabled={updatingBonSortie && bonSortieUpdateIdRef.current === bon.id} className="ml-auto text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors font-medium flex items-center gap-1 disabled:opacity-50"><CheckSquare size={12} /> Marquer reçu</button>
                         )}
                       </div>
                       {/* Lignes détail */}
@@ -2541,7 +2541,7 @@ export default function MagasinierPage() {
                             <span className="text-xs px-3 py-1.5 bg-slate-50 text-slate-500 rounded-lg border border-slate-200 flex items-center gap-1 whitespace-nowrap"><Clock size={12} /> En attente Resp. Appro</span>
                           )}
                           {anomalie.statut === 'EN_COURS' && (
-                            <button onClick={() => handleUpdateAnomalieStatut(anomalie.id, 'EN_ATTENTE')} className="text-xs px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors font-medium flex items-center gap-1 whitespace-nowrap"><Send size={12} /> Re-soumettre</button>
+                            <button onClick={() => handleUpdateAnomalieStatut(anomalie.id, 'EN_ATTENTE')} disabled={updatingAnomalie && anomalieUpdateIdRef.current === anomalie.id} className="text-xs px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors font-medium flex items-center gap-1 whitespace-nowrap disabled:opacity-50"><Send size={12} /> Re-soumettre</button>
                           )}
                           {anomalie.statut === 'TRANSMISE' && (
                             <span className="text-xs px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg border border-purple-200 flex items-center gap-1 whitespace-nowrap"><Clock size={12} /> En attente Admin</span>

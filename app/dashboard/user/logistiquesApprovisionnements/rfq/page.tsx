@@ -255,6 +255,8 @@ function RFQDetail({ id, onClose, onUpdated }: { id: number; onClose: () => void
   const { data, loading, refetch } = useApi<{ data: RFQ; comparatif: Candidat[] }>(`/api/logistique/rfq/${id}`);
   const [sending, setSending] = useState(false);
   const [cotationFor, setCotationFor] = useState<Reponse | null>(null);
+  const [annulling, setAnnulling] = useState(false);
+  const [retainingId, setRetainingId] = useState<number | null>(null);
 
   const d = data?.data;
   const comparatif = data?.comparatif ?? [];
@@ -272,20 +274,26 @@ function RFQDetail({ id, onClose, onUpdated }: { id: number; onClose: () => void
 
   const annuler = async () => {
     if (!confirm("Annuler cette demande de cotation ?")) return;
-    const r = await fetch(`/api/logistique/rfq/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ANNULER" }),
-    });
-    if (r.ok) { toast.success("RFQ annulée"); refetch(); onUpdated(); }
+    setAnnulling(true);
+    try {
+      const r = await fetch(`/api/logistique/rfq/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ANNULER" }),
+      });
+      if (r.ok) { toast.success("RFQ annulée"); refetch(); onUpdated(); }
+    } finally { setAnnulling(false); }
   };
 
   const retenir = async (reponseId: number) => {
     if (!confirm("Retenir ce fournisseur et clôturer la RFQ ?")) return;
-    const r = await fetch(`/api/logistique/rfq/${id}/retenir`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reponseId }),
-    });
-    const j = await r.json().catch(() => ({}));
-    if (r.ok) { toast.success("Fournisseur retenu, RFQ clôturée"); refetch(); onUpdated(); }
-    else toast.error(j.error ?? "Erreur");
+    setRetainingId(reponseId);
+    try {
+      const r = await fetch(`/api/logistique/rfq/${id}/retenir`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reponseId }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) { toast.success("Fournisseur retenu, RFQ clôturée"); refetch(); onUpdated(); }
+      else toast.error(j.error ?? "Erreur");
+    } finally { setRetainingId(null); }
   };
 
   return (
@@ -304,7 +312,7 @@ function RFQDetail({ id, onClose, onUpdated }: { id: number; onClose: () => void
               </button>
             )}
             {d && !["CLOTUREE", "ANNULEE"].includes(d.statut) && (
-              <button onClick={annuler} title="Annuler" className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"><Ban className="w-4 h-4" /></button>
+              <button onClick={annuler} disabled={annulling} title="Annuler" className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-50"><Ban className="w-4 h-4" /></button>
             )}
             <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
           </div>
@@ -370,7 +378,9 @@ function RFQDetail({ id, onClose, onUpdated }: { id: number; onClose: () => void
                               <td className="text-center px-3 py-2.5 font-bold text-slate-800">{c.scoreGlobal}/100</td>
                               <td className="text-center px-3 py-2.5">
                                 {d.statut !== "CLOTUREE" && rep && (
-                                  <button onClick={() => retenir(rep.id)} className="text-xs text-emerald-600 hover:underline font-medium">Retenir</button>
+                                  <button onClick={() => retenir(rep.id)} disabled={retainingId !== null} className="text-xs text-emerald-600 hover:underline font-medium disabled:opacity-40">
+                                    {retainingId === rep.id ? "…" : "Retenir"}
+                                  </button>
                                 )}
                               </td>
                             </tr>

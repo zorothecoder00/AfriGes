@@ -124,12 +124,15 @@ function PostesView({ onPipeline }: { onPipeline: (id: number) => void }) {
   const [page,      setPage]      = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [expanded,  setExpanded]  = useState<number | null>(null);
+  const [workflowId, setWorkflowId] = useState<number | null>(null);
 
   const query = new URLSearchParams({ page: String(page), limit: "15",
     ...(search && { search }), ...(statut && { statut }) }).toString();
   const { data: res, loading, refetch } = useApi<PostesRes>(`/api/responsableRH/recrutement/postes?${query}`);
 
   const handleWorkflow = async (posteId: number, action: string) => {
+    if (workflowId !== null) return;
+    setWorkflowId(posteId);
     try {
       const r = await fetch(`/api/responsableRH/recrutement/postes/${posteId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -138,7 +141,7 @@ function PostesView({ onPipeline }: { onPipeline: (id: number) => void }) {
       const json = await r.json();
       if (!r.ok) { toast.error(json.error ?? "Erreur"); return; }
       toast.success("Statut mis à jour"); refetch();
-    } catch { toast.error("Erreur réseau"); }
+    } catch { toast.error("Erreur réseau"); } finally { setWorkflowId(null); }
   };
 
   const stats = res?.stats;
@@ -249,11 +252,11 @@ function PostesView({ onPipeline }: { onPipeline: (id: number) => void }) {
                       ))}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      {p.statut === "BROUILLON" && <ActionBtn label="Ouvrir" color="emerald" onClick={() => handleWorkflow(p.id, "VALIDER")} />}
-                      {p.statut === "OUVERT"    && <ActionBtn label="Démarrer" color="blue" onClick={() => handleWorkflow(p.id, "DEMARRER")} />}
-                      {p.statut === "EN_COURS"  && <ActionBtn label="Marquer pourvu" color="purple" onClick={() => handleWorkflow(p.id, "MARQUER_POURVU")} />}
-                      {["OUVERT","EN_COURS"].includes(p.statut) && <ActionBtn label="Annuler" color="red" onClick={() => handleWorkflow(p.id, "ANNULER")} />}
-                      {p.statut === "ANNULE"    && <ActionBtn label="Rouvrir" color="slate" onClick={() => handleWorkflow(p.id, "ROUVRIR")} />}
+                      {p.statut === "BROUILLON" && <ActionBtn label="Ouvrir" color="emerald" disabled={workflowId !== null} onClick={() => handleWorkflow(p.id, "VALIDER")} />}
+                      {p.statut === "OUVERT"    && <ActionBtn label="Démarrer" color="blue" disabled={workflowId !== null} onClick={() => handleWorkflow(p.id, "DEMARRER")} />}
+                      {p.statut === "EN_COURS"  && <ActionBtn label="Marquer pourvu" color="purple" disabled={workflowId !== null} onClick={() => handleWorkflow(p.id, "MARQUER_POURVU")} />}
+                      {["OUVERT","EN_COURS"].includes(p.statut) && <ActionBtn label="Annuler" color="red" disabled={workflowId !== null} onClick={() => handleWorkflow(p.id, "ANNULER")} />}
+                      {p.statut === "ANNULE"    && <ActionBtn label="Rouvrir" color="slate" disabled={workflowId !== null} onClick={() => handleWorkflow(p.id, "ROUVRIR")} />}
                     </div>
                   </div>
                 )}
@@ -299,7 +302,7 @@ function CopyLinkButton({ posteId }: { posteId: number }) {
   );
 }
 
-function ActionBtn({ label, color, onClick }: { label: string; color: string; onClick: () => void }) {
+function ActionBtn({ label, color, onClick, disabled }: { label: string; color: string; onClick: () => void; disabled?: boolean }) {
   const MAP: Record<string, string> = {
     emerald: "bg-emerald-600 text-white hover:bg-emerald-700",
     blue:    "bg-blue-600 text-white hover:bg-blue-700",
@@ -308,7 +311,7 @@ function ActionBtn({ label, color, onClick }: { label: string; color: string; on
     slate:   "bg-slate-200 text-slate-700 hover:bg-slate-300",
   };
   return (
-    <button onClick={onClick} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg ${MAP[color] ?? MAP.slate}`}>
+    <button onClick={onClick} disabled={disabled} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed ${MAP[color] ?? MAP.slate}`}>
       <Play className="w-3 h-3" /> {label}
     </button>
   );

@@ -101,6 +101,7 @@ function ParticipantsPanel({ evenementId }: { evenementId: number }) {
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
   const [adding, setAdding] = useState(false);
+  const [convertingId, setConvertingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -139,10 +140,14 @@ function ParticipantsPanel({ evenementId }: { evenementId: number }) {
   };
 
   const convertir = async (p: Participant) => {
-    const r = await fetch(`/api/admin/marketing/evenements/${evenementId}/participants/${p.id}/convertir`, { method: "POST" });
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
-    toast.success("Client créé ✓"); load();
+    if (convertingId !== null) return;
+    setConvertingId(p.id);
+    try {
+      const r = await fetch(`/api/admin/marketing/evenements/${evenementId}/participants/${p.id}/convertir`, { method: "POST" });
+      const j = await r.json();
+      if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
+      toast.success("Client créé ✓"); load();
+    } finally { setConvertingId(null); }
   };
 
   const field = "px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white";
@@ -193,8 +198,8 @@ function ParticipantsPanel({ evenementId }: { evenementId: number }) {
                   {Object.entries(PARTICIPANT_STATUT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
                 {!p.client && (
-                  <button onClick={() => convertir(p)} title="Convertir en client" className="p-1 text-slate-400 hover:text-emerald-600 rounded hover:bg-emerald-50">
-                    <UserCheck className="w-3.5 h-3.5" />
+                  <button onClick={() => convertir(p)} disabled={convertingId === p.id} title="Convertir en client" className="p-1 text-slate-400 hover:text-emerald-600 rounded hover:bg-emerald-50 disabled:opacity-50">
+                    {convertingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserCheck className="w-3.5 h-3.5" />}
                   </button>
                 )}
               </div>

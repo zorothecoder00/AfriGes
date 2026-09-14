@@ -44,6 +44,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [infoMessage, setInfoMessage] = useState<{ text: string; warn?: boolean } | null>(null)
   const [isLoading, setIsLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [errors, setErrors] = useState<Errors>({}) // ✅ Typage;
 
   useEffect(() => {
@@ -128,10 +129,14 @@ export default function LoginPage() {
   };   
 
   const handleSocialLogin = async (provider: 'google' | 'microsoft') => {
+    if (oauthLoading) return;
+    setOauthLoading(true);
     try {
       await signIn(provider, { callbackUrl: '/dashboard' });
     } catch (error) {
       console.error(`${provider} login error:`, error);
+    } finally {
+      setOauthLoading(false);
     }
   };
    
@@ -251,6 +256,7 @@ export default function LoginPage() {
                 type="button"
                 variant="secondary"
                 size="lg"
+                loading={oauthLoading}
                 onClick={() => handleSocialLogin('google')}
                 className="w-full"
                 icon={

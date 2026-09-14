@@ -123,6 +123,7 @@ export default function FormulairesMarketing() {
   const [campagnes, setCampagnes] = useState<Campagne[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -139,12 +140,16 @@ export default function FormulairesMarketing() {
   useEffect(() => { fetch("/api/admin/marketing/campagnes").then((r) => r.json()).then((j) => setCampagnes(j.data ?? [])).catch(() => {}); }, []);
 
   const toggleActif = async (f: Formulaire) => {
-    const r = await fetch(`/api/admin/marketing/formulaires/${f.id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !f.actif }),
-    });
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
-    toast.success(f.actif ? "Formulaire désactivé" : "Formulaire activé"); load();
+    if (togglingId !== null) return;
+    setTogglingId(f.id);
+    try {
+      const r = await fetch(`/api/admin/marketing/formulaires/${f.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !f.actif }),
+      });
+      const j = await r.json();
+      if (!r.ok) { toast.error(j.error ?? "Erreur"); return; }
+      toast.success(f.actif ? "Formulaire désactivé" : "Formulaire activé"); load();
+    } finally { setTogglingId(null); }
   };
 
   return (
@@ -170,8 +175,8 @@ export default function FormulairesMarketing() {
               <p className="font-medium text-slate-800">{f.nom}</p>
               <p className="text-xs text-slate-400">{f.campagne ? f.campagne.nom : "Sans campagne"} · {f._count.soumissions} soumission(s)</p>
             </div>
-            <button onClick={() => toggleActif(f)} title={f.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50">
-              {f.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+            <button onClick={() => toggleActif(f)} disabled={togglingId === f.id} title={f.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 disabled:opacity-50">
+              {togglingId === f.id ? <Loader2 className="w-4 h-4 animate-spin" /> : f.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
             </button>
           </div>
         ))}

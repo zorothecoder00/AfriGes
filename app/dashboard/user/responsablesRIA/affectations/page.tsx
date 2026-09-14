@@ -386,18 +386,25 @@ export default function RIAAffectationsPage() {
     );
   });
 
+  const [togglingId, setTogglingId] = useState<number | null>(null);
   const toggleActif = async (id: number, current: boolean) => {
-    const r = await fetch(`/api/admin/ria/affectations/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actif: !current }),
-    });
-    if (r.ok) {
-      toast.success(current ? "Affectation désactivée" : "Affectation réactivée");
-      refetch();
-    } else {
-      const j = await r.json();
-      toast.error(j.error ?? "Erreur");
+    if (togglingId !== null) return;
+    setTogglingId(id);
+    try {
+      const r = await fetch(`/api/admin/ria/affectations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actif: !current }),
+      });
+      if (r.ok) {
+        toast.success(current ? "Affectation désactivée" : "Affectation réactivée");
+        refetch();
+      } else {
+        const j = await r.json();
+        toast.error(j.error ?? "Erreur");
+      }
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -520,7 +527,8 @@ export default function RIAAffectationsPage() {
                     {a.dateFin && <><br /><span className="text-red-400">→ {fmtDate(a.dateFin)}</span></>}
                   </td>
                   <td className="px-4 py-3">
-                    <button onClick={() => toggleActif(a.id, a.actif)} className="text-slate-400 hover:text-emerald-600 transition-colors">
+                    <button onClick={() => toggleActif(a.id, a.actif)} disabled={togglingId !== null}
+                      className="text-slate-400 hover:text-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                       {a.actif
                         ? <ToggleRight className="w-5 h-5 text-emerald-600" />
                         : <ToggleLeft className="w-5 h-5" />}

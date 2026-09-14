@@ -87,11 +87,15 @@ export default function LotsProduit({ produitId }: { produitId: number }) {
   };
 
   const retirer = async (lot: Lot) => {
+    if (busy) return;
     if (!confirm(`Retirer le lot « ${lot.numeroLot} » de la vente ?`)) return;
-    const r = await fetch(`/api/admin/catalogue/lots/${lot.id}`, { method: "DELETE" });
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.message ?? "Erreur"); return; }
-    toast.success("Lot retiré"); load();
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/admin/catalogue/lots/${lot.id}`, { method: "DELETE" });
+      const j = await r.json();
+      if (!r.ok) { toast.error(j.message ?? "Erreur"); return; }
+      toast.success("Lot retiré"); load();
+    } finally { setBusy(false); }
   };
 
   const field = "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -181,8 +185,8 @@ export default function LotsProduit({ produitId }: { produitId: number }) {
                         </>
                       ) : (
                         <>
-                          <button onClick={() => setEditId(l.id)} title="Ajuster la quantité" className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"><Pencil className="w-4 h-4" /></button>
-                          {l.statut !== "RETIRE" && <button onClick={() => retirer(l)} title="Retirer" className="p-1.5 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50"><Trash2 className="w-4 h-4" /></button>}
+                          <button onClick={() => setEditId(l.id)} disabled={busy} title="Ajuster la quantité" className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-50"><Pencil className="w-4 h-4" /></button>
+                          {l.statut !== "RETIRE" && <button onClick={() => retirer(l)} disabled={busy} title="Retirer" className="p-1.5 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 disabled:opacity-50">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}</button>}
                         </>
                       )}
                     </div>

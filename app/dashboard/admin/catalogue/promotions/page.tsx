@@ -59,6 +59,7 @@ export default function PromotionsPage() {
   const [pdvs, setPdvs] = useState<{ id: number; nom: string }[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -79,20 +80,28 @@ export default function PromotionsPage() {
   }, []);
 
   const toggleActif = async (p: PromoRow) => {
-    const r = await fetch(`/api/admin/catalogue/promotions/${p.id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !p.actif }),
-    });
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.message ?? "Erreur"); return; }
-    toast.success(p.actif ? "Promotion désactivée" : "Promotion activée"); load();
+    if (busyId != null) return;
+    setBusyId(p.id);
+    try {
+      const r = await fetch(`/api/admin/catalogue/promotions/${p.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !p.actif }),
+      });
+      const j = await r.json();
+      if (!r.ok) { toast.error(j.message ?? "Erreur"); return; }
+      toast.success(p.actif ? "Promotion désactivée" : "Promotion activée"); load();
+    } finally { setBusyId(null); }
   };
 
   const supprimer = async (p: PromoRow) => {
+    if (busyId != null) return;
     if (!confirm(`Supprimer la promotion « ${p.nom} » ? Cette action est définitive.`)) return;
-    const r = await fetch(`/api/admin/catalogue/promotions/${p.id}`, { method: "DELETE" });
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.message ?? "Erreur"); return; }
-    toast.success("Promotion supprimée"); load();
+    setBusyId(p.id);
+    try {
+      const r = await fetch(`/api/admin/catalogue/promotions/${p.id}`, { method: "DELETE" });
+      const j = await r.json();
+      if (!r.ok) { toast.error(j.message ?? "Erreur"); return; }
+      toast.success("Promotion supprimée"); load();
+    } finally { setBusyId(null); }
   };
 
   return (
@@ -166,11 +175,11 @@ export default function PromotionsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-1.5">
-                            <button onClick={() => toggleActif(p)} title={p.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50">
-                              {p.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+                            <button onClick={() => toggleActif(p)} disabled={busyId != null} title={p.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 disabled:opacity-50">
+                              {busyId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : p.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
                             </button>
-                            <button onClick={() => { setEditId(p.id); setModalOpen(true); }} title="Modifier" className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"><Pencil className="w-4 h-4" /></button>
-                            <button onClick={() => supprimer(p)} title="Supprimer" className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => { setEditId(p.id); setModalOpen(true); }} disabled={busyId != null} title="Modifier" className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-50"><Pencil className="w-4 h-4" /></button>
+                            <button onClick={() => supprimer(p)} disabled={busyId != null} title="Supprimer" className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 disabled:opacity-50">{busyId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}</button>
                           </div>
                         </td>
                       </tr>

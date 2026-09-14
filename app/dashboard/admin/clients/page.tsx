@@ -310,7 +310,7 @@ export default function ClientsPage() {
   // ── Quick action statut (suspendre/bloquer/archiver/activer) ───────────────
   const [quickStatusClient, setQuickStatusClient] = useState<Client | null>(null);
   const quickStatusRef = useRef<number | null>(null);
-  const { mutate: patchStatus } =
+  const { mutate: patchStatus, loading: patchingStatus } =
     useMutation(() => `/api/admin/clients/${quickStatusRef.current}`, 'PATCH', { successMessage: 'Statut mis à jour' });
 
   // ── Suppression inline ──────────────────────────────────────────────────────
@@ -1523,26 +1523,26 @@ export default function ClientsPage() {
                           {quickStatusClient?.id === client.id && (
                             <div className="absolute right-0 top-9 z-50 bg-white border border-slate-200 rounded-xl shadow-lg w-44 py-1">
                               {client.etat !== 'ACTIF' && (
-                                <button onClick={() => handleQuickStatus(client, 'ACTIF')}
-                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50">
+                                <button onClick={() => handleQuickStatus(client, 'ACTIF')} disabled={patchingStatus}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">
                                   <CheckCircle size={14} /> Activer
                                 </button>
                               )}
                               {client.etat !== 'SUSPENDU' && (
-                                <button onClick={() => handleQuickStatus(client, 'SUSPENDU')}
-                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">
+                                <button onClick={() => handleQuickStatus(client, 'SUSPENDU')} disabled={patchingStatus}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-amber-700 hover:bg-amber-50 disabled:opacity-50">
                                   <PauseCircle size={14} /> Suspendre
                                 </button>
                               )}
                               {client.etat !== 'BLOQUE' && (
-                                <button onClick={() => handleQuickStatus(client, 'BLOQUE')}
-                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-700 hover:bg-red-50">
+                                <button onClick={() => handleQuickStatus(client, 'BLOQUE')} disabled={patchingStatus}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50">
                                   <Ban size={14} /> Bloquer
                                 </button>
                               )}
                               {client.etat !== 'INACTIF' && (
-                                <button onClick={() => handleQuickStatus(client, 'INACTIF')}
-                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                                <button onClick={() => handleQuickStatus(client, 'INACTIF')} disabled={patchingStatus}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50">
                                   <Archive size={14} /> Archiver
                                 </button>
                               )}

@@ -462,6 +462,7 @@ function OngletResolutions({ r }: { r: Reunion; onRefresh: () => void }) {
     `/api/admin/ria/commissions/gouvernance/resolutions`, "POST"
   );
   const [form, setForm] = useState({ titre: "", description: "", dateEcheance: "" });
+  const [processingId, setProcessingId] = useState<number | null>(null);
 
   async function soumettre(e: React.FormEvent) {
     e.preventDefault();
@@ -477,12 +478,18 @@ function OngletResolutions({ r }: { r: Reunion; onRefresh: () => void }) {
   }
 
   async function executerAction(id: number, action: string) {
-    const res = await fetch(`/api/admin/ria/commissions/gouvernance/resolutions/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
-    });
-    const json = await res.json();
-    if (json.id) { toast.success("Résolution mise à jour"); setRefresh(x => x + 1); }
-    else toast.error(json.error || "Erreur");
+    if (processingId !== null) return;
+    setProcessingId(id);
+    try {
+      const res = await fetch(`/api/admin/ria/commissions/gouvernance/resolutions/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
+      });
+      const json = await res.json();
+      if (json.id) { toast.success("Résolution mise à jour"); setRefresh(x => x + 1); }
+      else toast.error(json.error || "Erreur");
+    } finally {
+      setProcessingId(null);
+    }
   }
 
   const resolutions = data?.resolutions ?? [];
@@ -578,7 +585,8 @@ function OngletResolutions({ r }: { r: Reunion; onRefresh: () => void }) {
                 <div className="flex flex-wrap items-center gap-1.5">
                   {(RESOLUTION_ACTIONS_PAR_STATUT[res.statut] ?? []).map(a => (
                     <button key={a.action} onClick={() => executerAction(res.id, a.action)}
-                      className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                      disabled={processingId === res.id}
+                      className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors disabled:opacity-50 ${
                         a.danger ? "bg-rose-50 text-rose-700 hover:bg-rose-100" : "bg-emerald-600 text-white hover:bg-emerald-700"
                       }`}>
                       {a.label}
@@ -615,6 +623,7 @@ function OngletPlansAction({ r }: { r: Reunion }) {
   const resolutionsReunion = r.resolutions ?? [];
   const formInit = { titre: "", description: "", priorite: "MOYENNE", responsableId: "", resolutionId: "", dateEcheance: "", progression: "0" };
   const [form, setForm] = useState(formInit);
+  const [processingId, setProcessingId] = useState<number | null>(null);
 
   async function soumettre(e: React.FormEvent) {
     e.preventDefault();
@@ -634,12 +643,18 @@ function OngletPlansAction({ r }: { r: Reunion }) {
   }
 
   async function changerStatut(id: number, statut: string) {
-    const res = await fetch(`/api/admin/ria/commissions/gouvernance/plans-actions/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statut }),
-    });
-    const json = await res.json();
-    if (json.id) { toast.success("Statut mis à jour"); setRefresh(x => x + 1); }
-    else toast.error(json.error || "Erreur");
+    if (processingId !== null) return;
+    setProcessingId(id);
+    try {
+      const res = await fetch(`/api/admin/ria/commissions/gouvernance/plans-actions/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statut }),
+      });
+      const json = await res.json();
+      if (json.id) { toast.success("Statut mis à jour"); setRefresh(x => x + 1); }
+      else toast.error(json.error || "Erreur");
+    } finally {
+      setProcessingId(null);
+    }
   }
 
   async function changerProgression(id: number, progression: number) {
@@ -795,8 +810,8 @@ function OngletPlansAction({ r }: { r: Reunion }) {
                     const cfg = STATUT_PLAN[val];
                     return (
                       <button key={val} onClick={() => changerStatut(p.id, val)}
-                        disabled={p.statut === val}
-                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${
+                        disabled={p.statut === val || processingId === p.id}
+                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors disabled:opacity-60 ${
                           p.statut === val ? `${cfg.color} border-current cursor-default` : "border-slate-200 text-slate-500 hover:bg-slate-50"
                         }`}>
                         {cfg.label}

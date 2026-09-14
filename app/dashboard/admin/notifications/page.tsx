@@ -77,6 +77,7 @@ export default function NotificationsClientelePage() {
   const t = useT();
   const [page,    setPage]    = useState(1);
   const [filtre,  setFiltre]  = useState<'toutes' | 'non_lues' | 'urgentes'>('toutes');
+  const [markingOneId, setMarkingOneId] = useState<number | null>(null);
 
   const lueParam     = filtre === 'non_lues' ? '&lue=false' : '';
   const { data: res, loading, refetch } =
@@ -96,12 +97,18 @@ export default function NotificationsClientelePage() {
   };
 
   const handleMarkOne = async (id: number) => {
-    await fetch('/api/admin/notifications', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: [id] }),
-    });
-    refetch();
+    if (markingOneId !== null) return;
+    setMarkingOneId(id);
+    try {
+      await fetch('/api/admin/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [id] }),
+      });
+      refetch();
+    } finally {
+      setMarkingOneId(null);
+    }
   };
 
   return (
@@ -229,8 +236,8 @@ export default function NotificationsClientelePage() {
                           </Link>
                         )}
                         {!n.lue && (
-                          <button onClick={() => handleMarkOne(n.id)}
-                            className="px-2.5 py-1 text-xs bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100">
+                          <button onClick={() => handleMarkOne(n.id)} disabled={markingOneId === n.id}
+                            className="px-2.5 py-1 text-xs bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 disabled:opacity-50">
                             {t('notif_lu_btn')}
                           </button>
                         )}

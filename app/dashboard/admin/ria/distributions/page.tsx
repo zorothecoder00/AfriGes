@@ -166,6 +166,7 @@ export default function DistributionsPage() {
   const [annee, setAnnee] = useState(String(now.getFullYear()));
   const [statut, setStatut] = useState("");
   const [showPlan, setShowPlan] = useState(false);
+  const [processingId, setProcessingId] = useState<number | null>(null);
 
   const qs = [`limit=100`, mois ? `mois=${mois}` : "", annee ? `annee=${annee}` : "", statut ? `statut=${statut}` : ""].filter(Boolean).join("&");
   const { data: res, loading, refetch } = useApi<{ data: DistributionItem[]; meta: { total: number } }>(
@@ -178,14 +179,17 @@ export default function DistributionsPage() {
   const totalPlanifie  = distributions.filter((d) => d.statut === "PLANIFIE").length;
 
   const traiter = async (id: number) => {
-    const r = await fetch(`/api/admin/ria/distributions/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "TRAITER" }),
-    });
-    const json = await r.json();
-    if (r.ok) { toast.success("Distribution traitée — capital mis à jour"); refetch(); }
-    else toast.error(json.error ?? "Erreur");
+    setProcessingId(id);
+    try {
+      const r = await fetch(`/api/admin/ria/distributions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "TRAITER" }),
+      });
+      const json = await r.json();
+      if (r.ok) { toast.success("Distribution traitée — capital mis à jour"); refetch(); }
+      else toast.error(json.error ?? "Erreur");
+    } finally { setProcessingId(null); }
   };
 
   return (
@@ -271,9 +275,9 @@ export default function DistributionsPage() {
                   </td>
                   <td className="px-4 py-3">
                     {d.statut === "PLANIFIE" && (
-                      <button onClick={() => traiter(d.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700">
-                        <CheckCircle className="w-3 h-3" /> Traiter
+                      <button onClick={() => traiter(d.id)} disabled={processingId === d.id}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
+                        <CheckCircle className="w-3 h-3" /> {processingId === d.id ? "…" : "Traiter"}
                       </button>
                     )}
                   </td>

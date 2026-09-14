@@ -48,6 +48,7 @@ export default function CatalogueProduitsPage() {
   const [editId, setEditId] = useState<number | null>(null);
   const [docsOpen, setDocsOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [archivingId, setArchivingId] = useState<number | null>(null);
 
   const LIMIT = 20;
 
@@ -120,11 +121,15 @@ export default function CatalogueProduitsPage() {
   }, [searchInput]);
 
   const archiver = async (p: ProduitRow) => {
+    if (archivingId != null) return;
     if (!confirm(`Archiver le produit « ${p.nom} » ? Il ne sera plus commercialisé mais son historique est conservé.`)) return;
-    const r = await fetch(`/api/admin/catalogue/produits/${p.id}`, { method: "DELETE" });
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.message ?? "Erreur"); return; }
-    toast.success("Produit archivé"); load();
+    setArchivingId(p.id);
+    try {
+      const r = await fetch(`/api/admin/catalogue/produits/${p.id}`, { method: "DELETE" });
+      const j = await r.json();
+      if (!r.ok) { toast.error(j.message ?? "Erreur"); return; }
+      toast.success("Produit archivé"); load();
+    } finally { setArchivingId(null); }
   };
 
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
@@ -161,9 +166,9 @@ export default function CatalogueProduitsPage() {
               </button>
               {docsOpen && (
                 <div className="absolute left-0 sm:left-auto sm:right-0 mt-1 w-64 max-w-[90vw] bg-white border border-slate-200 rounded-xl shadow-lg z-20 py-1">
-                  <button onClick={exporterExcel} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                  <button onClick={exporterExcel} disabled={exporting} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50">
                     <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Exporter en Excel
-                  </button>   
+                  </button>
                   <Link href={`/dashboard/admin/catalogue/impression${filtresQuery ? `?${filtresQuery}` : ""}`} onMouseDown={(e) => e.preventDefault()}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
                     <Printer className="w-4 h-4 text-blue-600" /> Imprimer le catalogue
@@ -298,7 +303,9 @@ export default function CatalogueProduitsPage() {
                           <Link href={`/dashboard/admin/catalogue/produits/${p.id}`} title="Voir la fiche" className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"><Eye className="w-4 h-4" /></Link>
                           <button onClick={() => { setEditId(p.id); setModalOpen(true); }} title="Modifier" className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"><Pencil className="w-4 h-4" /></button>
                           {p.statut !== "ARCHIVE" && (
-                            <button onClick={() => archiver(p)} title="Archiver" className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50"><Archive className="w-4 h-4" /></button>
+                            <button onClick={() => archiver(p)} disabled={archivingId != null} title="Archiver" className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 disabled:opacity-50">
+                              {archivingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
+                            </button>
                           )}
                         </div>
                       </td>

@@ -198,6 +198,8 @@ export default function RecompensesFidelite() {
   const [echanges, setEchanges] = useState<Echange[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [marquingId, setMarquingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -215,19 +217,27 @@ export default function RecompensesFidelite() {
   useEffect(() => { load(); }, [load]);
 
   const toggleActif = async (r: Recompense) => {
-    const res = await fetch(`/api/admin/marketing/recompenses/${r.id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !r.actif }),
-    });
-    const j = await res.json();
-    if (!res.ok) { toast.error(j.error ?? "Erreur"); return; }
-    toast.success(r.actif ? "Récompense désactivée" : "Récompense activée"); load();
+    if (togglingId !== null) return;
+    setTogglingId(r.id);
+    try {
+      const res = await fetch(`/api/admin/marketing/recompenses/${r.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actif: !r.actif }),
+      });
+      const j = await res.json();
+      if (!res.ok) { toast.error(j.error ?? "Erreur"); return; }
+      toast.success(r.actif ? "Récompense désactivée" : "Récompense activée"); load();
+    } finally { setTogglingId(null); }
   };
 
   const marquerUtilisee = async (e: Echange) => {
-    const res = await fetch(`/api/admin/marketing/recompenses/echanges/${e.id}`, { method: "PATCH" });
-    const j = await res.json();
-    if (!res.ok) { toast.error(j.error ?? "Erreur"); return; }
-    toast.success("Marqué comme utilisé ✓"); load();
+    if (marquingId !== null) return;
+    setMarquingId(e.id);
+    try {
+      const res = await fetch(`/api/admin/marketing/recompenses/echanges/${e.id}`, { method: "PATCH" });
+      const j = await res.json();
+      if (!res.ok) { toast.error(j.error ?? "Erreur"); return; }
+      toast.success("Marqué comme utilisé ✓"); load();
+    } finally { setMarquingId(null); }
   };
 
   if (loading) return <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>;
@@ -248,8 +258,8 @@ export default function RecompensesFidelite() {
                 <p className="font-medium text-slate-800">{r.nom}</p>
                 <p className="text-xs text-slate-400">{TYPE_LABEL[r.type]} · {r.coutPoints} pts{r.valeur ? ` · ${r.valeur.toLocaleString("fr-FR")} FCFA` : ""} · {r._count.echanges} échange(s)</p>
               </div>
-              <button onClick={() => toggleActif(r)} title={r.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50">
-                {r.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+              <button onClick={() => toggleActif(r)} disabled={togglingId === r.id} title={r.actif ? "Désactiver" : "Activer"} className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 disabled:opacity-50">
+                {togglingId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : r.actif ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
               </button>
             </div>
           ))}
@@ -264,8 +274,8 @@ export default function RecompensesFidelite() {
                 <p className="text-xs text-slate-400">{e.pointsUtilises} pts · {new Date(e.createdAt).toLocaleDateString("fr-FR")}</p>
               </div>
               {e.statut === "DISPONIBLE" ? (
-                <button onClick={() => marquerUtilisee(e)} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Marquer utilisé
+                <button onClick={() => marquerUtilisee(e)} disabled={marquingId === e.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold">
+                  {marquingId === e.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Marquer utilisé
                 </button>
               ) : (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">Utilisée</span>

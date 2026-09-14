@@ -217,7 +217,7 @@ export default function JournauxPage() {
     "/api/comptable/journal/valider", "POST",
     { successMessage: "Ligne validée" }
   );
-  const { mutate: annulerValidationJournal } = useMutation<unknown, object>(
+  const { mutate: annulerValidationJournal, loading: annulantValidation } = useMutation<unknown, object>(
     "/api/comptable/journal/valider", "DELETE",
     { successMessage: "Validation annulée" }
   );
@@ -583,8 +583,9 @@ export default function JournauxPage() {
                           {entry.valide ? (
                             <button
                               onClick={() => handleAnnulerValidationEntree(entry.id)}
+                              disabled={annulantValidation}
                               title={`Validé par ${entry.valideParNom ?? ""}${entry.dateValidation ? ` le ${formatDateShort(entry.dateValidation)}` : ""}\nCliquer pour annuler`}
-                              className="inline-flex items-center justify-center w-7 h-7 bg-emerald-100 text-emerald-600 hover:bg-red-100 hover:text-red-500 rounded-full transition-colors"
+                              className="inline-flex items-center justify-center w-7 h-7 bg-emerald-100 text-emerald-600 hover:bg-red-100 hover:text-red-500 rounded-full transition-colors disabled:opacity-40"
                             >
                               <CheckCircle size={14} />
                             </button>

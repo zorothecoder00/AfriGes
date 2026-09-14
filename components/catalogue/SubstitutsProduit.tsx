@@ -71,11 +71,15 @@ export default function SubstitutsProduit({ produitId }: { produitId: number }) 
   };
 
   const supprimer = async (c: Configure) => {
+    if (busy) return;
     if (!confirm(`Retirer « ${c.substitut.nom} » des substituts ?`)) return;
-    const r = await fetch(`/api/admin/catalogue/substituts/${c.id}`, { method: "DELETE" });
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.message ?? "Erreur"); return; }
-    toast.success("Substitut retiré"); load();
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/admin/catalogue/substituts/${c.id}`, { method: "DELETE" });
+      const j = await r.json();
+      if (!r.ok) { toast.error(j.message ?? "Erreur"); return; }
+      toast.success("Substitut retiré"); load();
+    } finally { setBusy(false); }
   };
 
   const field = "px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -178,7 +182,7 @@ export default function SubstitutsProduit({ produitId }: { produitId: number }) 
                   </td>
                   <td className="px-4 py-2.5 text-center text-gray-500">{c.priorite}</td>
                   <td className="px-4 py-2.5 text-center">
-                    <button onClick={() => supprimer(c)} title="Retirer" className="p-1.5 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => supprimer(c)} disabled={busy} title="Retirer" className="p-1.5 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
                   </td>
                 </tr>
               ))}

@@ -51,12 +51,13 @@ export default function ResolutionDetailPage() {
   const { data: res, loading } = useApi<Resolution>(
     `/api/admin/ria/commissions/gouvernance/resolutions/${id}?_r=${refresh}`
   );
-  const { mutate: patchRes } = useMutation(
+  const { mutate: patchRes, loading: actioning } = useMutation(
     `/api/admin/ria/commissions/gouvernance/resolutions/${id}`, "PATCH"
   );
   const { mutate: creerPlan, loading: creating } = useMutation(
     `/api/admin/ria/commissions/gouvernance/plans-actions`, "POST"
   );
+  const [processingPlanId, setProcessingPlanId] = useState<number | null>(null);
 
   async function executerAction(action: string) {
     const r = await patchRes({ action }) as { id?: number; error?: string } | null;
@@ -65,13 +66,19 @@ export default function ResolutionDetailPage() {
   }
 
   async function changerStatutPlan(planId: number, statut: string) {
-    const r = await fetch(`/api/admin/ria/commissions/gouvernance/plans-actions/${planId}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ statut }),
-    });
-    const json = await r.json();
-    if (json.id) { toast.success("Statut mis à jour"); setRefresh(x => x + 1); }
-    else toast.error(json.error || "Erreur");
+    if (processingPlanId !== null) return;
+    setProcessingPlanId(planId);
+    try {
+      const r = await fetch(`/api/admin/ria/commissions/gouvernance/plans-actions/${planId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ statut }),
+      });
+      const json = await r.json();
+      if (json.id) { toast.success("Statut mis à jour"); setRefresh(x => x + 1); }
+      else toast.error(json.error || "Erreur");
+    } finally {
+      setProcessingPlanId(null);
+    }
   }
 
   async function soumettrePlan(e: React.FormEvent) {
@@ -186,7 +193,8 @@ export default function ResolutionDetailPage() {
           <div className="flex flex-wrap items-center gap-2">
             {(RESOLUTION_ACTIONS_PAR_STATUT[res.statut] ?? []).map(a => (
               <button key={a.action} onClick={() => executerAction(a.action)}
-                className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                disabled={actioning}
+                className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 ${
                   a.danger ? "bg-rose-50 text-rose-700 hover:bg-rose-100" : "bg-emerald-600 text-white hover:bg-emerald-700"
                 }`}>
                 {a.label}
@@ -295,8 +303,8 @@ export default function ResolutionDetailPage() {
                   <div className="flex gap-1.5 flex-wrap">
                     {Object.entries(STATUT_PLAN).map(([val, cfg]) => (
                       <button key={val} onClick={() => changerStatutPlan(p.id, val)}
-                        disabled={p.statut === val}
-                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${
+                        disabled={p.statut === val || processingPlanId === p.id}
+                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors disabled:opacity-60 ${
                           p.statut === val ? `${cfg.color} border-current cursor-default` : "border-slate-200 text-slate-500 hover:bg-slate-50"
                         }`}>
                         {cfg.label}

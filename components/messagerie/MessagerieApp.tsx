@@ -142,6 +142,7 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTexte, setEditTexte] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const loadConversations = useCallback(async (silencieux = false) => {
@@ -282,8 +283,9 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
   };
 
   const supprimerMessage = async (messageId: number) => {
-    if (!activeId) return;
+    if (!activeId || deletingId !== null) return;
     if (!window.confirm("Supprimer ce message ? Il sera remplacé par « Message supprimé » dans le fil.")) return;
+    setDeletingId(messageId);
     try {
       const r = await fetch(`/api/messages/conversations/${activeId}/messages/${messageId}`, { method: "DELETE" });
       const j = await r.json();
@@ -291,6 +293,7 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
       setMessages((prev) => prev.map((m) => (m.id === messageId ? j.data : m)));
       if (editingId === messageId) annulerEdition();
     } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setDeletingId(null); }
   };
 
   const conversationActive = conversations.find((c) => c.id === activeId);
@@ -410,8 +413,8 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
                           className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-colors">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => supprimerMessage(m.id)} title="Supprimer"
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors">
+                        <button onClick={() => supprimerMessage(m.id)} disabled={deletingId === m.id} title="Supprimer"
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors disabled:opacity-40">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>

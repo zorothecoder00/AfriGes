@@ -31,7 +31,7 @@ export default function BudgetsMarketing() {
   const { can } = usePermissions();
   const peutValiderResponsable = can("marketing", "VALIDATION");
   const budgetIdRef = useRef<number | null>(null);
-  const { mutate: agirBudget } = useMutation<unknown, { action: string }>(
+  const { mutate: agirBudget, loading: agissant } = useMutation<unknown, { action: string }>(
     () => `/api/admin/marketing/budgets/${budgetIdRef.current}/action`, "POST",
     { invalidate: "/api/admin/marketing/campagnes" }
   );
@@ -58,23 +58,23 @@ export default function BudgetsMarketing() {
             <div className="flex items-center gap-2">
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${STATUT_STYLE[c.budget!.statut] ?? ""}`}>{STATUT_LABEL[c.budget!.statut] ?? c.budget!.statut}</span>
               {c.budget!.statut === "BROUILLON" && (
-                <button onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "DEMANDER" })) refetch(); }}
-                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700">Demander validation</button>
+                <button disabled={agissant} onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "DEMANDER" })) refetch(); }}
+                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 disabled:opacity-50">Demander validation</button>
               )}
               {c.budget!.statut === "DEMANDE" && peutValiderResponsable && (
                 <>
-                  <button onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "VALIDER_RESPONSABLE" })) refetch(); }}
-                    className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700">Valider (Responsable)</button>
-                  <button onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "REJETER" })) refetch(); }}
-                    className="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-semibold hover:bg-rose-600">Rejeter</button>
+                  <button disabled={agissant} onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "VALIDER_RESPONSABLE" })) refetch(); }}
+                    className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50">Valider (Responsable)</button>
+                  <button disabled={agissant} onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "REJETER" })) refetch(); }}
+                    className="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-semibold hover:bg-rose-600 disabled:opacity-50">Rejeter</button>
                 </>
               )}
               {c.budget!.statut === "EN_VALIDATION_DIRECTION" && estDirection && (
                 <>
-                  <button onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "APPROUVER" })) refetch(); }}
-                    className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700">Valider (Direction)</button>
-                  <button onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "REJETER" })) refetch(); }}
-                    className="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-semibold hover:bg-rose-600">Rejeter</button>
+                  <button disabled={agissant} onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "APPROUVER" })) refetch(); }}
+                    className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 disabled:opacity-50">Valider (Direction)</button>
+                  <button disabled={agissant} onClick={async () => { budgetIdRef.current = c.budget!.id; if (await agirBudget({ action: "REJETER" })) refetch(); }}
+                    className="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-semibold hover:bg-rose-600 disabled:opacity-50">Rejeter</button>
                 </>
               )}
             </div>

@@ -330,8 +330,8 @@ export default function DossierDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
   const { data: dossier, loading, refetch } = useApi<DossierDetail>(`/api/admin/ria/commissions/gouvernance/dossiers/${id}`);
-  const { mutate: mutatePatch } = useMutation(`/api/admin/ria/commissions/gouvernance/dossiers/${id}`, "PATCH");
-  const { mutate: mutateEchange } = useMutation(`/api/admin/ria/commissions/gouvernance/dossiers/${id}/echanges`, "POST");
+  const { mutate: mutatePatch, loading: actionEnCours } = useMutation(`/api/admin/ria/commissions/gouvernance/dossiers/${id}`, "PATCH");
+  const { mutate: mutateEchange, loading: envoiEnCours } = useMutation(`/api/admin/ria/commissions/gouvernance/dossiers/${id}/echanges`, "POST");
   const [modalAction, setModalAction] = useState<ActionDef | null>(null);
   const [nouvelEchange, setNouvelEchange] = useState("");
 
@@ -397,7 +397,8 @@ export default function DossierDetailPage() {
           <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
             {actions.map(def => (
               <button key={def.action} onClick={() => def.needsComment || def.isApprouver ? setModalAction(def) : runAction({ action: def.action })}
-                className={`px-4 py-2 text-sm font-medium rounded-lg ${def.isDanger ? "bg-rose-50 text-rose-700 hover:bg-rose-100" : "bg-violet-600 text-white hover:bg-violet-700"}`}>
+                disabled={actionEnCours}
+                className={`px-4 py-2 text-sm font-medium rounded-lg disabled:opacity-50 ${def.isDanger ? "bg-rose-50 text-rose-700 hover:bg-rose-100" : "bg-violet-600 text-white hover:bg-violet-700"}`}>
                 {def.label}
               </button>
             ))}
@@ -425,9 +426,9 @@ export default function DossierDetailPage() {
             </p>
           </div>
           {peutDecaisser ? (
-            <button onClick={() => runAction({ action: "EXECUTER" })}
-              className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700">
-              <Wallet className="w-4 h-4" /> Décaisser maintenant
+            <button onClick={() => runAction({ action: "EXECUTER" })} disabled={actionEnCours}
+              className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+              <Wallet className="w-4 h-4" /> {actionEnCours ? "Décaissement..." : "Décaisser maintenant"}
             </button>
           ) : (
             <span className="shrink-0 self-center text-xs text-emerald-700 italic">Réservé au Président de la commission réceptrice</span>
@@ -476,7 +477,8 @@ export default function DossierDetailPage() {
           <input value={nouvelEchange} onChange={e => setNouvelEchange(e.target.value)}
             placeholder="Ajouter une observation..."
             className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
-          <button onClick={envoyerEchange} className="px-4 py-2 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700">Envoyer</button>
+          <button onClick={envoyerEchange} disabled={envoiEnCours || !nouvelEchange.trim()}
+            className="px-4 py-2 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700 disabled:opacity-50">Envoyer</button>
         </div>
       </div>
 

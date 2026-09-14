@@ -330,15 +330,18 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
   };
 
   const majLivraison = async (statutLivraison: string) => {
-    const r = await fetch(`/api/logistique/bons-commande/${id}/livraison`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        statutLivraison,
-        lignes: statutLivraison === "RECEPTIONNEE" ? b?.lignes.map((l) => ({ ligneId: l.id, quantiteRecue: l.quantite })) : undefined,
-      }),
-    });
-    if (r.ok) { toast.success("Suivi livraison mis à jour"); refetch(); onUpdated(); }
-    else toast.error("Erreur");
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/logistique/bons-commande/${id}/livraison`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          statutLivraison,
+          lignes: statutLivraison === "RECEPTIONNEE" ? b?.lignes.map((l) => ({ ligneId: l.id, quantiteRecue: l.quantite })) : undefined,
+        }),
+      });
+      if (r.ok) { toast.success("Suivi livraison mis à jour"); refetch(); onUpdated(); }
+      else toast.error("Erreur");
+    } finally { setBusy(false); }
   };
 
   const etapeLivraisonIdx = b?.statutLivraison ? LIVRAISON_ETAPES.findIndex((e) => e.key === b.statutLivraison) : -1;
@@ -434,7 +437,7 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
                   <p className="text-xs font-semibold text-slate-500 uppercase mb-2 flex items-center gap-1.5"><Truck className="w-3.5 h-3.5" /> Suivi livraison</p>
                   <div className="flex items-center gap-1 flex-wrap">
                     {LIVRAISON_ETAPES.map((e, i) => (
-                      <button key={e.key} onClick={() => majLivraison(e.key)} disabled={b.statut === "COMPLETED"}
+                      <button key={e.key} onClick={() => majLivraison(e.key)} disabled={busy || b.statut === "COMPLETED"}
                         className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all disabled:cursor-default ${
                           i <= etapeLivraisonIdx ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                         }`}>
