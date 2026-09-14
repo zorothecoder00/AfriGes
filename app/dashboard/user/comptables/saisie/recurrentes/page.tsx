@@ -35,7 +35,7 @@ export default function RecurrentesPage() {
     "/api/comptable/recurrentes", "POST", { successMessage: "Écriture récurrente créée" }
   );
   const recurrenteActionIdRef = useRef<number | null>(null);
-  const { mutate: toggleRecurrenteApi } = useMutation<unknown, object>(
+  const { mutate: toggleRecurrenteApi, loading: togglingRecurrente } = useMutation<unknown, object>(
     () => `/api/comptable/recurrentes/${recurrenteActionIdRef.current}`, "PATCH",
   );
   const { mutate: genererRecurrentes, loading: generantRecurrentes } = useMutation<{ message: string }, object>(
@@ -101,7 +101,7 @@ export default function RecurrentesPage() {
             <div key={r.id} className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm ${r.statut === "ACTIF" ? "border-slate-200" : "border-slate-100 opacity-50"}`}>
               <span className="text-slate-700">{r.libelle} — {formatCurrency(Number(r.montant))} <span className="text-xs text-slate-400">({FREQUENCE_LABELS[r.frequence]}, {r.nombreOccurrencesGenerees}{r.nombreOccurrencesMax ? `/${r.nombreOccurrencesMax}` : ""})</span></span>
               {r.statut !== "TERMINE" && (
-                <button onClick={() => handleToggleRecurrente(r)} className={r.statut === "ACTIF" ? "text-amber-500" : "text-emerald-500"}>
+                <button onClick={() => handleToggleRecurrente(r)} disabled={togglingRecurrente} className={`${r.statut === "ACTIF" ? "text-amber-500" : "text-emerald-500"} disabled:opacity-40`}>
                   {r.statut === "ACTIF" ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                 </button>
               )}

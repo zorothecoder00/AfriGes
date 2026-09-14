@@ -1209,7 +1209,7 @@ function TabLivraisons() {
 function TabModeles() {
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<Pack | null>(null);
-  const [, setTogglePackId] = useState<number | null>(null);
+  const [togglePackId, setTogglePackId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Pack | null>(null);
 
   const { data: packs, loading, refetch } = useApi<Pack[]>("/api/admin/packs");
@@ -1291,7 +1291,8 @@ function TabModeles() {
                     </button>
                     <button
                       onClick={() => handleToggle(pack)}
-                      className={`p-1.5 rounded-lg transition-colors ${pack.actif ? "text-emerald-600 hover:bg-emerald-50" : "text-slate-400 hover:bg-slate-100"}`}
+                      disabled={togglePackId === pack.id}
+                      className={`p-1.5 rounded-lg transition-colors disabled:opacity-50 ${pack.actif ? "text-emerald-600 hover:bg-emerald-50" : "text-slate-400 hover:bg-slate-100"}`}
                       title={pack.actif ? "Désactiver" : "Activer"}
                     >
                       {pack.actif ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}

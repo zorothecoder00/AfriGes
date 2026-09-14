@@ -71,7 +71,7 @@ export default function RapprochementPage() {
   const { mutate: importerReleveApi, loading: importingReleve } = useMutation<{ data: { nbImportees: number; erreurs: string[] } }, object>(
     "/api/comptable/rapprochement/import", "POST", { successMessage: "Relevé importé" }
   );
-  const { mutate: confirmerRapprochementApi } = useMutation<unknown, object>(
+  const { mutate: confirmerRapprochementApi, loading: confirmantRapprochement } = useMutation<unknown, object>(
     "/api/comptable/rapprochement/confirmer", "POST", { successMessage: "Rapprochement confirmé" }
   );
 
@@ -241,7 +241,8 @@ export default function RapprochementPage() {
                       <div key={i} className="flex items-center justify-between text-xs">
                         <span className="text-slate-600">{formatCurrency(p.montant)} — écart {p.ecartJours} j</span>
                         <button onClick={() => handleConfirmerRapprochement(p.ligneReleveId, p.ligneEcritureId)}
-                          className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700">
+                          disabled={confirmantRapprochement}
+                          className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 disabled:opacity-50">
                           Confirmer
                         </button>
                       </div>

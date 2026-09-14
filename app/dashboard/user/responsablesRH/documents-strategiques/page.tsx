@@ -60,6 +60,7 @@ export default function DocumentsStrategiquesRHPage() {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState<DocStrat | null>(null);
+  const [pendingId, setPendingId] = useState<number | null>(null);
 
   const set = (k: keyof typeof EMPTY, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -77,16 +78,24 @@ export default function DocumentsStrategiquesRHPage() {
   }
 
   async function patch(id: number, body: Record<string, unknown>, msg: string) {
-    const r = await fetch(`/api/admin/rh/documents-strategiques/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-    });
-    if (r.ok) { toast.success(msg); refetch(); } else toast.error("Erreur");
+    if (pendingId !== null) return;
+    setPendingId(id);
+    try {
+      const r = await fetch(`/api/admin/rh/documents-strategiques/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      if (r.ok) { toast.success(msg); refetch(); } else toast.error("Erreur");
+    } finally { setPendingId(null); }
   }
 
   async function remove(id: number) {
+    if (pendingId !== null) return;
     if (!confirm("Supprimer définitivement ce document ?")) return;
-    const r = await fetch(`/api/admin/rh/documents-strategiques/${id}`, { method: "DELETE" });
-    if (r.ok) { toast.success("Document supprimé"); refetch(); } else toast.error("Erreur");
+    setPendingId(id);
+    try {
+      const r = await fetch(`/api/admin/rh/documents-strategiques/${id}`, { method: "DELETE" });
+      if (r.ok) { toast.success("Document supprimé"); refetch(); } else toast.error("Erreur");
+    } finally { setPendingId(null); }
   }
 
   function newVersion(d: DocStrat) {
@@ -214,14 +223,14 @@ export default function DocumentsStrategiquesRHPage() {
                         )}
                         <button onClick={() => newVersion(d)} title="Nouvelle version" className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg"><Copy className="w-4 h-4" /></button>
                         {d.statut === "BROUILLON" && (
-                          <button onClick={() => patch(d.id, { statut: "EN_VIGUEUR" }, "Document publié")} title="Publier"
-                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg"><CheckCircle className="w-4 h-4" /></button>
+                          <button onClick={() => patch(d.id, { statut: "EN_VIGUEUR" }, "Document publié")} disabled={pendingId !== null} title="Publier"
+                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"><CheckCircle className="w-4 h-4" /></button>
                         )}
                         {d.statut === "EN_VIGUEUR" && (
-                          <button onClick={() => patch(d.id, { statut: "ARCHIVE" }, "Document archivé")} title="Archiver"
-                            className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg"><Archive className="w-4 h-4" /></button>
+                          <button onClick={() => patch(d.id, { statut: "ARCHIVE" }, "Document archivé")} disabled={pendingId !== null} title="Archiver"
+                            className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"><Archive className="w-4 h-4" /></button>
                         )}
-                        <button onClick={() => remove(d.id)} title="Supprimer" className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                        <button onClick={() => remove(d.id)} disabled={pendingId !== null} title="Supprimer" className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </div>
                   );

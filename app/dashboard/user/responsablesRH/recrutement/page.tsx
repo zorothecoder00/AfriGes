@@ -435,10 +435,13 @@ function CandidaturesPipeline({ posteId }: { posteId: number }) {
   const [showAddModal,  setShowAddModal]  = useState(false);
   const [selectedCand,  setSelectedCand]  = useState<Candidature | null>(null);
   const [tempPassModal, setTempPassModal] = useState<{ tempPassword: string; profilRHId: number } | null>(null);
+  const [actingId, setActingId] = useState<number | null>(null);
 
   const candidatures = res?.data ?? [];
 
   const handleAction = async (candId: number, action: string) => {
+    if (actingId !== null) return;
+    setActingId(candId);
     try {
       const res2 = await fetch(`/api/responsableRH/recrutement/candidatures/${candId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -452,7 +455,7 @@ function CandidaturesPipeline({ posteId }: { posteId: number }) {
       }
       refetch();
       setSelectedCand(null);
-    } catch { toast.error("Erreur réseau"); }
+    } catch { toast.error("Erreur réseau"); } finally { setActingId(null); }
   };
 
   if (loading) return <div className="flex items-center justify-center py-16 text-slate-400"><RefreshCw className="w-5 h-5 animate-spin mr-2" /> Chargement…</div>;
@@ -547,17 +550,28 @@ function CandidaturesPipeline({ posteId }: { posteId: number }) {
 // ── Modal détail candidature ──────────────────────────────────────────────────
 
 function CandidatureDetailModal({ cand, onClose, onAction }: {
-  cand: Candidature; onClose: () => void; onAction: (id: number, action: string) => void;
+  cand: Candidature; onClose: () => void; onAction: (id: number, action: string) => void | Promise<void>;
 }) {
   const cfg     = STATUT_CAND_CFG[cand.statut];
   const actions = PIPELINE_ACTIONS[cand.statut] ?? [];
   const { mutate, loading: saving } = useMutation(`/api/responsableRH/recrutement/candidatures/${cand.id}`, "PATCH");
   const [note, setNote]   = useState(cand.commentaire ?? "");
   const [score, setScore] = useState(String(cand.scoreCandidat ?? ""));
+  const [pipelineBusy, setPipelineBusy] = useState(false);
 
   const handleSave = async () => {
     const r = await mutate({ commentaire: note || null, scoreCandidat: score ? Number(score) : null });
     if (r) toast.success("Notes enregistrées");
+  };
+
+  const handlePipelineAction = async (action: string) => {
+    if (pipelineBusy) return;
+    setPipelineBusy(true);
+    try {
+      await onAction(cand.id, action);
+    } finally {
+      setPipelineBusy(false);
+    }
   };
 
   return (
@@ -603,8 +617,8 @@ function CandidatureDetailModal({ cand, onClose, onAction }: {
               <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Actions pipeline</p>
               <div className="grid grid-cols-2 gap-2">
                 {actions.map((a) => (
-                  <button key={a.action} onClick={() => onAction(cand.id, a.action)}
-                    className={`px-3 py-2 text-xs font-medium rounded-lg ${a.color}`}>
+                  <button key={a.action} onClick={() => handlePipelineAction(a.action)} disabled={pipelineBusy}
+                    className={`px-3 py-2 text-xs font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed ${a.color}`}>
                     {a.label}
                   </button>
                 ))}

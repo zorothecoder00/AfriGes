@@ -63,6 +63,7 @@ export default function AjustementsStockPage() {
   const totalEnAttente = response?.stats?.totalEnAttente ?? 0;
 
   const handleApprouver = async (id: number) => {
+    if (actioning) return;
     setActioning(true);
     try {
       const res = await fetch(`/api/admin/stock/ajustements/${id}`, {
@@ -77,12 +78,20 @@ export default function AjustementsStockPage() {
   };
 
   const handleRejeter = async () => {
-    if (!rejectId) return;
-    await fetch(`/api/admin/stock/ajustements/${rejectId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "REJETE", commentaire }),
-    }).then(() => { setRejectId(null); setCommentaire(""); refetch(); });
+    if (!rejectId || actioning) return;
+    setActioning(true);
+    try {
+      await fetch(`/api/admin/stock/ajustements/${rejectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "REJETE", commentaire }),
+      });
+      setRejectId(null);
+      setCommentaire("");
+      refetch();
+    } finally {
+      setActioning(false);
+    }
   };
 
   const diff = (d: Demande) => d.nouvelleQuantite - d.ancienneQuantite;
@@ -348,7 +357,8 @@ export default function AjustementsStockPage() {
                 </button>
                 <button
                   onClick={handleRejeter}
-                  className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-semibold text-sm hover:bg-red-700 flex items-center justify-center gap-2"
+                  disabled={actioning}
+                  className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-semibold text-sm hover:bg-red-700 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <XCircle size={15} />
                   Confirmer le rejet

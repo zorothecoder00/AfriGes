@@ -71,10 +71,10 @@ export default function ReglesComptablesPage() {
     { successMessage: "Règle comptable créée" }
   );
   const regleActionIdRef = useRef<number | null>(null);
-  const { mutate: majRegle } = useMutation<unknown, object>(
+  const { mutate: majRegle, loading: togglingRegle } = useMutation<unknown, object>(
     () => `/api/comptable/regles/${regleActionIdRef.current}`, "PUT",
   );
-  const { mutate: supprimerRegle } = useMutation<unknown, object>(
+  const { mutate: supprimerRegle, loading: supprimantRegle } = useMutation<unknown, object>(
     () => `/api/comptable/regles/${regleActionIdRef.current}`, "DELETE",
     { successMessage: "Règle supprimée" }
   );
@@ -316,13 +316,13 @@ export default function ReglesComptablesPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => handleToggleRegle(r)}
-                        className={`p-1.5 rounded-lg ${r.actif ? "text-amber-500 hover:bg-amber-50" : "text-emerald-500 hover:bg-emerald-50"}`}
+                      <button onClick={() => handleToggleRegle(r)} disabled={togglingRegle}
+                        className={`p-1.5 rounded-lg disabled:opacity-40 ${r.actif ? "text-amber-500 hover:bg-amber-50" : "text-emerald-500 hover:bg-emerald-50"}`}
                         title={r.actif ? "Désactiver" : "Activer"}>
                         {r.actif ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                       </button>
-                      <button onClick={() => handleSupprimerRegle(r.id)}
-                        className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
+                      <button onClick={() => handleSupprimerRegle(r.id)} disabled={supprimantRegle}
+                        className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg disabled:opacity-40"><Trash2 size={14} /></button>
                     </div>
                   </td>
                 </tr>

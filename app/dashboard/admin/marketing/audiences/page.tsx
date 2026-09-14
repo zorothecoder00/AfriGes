@@ -35,7 +35,7 @@ export default function AudiencesPage() {
   const { data: res, loading, refetch } = useApi<{ data: AudienceItem[] }>("/api/admin/marketing/audiences");
   const [modalOpen, setModalOpen] = useState(false);
   const recalculerIdRef = useRef<number | null>(null);
-  const { mutate: recalculer } = useMutation<unknown, Record<string, never>>(
+  const { mutate: recalculer, loading: recalculant } = useMutation<unknown, Record<string, never>>(
     () => `/api/admin/marketing/audiences/${recalculerIdRef.current}/recalculer`, "POST"
   );
 
@@ -86,8 +86,8 @@ export default function AudiencesPage() {
                     <td className="px-4 py-3 text-right">
                       {a.type === "DYNAMIQUE" && (
                         <button onClick={async () => { recalculerIdRef.current = a.id; if (await recalculer({})) refetch(); }}
-                          title="Recalculer" className="p-1.5 text-slate-400 hover:text-fuchsia-600 hover:bg-fuchsia-50 rounded-lg">
-                          <RefreshCw className="w-4 h-4" />
+                          disabled={recalculant} title="Recalculer" className="p-1.5 text-slate-400 hover:text-fuchsia-600 hover:bg-fuchsia-50 rounded-lg disabled:opacity-50">
+                          <RefreshCw className={`w-4 h-4 ${recalculant ? "animate-spin" : ""}`} />
                         </button>
                       )}
                     </td>

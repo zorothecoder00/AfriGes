@@ -78,7 +78,7 @@ export default function CampagneDetailPage({ params }: { params: Promise<{ id: s
     `/api/admin/marketing/campagnes/${id}/action`, "POST",
     { invalidate: [`/api/admin/marketing/campagnes/${id}`, "/api/admin/marketing/campagnes"] }
   );
-  const { mutate: agirBudget } = useMutation<unknown, { action: string }>(
+  const { mutate: agirBudget, loading: agissantBudget } = useMutation<unknown, { action: string }>(
     () => `/api/admin/marketing/budgets/${res?.data.budget?.id}/action`, "POST",
     { invalidate: [`/api/admin/marketing/campagnes/${id}`] }
   );
@@ -236,28 +236,28 @@ export default function CampagneDetailPage({ params }: { params: Promise<{ id: s
                   <div><p className="text-xs text-slate-400">Statut</p><p className="font-semibold">{STATUT_BUDGET_LABEL[c.budget.statut] ?? c.budget.statut}</p></div>
                 </div>
                 {c.budget.statut === "BROUILLON" && (
-                  <button onClick={async () => { if (await agirBudget({ action: "DEMANDER" })) refetch(); }}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700">Demander validation</button>
+                  <button disabled={agissantBudget} onClick={async () => { if (await agirBudget({ action: "DEMANDER" })) refetch(); }}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 disabled:opacity-50">Demander validation</button>
                 )}
                 {c.budget.statut === "DEMANDE" && peutValiderResponsable && (
                   <div className="flex gap-2">
-                    <button onClick={async () => { if (await agirBudget({ action: "VALIDER_RESPONSABLE" })) refetch(); }}
-                      className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700">Valider (Responsable)</button>
-                    <button onClick={async () => { if (await agirBudget({ action: "REJETER" })) refetch(); }}
-                      className="px-3 py-2 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600">Rejeter</button>
+                    <button disabled={agissantBudget} onClick={async () => { if (await agirBudget({ action: "VALIDER_RESPONSABLE" })) refetch(); }}
+                      className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50">Valider (Responsable)</button>
+                    <button disabled={agissantBudget} onClick={async () => { if (await agirBudget({ action: "REJETER" })) refetch(); }}
+                      className="px-3 py-2 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600 disabled:opacity-50">Rejeter</button>
                   </div>
                 )}
                 {c.budget.statut === "EN_VALIDATION_DIRECTION" && estDirection && (
                   <div className="flex gap-2">
-                    <button onClick={async () => { if (await agirBudget({ action: "APPROUVER" })) refetch(); }}
-                      className="px-3 py-2 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700">Valider (Direction)</button>
-                    <button onClick={async () => { if (await agirBudget({ action: "REJETER" })) refetch(); }}
-                      className="px-3 py-2 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600">Rejeter</button>
+                    <button disabled={agissantBudget} onClick={async () => { if (await agirBudget({ action: "APPROUVER" })) refetch(); }}
+                      className="px-3 py-2 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 disabled:opacity-50">Valider (Direction)</button>
+                    <button disabled={agissantBudget} onClick={async () => { if (await agirBudget({ action: "REJETER" })) refetch(); }}
+                      className="px-3 py-2 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600 disabled:opacity-50">Rejeter</button>
                   </div>
                 )}
                 {c.budget.statut === "REJETE" && (
-                  <button onClick={async () => { if (await agirBudget({ action: "DEMANDER" })) refetch(); }}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700">Redemander validation</button>
+                  <button disabled={agissantBudget} onClick={async () => { if (await agirBudget({ action: "DEMANDER" })) refetch(); }}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 disabled:opacity-50">Redemander validation</button>
                 )}
               </div>
               <table className="w-full text-sm">

@@ -574,7 +574,7 @@ export default function ResponsablePDVPage() {
   const { mutate: createLiv, loading: creatingLiv } =
     useMutation<Livraison, object>("/api/rpv/livraisons", "POST", { successMessage: "Livraison planifiée ✓" });
   const annulerLivIdRef = React.useRef<number | null>(null);
-  const { mutate: patchLiv } =
+  const { mutate: patchLiv, loading: patchLivLoading } =
     useMutation<Livraison, object>(
       () => annulerLivIdRef.current ? `/api/rpv/livraisons/${annulerLivIdRef.current}` : "/api/rpv/livraisons",
       "PATCH",
@@ -2490,7 +2490,7 @@ export default function ResponsablePDVPage() {
                             <div className="flex items-center gap-1">
                               <button onClick={() => openDetailLiv(l)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg" title="Détail"><Eye size={14} /></button>
                               {["BROUILLON", "EN_COURS"].includes(l.statut) && (
-                                <button onClick={() => handleAnnulerLiv(l)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Annuler"><XCircle size={14} /></button>
+                                <button onClick={() => handleAnnulerLiv(l)} disabled={patchLivLoading && annulerLivIdRef.current === l.id} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40" title="Annuler"><XCircle size={14} /></button>
                               )}
                             </div>
                           </td>

@@ -87,22 +87,22 @@ export default function ConfigurationInitialePage() {
   const { data: devisesData, refetch: refetchDevises } = useApi<{ data: DeviseEntry[] }>("/api/comptable/devises");
   const [nouvelleSociete, setNouvelleSociete] = useState({ nom: "", pays: "Togo", deviseFonctionnelleCode: "XOF", referentielComptable: "SYSCOHADA révisé" });
   const [nouvelleDevise, setNouvelleDevise] = useState({ code: "", nom: "", symbole: "", tauxVersFonctionnelle: "1" });
-  const { mutate: creerSociete } = useMutation<unknown, object>("/api/comptable/societes", "POST", { successMessage: "Société créée" });
-  const { mutate: creerDevise } = useMutation<unknown, object>("/api/comptable/devises", "POST", { successMessage: "Devise créée" });
+  const { mutate: creerSociete, loading: creantSociete } = useMutation<unknown, object>("/api/comptable/societes", "POST", { successMessage: "Société créée" });
+  const { mutate: creerDevise, loading: creantDevise } = useMutation<unknown, object>("/api/comptable/devises", "POST", { successMessage: "Devise créée" });
   const societeActionIdRef = useRef<number | null>(null);
-  const { mutate: patchSociete } = useMutation<unknown, object>(
+  const { mutate: patchSociete, loading: togglingSociete } = useMutation<unknown, object>(
     () => `/api/comptable/societes/${societeActionIdRef.current}`, "PATCH"
   );
   const deviseActionCodeRef = useRef<string | null>(null);
-  const { mutate: patchDevise } = useMutation<unknown, object>(
+  const { mutate: patchDevise, loading: togglingDevise } = useMutation<unknown, object>(
     () => `/api/comptable/devises/${deviseActionCodeRef.current}`, "PATCH"
   );
 
   const { data: referentielsData, refetch: refetchReferentiels } = useApi<{ data: ReferentielEntry[]; referentielActifId: number | null }>("/api/comptable/referentiels");
   const [nouveauReferentiel, setNouveauReferentiel] = useState({ code: "", nom: "", version: "", pays: "Togo", dateApplication: "" });
-  const { mutate: creerReferentiel } = useMutation<unknown, object>("/api/comptable/referentiels", "POST", { successMessage: "Référentiel créé" });
+  const { mutate: creerReferentiel, loading: creantReferentiel } = useMutation<unknown, object>("/api/comptable/referentiels", "POST", { successMessage: "Référentiel créé" });
   const referentielActionIdRef = useRef<number | null>(null);
-  const { mutate: activerReferentiel } = useMutation<unknown, object>(
+  const { mutate: activerReferentiel, loading: activantReferentiel } = useMutation<unknown, object>(
     () => `/api/comptable/referentiels/${referentielActionIdRef.current}/activer`, "POST"
   );
   async function handleCreerReferentiel() {
@@ -259,7 +259,7 @@ export default function ConfigurationInitialePage() {
                   <p className="text-xs text-slate-400">{r.code} · v{r.version} · {r.pays} · en vigueur depuis le {formatDateShort(r.dateApplication)}</p>
                 </div>
                 {!estActif && (
-                  <button onClick={() => handleActiverReferentiel(r)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">
+                  <button onClick={() => handleActiverReferentiel(r)} disabled={activantReferentiel} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50">
                     Activer
                   </button>
                 )}
@@ -275,7 +275,7 @@ export default function ConfigurationInitialePage() {
           <input value={nouveauReferentiel.pays} onChange={(e) => setNouveauReferentiel(p => ({ ...p, pays: e.target.value }))} placeholder="Pays" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           <input type="date" value={nouveauReferentiel.dateApplication} onChange={(e) => setNouveauReferentiel(p => ({ ...p, dateApplication: e.target.value }))} className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
         </div>
-        <button onClick={handleCreerReferentiel} className="mt-2 flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700">
+        <button onClick={handleCreerReferentiel} disabled={creantReferentiel} className="mt-2 flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50">
           <PlusCircle size={15} /> Ajouter le référentiel
         </button>
       </div>
@@ -296,7 +296,7 @@ export default function ConfigurationInitialePage() {
                 <p className="text-xs text-slate-400">{s.pays} · {s.deviseFonctionnelleCode} · {s.referentielComptable}</p>
               </div>
               {!s.estPrincipale && (
-                <button onClick={() => handleToggleSociete(s)} className={s.actif ? "text-emerald-500 hover:bg-emerald-50" : "text-slate-400 hover:bg-slate-50"} title={s.actif ? "Désactiver" : "Activer"}>
+                <button onClick={() => handleToggleSociete(s)} disabled={togglingSociete} className={`${s.actif ? "text-emerald-500 hover:bg-emerald-50" : "text-slate-400 hover:bg-slate-50"} disabled:opacity-40`} title={s.actif ? "Désactiver" : "Activer"}>
                   {s.actif ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                 </button>
               )}
@@ -307,7 +307,7 @@ export default function ConfigurationInitialePage() {
           <input value={nouvelleSociete.nom} onChange={(e) => setNouvelleSociete(p => ({ ...p, nom: e.target.value }))} placeholder="Nom de la société" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           <input value={nouvelleSociete.pays} onChange={(e) => setNouvelleSociete(p => ({ ...p, pays: e.target.value }))} placeholder="Pays" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           <input value={nouvelleSociete.deviseFonctionnelleCode} onChange={(e) => setNouvelleSociete(p => ({ ...p, deviseFonctionnelleCode: e.target.value.toUpperCase() }))} placeholder="Devise (XOF)" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-          <button onClick={handleCreerSociete} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700">
+          <button onClick={handleCreerSociete} disabled={creantSociete} className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50">
             <PlusCircle size={15} /> Ajouter
           </button>
         </div>
@@ -332,7 +332,7 @@ export default function ConfigurationInitialePage() {
                   onBlur={(e) => { if (Number(e.target.value) !== Number(d.tauxVersFonctionnelle)) handleTauxDevise(d, e.target.value); }}
                   className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
-                <button onClick={() => handleToggleDevise(d)} className={d.actif ? "text-emerald-500 hover:bg-emerald-50" : "text-slate-400 hover:bg-slate-50"} title={d.actif ? "Désactiver" : "Activer"}>
+                <button onClick={() => handleToggleDevise(d)} disabled={togglingDevise} className={`${d.actif ? "text-emerald-500 hover:bg-emerald-50" : "text-slate-400 hover:bg-slate-50"} disabled:opacity-40`} title={d.actif ? "Désactiver" : "Activer"}>
                   {d.actif ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                 </button>
               </div>
@@ -345,7 +345,7 @@ export default function ConfigurationInitialePage() {
           <input value={nouvelleDevise.symbole} onChange={(e) => setNouvelleDevise(p => ({ ...p, symbole: e.target.value }))} placeholder="Symbole (€)" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           <input value={nouvelleDevise.tauxVersFonctionnelle} onChange={(e) => setNouvelleDevise(p => ({ ...p, tauxVersFonctionnelle: e.target.value }))} placeholder="Taux vers XOF" type="number" step="0.0001" className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
         </div>
-        <button onClick={handleCreerDevise} className="mt-2 flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700">
+        <button onClick={handleCreerDevise} disabled={creantDevise} className="mt-2 flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50">
           <PlusCircle size={15} /> Ajouter la devise
         </button>
       </div>

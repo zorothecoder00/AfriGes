@@ -13,7 +13,7 @@ function Referentiel({ titre, sousTitre, apiBase, icon: Icon }: { titre: string;
   const [libelle, setLibelle] = useState("");
   const { mutate: creer, loading: creating } = useMutation<Ref, { code: string; libelle: string }>(apiBase, "POST", { invalidate: apiBase });
   const toggleIdRef = useRef<number | null>(null);
-  const { mutate: toggler } = useMutation<Ref, { actif: boolean }>(() => `${apiBase}/${toggleIdRef.current}`, "PATCH", { invalidate: apiBase });
+  const { mutate: toggler, loading: togglant } = useMutation<Ref, { actif: boolean }>(() => `${apiBase}/${toggleIdRef.current}`, "PATCH", { invalidate: apiBase });
 
   const ajouter = async () => {
     if (!code || !libelle) return;
@@ -52,7 +52,8 @@ function Referentiel({ titre, sousTitre, apiBase, icon: Icon }: { titre: string;
               </div>
               <button
                 onClick={async () => { toggleIdRef.current = item.id; if (await toggler({ actif: !item.actif })) refetch(); }}
-                className={item.actif ? "text-emerald-500 hover:bg-emerald-50 rounded-lg p-1" : "text-slate-300 hover:bg-slate-100 rounded-lg p-1"}
+                disabled={togglant}
+                className={`disabled:opacity-50 ${item.actif ? "text-emerald-500 hover:bg-emerald-50 rounded-lg p-1" : "text-slate-300 hover:bg-slate-100 rounded-lg p-1"}`}
                 title={item.actif ? "Désactiver" : "Activer"}>
                 {item.actif ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
               </button>
