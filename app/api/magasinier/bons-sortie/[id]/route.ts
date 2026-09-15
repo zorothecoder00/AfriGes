@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification, StatutBonSortie, TypeSortieStock } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
+import { getRPVSession } from "@/lib/authRPV";
 import { requirePermission } from "@/lib/permissions";
-import { auditLog, notifyRoles } from "@/lib/notifications";
+import { auditLog, notify, notifyRoles } from "@/lib/notifications";
 import { comptabiliserBonSortie } from "@/lib/comptabilite/ecrituresBonSortie";
+import { getSeuilVisaBonSortie } from "@/lib/parametresDocuments";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -29,12 +31,14 @@ export async function GET(_req: Request, { params }: Ctx) {
         },
         creePar:  { select: { id: true, nom: true, prenom: true } },
         validePar: { select: { id: true, nom: true, prenom: true } },
+        visePar:   { select: { id: true, nom: true, prenom: true } },
       },
     });
 
     if (!bon) return NextResponse.json({ error: "Bon introuvable" }, { status: 404 });
 
-    return NextResponse.json({ data: bon });
+    const seuilVisaBonSortie = await getSeuilVisaBonSortie();
+    return NextResponse.json({ data: bon, seuilVisaBonSortie });
   } catch (error) {
     console.error("GET /magasinier/bons-sortie/[id]:", error);
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
@@ -47,14 +51,49 @@ export async function GET(_req: Request, { params }: Ctx) {
  */
 export async function PATCH(req: Request, { params }: Ctx) {
   try {
-    const session = await getMagasinierSession();
-    if (!session) return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
-
     const { id } = await params;
     const bonId = Number(id);
     if (isNaN(bonId)) return NextResponse.json({ error: "ID invalide" }, { status: 400 });
 
     const body = await req.json();
+
+    // Visa (Responsable Point de Vente / Chef d'agence / Direction) — CDC §3.4 :
+    // action distincte du magasinier, requise pour exécuter les sorties dont la
+    // valorisation dépasse le seuil paramétré.
+    if (body.action === "VISER") {
+      const viseur = await getRPVSession();
+      if (!viseur) {
+        return NextResponse.json({ error: "Visa réservé au Responsable Point de Vente / Chef d'agence / Direction" }, { status: 403 });
+      }
+      const bonAViser = await prisma.bonSortie.findUnique({ where: { id: bonId } });
+      if (!bonAViser) return NextResponse.json({ error: "Bon introuvable" }, { status: 404 });
+      if (bonAViser.statut !== "BROUILLON") {
+        return NextResponse.json({ error: "Seul un bon en attente peut être visé" }, { status: 422 });
+      }
+      const seuilViser = await getSeuilVisaBonSortie();
+      if (!(Number(bonAViser.montantTotal ?? 0) > seuilViser)) {
+        return NextResponse.json({ error: "Ce bon ne dépasse pas le seuil de visa" }, { status: 422 });
+      }
+      const viseurId = parseInt(viseur.user.id);
+      const updated = await prisma.$transaction(async (tx) => {
+        const b = await tx.bonSortie.update({
+          where: { id: bonId },
+          data: { viseParId: viseurId, dateVisa: new Date() },
+          include: {
+            lignes: { include: { produit: { select: { id: true, nom: true } } } },
+            creePar: { select: { nom: true, prenom: true } },
+            visePar: { select: { id: true, nom: true, prenom: true } },
+          },
+        });
+        await auditLog(tx, viseurId, "BON_SORTIE_VISE", "BonSortie", bonId);
+        return b;
+      });
+      return NextResponse.json({ data: updated });
+    }
+
+    const session = await getMagasinierSession();
+    if (!session) return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
+
     const { statut, notes } = body;
 
     const validStatuts: StatutBonSortie[] = ["BROUILLON", "VALIDE", "ANNULE"];
@@ -75,6 +114,17 @@ export async function PATCH(req: Request, { params }: Ctx) {
       },
     });
     if (!bon) return NextResponse.json({ error: "Bon introuvable" }, { status: 404 });
+
+    // Visa requis avant toute exécution si la valorisation dépasse le seuil paramétré.
+    if (statut === "VALIDE" && bon.statut === "BROUILLON") {
+      const seuilValide = await getSeuilVisaBonSortie();
+      if (Number(bon.montantTotal ?? 0) > seuilValide && !bon.viseParId) {
+        return NextResponse.json(
+          { error: `Visa requis avant exécution (valorisation > ${seuilValide.toLocaleString("fr-FR")} FCFA)` },
+          { status: 422 }
+        );
+      }
+    }
 
     // Cas spécial : LIVRAISON_CLIENT BROUILLON → VALIDE (confirmer expédition + décrémenter stock)
     if (statut === "VALIDE" && bon.statut === "BROUILLON" && bon.typeSortie === "LIVRAISON_CLIENT") {
@@ -118,6 +168,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           data: {
             statut:      "VALIDE",
             valideParId: parseInt(session.user.id),
+            dateValidation: new Date(),
             notes:       notes ?? bon.notes,
           },
           include: {
@@ -135,6 +186,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
           priorite: PrioriteNotification.NORMAL,
           actionUrl:`/dashboard/magasinier/bons-sortie/${bon.id}`,
         });
+
+        // Cascade Bon de Commande Client (CDC digitalisation §3.2) — l'expédition
+        // de la livraison client marque la commande d'origine comme "Livrée".
+        const commandeClient = await tx.commandeClient.findUnique({ where: { bonSortieId: bon.id }, select: { id: true, reference: true, agentId: true } });
+        if (commandeClient) {
+          await tx.commandeClient.update({ where: { id: commandeClient.id }, data: { statut: "LIVREE" } });
+          await notify(tx, [commandeClient.agentId], {
+            titre: `Commande ${commandeClient.reference} livrée`,
+            message: `La livraison a été expédiée par ${session.user.prenom} ${session.user.nom}.`,
+            priorite: PrioriteNotification.NORMAL,
+            actionUrl: `/dashboard/user/agentsTerrain/commandes-client?detail=${commandeClient.id}`,
+          });
+        }
 
         return result;
       });
@@ -191,7 +255,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
         const result = await tx.bonSortie.update({
           where: { id: bonId },
-          data: { statut: "VALIDE", valideParId: parseInt(session.user.id), notes: notes ?? bon.notes },
+          data: { statut: "VALIDE", valideParId: parseInt(session.user.id), dateValidation: new Date(), notes: notes ?? bon.notes },
           include: { lignes: { include: { produit: { select: { id: true, nom: true } } } }, creePar: { select: { nom: true, prenom: true } } },
         });
 

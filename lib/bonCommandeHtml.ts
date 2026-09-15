@@ -40,6 +40,9 @@ export interface BonCommandeHtmlData {
   montantTotal: number;
   signePar: { nom: string; prenom: string } | null;
   dateSignature: Date | string | null;
+  visaCGTPar?: { nom: string; prenom: string } | null;
+  dateVisaCGT?: Date | string | null;
+  qrDataUrl?: string | null;
 }
 
 export function genBonCommandeHtml(d: BonCommandeHtmlData): string {
@@ -64,8 +67,14 @@ export function genBonCommandeHtml(d: BonCommandeHtmlData): string {
       <h2 style="font-size:18px; font-weight:bold; margin:0; text-transform:uppercase;">Bon de commande</h2>
       <p style="font-size:13px; margin:4px 0 0;"><strong>${esc(d.reference)}</strong></p>
       <p style="font-size:11px; color:#555; margin:2px 0 0;">${STATUT_LABEL[d.statut] ?? d.statut}</p>
+      ${d.qrDataUrl ? `<img src="${d.qrDataUrl}" alt="QR de vérification" style="width:72px; height:72px; margin-top:8px;" />` : ""}
     </div>
   </div>
+
+  ${d.visaCGTPar ? `
+  <div style="padding:10px 16px; background:#fef9c3; border:1px solid #fde68a; border-radius:8px; margin-bottom:20px; font-size:12px; color:#854d0e;">
+    <strong>Visa Président CGT / Direction</strong> — accordé par ${esc(d.visaCGTPar.prenom)} ${esc(d.visaCGTPar.nom)} le ${formatDateFr(d.dateVisaCGT)} (seuil de validation dépassé).
+  </div>` : ""}
 
   <div style="display:flex; justify-content:space-between; gap:24px; margin-bottom:24px;">
     <div style="flex:1; padding:14px 18px; background:#f8fafc; border-radius:8px;">

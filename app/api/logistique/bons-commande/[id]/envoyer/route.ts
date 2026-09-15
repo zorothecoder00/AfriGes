@@ -7,6 +7,8 @@ import { htmlToPdf } from "@/lib/pdf";
 import { genBonCommandeHtml } from "@/lib/bonCommandeHtml";
 import { sendBonCommandeEmail } from "@/lib/email";
 import { formatDate } from "@/lib/format";
+import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
+import { getSeuilVisaCGTBonCommande } from "@/lib/parametresDocuments";
 
 // Chromium (génération PDF) nécessite le runtime Node.
 export const runtime = "nodejs";
@@ -35,6 +37,7 @@ export async function POST(req: Request, { params }: Ctx) {
         fournisseur: { select: { nom: true, code: true, adresse: true, contact: true, telephone: true, email: true } },
         pointDeVente: { select: { nom: true, code: true } },
         signePar: { select: { nom: true, prenom: true } },
+        visaCGTPar: { select: { nom: true, prenom: true } },
         lignes: { include: { produit: { select: { nom: true } } } },
       },
     });
@@ -43,6 +46,18 @@ export async function POST(req: Request, { params }: Ctx) {
       return NextResponse.json({ error: "Le bon doit être approuvé avant d'être envoyé" }, { status: 422 });
     }
 
+    // Visa Président CGT / Direction obligatoire au-delà du seuil paramétré (CDC §3.3).
+    const seuilCGT = await getSeuilVisaCGTBonCommande();
+    if (Number(bon.montantTotal) > seuilCGT && !bon.visaCGTParId) {
+      return NextResponse.json(
+        { error: `Visa Président CGT requis avant envoi (montant > ${seuilCGT.toLocaleString("fr-FR")} FCFA)` },
+        { status: 422 }
+      );
+    }
+
+    const qrUrl = qrInstanceUrl(req, "BCF", bon.id, bon.createdAt.toISOString());
+    const qrDataUrl = await genererQrDataUrl(qrUrl);
+
     const html = genBonCommandeHtml({
       reference: bon.reference, statut: bon.statut, devise: bon.devise,
       dateCommande: bon.dateCommande, dateLivraisonPrevue: bon.dateLivraisonPrevue, notes: bon.notes,
@@ -50,6 +65,8 @@ export async function POST(req: Request, { params }: Ctx) {
       lignes: bon.lignes.map((l) => ({ produitNom: l.produit.nom, quantite: l.quantite, prixUnitaire: Number(l.prixUnitaire) })),
       montantTotal: Number(bon.montantTotal),
       signePar: bon.signePar, dateSignature: bon.dateSignature,
+      visaCGTPar: bon.visaCGTPar, dateVisaCGT: bon.dateVisaCGT,
+      qrDataUrl,
     });
     const pdf = await htmlToPdf(html);
 

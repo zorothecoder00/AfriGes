@@ -5,6 +5,7 @@ import { auditLog } from "@/lib/notifications";
 import { getSession } from "../../fournisseurs/route";
 import { getRequestMeta } from "@/lib/requestMeta";
 import { ecripturePaiementFournisseur } from "@/lib/comptabilite/moteur";
+import { getSeuilVisaCGTBonCommande } from "@/lib/parametresDocuments";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -16,6 +17,7 @@ const INCLUDE = {
   approuvePar: { select: { id: true, nom: true, prenom: true } },
   envoyePar: { select: { id: true, nom: true, prenom: true } },
   signePar: { select: { id: true, nom: true, prenom: true } },
+  visaCGTPar: { select: { id: true, nom: true, prenom: true } },
   lignes: { include: { produit: { select: { id: true, nom: true, codeProduit: true } } } },
   receptions: { select: { id: true, reference: true, statut: true, dateReception: true } },
 };
@@ -27,7 +29,8 @@ export async function GET(_req: Request, { params }: Ctx) {
     const { id } = await params;
     const bon = await prisma.bonCommande.findUnique({ where: { id: Number(id) }, include: INCLUDE });
     if (!bon) return NextResponse.json({ error: "Bon de commande introuvable" }, { status: 404 });
-    return NextResponse.json({ data: bon });
+    const seuilVisaCGT = await getSeuilVisaCGTBonCommande();
+    return NextResponse.json({ data: bon, seuilVisaCGT });
   } catch (error) {
     console.error("GET /logistique/bons-commande/[id]:", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
@@ -90,6 +93,27 @@ export async function PATCH(req: Request, { params }: Ctx) {
           await auditLog(tx, userId, "PO_PAIEMENT_ENREGISTRE", "BonCommande", bonId, {
             montant, soldeRestant: Number(b.montantTotal) - Number(b.montantPaye),
           }, getRequestMeta(req));
+          return b;
+        });
+        return NextResponse.json({ data: updated });
+      }
+
+      if (body.action === "VISER_CGT") {
+        // Visa Président CGT / Direction (CDC §3.3) — réservé à ADMIN/SUPER_ADMIN,
+        // faute de rôle dédié "Président CGT" dans AfriGes (simplification assumée).
+        if (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN") {
+          return NextResponse.json({ error: "Seule la Direction peut apposer ce visa" }, { status: 403 });
+        }
+        if (bon.statut !== "APPROVED") {
+          return NextResponse.json({ error: "Le bon doit être approuvé avant le visa CGT" }, { status: 422 });
+        }
+        const updated = await prisma.$transaction(async (tx) => {
+          const b = await tx.bonCommande.update({
+            where: { id: bonId },
+            data: { visaCGTParId: userId, dateVisaCGT: new Date() },
+            include: INCLUDE,
+          });
+          await auditLog(tx, userId, "PO_VISA_CGT", "BonCommande", bonId, undefined, getRequestMeta(req));
           return b;
         });
         return NextResponse.json({ data: updated });

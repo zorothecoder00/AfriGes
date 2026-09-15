@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ interface BonCommande {
   pointDeVente: { id: number; nom: string; code: string };
   demandeCotation: { id: number; reference: string } | null;
   creePar: PersonRef; approuvePar: PersonRef | null; envoyePar: PersonRef | null; signePar: PersonRef | null;
+  visaCGTPar: PersonRef | null; dateVisaCGT: string | null;
   lignes: Ligne[];
   receptions?: { id: number; reference: string; statut: string; dateReception: string | null }[];
 }
@@ -59,6 +60,13 @@ function BonsCommandePageInner() {
   const [statutFilter, setStatutFilter] = useState("");
   const [showCreate, setShowCreate] = useState(searchParams.get("fournisseurId") != null);
   const [detailId, setDetailId] = useState<number | null>(null);
+
+  // Ouverture directe depuis un QR d'instance scanné (voir app/q/[code]/[id]).
+  useEffect(() => {
+    const detail = searchParams.get("detail");
+    if (detail) setDetailId(Number(detail));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const params = new URLSearchParams();
   if (statutFilter) params.set("statut", statutFilter);
@@ -286,11 +294,13 @@ function CreateModal({ onClose, onCreated, prefill }: {
 // ── Détail / workflow ────────────────────────────────────────────────────────────
 
 function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => void; onUpdated: () => void }) {
-  const { data, loading, refetch } = useApi<{ data: BonCommande }>(`/api/logistique/bons-commande/${id}`);
+  const { data, loading, refetch } = useApi<{ data: BonCommande; seuilVisaCGT: number }>(`/api/logistique/bons-commande/${id}`);
   const [busy, setBusy] = useState(false);
   const [montantPaiement, setMontantPaiement] = useState("");
   const [modePaiementPO, setModePaiementPO] = useState("ESPECES");
   const b = data?.data;
+  const seuilVisaCGT = data?.seuilVisaCGT ?? Infinity;
+  const visaCGTRequis = !!b && Number(b.montantTotal) > seuilVisaCGT;
 
   const enregistrerPaiement = async () => {
     const montant = Number(montantPaiement);
@@ -371,6 +381,11 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${(STATUT_CFG[b.statut] ?? STATUT_CFG.DRAFT).badge}`}>{(STATUT_CFG[b.statut] ?? STATUT_CFG.DRAFT).label}</span>
                 {b.demandeCotation && <span className="text-xs text-slate-400">Issu de {b.demandeCotation.reference}</span>}
                 {b.signePar && <span className="flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full"><PenTool className="w-3 h-3" /> Signé par {b.signePar.prenom} {b.signePar.nom}</span>}
+                {b.visaCGTPar ? (
+                  <span className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full"><CheckCircle className="w-3 h-3" /> Visa CGT — {b.visaCGTPar.prenom} {b.visaCGTPar.nom}</span>
+                ) : visaCGTRequis && (
+                  <span className="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">Visa CGT requis (&gt; {seuilVisaCGT.toLocaleString("fr-FR")} {b.devise})</span>
+                )}
               </div>
 
               {/* Lignes */}
@@ -478,7 +493,12 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
                 {!b.signePar && (
                   <button onClick={() => doAction("SIGNER")} disabled={busy} className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50"><PenTool className="w-4 h-4" /> Signer</button>
                 )}
-                <button onClick={envoyer} disabled={busy} className="flex items-center gap-1.5 px-3 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"><Send className="w-4 h-4" /> Envoyer au fournisseur</button>
+                {visaCGTRequis && !b.visaCGTPar && (
+                  <button onClick={() => doAction("VISER_CGT")} disabled={busy} title="Réservé à la Direction (ADMIN/SUPER_ADMIN)"
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm text-amber-700 border border-amber-300 rounded-lg hover:bg-amber-50"><CheckCircle className="w-4 h-4" /> Viser (CGT)</button>
+                )}
+                <button onClick={envoyer} disabled={busy || (visaCGTRequis && !b.visaCGTPar)} title={visaCGTRequis && !b.visaCGTPar ? "Visa CGT requis avant envoi" : undefined}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"><Send className="w-4 h-4" /> Envoyer au fournisseur</button>
               </>
             )}
             {b.statut === "SENT" && (

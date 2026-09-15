@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "../../../fournisseurs/route";
 import { htmlToPdf, pdfResponse } from "@/lib/pdf";
 import { genBonCommandeHtml } from "@/lib/bonCommandeHtml";
+import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
 
 // Chromium nécessite le runtime Node (pas Edge) ; génération potentiellement longue.
 export const runtime = "nodejs";
@@ -26,10 +27,14 @@ export async function GET(_req: Request, { params }: Ctx) {
         fournisseur: { select: { nom: true, code: true, adresse: true, contact: true, telephone: true, email: true } },
         pointDeVente: { select: { nom: true, code: true } },
         signePar: { select: { nom: true, prenom: true } },
+        visaCGTPar: { select: { nom: true, prenom: true } },
         lignes: { include: { produit: { select: { nom: true } } } },
       },
     });
     if (!bon) return NextResponse.json({ error: "Bon de commande introuvable" }, { status: 404 });
+
+    const qrUrl = qrInstanceUrl(_req, "BCF", bon.id, bon.createdAt.toISOString());
+    const qrDataUrl = await genererQrDataUrl(qrUrl);
 
     const html = genBonCommandeHtml({
       reference: bon.reference, statut: bon.statut, devise: bon.devise,
@@ -38,6 +43,8 @@ export async function GET(_req: Request, { params }: Ctx) {
       lignes: bon.lignes.map((l) => ({ produitNom: l.produit.nom, quantite: l.quantite, prixUnitaire: Number(l.prixUnitaire) })),
       montantTotal: Number(bon.montantTotal),
       signePar: bon.signePar, dateSignature: bon.dateSignature,
+      visaCGTPar: bon.visaCGTPar, dateVisaCGT: bon.dateVisaCGT,
+      qrDataUrl,
     });
     const pdf = await htmlToPdf(html);
     return pdfResponse(pdf, `${bon.reference}.pdf`);

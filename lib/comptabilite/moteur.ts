@@ -366,6 +366,35 @@ const REGLES_PAR_DEFAUT: Record<string, (ctx: ContexteEvenement) => ComptesRegle
     const tr = compteTresorerie(ctx.modePaiement);
     return { journal: tr.journal, compteDebitNumero: "623", compteCreditNumero: tr.numero };
   },
+  // Fiche de Décaissement (CDC digitalisation §3.6) — un décaissement sans
+  // fournisseur/BC rattaché (PAIEMENT_FOURNISSEUR avec fournisseur connu réutilise
+  // ecripturePaiementFournisseur ci-dessus, pas ces règles). Comptes par défaut
+  // raisonnables, surchargeables via RegleComptable — le comptable valide de
+  // toute façon l'écriture (BROUILLON) avant qu'elle ne soit définitive.
+  DECAISSEMENT_ACHAT_MARCHANDISES: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "601", compteCreditNumero: tr.numero };
+  },
+  DECAISSEMENT_FOURNITURES: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "605", compteCreditNumero: tr.numero };
+  },
+  DECAISSEMENT_AVANCE_CAISSE: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "421", compteCreditNumero: tr.numero };
+  },
+  DECAISSEMENT_FRAIS_FONCTIONNEMENT: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "628", compteCreditNumero: tr.numero };
+  },
+  DECAISSEMENT_TRANSPORT: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "614", compteCreditNumero: tr.numero };
+  },
+  DECAISSEMENT_AUTRES: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "471", compteCreditNumero: tr.numero };
+  },
 };
 
 /**
@@ -679,6 +708,44 @@ export async function ecripturePaiementFournisseur(
     reference: `SYNC-PAF-${params.reference}`,
     lignes: [
       { numero: compteDebit, debit: params.montant, libelle: `Solde dette ${params.fournisseurNom}`, pointDeVenteId: pdv },
+      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Décaissement ${params.reference}`, pointDeVenteId: pdv },
+    ],
+  });
+}
+
+/**
+ * Fiche de Décaissement exécutée (CDC digitalisation §3.6) — sortie de fonds
+ * sans fournisseur/BC rattaché : Dr charge (résolue par type de dépense) /
+ * Cr Trésorerie. Pour un décaissement de type PAIEMENT_FOURNISSEUR avec un
+ * fournisseur connu, l'appelant doit utiliser `ecripturePaiementFournisseur`
+ * à la place (401/Trésorerie, imputation auxiliaire) — celle-ci ne couvre que
+ * les décaissements "hors dette fournisseur formelle".
+ */
+export async function ecritureDecaissement(
+  tx: TxClient,
+  params: {
+    montant: number;
+    reference: string;
+    typeDepense: "ACHAT_MARCHANDISES" | "FOURNITURES" | "AVANCE_CAISSE" | "FRAIS_FONCTIONNEMENT" | "TRANSPORT" | "AUTRES";
+    beneficiaireNom: string;
+    modePaiement?: string | null;
+    userId: number;
+    date?: Date;
+    pointDeVenteId?: number | null;
+  },
+): Promise<number | null> {
+  if (params.montant <= 0) return null;
+  const regle = await resoudreRegleComptable(tx, `DECAISSEMENT_${params.typeDepense}`, { modePaiement: params.modePaiement });
+  if (!regle) return null;
+  const pdv = params.pointDeVenteId ?? null;
+  return creerEcriture(tx, {
+    journal: regle.journal,
+    date: params.date ?? new Date(),
+    libelle: `Décaissement — ${params.beneficiaireNom} — ${params.reference}`,
+    userId: params.userId,
+    reference: `SYNC-DEC-${params.reference}`,
+    lignes: [
+      { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Décaissement ${params.reference}`, pointDeVenteId: pdv },
       { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Décaissement ${params.reference}`, pointDeVenteId: pdv },
     ],
   });

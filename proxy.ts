@@ -77,6 +77,14 @@ const sharedAdminPaths: { prefix: string; roles: string[] }[] = [
 // de plein droit. Ex. Approvisionnement : fournisseurs/RFQ/MRP/PO/tableau de bord.
 const adminOpenUserPrefixes: string[] = [
   "/dashboard/user/logistiquesApprovisionnements",
+  // CDC digitalisation (Partie A) — nouveaux documents commerciaux : l'admin agit
+  // de plein droit côté API (getAgentTerrainSession/getComptableSession/getRVCSession
+  // le traitent déjà comme un utilisateur privilégié), il ne manque que la navigation.
+  "/dashboard/user/agentsTerrain/bordereaux-remise",
+  "/dashboard/user/comptables/tresorerie/bordereaux-remise",
+  "/dashboard/user/agentsTerrain/commandes-client",
+  "/dashboard/user/responsablesVenteCredit/commandes-client",
+  "/dashboard/user/decaissements",
 ]
 
 export async function proxy(request: NextRequest) {
@@ -190,6 +198,10 @@ export async function proxy(request: NextRequest) {
       "/dashboard/user/gouvernance",
       // Catalogue produits en lecture seule : ouvert à tous les gestionnaires.
       "/dashboard/user/catalogue",
+      // Fiche de Décaissement (CDC digitalisation §3.6) — le "demandeur" peut être
+      // n'importe quel gestionnaire ; le traitement (N1/N2/exécution) reste gated
+      // en aval par lib/authComptable.ts / lib/authCaissier.ts.
+      "/dashboard/user/decaissements",
     ];
     const isCommonPath = commonPaths.some(p => pathname.startsWith(p));
 

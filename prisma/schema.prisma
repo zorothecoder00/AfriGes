@@ -732,24 +732,24 @@ model User {
   messagesChatEnvoyes   MessageChat[]             @relation("MessagesChatEnvoyes")
 
   // Marketing (Phase 1)
-  campagnesResponsable       Campagne[]            @relation("CampagneResponsable")
-  campagnesCommercial        Campagne[]            @relation("CampagneCommercial")
-  campagnesCreees            Campagne[]            @relation("CampagneCreePar")
-  audiencesMarketingCreees   AudienceMarketing[]   @relation("AudienceMarketingCreePar")
+  campagnesResponsable          Campagne[]            @relation("CampagneResponsable")
+  campagnesCommercial           Campagne[]            @relation("CampagneCommercial")
+  campagnesCreees               Campagne[]            @relation("CampagneCreePar")
+  audiencesMarketingCreees      AudienceMarketing[]   @relation("AudienceMarketingCreePar")
   // Marketing (Phase 2 — Communication)
-  modelesMessageCrees        ModeleMessage[]       @relation("ModeleMessageCreePar")
-  envoisMessageEffectues     EnvoiMessage[]        @relation("EnvoiMessageEffectuePar")
+  modelesMessageCrees           ModeleMessage[]       @relation("ModeleMessageCreePar")
+  envoisMessageEffectues        EnvoiMessage[]        @relation("EnvoiMessageEffectuePar")
   // Marketing (Phase 3 — Content & Social Media)
-  assetsMarketingUploades    AssetMarketing[]      @relation("AssetMarketingUploadePar")
-  publicationsResponsable    PublicationSociale[]  @relation("PublicationResponsable")
-  publicationsValidees       PublicationSociale[]  @relation("PublicationValidePar")
-  publicationsValideesDirection PublicationSociale[] @relation("PublicationValideParDirection")
-  publicationsCreees         PublicationSociale[]  @relation("PublicationCreePar")
+  assetsMarketingUploades       AssetMarketing[]      @relation("AssetMarketingUploadePar")
+  publicationsResponsable       PublicationSociale[]  @relation("PublicationResponsable")
+  publicationsValidees          PublicationSociale[]  @relation("PublicationValidePar")
+  publicationsValideesDirection PublicationSociale[]  @relation("PublicationValideParDirection")
+  publicationsCreees            PublicationSociale[]  @relation("PublicationCreePar")
   // Marketing (Phase 4 — Automatisation)
-  reglesAutomatisationCreees RegleAutomatisation[] @relation("RegleAutomatisationCreePar")
-  tachesMarketingAssignees   TacheMarketing[]      @relation("TacheMarketingAssigneA")
-  tachesMarketingCreees      TacheMarketing[]      @relation("TacheMarketingCreePar")
-  messagesInternes           MessageInterne[]
+  reglesAutomatisationCreees    RegleAutomatisation[] @relation("RegleAutomatisationCreePar")
+  tachesMarketingAssignees      TacheMarketing[]      @relation("TacheMarketingAssigneA")
+  tachesMarketingCreees         TacheMarketing[]      @relation("TacheMarketingCreePar")
+  messagesInternes              MessageInterne[]
 
   // Packs & fidélité
   souscriptionsPacks SouscriptionPack[]
@@ -812,6 +812,7 @@ model User {
   bonsCommandeApprouves      BonCommande[]                @relation("BonCommandeApprobateur")
   bonsCommandeEnvoyes        BonCommande[]                @relation("BonCommandeEnvoyeur")
   bonsCommandeSignes         BonCommande[]                @relation("BonCommandeSignataire")
+  bonsCommandeVisesCGT       BonCommande[]                @relation("BonCommandeVisaCGT")
   evenementsImportationCrees EvenementImportation[]       @relation("EvenementImportationCreateur")
   transfertsCrees            TransfertStock[]             @relation("CreateurTransfert")
   transfertsValides          TransfertStock[]             @relation("ValidateurTransfert")
@@ -823,6 +824,17 @@ model User {
   changementsPrix            HistoriquePrixProduit[]      @relation("HistoriquePrixCreateur")
   bonsSortieCreePar          BonSortie[]                  @relation("BonsSortieCreePar")
   bonsSortieValidePar        BonSortie[]                  @relation("BonsSortieValidePar")
+  bonsSortieVisePar          BonSortie[]                  @relation("BonSortieVisePar")
+  bordereauxRemiseCollecteur BordereauRemiseFonds[]       @relation("BordereauCollecteur")
+  bordereauxRemiseTresorier  BordereauRemiseFonds[]       @relation("BordereauTresorier")
+  bordereauxRemiseVisesCGT   BordereauRemiseFonds[]       @relation("BordereauVisaCGT")
+  bordereauxRemiseClotures   BordereauRemiseFonds[]       @relation("BordereauCloture")
+  commandesClientAgent       CommandeClient[]             @relation("CommandeClientAgent")
+  commandesClientVisees      CommandeClient[]             @relation("CommandeClientVisaResponsable")
+  decaissementsDemandeur     FicheDecaissement[]          @relation("DecaissementDemandeur")
+  decaissementsApprouvesN1   FicheDecaissement[]          @relation("DecaissementApprobateurN1")
+  decaissementsApprouvesN2   FicheDecaissement[]          @relation("DecaissementApprobateurN2")
+  decaissementsExecutes      FicheDecaissement[]          @relation("DecaissementExecutePar")
   demandesAjustement         DemandeAjustementStock[]     @relation("DemandesAjustement")
   validationsAjustement      DemandeAjustementStock[]     @relation("ValidationsAjustement")
 
@@ -1041,6 +1053,9 @@ model PointDeVente {
   taxesConditionnelles       TaxeConfig[]
   campagnesMarketing         CampagneAgence[]
   publicationsSociales       PublicationSociale[]
+  bordereauxRemiseFonds      BordereauRemiseFonds[]
+  commandesClient            CommandeClient[]
+  decaissements              FicheDecaissement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1133,6 +1148,7 @@ model Client {
   ventesDirectes     VenteDirecte[]
   lignesCollecte     LigneCollecte[]
   creditsClients     CreditClient[]
+  commandesClient    CommandeClient[]
   visites            VisiteClient[]
   documents          ClientDocument[]
   transactions       ClientTransaction[]
@@ -1787,6 +1803,7 @@ model Fournisseur {
   avances                AvanceFournisseur[]
   propositionsOCR        PropositionImputationOCR[]
   facturesAchat          FactureAchat[] // factures matchées par reconnaissance heuristique (CDC IA §51)
+  decaissements          FicheDecaissement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2145,6 +2162,7 @@ model Produit {
   lignesInventaire     LigneInventaireSite[]
   lignesCommande       LigneCommandeInterne[]
   lignesBonSortie      LigneBonSortie[]
+  lignesCommandeClient LigneCommandeClient[]
 
   // Crédits clients
   lignesCreditProduit   LigneCreditClient[] @relation("LigneCreditProduit")
@@ -2915,10 +2933,17 @@ model BonCommande {
   signePar        User?     @relation("BonCommandeSignataire", fields: [signeParId], references: [id])
   dateSignature   DateTime?
 
-  lignes      LigneBonCommande[]
-  receptions  ReceptionApprovisionnement[]
-  importation Importation?
-  litiges     LitigeFournisseur[]
+  // Visa Président CGT (CDC digitalisation §3.3) — requis avant envoi au fournisseur
+  // si montantTotal dépasse le seuil paramétré (lib/parametresDocuments.ts).
+  visaCGTParId Int?
+  visaCGTPar   User?     @relation("BonCommandeVisaCGT", fields: [visaCGTParId], references: [id])
+  dateVisaCGT  DateTime?
+
+  lignes        LigneBonCommande[]
+  receptions    ReceptionApprovisionnement[]
+  importation   Importation?
+  litiges       LitigeFournisseur[]
+  decaissements FicheDecaissement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3155,15 +3180,31 @@ model BonSortie {
   notes          String?
   creeParId      Int
   valideParId    Int?
+  dateValidation DateTime?
+
+  // Valorisation (somme quantite × prixUnit des lignes), figée à la création —
+  // sert à évaluer le seuil de visa (CDC digitalisation §3.4).
+  montantTotal Decimal?
+
+  // Écart quantité demandée / quantité effectivement sortie (CDC digitalisation §3.4) —
+  // commentaire obligatoire côté API si une ligne a un écart.
+  commentaireEcart String?
+
+  // Visa optionnel (Responsable Stock / RPV) requis avant VALIDE si montantTotal
+  // dépasse le seuil paramétré (lib/parametresDocuments.ts).
+  viseParId Int?
+  visePar   User?     @relation("BonSortieVisePar", fields: [viseParId], references: [id])
+  dateVisa  DateTime?
 
   // Comptabilisation (CDC §56) — écriture générée à la validation, renseignée
   // pour empêcher une double comptabilisation (lib/comptabilite/ecrituresBonSortie.ts).
   ecritureId Int?
 
-  pointDeVente PointDeVente     @relation(fields: [pointDeVenteId], references: [id])
-  creePar      User             @relation("BonsSortieCreePar", fields: [creeParId], references: [id])
-  validePar    User?            @relation("BonsSortieValidePar", fields: [valideParId], references: [id])
-  lignes       LigneBonSortie[]
+  pointDeVente   PointDeVente     @relation(fields: [pointDeVenteId], references: [id])
+  creePar        User             @relation("BonsSortieCreePar", fields: [creeParId], references: [id])
+  validePar      User?            @relation("BonsSortieValidePar", fields: [valideParId], references: [id])
+  lignes         LigneBonSortie[]
+  commandeClient CommandeClient?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3174,14 +3215,284 @@ model BonSortie {
 }
 
 model LigneBonSortie {
-  id          Int      @id @default(autoincrement())
-  bonSortieId Int
-  produitId   Int
-  quantite    Int
-  prixUnit    Decimal?
+  id               Int      @id @default(autoincrement())
+  bonSortieId      Int
+  produitId        Int
+  quantite         Int // quantité effectivement sortie
+  quantiteDemandee Int? // quantité demandée par le demandeur, si différente (CDC §3.4)
+  prixUnit         Decimal?
 
   bonSortie BonSortie @relation(fields: [bonSortieId], references: [id], onDelete: Cascade)
   produit   Produit   @relation(fields: [produitId], references: [id])
+}
+
+// ============================================================
+// CDC DIGITALISATION — DOCUMENTS COMMERCIAUX (Partie A)
+// Bordereau de Remise de Fonds (§3.1), Bon de Commande Client (§3.2),
+// Fiche de Décaissement (§3.6). QR/visa CGT/seuils : voir lib/documentQr.ts
+// et lib/parametresDocuments.ts. Bon de Commande Fournisseur (§3.3) = modèle
+// BonCommande ci-dessus ; Bon de Sortie de Marchandises (§3.4) = BonSortie.
+// Pas de pièces jointes numériques dans ce lot (pas d'infra d'upload câblée
+// pour ces documents) — reste à faire.
+// ============================================================
+
+enum StatutBordereauRemise {
+  SOUMIS
+  ECART_SIGNALE
+  VALIDE
+  CLOTURE
+}
+
+/// Bordereau de Remise de Fonds — collecteur → trésorier, avec billetage
+/// contradictoire et visa Président CGT au-delà du seuil paramétré (§3.1).
+model BordereauRemiseFonds {
+  id        Int                   @id @default(autoincrement())
+  reference String                @unique // BRF-2026-000123
+  statut    StatutBordereauRemise @default(SOUMIS)
+
+  pointDeVenteId Int
+  pointDeVente   PointDeVente @relation(fields: [pointDeVenteId], references: [id])
+
+  collecteurId Int
+  collecteur   User @relation("BordereauCollecteur", fields: [collecteurId], references: [id])
+
+  // Récapitulatif des fonds remis (II)
+  cotisationsEspeces     Decimal @default(0)
+  cotisationsMobileMoney Decimal @default(0)
+  mobileMoneyReference   String?
+  remboursements         Decimal @default(0)
+  ventes                 Decimal @default(0)
+  venteCarnet            Decimal @default(0)
+  fraisLivraison         Decimal @default(0)
+  montantVirement        Decimal @default(0) // hors billetage — dépôt bancaire/virement direct
+  virementReference      String?
+  totalEspecesAttendu    Decimal @default(0) // somme des lignes espèces ci-dessus (hors mobile money/virement)
+
+  // Billetage (III) — saisi par le collecteur, compté contradictoirement par le trésorier
+  lignesBilletage       LigneBilletageBRF[]
+  totalBilletageCalcule Decimal             @default(0)
+  ecartSoumission       Decimal             @default(0) // totalBilletageCalcule - totalEspecesAttendu, déclaré par le collecteur
+  motifEcartSoumission  String?
+
+  // Traitement trésorier (comptage contradictoire)
+  tresorierId              Int?
+  tresorier                User?     @relation("BordereauTresorier", fields: [tresorierId], references: [id])
+  montantConfirmeTresorier Decimal?
+  dateTraitementTresorier  DateTime?
+  ecartTresorier           Decimal? // montantConfirmeTresorier - totalBilletageCalcule
+  motifEcartTresorier      String?
+
+  // Visa Président CGT (CDC §3.1) — requis avant clôture si totalBilletageCalcule
+  // + cotisationsMobileMoney + montantVirement dépasse le seuil paramétré.
+  visaCGTParId Int?
+  visaCGTPar   User?     @relation("BordereauVisaCGT", fields: [visaCGTParId], references: [id])
+  dateVisaCGT  DateTime?
+
+  // Clôture — rapprochement bancaire (CDC §3.1 : espèces non rattachées > 24h → alerte)
+  depotBancaireReference String?
+  dateDepotBancaire      DateTime?
+  clotureParId           Int?
+  cloturePar             User?     @relation("BordereauCloture", fields: [clotureParId], references: [id])
+  dateCloture            DateTime?
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([pointDeVenteId])
+  @@index([collecteurId])
+}
+
+model LigneBilletageBRF {
+  id           Int     @id @default(autoincrement())
+  bordereauId  Int
+  denomination Int // valeur faciale du billet/pièce (ex. 10000, 5000, ... 25)
+  nombre       Int
+  total        Decimal // denomination × nombre
+
+  bordereau BordereauRemiseFonds @relation(fields: [bordereauId], references: [id], onDelete: Cascade)
+
+  @@index([bordereauId])
+}
+
+enum TypeClientCommande {
+  PARTICULIER
+  REVENDEUR
+}
+
+enum ModeReglementCommandeClient {
+  COMPTANT
+  MOBILE_MONEY
+  CREDIT
+}
+
+enum StatutCommandeClient {
+  SOUMISE
+  EN_VALIDATION
+  VALIDEE
+  EN_PREPARATION
+  LIVREE
+  CLOTUREE
+  REJETEE
+  ANNULEE
+}
+
+/// Bon de Commande Client — prise de commande terrain par un agent, jusqu'à la
+/// génération automatique du Bon de Sortie de Marchandises (§3.2).
+model CommandeClient {
+  id        Int                  @id @default(autoincrement())
+  reference String               @unique // BCC-2026-000123
+  statut    StatutCommandeClient @default(SOUMISE)
+
+  agentId        Int
+  agent          User         @relation("CommandeClientAgent", fields: [agentId], references: [id])
+  pointDeVenteId Int
+  pointDeVente   PointDeVente @relation(fields: [pointDeVenteId], references: [id])
+
+  clientId Int
+  client   Client @relation(fields: [clientId], references: [id])
+
+  typeClientCommande TypeClientCommande          @default(PARTICULIER)
+  modeReglement      ModeReglementCommandeClient @default(COMPTANT)
+
+  dateLivraisonSouhaitee DateTime?
+  lieuLivraison          String?
+
+  totalHT     Decimal @default(0)
+  totalRemise Decimal @default(0)
+  totalTVA    Decimal @default(0)
+  totalTTC    Decimal @default(0)
+
+  lignes LigneCommandeClient[]
+
+  // Signature électronique client (vaut engagement d'achat ferme, §3.2)
+  signatureClientNom  String
+  dateSignatureClient DateTime
+
+  // Visa Responsable Commercial (RVC) — obligatoire si remise ou vente à crédit
+  visaResponsableParId Int?
+  visaResponsablePar   User?     @relation("CommandeClientVisaResponsable", fields: [visaResponsableParId], references: [id])
+  dateVisaResponsable  DateTime?
+  motifRejet           String?
+
+  // Bon de Sortie de Marchandises auto-généré à la validation (§3.2)
+  bonSortieId Int?       @unique
+  bonSortie   BonSortie? @relation(fields: [bonSortieId], references: [id])
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([pointDeVenteId])
+  @@index([agentId])
+  @@index([clientId])
+}
+
+model LigneCommandeClient {
+  id             Int     @id @default(autoincrement())
+  commandeId     Int
+  produitId      Int
+  quantite       Int
+  prixUnitaire   Decimal // résolu via lib/venteTarification.ts (moteur de prix catalogue)
+  remisePourcent Decimal @default(0)
+  remiseMontant  Decimal @default(0)
+  totalLigne     Decimal
+
+  commande CommandeClient @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  produit  Produit        @relation(fields: [produitId], references: [id])
+
+  @@index([commandeId])
+}
+
+enum TypeDepenseDecaissement {
+  ACHAT_MARCHANDISES
+  FOURNITURES
+  PAIEMENT_FOURNISSEUR
+  AVANCE_CAISSE
+  FRAIS_FONCTIONNEMENT
+  TRANSPORT
+  AUTRES
+}
+
+enum ModePaiementDecaissement {
+  ESPECES
+  MOBILE_MONEY
+  CHEQUE
+  VIREMENT
+}
+
+enum StatutDecaissement {
+  SOUMISE
+  APPROUVEE
+  PAYEE
+  REJETEE
+}
+
+/// Fiche de Décaissement — sortie de fonds avec circuit d'approbation à deux
+/// niveaux selon seuil paramétré (§3.6).
+model FicheDecaissement {
+  id        Int                @id @default(autoincrement())
+  reference String             @unique // FD-2026-000123
+  statut    StatutDecaissement @default(SOUMISE)
+
+  demandeurId    Int
+  demandeur      User          @relation("DecaissementDemandeur", fields: [demandeurId], references: [id])
+  pointDeVenteId Int?
+  pointDeVente   PointDeVente? @relation(fields: [pointDeVenteId], references: [id])
+
+  beneficiaireNom     String
+  beneficiaireContact String?
+  fournisseurId       Int?
+  fournisseur         Fournisseur? @relation(fields: [fournisseurId], references: [id])
+
+  motif       String
+  typeDepense TypeDepenseDecaissement
+
+  montantDemande    Decimal
+  montantApprouve   Decimal?
+  motifEcartMontant String?
+
+  modePaiement      ModePaiementDecaissement?
+  referencePaiement String?
+
+  bonCommandeFournisseurId Int?
+  bonCommandeFournisseur   BonCommande? @relation(fields: [bonCommandeFournisseurId], references: [id])
+
+  piecesJustificatives String[] @default([]) // types de pièces déclarées (facture, BC, BL, contrat…)
+
+  // Visa N1 — Responsable (Comptable/Chef Comptable)
+  approbateurN1Id   Int?
+  approbateurN1     User?     @relation("DecaissementApprobateurN1", fields: [approbateurN1Id], references: [id])
+  dateApprobationN1 DateTime?
+
+  // Visa N2 — Direction Générale/Finance (au-delà du seuil paramétré)
+  approbateurN2Id   Int?
+  approbateurN2     User?     @relation("DecaissementApprobateurN2", fields: [approbateurN2Id], references: [id])
+  dateApprobationN2 DateTime?
+
+  // Exécution du paiement (Caissier/Comptable)
+  executeParId  Int?
+  executePar    User?     @relation("DecaissementExecutePar", fields: [executeParId], references: [id])
+  dateExecution DateTime?
+
+  // Confirmation de réception par le bénéficiaire (saisie par l'opérateur — §2.7 signature électronique)
+  beneficiaireConfirmationNom   String?
+  beneficiaireConfirmationPiece String?
+  dateConfirmationBeneficiaire  DateTime?
+
+  motifRejet String?
+  ecritureId Int? // écriture comptable générée à l'exécution (best-effort, brouillon)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([demandeurId])
+  @@index([typeDepense])
 }
 
 // ============================================================
@@ -8999,20 +9310,20 @@ model Campagne {
   /// pour les alertes "ROI inférieur/supérieur à l'objectif". Null = pas de suivi ROI pour cette campagne.
   roiCible Decimal?
 
-  budget               BudgetMarketing?
-  objectifs            CampagneObjectif[]
-  agences              CampagneAgence[]
-  produits             CampagneProduit[]
-  canaux               CampagneCanal[]
-  depenses             DepenseMarketing[]
-  ventesAttribuees     VenteDirecte[]           @relation("VenteCampagne")
-  creditsAttribues     CreditClient[]           @relation("CreditCampagne")
-  souscriptionsAttribuees SouscriptionPack[]    @relation("SouscriptionPackCampagne")
-  envoisMessage        EnvoiMessage[]
-  assetsMarketing      AssetMarketingCampagne[]
-  publicationsSociales PublicationSociale[]
-  promotions           Promotion[]
-  coupons              Coupon[]
+  budget                  BudgetMarketing?
+  objectifs               CampagneObjectif[]
+  agences                 CampagneAgence[]
+  produits                CampagneProduit[]
+  canaux                  CampagneCanal[]
+  depenses                DepenseMarketing[]
+  ventesAttribuees        VenteDirecte[]           @relation("VenteCampagne")
+  creditsAttribues        CreditClient[]           @relation("CreditCampagne")
+  souscriptionsAttribuees SouscriptionPack[]       @relation("SouscriptionPackCampagne")
+  envoisMessage           EnvoiMessage[]
+  assetsMarketing         AssetMarketingCampagne[]
+  publicationsSociales    PublicationSociale[]
+  promotions              Promotion[]
+  coupons                 Coupon[]
 
   // Marketing (Phase 6 — Terrain & Événementiel)
   operationsTerrain OperationTerrain[]
@@ -9100,13 +9411,13 @@ model BudgetMarketing {
   montantEngage   Decimal               @default(0)
   statut          StatutBudgetMarketing @default(BROUILLON)
 
-  demandeParId    Int?
+  demandeParId              Int?
   // CDC §54 — 1er palier (Responsable Marketing).
-  valideParResponsableId   Int?
+  valideParResponsableId    Int?
   dateValidationResponsable DateTime?
   // 2e palier (Direction) — mêmes champs historiques, dernière validation qui débloque la dépense.
-  approuveParId   Int?
-  dateApprobation DateTime?
+  approuveParId             Int?
+  dateApprobation           DateTime?
 
   campagne Campagne           @relation(fields: [campagneId], references: [id])
   depenses DepenseMarketing[]
@@ -9385,8 +9696,8 @@ model PublicationSociale {
   dateValidation DateTime?
 
   // 2e palier (Direction) — renseigné uniquement si niveauValidationRequis = DIRECTION.
-  valideParDirectionId Int?
-  valideParDirection   User?     @relation("PublicationValideParDirection", fields: [valideParDirectionId], references: [id])
+  valideParDirectionId    Int?
+  valideParDirection      User?     @relation("PublicationValideParDirection", fields: [valideParDirectionId], references: [id])
   dateValidationDirection DateTime?
 
   datePublication DateTime? // renseignée à l'action PUBLIER (confirmation manuelle)
@@ -9877,18 +10188,18 @@ enum VarianteTestAB {
 }
 
 model TestAB {
-  id            Int            @id @default(autoincrement())
-  nom           String
-  campagneId    Int
-  campagne      Campagne       @relation(fields: [campagneId], references: [id])
-  canalId       Int
-  canal         CanalMarketing @relation(fields: [canalId], references: [id])
-  modeleAId     Int
-  modeleA       ModeleMessage  @relation("TestABModeleA", fields: [modeleAId], references: [id])
-  modeleBId     Int
-  modeleB       ModeleMessage  @relation("TestABModeleB", fields: [modeleBId], references: [id])
-  statut        StatutTestAB   @default(BROUILLON)
-  dateLancement DateTime?
+  id                Int             @id @default(autoincrement())
+  nom               String
+  campagneId        Int
+  campagne          Campagne        @relation(fields: [campagneId], references: [id])
+  canalId           Int
+  canal             CanalMarketing  @relation(fields: [canalId], references: [id])
+  modeleAId         Int
+  modeleA           ModeleMessage   @relation("TestABModeleA", fields: [modeleAId], references: [id])
+  modeleBId         Int
+  modeleB           ModeleMessage   @relation("TestABModeleB", fields: [modeleBId], references: [id])
+  statut            StatutTestAB    @default(BROUILLON)
+  dateLancement     DateTime?
   /// CDC §72 — taille de l'échantillon PAR variante (ex 1000 = 1000 A + 1000 B).
   /// Null = split 100% de l'audience (comportement historique, pas de "reste" à déployer).
   tailleEchantillon Int?

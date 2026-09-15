@@ -116,30 +116,39 @@ interface AnomaliesResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
+type TypeSortieBSM = 'PERTE' | 'CASSE' | 'DON' | 'CONSOMMATION_INTERNE' | 'LIVRAISON_CLIENT';
+
 interface LigneBonSortie {
   id: number;
   produitId: number;
   quantite: number;
-  prixUnit: string;
+  quantiteDemandee: number | null;
+  prixUnit: string | null;
   produit: { id: number; nom: string; prixUnitaire: string };
 }
 
 interface BonSortie {
   id: number;
   reference: string;
-  type: 'PDV' | 'PERTE' | 'CASSE' | 'DON' | 'COMMANDE_INTERNE';
-  statut: 'EN_COURS' | 'EXPEDIE' | 'RECU' | 'ANNULE';
-  destinataire: string | null;
+  typeSortie: TypeSortieBSM;
+  statut: 'BROUILLON' | 'VALIDE' | 'ANNULE';
   motif: string;
   notes: string | null;
+  commentaireEcart: string | null;
+  montantTotal: string | number | null;
   lignes: LigneBonSortie[];
-  magasinier: { id: number; nom: string; prenom: string };
+  creePar: { id: number; nom: string; prenom: string };
+  validePar: { id: number; nom: string; prenom: string } | null;
+  dateValidation: string | null;
+  visePar: { id: number; nom: string; prenom: string } | null;
+  dateVisa: string | null;
   createdAt: string;
 }
 
 interface BonsSortieResponse {
   data: BonSortie[];
   meta: { total: number; page: number; limit: number; totalPages: number };
+  seuilVisaBonSortie: number;
 }
 
 type StatutStock = 'EN_STOCK' | 'STOCK_FAIBLE' | 'RUPTURE';
@@ -260,16 +269,16 @@ export default function MagasinierPage() {
 
   // Bon de sortie form state
   const [showBonSortieForm, setShowBonSortieForm] = useState(false);
-  const [bsType, setBsType] = useState<'PDV' | 'PERTE' | 'CASSE' | 'DON' | 'COMMANDE_INTERNE'>('PDV');
-  const [bsDestinaire, setBsDestinaire] = useState('');
+  const [bsType, setBsType] = useState<Exclude<TypeSortieBSM, 'LIVRAISON_CLIENT'>>('PERTE');
   const [bsMotif, setBsMotif] = useState('');
   const [bsNotes, setBsNotes] = useState('');
   const [bsLignes, setBsLignes] = useState<{ produitId: string; quantite: string }[]>([{ produitId: '', quantite: '' }]);
   const [bonsSortieFilterStatut, setBonsSortieFilterStatut] = useState('');
   const [bonsSortiePage, setBonsSortiePage] = useState(1);
   const [anomaliesPage, setAnomaliesPage] = useState(1);
-  // Ref pour update statut bon de sortie sans re-render
+  // Ref pour update statut / viser un bon de sortie sans re-render
   const bonSortieUpdateIdRef = useRef<number | null>(null);
+  const bonSortieViserIdRef = useRef<number | null>(null);
 
   // Livraisons packs
   const [confirmingPackLivId, setConfirmingPackLivId] = useState<number | null>(null);
@@ -352,6 +361,12 @@ export default function MagasinierPage() {
     { successMessage: 'Statut du bon de sortie mis a jour' }
   );
 
+  const { mutate: viserBonSortie, loading: visantBonSortie } = useMutation<unknown, { action: 'VISER' }>(
+    () => `/api/magasinier/bons-sortie/${bonSortieViserIdRef.current}`,
+    'PATCH',
+    { successMessage: 'Bon de sortie visé' }
+  );
+
   // Bons de sortie
   const bonsSortieParams = new URLSearchParams({ page: String(bonsSortiePage), limit: '15' });
   if (bonsSortieFilterStatut) bonsSortieParams.set('statut', bonsSortieFilterStatut);
@@ -359,7 +374,7 @@ export default function MagasinierPage() {
     activeTab === 'sorties' ? `/api/magasinier/bons-sortie?${bonsSortieParams}` : null
   );
 
-  const { mutate: submitBonSortie, loading: bonSortieLoading } = useMutation<{ data: BonSortie }, { type: string; destinataire?: string; motif: string; notes?: string; lignes: { produitId: number; quantite: number }[] }>(
+  const { mutate: submitBonSortie, loading: bonSortieLoading } = useMutation<{ data: BonSortie }, { typeSortie: string; motif: string; notes?: string; lignes: { produitId: number; quantite: number }[] }>(
     '/api/magasinier/bons-sortie',
     'POST',
     { successMessage: 'Bon de sortie cree avec succes' }
@@ -709,8 +724,7 @@ export default function MagasinierPage() {
     const lignesValides = bsLignes.filter(l => l.produitId && l.quantite);
     if (!bsMotif || lignesValides.length === 0) return;
     const result = await submitBonSortie({
-      type: bsType,
-      destinataire: bsDestinaire || undefined,
+      typeSortie: bsType,
       motif: bsMotif,
       notes: bsNotes || undefined,
       lignes: lignesValides.map(l => ({ produitId: Number(l.produitId), quantite: Number(l.quantite) })),
@@ -718,7 +732,6 @@ export default function MagasinierPage() {
     if (result) {
       setShowBonSortieForm(false);
       setBsMotif('');
-      setBsDestinaire('');
       setBsNotes('');
       setBsLignes([{ produitId: '', quantite: '' }]);
       refetchBonsSortie();
@@ -732,24 +745,15 @@ export default function MagasinierPage() {
     if (result) refetchBonsSortie();
   };
 
+  const handleViserBonSortie = async (id: number) => {
+    bonSortieViserIdRef.current = id;
+    const result = await viserBonSortie({ action: 'VISER' });
+    if (result) refetchBonsSortie();
+  };
+
+  // Accusé PDF serveur (avec QR d'instance + signature électronique — CDC digitalisation §3.4/§4)
   const handlePrintBon = (bon: BonSortie) => {
-    const total = bon.lignes.reduce((s, l) => s + l.quantite * Number(l.prixUnit), 0);
-    const lignesHtml = bon.lignes.map(l =>
-      `<tr><td>${l.produit.nom}</td><td style="text-align:center">${l.quantite}</td><td style="text-align:right">${Number(l.prixUnit).toLocaleString('fr-FR')} FCFA</td><td style="text-align:right">${(l.quantite * Number(l.prixUnit)).toLocaleString('fr-FR')} FCFA</td></tr>`
-    ).join('');
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bon de Sortie ${bon.reference}</title>
-    <style>body{font-family:sans-serif;padding:20px;color:#111}h1{font-size:18px;margin-bottom:4px}.meta{color:#555;font-size:13px;margin-bottom:16px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ddd;padding:8px;font-size:13px}th{background:#f3f4f6;font-weight:600}.total{text-align:right;font-weight:bold;margin-top:8px;font-size:14px}.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;background:#fef3c7;color:#92400e}</style>
-    </head><body>
-    <h1>Bon de Sortie — ${bon.reference}</h1>
-    <div class="meta">Type : ${bon.type} &nbsp;|&nbsp; Statut : <span class="badge">${bon.statut}</span> &nbsp;|&nbsp; Date : ${new Date(bon.createdAt).toLocaleDateString('fr-FR')}</div>
-    <div class="meta">Motif : ${bon.motif}${bon.destinataire ? ' — Destinataire : ' + bon.destinataire : ''}</div>
-    <table><thead><tr><th>Produit</th><th>Quantite</th><th>Prix unit.</th><th>Sous-total</th></tr></thead>
-    <tbody>${lignesHtml}</tbody></table>
-    <div class="total">Total : ${total.toLocaleString('fr-FR')} FCFA</div>
-    ${bon.notes ? `<p style="margin-top:12px;font-size:12px;color:#555">Notes : ${bon.notes}</p>` : ''}
-    </body></html>`;
-    const w = window.open('', '_blank');
-    if (w) { w.document.write(html); w.document.close(); w.print(); }
+    window.open(`/api/magasinier/bons-sortie/${bon.id}/pdf`, '_blank');
   };
 
   const handlePrintInventaire = () => {
@@ -2278,18 +2282,14 @@ export default function MagasinierPage() {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Type de sortie</label>
                     <select value={bsType} onChange={e => setBsType(e.target.value as typeof bsType)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50">
-                      <option value="PDV">Vers Point de Vente</option>
                       <option value="PERTE">Perte</option>
                       <option value="CASSE">Casse</option>
                       <option value="DON">Don</option>
-                      <option value="COMMANDE_INTERNE">Commande interne</option>
+                      <option value="CONSOMMATION_INTERNE">Consommation interne</option>
                     </select>
+                    <p className="text-xs text-slate-400 mt-1">Les livraisons client se créent depuis l&apos;onglet Livraisons.</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Destinataire {bsType === 'PDV' ? '(obligatoire)' : '(optionnel)'}</label>
-                    <input value={bsDestinaire} onChange={e => setBsDestinaire(e.target.value)} placeholder={bsType === 'PDV' ? 'Nom du point de vente' : 'Bénéficiaire / destination'} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50" />
-                  </div>
-                  <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-2">Motif (obligatoire)</label>
                     <input value={bsMotif} onChange={e => setBsMotif(e.target.value)} placeholder="Justification de la sortie" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50" />
                   </div>
@@ -2340,9 +2340,9 @@ export default function MagasinierPage() {
 
             {/* Filtre statut */}
             <div className="flex gap-2 flex-wrap">
-              {['', 'EN_COURS', 'EXPEDIE', 'RECU', 'ANNULE'].map(s => (
+              {['', 'BROUILLON', 'VALIDE', 'ANNULE'].map(s => (
                 <button key={s} onClick={() => setBonsSortieFilterStatut(s)} className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${bonsSortieFilterStatut === s ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
-                  {s === '' ? 'Tous' : s === 'EN_COURS' ? 'En cours' : s === 'EXPEDIE' ? 'Expédié' : s === 'RECU' ? 'Reçu' : 'Annulé'}
+                  {s === '' ? 'Tous' : s === 'BROUILLON' ? 'En attente' : s === 'VALIDE' ? 'Exécuté' : 'Annulé'}
                 </button>
               ))}
             </div>
@@ -2358,10 +2358,14 @@ export default function MagasinierPage() {
             ) : (
               <div className="space-y-3">
                 {bonsSortieResponse!.data.map(bon => {
-                  const statutColors: Record<string, string> = { EN_COURS: 'bg-blue-100 text-blue-700', EXPEDIE: 'bg-amber-100 text-amber-700', RECU: 'bg-emerald-100 text-emerald-700', ANNULE: 'bg-red-100 text-red-700' };
-                  const typeIcons: Record<string, typeof Truck> = { PDV: Truck, PERTE: MinusCircle, CASSE: Trash2, DON: Gift, COMMANDE_INTERNE: ClipboardList };
-                  const TypeIcon = typeIcons[bon.type] ?? Truck;
-                  const total = bon.lignes.reduce((s, l) => s + l.quantite * Number(l.prixUnit), 0);
+                  const statutColors: Record<string, string> = { BROUILLON: 'bg-blue-100 text-blue-700', VALIDE: 'bg-emerald-100 text-emerald-700', ANNULE: 'bg-red-100 text-red-700' };
+                  const statutLabels: Record<string, string> = { BROUILLON: 'En attente', VALIDE: 'Exécuté', ANNULE: 'Annulé' };
+                  const typeIcons: Record<string, typeof Truck> = { LIVRAISON_CLIENT: Truck, PERTE: MinusCircle, CASSE: Trash2, DON: Gift, CONSOMMATION_INTERNE: ClipboardList };
+                  const TypeIcon = typeIcons[bon.typeSortie] ?? Truck;
+                  const total = bon.montantTotal != null ? Number(bon.montantTotal) : bon.lignes.reduce((s, l) => s + l.quantite * Number(l.prixUnit ?? 0), 0);
+                  const seuil = bonsSortieResponse!.seuilVisaBonSortie;
+                  const visaRequis = total > seuil;
+                  const enAttenteVisa = bon.statut === 'BROUILLON' && visaRequis && !bon.visePar;
                   return (
                     <div key={bon.id} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-all">
                       <div className="flex items-start justify-between">
@@ -2370,30 +2374,38 @@ export default function MagasinierPage() {
                             <TypeIcon size={20} className="text-orange-600" />
                           </div>
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-semibold text-slate-800 font-mono text-sm">{bon.reference}</p>
-                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statutColors[bon.statut]}`}>{bon.statut.replace('_', ' ')}</span>
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statutColors[bon.statut]}`}>{statutLabels[bon.statut]}</span>
+                              {bon.visePar && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Visé — {bon.visePar.prenom} {bon.visePar.nom}</span>}
+                              {enAttenteVisa && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">Visa requis (&gt; {seuil.toLocaleString('fr-FR')} FCFA)</span>}
                             </div>
-                            <p className="text-xs text-slate-500">{bon.type} — {bon.motif}{bon.destinataire ? ` → ${bon.destinataire}` : ''}</p>
+                            <p className="text-xs text-slate-500">{bon.typeSortie} — {bon.motif}</p>
+                            {bon.commentaireEcart && <p className="text-xs text-amber-600 mt-0.5">Écart : {bon.commentaireEcart}</p>}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold text-slate-700">{total.toLocaleString('fr-FR')} FCFA</span>
-                          <button onClick={() => handlePrintBon(bon)} title="Imprimer" className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><Printer size={16} className="text-slate-500" /></button>
+                          <button onClick={() => handlePrintBon(bon)} title="Imprimer / QR" className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><Printer size={16} className="text-slate-500" /></button>
                         </div>
                       </div>
                       <div className="mt-3 flex items-center gap-2 flex-wrap">
                         <span className="text-xs text-slate-500">{bon.lignes.length} produit(s)</span>
                         <span className="text-xs text-slate-400">|</span>
                         <span className="text-xs text-slate-500">{new Date(bon.createdAt).toLocaleDateString('fr-FR')}</span>
-                        {bon.statut === 'EN_COURS' && (
+                        {bon.statut === 'BROUILLON' && (
                           <>
-                            <button onClick={() => handleUpdateBonStatut(bon.id, 'EXPEDIE')} disabled={updatingBonSortie && bonSortieUpdateIdRef.current === bon.id} className="ml-auto text-xs px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors font-medium flex items-center gap-1 disabled:opacity-50"><Send size={12} /> Marquer expédié</button>
+                            {enAttenteVisa ? (
+                              <button onClick={() => handleViserBonSortie(bon.id)} disabled={visantBonSortie && bonSortieViserIdRef.current === bon.id} title="Réservé au RPV / Chef d'agence / Direction"
+                                className="ml-auto text-xs px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors font-medium flex items-center gap-1 disabled:opacity-50"><CheckSquare size={12} /> Viser</button>
+                            ) : (
+                              <button onClick={() => handleUpdateBonStatut(bon.id, 'VALIDE')} disabled={updatingBonSortie && bonSortieUpdateIdRef.current === bon.id}
+                                className="ml-auto text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors font-medium flex items-center gap-1 disabled:opacity-50">
+                                <CheckSquare size={12} /> {bon.typeSortie === 'LIVRAISON_CLIENT' ? 'Confirmer expédition' : 'Exécuter la sortie'}
+                              </button>
+                            )}
                             {canCancelBon && <button onClick={() => handleUpdateBonStatut(bon.id, 'ANNULE')} disabled={updatingBonSortie && bonSortieUpdateIdRef.current === bon.id} className="text-xs px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium flex items-center gap-1 disabled:opacity-50"><XCircle size={12} /> {t('btn_cancel')}</button>}
                           </>
-                        )}
-                        {bon.statut === 'EXPEDIE' && (
-                          <button onClick={() => handleUpdateBonStatut(bon.id, 'RECU')} disabled={updatingBonSortie && bonSortieUpdateIdRef.current === bon.id} className="ml-auto text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors font-medium flex items-center gap-1 disabled:opacity-50"><CheckSquare size={12} /> Marquer reçu</button>
                         )}
                       </div>
                       {/* Lignes détail */}
@@ -2402,7 +2414,9 @@ export default function MagasinierPage() {
                           {bon.lignes.map(l => (
                             <div key={l.id} className="flex justify-between text-xs text-slate-600">
                               <span>{l.produit.nom}</span>
-                              <span className="font-medium">× {l.quantite}</span>
+                              <span className="font-medium">
+                                {l.quantiteDemandee != null && l.quantiteDemandee !== l.quantite ? `${l.quantite} / ${l.quantiteDemandee} demandé` : `× ${l.quantite}`}
+                              </span>
                             </div>
                           ))}
                         </div>

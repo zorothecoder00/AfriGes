@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getSession } from "../fournisseurs/route";
 import { getRequestMeta } from "@/lib/requestMeta";
+import { getSeuilVisaCGTBonCommande } from "@/lib/parametresDocuments";
 
 const INCLUDE = {
   fournisseur: { select: { id: true, nom: true, code: true, email: true } },
@@ -12,6 +13,7 @@ const INCLUDE = {
   creePar: { select: { id: true, nom: true, prenom: true } },
   approuvePar: { select: { id: true, nom: true, prenom: true } },
   signePar: { select: { id: true, nom: true, prenom: true } },
+  visaCGTPar: { select: { id: true, nom: true, prenom: true } },
   lignes: { include: { produit: { select: { id: true, nom: true, codeProduit: true } } } },
 };
 
@@ -38,14 +40,16 @@ export async function GET(req: Request) {
       { fournisseur: { nom: { contains: search, mode: "insensitive" } } },
     ];
 
-    const [bons, statsRaw] = await Promise.all([
+    const [bons, statsRaw, seuilVisaCGT] = await Promise.all([
       prisma.bonCommande.findMany({ where, orderBy: { createdAt: "desc" }, include: INCLUDE }),
       prisma.bonCommande.groupBy({ by: ["statut"], _count: { id: true } }),
+      getSeuilVisaCGTBonCommande(),
     ]);
 
     return NextResponse.json({
       data: bons,
       stats: Object.fromEntries(statsRaw.map((s) => [s.statut, s._count.id])),
+      seuilVisaCGT,
     });
   } catch (error) {
     console.error("GET /logistique/bons-commande:", error);

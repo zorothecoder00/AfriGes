@@ -2195,6 +2195,18 @@ export default function AgentTerrainPage() {
             >
               <CreditCard size={16} /> Crédits Clients
             </Link>
+            <Link
+              href="/dashboard/user/agentsTerrain/commandes-client"
+              className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <ShoppingCart size={16} /> Commandes client
+            </Link>
+            <Link
+              href="/dashboard/user/agentsTerrain/bordereaux-remise"
+              className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <Wallet size={16} /> Remise de fonds
+            </Link>
             <button onClick={refetchAll} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
               <RefreshCw size={18} /> {t('refresh')}
             </button>

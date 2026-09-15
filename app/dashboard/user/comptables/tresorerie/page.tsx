@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Wallet, ArrowUpRight, ArrowDownRight, TrendingUp, CheckCircle, ShoppingBag,
-  BookOpen, Package, Users, Filter, Calendar,
+  BookOpen, Package, Users, Filter, Calendar, Wallet2,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
@@ -85,6 +86,15 @@ export default function TresoreriePage() {
           </div>
           {AIDE_COMPTABLE["tresorerie"] && <AideComptable contenu={AIDE_COMPTABLE["tresorerie"]} />}
         </div>
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <Link href="/dashboard/user/comptables/tresorerie/bordereaux-remise" className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm">
+          <Wallet size={16} className="text-teal-600" /> Bordereaux de remise de fonds
+        </Link>
+        <Link href="/dashboard/user/decaissements" className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm">
+          <Wallet2 size={16} className="text-violet-600" /> Fiches de décaissement
+        </Link>
       </div>
 
       <div className="space-y-5">

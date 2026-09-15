@@ -5,6 +5,7 @@ import { getMagasinierSession } from "@/lib/authMagasinier";
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
 import { resolveViewAs } from "@/lib/viewAs";
+import { getSeuilVisaBonSortie } from "@/lib/parametresDocuments";
 
 /**
  * GET /api/magasinier/bons-sortie
@@ -52,6 +53,7 @@ export async function GET(req: NextRequest) {
           pointDeVente: { select: { id: true, nom: true, code: true } },
           creePar:      { select: { id: true, nom: true, prenom: true } },
           validePar:    { select: { id: true, nom: true, prenom: true } },
+          visePar:      { select: { id: true, nom: true, prenom: true } },
           lignes: {
             include: { produit: { select: { id: true, nom: true, reference: true, prixUnitaire: true } } },
           },
@@ -60,9 +62,12 @@ export async function GET(req: NextRequest) {
       prisma.bonSortie.count({ where }),
     ]);
 
+    const seuilVisaBonSortie = await getSeuilVisaBonSortie();
+
     return NextResponse.json({
       data: bons,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      seuilVisaBonSortie,
     });
   } catch (error) {
     console.error("GET /magasinier/bons-sortie:", error);
@@ -92,7 +97,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { typeSortie, motif, notes, lignes } = body;
+    const { typeSortie, motif, notes, lignes, commentaireEcart } = body;
     // Forcer le PDV du magasinier — ignorer tout pointDeVenteId du body
     const pointDeVenteId = pdvId;
 
@@ -111,8 +116,19 @@ export async function POST(req: Request) {
       );
     }
 
+    // Écart quantité demandée / quantité sortie (CDC §3.4) — commentaire obligatoire.
+    type LigneInput = { produitId: number; quantite: number; quantiteDemandee?: number };
+    const lignesInput = lignes as LigneInput[];
+    const aUnEcart = lignesInput.some((l) => Number(l.quantiteDemandee ?? l.quantite) > Number(l.quantite));
+    if (aUnEcart && !String(commentaireEcart || "").trim()) {
+      return NextResponse.json(
+        { error: "La quantité sortie est inférieure à la quantité demandée sur au moins une ligne : un commentaire d'écart est obligatoire" },
+        { status: 400 }
+      );
+    }
+
     // Vérifier stocks avant transaction
-    for (const l of lignes as Array<{ produitId: number; quantite: number }>) {
+    for (const l of lignesInput) {
       const stock = await prisma.stockSite.findUnique({
         where: { produitId_pointDeVenteId: { produitId: Number(l.produitId), pointDeVenteId: Number(pointDeVenteId) } },
         include: { produit: { select: { nom: true } } },
@@ -127,16 +143,22 @@ export async function POST(req: Request) {
     }
 
     const isLivraisonClient = typeSortie === "LIVRAISON_CLIENT";
+    const seuilVisa = await getSeuilVisaBonSortie();
 
     const bonSortie = await prisma.$transaction(async (tx) => {
       const ref = `BS-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
 
       // Récupérer prix unitaires pour les lignes
       const produitsData = await Promise.all(
-        (lignes as Array<{ produitId: number; quantite: number }>).map(l =>
+        lignesInput.map(l =>
           tx.produit.findUnique({ where: { id: Number(l.produitId) }, select: { id: true, nom: true, prixUnitaire: true } })
         )
       );
+      const montantTotal = lignesInput.reduce(
+        (s, l, i) => s + Number(l.quantite) * Number(produitsData[i]?.prixUnitaire ?? 0),
+        0
+      );
+      const visaRequis = montantTotal > seuilVisa;
 
       const bon = await tx.bonSortie.create({
         data: {
@@ -146,12 +168,15 @@ export async function POST(req: Request) {
           pointDeVenteId:Number(pointDeVenteId),
           motif,
           notes:         notes || null,
+          commentaireEcart: aUnEcart ? commentaireEcart : null,
+          montantTotal,
           creeParId:     parseInt(session.user.id),
           lignes: {
-            create: (lignes as Array<{ produitId: number; quantite: number }>).map((l, i) => ({
-              produitId: Number(l.produitId),
-              quantite:  Number(l.quantite),
-              prixUnit:  produitsData[i]?.prixUnitaire ?? null,
+            create: lignesInput.map((l, i) => ({
+              produitId:        Number(l.produitId),
+              quantite:         Number(l.quantite),
+              quantiteDemandee: l.quantiteDemandee != null ? Number(l.quantiteDemandee) : Number(l.quantite),
+              prixUnit:         produitsData[i]?.prixUnitaire ?? null,
             })),
           },
         },
@@ -161,8 +186,10 @@ export async function POST(req: Request) {
         },
       });
 
-      if (!isLivraisonClient) {
-        // Pour PERTE/CASSE/DON/etc. : décrémenter le stock et valider immédiatement
+      // "Attestation magasinier en une seule séquence" (CDC §3.4) : sortie exécutée
+      // immédiatement, SAUF si la valorisation dépasse le seuil de visa paramétré —
+      // dans ce cas, un visa (RPV/Chef Agence/Direction) est requis avant exécution.
+      if (!isLivraisonClient && !visaRequis) {
         for (const ligne of bon.lignes) {
           await tx.stockSite.update({
             where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: Number(pointDeVenteId) } },
@@ -185,21 +212,29 @@ export async function POST(req: Request) {
         }
 
         // Marquer comme VALIDE directement (le magasinier valide à la création)
-        await tx.bonSortie.update({ where: { id: bon.id }, data: { statut: "VALIDE", valideParId: parseInt(session.user.id) } });
+        await tx.bonSortie.update({
+          where: { id: bon.id },
+          data: { statut: "VALIDE", valideParId: parseInt(session.user.id), dateValidation: new Date() },
+        });
       }
-      // Pour LIVRAISON_CLIENT : reste en BROUILLON, le stock sera décrémenté à la confirmation
+      // Pour LIVRAISON_CLIENT (ou toute sortie au-delà du seuil de visa) : reste en
+      // BROUILLON, le stock sera décrémenté à la confirmation/validation ultérieure.
 
       await auditLog(tx, parseInt(session.user.id), "BON_SORTIE_CREE", "BonSortie", bon.id);
 
       const isPrioritaire = ["PERTE", "CASSE"].includes(typeSortie);
       await notifyRoles(tx, ["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "RESPONSABLE_POINT_DE_VENTE", "COMPTABLE"], {
-        titre:    isLivraisonClient
+        titre:    visaRequis
+          ? `Visa requis sur un bon de sortie (${ref})`
+          : isLivraisonClient
           ? `Livraison client en attente (${ref})`
           : `Bon de sortie ${typeSortie} (${ref})`,
-        message:  isLivraisonClient
+        message:  visaRequis
+          ? `${session.user.prenom} ${session.user.nom} a préparé un bon de sortie "${typeSortie}" (${montantTotal.toLocaleString("fr-FR")} FCFA) dépassant le seuil de validation — un visa est requis avant exécution.`
+          : isLivraisonClient
           ? `${session.user.prenom} ${session.user.nom} a préparé une livraison client depuis "${bon.pointDeVente.nom}". ${bon.lignes.length} produit(s) — en attente de confirmation.`
           : `${session.user.prenom} ${session.user.nom} a émis un bon de sortie "${typeSortie}" pour "${bon.pointDeVente.nom}". ${bon.lignes.length} ligne(s). Motif : ${motif}.`,
-        priorite: isPrioritaire ? PrioriteNotification.HAUTE : PrioriteNotification.NORMAL,
+        priorite: (isPrioritaire || visaRequis) ? PrioriteNotification.HAUTE : PrioriteNotification.NORMAL,
         actionUrl:`/dashboard/magasinier/bons-sortie/${bon.id}`,
       });
 
