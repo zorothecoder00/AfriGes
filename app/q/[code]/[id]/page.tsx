@@ -13,7 +13,7 @@ type Props = {
   searchParams: Promise<{ h?: string }>;
 };
 
-const CODES_VALIDES: CodeDocumentQr[] = ["BCF", "BSM", "BRF", "BCC", "FD"];
+const CODES_VALIDES: CodeDocumentQr[] = ["BCF", "BSM", "BRF", "BCC", "FD", "BR"];
 
 export default async function VerifierDocumentPage({ params, searchParams }: Props) {
   const { code, id } = await params;
@@ -64,6 +64,14 @@ export default async function VerifierDocumentPage({ params, searchParams }: Pro
       return <PageErreur message="Ce QR ne correspond à aucune fiche de décaissement valide (document falsifié ou introuvable)." />;
     }
     redirect(`/dashboard/user/decaissements?detail=${f.id}`);
+  }
+
+  if (codeDoc === "BR") {
+    const r = await prisma.bonReception.findUnique({ where: { id: docId }, select: { id: true, createdAt: true } });
+    if (!r || !verifierHashInstance("BR", r.id, r.createdAt.toISOString(), h)) {
+      return <PageErreur message="Ce QR ne correspond à aucun bon de réception valide (document falsifié ou introuvable)." />;
+    }
+    redirect(`/api/bons-reception/${r.id}/pdf`);
   }
 
   return <PageErreur message="QR code invalide." />;

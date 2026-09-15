@@ -39,6 +39,7 @@ export const INCLUDE = {
   client: { select: { id: true, nom: true, prenom: true, telephone: true, adresse: true, typeClient: true, segment: true } },
   visaResponsablePar: { select: { id: true, nom: true, prenom: true } },
   bonSortie: { select: { id: true, reference: true, statut: true, dateValidation: true } },
+  bonReception: { select: { id: true, reference: true, statut: true, etatMarchandise: true, reserve: true, tokenConfirmation: true, signatureClientNom: true, dateSignatureClient: true } },
   lignes: { include: { produit: { select: { id: true, nom: true, codeProduit: true } } } },
 };
 

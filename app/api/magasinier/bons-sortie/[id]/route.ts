@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/permissions";
 import { auditLog, notify, notifyRoles } from "@/lib/notifications";
 import { comptabiliserBonSortie } from "@/lib/comptabilite/ecrituresBonSortie";
 import { getSeuilVisaBonSortie } from "@/lib/parametresDocuments";
+import { nouveauJetonConfirmation, livraisonConfirmationUrl } from "@/lib/livraisonConfirmation";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -189,7 +190,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
         // Cascade Bon de Commande Client (CDC digitalisation §3.2) — l'expédition
         // de la livraison client marque la commande d'origine comme "Livrée".
-        const commandeClient = await tx.commandeClient.findUnique({ where: { bonSortieId: bon.id }, select: { id: true, reference: true, agentId: true } });
+        const commandeClient = await tx.commandeClient.findUnique({
+          where: { bonSortieId: bon.id },
+          select: { id: true, reference: true, agentId: true, client: { select: { nom: true, prenom: true, telephone: true, adresse: true } } },
+        });
         if (commandeClient) {
           await tx.commandeClient.update({ where: { id: commandeClient.id }, data: { statut: "LIVREE" } });
           await notify(tx, [commandeClient.agentId], {
@@ -197,6 +201,32 @@ export async function PATCH(req: Request, { params }: Ctx) {
             message: `La livraison a été expédiée par ${session.user.prenom} ${session.user.nom}.`,
             priorite: PrioriteNotification.NORMAL,
             actionUrl: `/dashboard/user/agentsTerrain/commandes-client?detail=${commandeClient.id}`,
+          });
+
+          // Génération automatique du Bon de Réception (CDC digitalisation §3.5) —
+          // lien de confirmation sans compte, à transmettre au client par le livreur.
+          const referenceBR = `BR-${Date.now()}-${commandeClient.id}`;
+          const token = nouveauJetonConfirmation();
+          const bonReception = await tx.bonReception.create({
+            data: {
+              reference: referenceBR,
+              bonSortieId: bon.id,
+              commandeClientId: commandeClient.id,
+              clientNom: `${commandeClient.client.prenom} ${commandeClient.client.nom}`,
+              clientTelephone: commandeClient.client.telephone,
+              clientAdresse: commandeClient.client.adresse,
+              tokenConfirmation: token,
+              dateEnvoiLien: new Date(),
+              livreurId: parseInt(session.user.id),
+              lignes: { create: bon.lignes.map((l) => ({ produitId: l.produitId, quantiteCommandee: l.quantite, quantiteLivree: l.quantite })) },
+            },
+          });
+          await auditLog(tx, parseInt(session.user.id), "BR_GENERE", "BonReception", bonReception.id, undefined, undefined);
+          await notify(tx, [parseInt(session.user.id)], {
+            titre: `Lien de confirmation de livraison généré (${referenceBR})`,
+            message: `Transmettez ce lien au client pour qu'il atteste la réception : ${livraisonConfirmationUrl(req, token)}`,
+            priorite: PrioriteNotification.NORMAL,
+            actionUrl: `/dashboard/user/magasiniers?tab=livraisons`,
           });
         }
 

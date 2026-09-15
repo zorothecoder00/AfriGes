@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
-import { ArrowLeft, ShoppingCart, Plus, X, RefreshCw, Send, FileText, Trash2, Search } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Plus, X, RefreshCw, Send, FileText, Trash2, Search, PackageCheck, AlertTriangle, Copy } from "lucide-react";
 
 interface PersonRef { id: number; nom: string; prenom: string }
 interface ClientRef { id: number; nom: string; prenom: string; telephone: string; adresse: string | null }
@@ -20,6 +20,7 @@ interface Commande {
   signatureClientNom: string;
   visaResponsablePar: PersonRef | null; motifRejet: string | null;
   bonSortie: { id: number; reference: string; statut: string } | null;
+  bonReception: { id: number; reference: string; statut: string; etatMarchandise: string | null; reserve: string | null; tokenConfirmation: string; signatureClientNom: string | null; dateSignatureClient: string | null } | null;
   lignes: Ligne[];
   createdAt: string;
 }
@@ -324,6 +325,25 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
               {c.visaResponsablePar && <p className="text-sm text-amber-700">Visa RVC : {c.visaResponsablePar.prenom} {c.visaResponsablePar.nom}</p>}
               {c.motifRejet && <p className="text-sm text-red-600">Motif de rejet : {c.motifRejet}</p>}
               {c.bonSortie && <p className="text-sm text-slate-600">Bon de sortie : {c.bonSortie.reference} ({c.bonSortie.statut})</p>}
+              {c.bonReception && (
+                <div className="pt-2 border-t border-slate-100">
+                  <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Bon de réception</p>
+                  {c.bonReception.statut === "EN_ATTENTE_SIGNATURE" ? (
+                    <div className="flex items-center gap-2">
+                      <PackageCheck className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <span className="text-sm text-slate-500">En attente de la signature du client</span>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/livraison/${c.bonReception!.tokenConfirmation}`); toast.success("Lien copié"); }}
+                        title="Copier le lien de confirmation" className="ml-auto p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><Copy className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ) : c.bonReception.statut === "LITIGE" ? (
+                    <p className="text-sm text-red-600 flex items-center gap-1"><AlertTriangle className="w-4 h-4" /> Réserve : {c.bonReception.reserve}</p>
+                  ) : (
+                    <p className="text-sm text-emerald-700 flex items-center gap-1"><PackageCheck className="w-4 h-4" /> Signé par {c.bonReception.signatureClientNom}</p>
+                  )}
+                  <a href={`/api/bons-reception/${c.bonReception.id}/pdf`} target="_blank" rel="noreferrer" className="text-xs text-slate-400 hover:text-slate-600 underline">Voir l&apos;accusé</a>
+                </div>
+              )}
             </>
           )}
         </div>
