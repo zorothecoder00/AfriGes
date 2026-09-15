@@ -2196,6 +2196,12 @@ export default function AgentTerrainPage() {
               <CreditCard size={16} /> Crédits Clients
             </Link>
             <Link
+              href="/dashboard/user/agentsTerrain/devis-proforma"
+              className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <FileText size={16} /> Devis &amp; Proforma
+            </Link>
+            <Link
               href="/dashboard/user/agentsTerrain/commandes-client"
               className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
             >

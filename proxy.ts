@@ -83,6 +83,7 @@ const adminOpenUserPrefixes: string[] = [
   "/dashboard/user/agentsTerrain/bordereaux-remise",
   "/dashboard/user/comptables/tresorerie/bordereaux-remise",
   "/dashboard/user/agentsTerrain/commandes-client",
+  "/dashboard/user/agentsTerrain/devis-proforma",
   "/dashboard/user/responsablesVenteCredit/commandes-client",
   "/dashboard/user/decaissements",
 ]

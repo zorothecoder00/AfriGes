@@ -13,7 +13,7 @@ type Props = {
   searchParams: Promise<{ h?: string }>;
 };
 
-const CODES_VALIDES: CodeDocumentQr[] = ["BCF", "BSM", "BRF", "BCC", "FD", "BR"];
+const CODES_VALIDES: CodeDocumentQr[] = ["BCF", "BSM", "BRF", "BCC", "FD", "BR", "DEV", "PRO"];
 
 export default async function VerifierDocumentPage({ params, searchParams }: Props) {
   const { code, id } = await params;
@@ -72,6 +72,14 @@ export default async function VerifierDocumentPage({ params, searchParams }: Pro
       return <PageErreur message="Ce QR ne correspond à aucun bon de réception valide (document falsifié ou introuvable)." />;
     }
     redirect(`/api/bons-reception/${r.id}/pdf`);
+  }
+
+  if (codeDoc === "DEV" || codeDoc === "PRO") {
+    const doc = await prisma.devisProforma.findUnique({ where: { id: docId }, select: { id: true, createdAt: true } });
+    if (!doc || !verifierHashInstance(codeDoc, doc.id, doc.createdAt.toISOString(), h)) {
+      return <PageErreur message="Ce QR ne correspond à aucun devis/proforma valide (document falsifié ou introuvable)." />;
+    }
+    redirect(`/dashboard/user/agentsTerrain/devis-proforma?detail=${doc.id}`);
   }
 
   return <PageErreur message="QR code invalide." />;
