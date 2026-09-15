@@ -830,8 +830,8 @@ function ActionsPDISection({ evaluationId, canEdit }: { evaluationId: number; ca
 function ActionPDIRow({ action: a, evaluationId, canEdit, onChanged }: {
   action: ActionPDI; evaluationId: number; canEdit: boolean; onChanged: () => void;
 }) {
-  const { mutate: update } = useMutation(`/api/admin/rh/evaluations/${evaluationId}/actions/${a.id}`, "PATCH");
-  const { mutate: remove }  = useMutation(`/api/admin/rh/evaluations/${evaluationId}/actions/${a.id}`, "DELETE");
+  const { mutate: update, loading: cycling } = useMutation(`/api/admin/rh/evaluations/${evaluationId}/actions/${a.id}`, "PATCH");
+  const { mutate: remove, loading: deleting } = useMutation(`/api/admin/rh/evaluations/${evaluationId}/actions/${a.id}`, "DELETE");
   const cfg = STATUT_ACTION_CONFIG[a.statut] ?? STATUT_ACTION_CONFIG.A_FAIRE;
 
   const cycleStatut = async () => {
@@ -851,12 +851,12 @@ function ActionPDIRow({ action: a, evaluationId, canEdit, onChanged }: {
         {a.echeance && <p className="text-xs text-slate-400 mt-0.5">Échéance : {formatDate(a.echeance)}</p>}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
-        <button disabled={!canEdit} onClick={cycleStatut}
-          className={`px-2 py-1 rounded-full text-xs font-medium ${cfg.badge} ${canEdit ? "hover:opacity-80" : "opacity-70 cursor-default"}`}>
+        <button disabled={!canEdit || cycling} onClick={cycleStatut}
+          className={`px-2 py-1 rounded-full text-xs font-medium disabled:opacity-50 ${cfg.badge} ${canEdit ? "hover:opacity-80" : "opacity-70 cursor-default"}`}>
           {cfg.label}
         </button>
         {canEdit && (
-          <button onClick={handleDelete} className="text-slate-300 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+          <button onClick={handleDelete} disabled={deleting} className="text-slate-300 hover:text-red-400 disabled:opacity-40"><Trash2 className="w-3.5 h-3.5" /></button>
         )}
       </div>
     </div>

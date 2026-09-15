@@ -157,7 +157,7 @@ function NewPlanningModal({ onClose, onCreated }: { onClose: () => void; onCreat
 function PlanningDetailModal({ planningId, onClose, onUpdated }: { planningId: number; onClose: () => void; onUpdated: () => void }) {
   const { data, loading, refetch } = useApi<{ data: PlanningDetail }>(`/api/admin/rh/planning/${planningId}`);
   const { mutate: mutatePlanning, loading: savingPlanning } = useMutation(`/api/admin/rh/planning/${planningId}`, "PATCH");
-  const { mutate: deletePlanning } = useMutation(`/api/admin/rh/planning/${planningId}`, "DELETE");
+  const { mutate: deletePlanning, loading: deleting } = useMutation(`/api/admin/rh/planning/${planningId}`, "DELETE");
   const { mutate: addAffectation, loading: adding } = useMutation(`/api/admin/rh/planning/${planningId}/affectations`, "POST");
   const { data: collabRes } = useApi<CollabsRes>("/api/admin/rh/collaborateurs?limit=200&statut=ACTIF");
   const collabs = collabRes?.data ?? [];
@@ -272,7 +272,7 @@ function PlanningDetailModal({ planningId, onClose, onUpdated }: { planningId: n
           variant="danger"
           size="sm"
           onClick={handleDelete}
-          disabled={planning?.statut === "PUBLIE"}
+          disabled={planning?.statut === "PUBLIE" || deleting}
           icon={<Trash2 className="w-4 h-4" />}
         >
           Supprimer

@@ -384,7 +384,7 @@ function RapportMensuel({ year, month, onPrev, onNext }: { year: number; month: 
 function PointageCalendar({ collab, year, month, onPrev, onNext }: {
   collab: ProfilRH; year: number; month: number; onPrev: () => void; onNext: () => void;
 }) {
-  const { mutate: createPointage } = useMutation("/api/admin/rh/pointages", "POST");
+  const { mutate: createPointage, loading: settingStatut } = useMutation("/api/admin/rh/pointages", "POST");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   const params = new URLSearchParams();
@@ -465,7 +465,7 @@ function PointageCalendar({ collab, year, month, onPrev, onNext }: {
               const cfg     = pt ? (STATUT_CONFIG[pt.statut] ?? null) : null;
               cells.push(
                 <DayCell key={d} day={d} dateStr={dateStr} isWE={isWE} pointage={pt ?? null} cfg={cfg}
-                  isSelected={selectedDay === dateStr}
+                  isSelected={selectedDay === dateStr} disabled={settingStatut}
                   onSelect={() => setSelectedDay(selectedDay === dateStr ? null : dateStr)}
                   onSetStatut={(s) => handleSetStatut(d, s)} />
               );
@@ -501,13 +501,14 @@ function PointageCalendar({ collab, year, month, onPrev, onNext }: {
 
 // ── Cellule jour ───────────────────────────────────────────────────────────────
 
-function DayCell({ day, dateStr, isWE, pointage, cfg, isSelected, onSelect, onSetStatut }: {
+function DayCell({ day, dateStr, isWE, pointage, cfg, isSelected, disabled, onSelect, onSetStatut }: {
   day:         number;
   dateStr:     string;
   isWE:        boolean;
   pointage:    Pointage | null;
   cfg:         typeof STATUT_CONFIG[string] | null;
   isSelected:  boolean;
+  disabled?:   boolean;
   onSelect:    () => void;
   onSetStatut: (s: string) => void;
 }) {
@@ -555,8 +556,8 @@ function DayCell({ day, dateStr, isWE, pointage, cfg, isSelected, onSelect, onSe
         <div className="absolute top-full left-0 z-30 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl w-38 py-1" style={{ minWidth: 144 }}>
           <p className="px-3 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{dateStr}</p>
           {Object.entries(STATUT_CONFIG).map(([k, c]) => (
-            <button key={k} onClick={() => { onSetStatut(k); setOpen(false); }}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-50 ${pointage?.statut === k ? "font-semibold" : ""}`}>
+            <button key={k} disabled={disabled} onClick={() => { onSetStatut(k); setOpen(false); }}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50 ${pointage?.statut === k ? "font-semibold" : ""}`}>
               <span className={`p-0.5 rounded ${c.badge}`}>{c.icon}</span>
               {c.label}
             </button>
