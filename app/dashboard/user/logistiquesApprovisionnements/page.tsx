@@ -906,6 +906,13 @@ export default function LogistiqueApprovisionnementPage() {
               Dépôt-vente
             </Link>
             <Link
+              href="/dashboard/user/logistiquesApprovisionnements/tournees"
+              className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium"
+            >
+              <Truck size={16} />
+              Tournées
+            </Link>
+            <Link
               href="/dashboard/user/logistiquesApprovisionnements/dashboard"
               className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium"
             >
