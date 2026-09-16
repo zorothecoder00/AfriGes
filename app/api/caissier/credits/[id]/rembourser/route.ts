@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
 import { validerNumeroJour, montantAttenduDuJour, parseDateCollecte } from "@/lib/remboursementCredit";
+import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -163,6 +164,19 @@ export async function POST(req: Request, { params }: Ctx) {
       await tx.client.update({
         where: { id: credit.clientId },
         data:  { soldeActuel: { decrement: montantEffectif } },
+      });
+
+      await enregistrerTransactionClient(tx, {
+        clientId: credit.clientId,
+        type: "REMBOURSEMENT_CREDIT",
+        montant: montantEffectif,
+        sens: "CREDIT",
+        reference: credit.reference,
+        description: `Remboursement crédit ${credit.reference}`,
+        sourceType: "REMBOURSEMENT_CREDIT",
+        sourceId: remboursement.id,
+        agentId: agentCollecteurId ? parseInt(String(agentCollecteurId)) : userId,
+        dateOperation: remboursement.dateRemboursement,
       });
 
       await auditLog(tx, userId, "REMBOURSEMENT_CREDIT_CAISSE", "RemboursementCredit", remboursement.id);

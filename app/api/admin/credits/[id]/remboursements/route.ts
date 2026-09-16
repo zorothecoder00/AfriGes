@@ -3,6 +3,7 @@ import { PrioriteNotification, Role, StatutCredit, StatutEcheanceCredit, TypePai
 import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
 import { validerNumeroJour, montantAttenduDuJour, parseDateCollecte } from "@/lib/remboursementCredit";
+import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -190,6 +191,19 @@ export async function POST(req: Request, { params }: Ctx) {
       await tx.client.update({
         where: { id: credit.clientId },
         data: { soldeActuel: { decrement: montantEffectif } },
+      });
+
+      await enregistrerTransactionClient(tx, {
+        clientId: credit.clientId,
+        type: "REMBOURSEMENT_CREDIT",
+        montant: montantEffectif,
+        sens: "CREDIT",
+        reference: credit.reference,
+        description: `Remboursement crédit ${credit.reference}`,
+        sourceType: "REMBOURSEMENT_CREDIT",
+        sourceId: remboursement.id,
+        agentId: agentCollecteurId ? parseInt(String(agentCollecteurId)) : Number(session.user.id),
+        dateOperation: remboursement.dateRemboursement,
       });
 
       // ── Hook RIA — remboursement proportionnel des financements liés ──────

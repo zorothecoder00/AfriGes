@@ -7,6 +7,7 @@ import { chargerParametrageCC, debiterCCPourCredit, extraireMetaRequete } from "
 import { ecritureRemboursementCreditConfirme } from "@/lib/comptabilite/moteur";
 import { obtenirOuCreerCompteAuxiliaireClient } from "@/lib/comptabilite/auxiliaire";
 import { proposerLettrage, appliquerLettrage } from "@/lib/comptabilite/lettrage";
+import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -171,6 +172,21 @@ export async function POST(req: Request, { params }: Ctx) {
       await tx.client.update({
         where: { id: credit.clientId },
         data:  { soldeActuel: { decrement: montantNum } },
+      });
+
+      // 4bis. Grand livre client — l'effet financier devient réel ici, quel que
+      // soit le mode de règlement (espèces ou compte courant, cf. branche 5).
+      await enregistrerTransactionClient(tx, {
+        clientId: credit.clientId,
+        type: "REMBOURSEMENT_CREDIT",
+        montant: montantNum,
+        sens: "CREDIT",
+        reference: credit.reference,
+        description: `Remboursement crédit ${credit.reference}`,
+        sourceType: "REMBOURSEMENT_CREDIT",
+        sourceId: remboursementId,
+        agentId: remboursement.agentCollecteurId,
+        dateOperation: remboursement.dateRemboursement,
       });
 
       // 5. Débit du compte courant (si paiement CC) ou OperationCaisse (cash)

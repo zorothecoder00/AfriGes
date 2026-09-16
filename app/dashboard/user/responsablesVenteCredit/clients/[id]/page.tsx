@@ -12,6 +12,7 @@ export default function Page({ params }: PageProps) {
       clientId={id}
       apiBase="/api/rvc/clients"
       basePath="/dashboard/user/responsablesVenteCredit/credits"
+      relevePath="/dashboard/user/responsablesVenteCredit/clients"
       canModify={false}
     />
   );

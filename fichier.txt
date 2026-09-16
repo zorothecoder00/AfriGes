@@ -270,4 +270,35 @@ Résumé — Bon de préparation & Bon de livraison (Partie B, §5.7) :
   compte client, Bon de réception fournisseur (rappel : plusieurs déjà couverts
   sous une autre forme existante, voir plus haut). Dis-moi par quoi enchaîner.
 
+Résumé — Relevé de compte client & Facture à crédit (Partie B, §5.2/§5.4) :
+  - Découverte en cours de route : un relevé de compte client complet et déjà
+    imprimable existait déjà côté Comptabilité (genererGrandLivreClient, CDC
+    Comptabilité §16 — grand livre auxiliaire, solde ouverture/clôture,
+    mouvements), juste réservé au rôle Comptable. Plutôt que d'en construire un
+    second (risque de désynchronisation entre deux relevés), on l'a ouvert aux
+    autres rôles : nouvelles routes /api/{admin,rvc,agentTerrain}/clients/[id]/
+    releve + pages dashboard correspondantes, composant partagé
+    components/ReleveCompteClient.tsx (même moteur, un seul relevé), lien
+    "Relevé de compte" ajouté dans ClientDetails.tsx.
+  - Chantier de fond fait en parallèle (demandé explicitement) : le modèle
+    ClientTransaction existait dans le schéma mais n'était écrit nulle part
+    (table morte) — maintenant branché sur tous les mouvements réels à effet
+    financier (remboursement crédit confirmé, versement pack payé, octroi de
+    crédit, avec écritures correctrices sur modification/suppression/
+    annulation plutôt que réécriture d'historique). lib/clientTransaction.ts +
+    17 fichiers touchés. Pas encore consommé par une fonctionnalité visible
+    pour l'instant (infra pour plus tard — fidélisation, audit, etc.), le
+    relevé imprimable utilise le grand livre comptable, pas cette table.
+  - Facture à crédit : l'essentiel existait déjà (FactureModal — badge/titre
+    distinct, échéance finale, reste à payer, garantie). Vrai manque comblé :
+    échéancier complet (toutes les échéances, pas juste la date finale) ajouté
+    à l'aperçu et à l'impression pour les factures type CREDIT, sourcé depuis
+    EcheanceCredit.
+  - tsc --noEmit et eslint OK sur tous les fichiers touchés (fork + moi).
+
+  Avec ça, la liste des 15 documents prioritaires de la Partie B est
+  intégralement couverte (soit nouveau, soit confirmé déjà existant sous une
+  autre forme). Reste : le catalogue élargi de 90+ documents (Parties B.5.3 à
+  B.5.9 — achats/fournisseurs, dépôt-vente, B2B, retours/réclamations,
+  contrôle commercial) si on veut continuer au-delà des 15+6 prioritaires.
 

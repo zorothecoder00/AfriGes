@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { notifyAdmins } from "@/lib/notifications";
 import { traiterExpirations } from "@/lib/expirationAuto";
+import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
 /**  
  * GET — Toutes les souscriptions avec filtres optionnels :
@@ -382,7 +383,7 @@ export async function POST(req: Request) {
 
       // Enregistrer l'acompte
       if (acompteNum > 0) {
-        await tx.versementPack.create({
+        const acompte = await tx.versementPack.create({
           data: {
             souscriptionId: souscription.id,
             type: "COTISATION_INITIALE",
@@ -394,6 +395,19 @@ export async function POST(req: Request) {
             notes: `Acompte initial — ${pack.nom}`,
           },
         });
+        if (souscription.clientId) {
+          await enregistrerTransactionClient(tx, {
+            clientId: souscription.clientId,
+            type: "VERSEMENT_PACK",
+            montant: acompteNum,
+            sens: "CREDIT",
+            description: `Acompte initial — ${pack.nom}`,
+            sourceType: "VERSEMENT_PACK",
+            sourceId: acompte.id,
+            agentId: parseInt(session.user.id),
+            dateOperation: acompte.datePaiement,
+          });
+        }
       }
 
       await notifyAdmins(tx, {

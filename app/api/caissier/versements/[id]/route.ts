@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId, souscriptionPdvWhere } from "@/lib/authCaissier";
 import { recalculerSouscriptionApresVersements } from "@/lib/versementPack";
 import { auditLog, notifyAdmins } from "@/lib/notifications";
+import { mettreAJourTransactionClient, supprimerTransactionClient } from "@/lib/clientTransaction";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -84,6 +85,16 @@ export async function PATCH(req: Request, { params }: Ctx) {
       if (notes !== undefined) updateData.notes = notes ?? null;
 
       await tx.versementPack.update({ where: { id: versementId }, data: updateData });
+
+      // Le grand livre client n'a de ligne que pour un versement déjà PAYE.
+      if (versement.statut === "PAYE") {
+        const patch: { montant?: number; dateOperation?: Date } = {};
+        if (montant !== undefined) patch.montant = montant;
+        if (newDate) patch.dateOperation = newDate;
+        if (Object.keys(patch).length > 0) {
+          await mettreAJourTransactionClient(tx, { sourceType: "VERSEMENT_PACK", sourceId: versementId }, patch);
+        }
+      }
 
       // Si le montant ne change pas, pas besoin de recalculer la souscription/échéances
       if (montant === undefined) {
@@ -177,6 +188,9 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     const souscriptionId = versement.souscriptionId;
 
     await prisma.$transaction(async (tx) => {
+      if (versement.statut === "PAYE") {
+        await supprimerTransactionClient(tx, { sourceType: "VERSEMENT_PACK", sourceId: versementId });
+      }
       await tx.versementPack.delete({ where: { id: versementId } });
       await recalculerSouscriptionApresVersements(tx, souscriptionId);
 

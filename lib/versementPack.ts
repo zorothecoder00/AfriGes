@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { ecritureVersementPackConfirme } from "@/lib/comptabilite/ecrituresPack";
+import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
 type TX = Omit<Prisma.TransactionClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
 
@@ -178,6 +179,22 @@ export async function enregistrerVersementPack(
 
   const { estSolde } = await imputerSurSouscription(tx, souscription, montantEffectif, datePaiement);
 
+  // Souscription rattachée à un userId (ex. revendeur) plutôt qu'un clientId :
+  // pas de compte client à journaliser (ClientTransaction.clientId est obligatoire).
+  if (souscription.clientId) {
+    await enregistrerTransactionClient(tx, {
+      clientId: souscription.clientId,
+      type: "VERSEMENT_PACK",
+      montant: montantEffectif,
+      sens: "CREDIT",
+      description: `Versement pack ${souscription.pack.nom}`,
+      sourceType: "VERSEMENT_PACK",
+      sourceId: versement.id,
+      agentId: p.encaisseParId,
+      dateOperation: datePaiement,
+    });
+  }
+
   await ecritureVersementPackConfirme(tx, {
     versementId: versement.id,
     montant: montantEffectif,
@@ -222,6 +239,20 @@ export async function confirmerVersementPackExistant(
   await tx.versementPack.update({ where: { id: versementId }, data: { statut: "PAYE" } });
 
   const { estSolde } = await imputerSurSouscription(tx, souscription, montantEffectif, versement.datePaiement);
+
+  if (souscription.clientId) {
+    await enregistrerTransactionClient(tx, {
+      clientId: souscription.clientId,
+      type: "VERSEMENT_PACK",
+      montant: montantEffectif,
+      sens: "CREDIT",
+      description: `Versement pack ${souscription.pack.nom}`,
+      sourceType: "VERSEMENT_PACK",
+      sourceId: versement.id,
+      agentId: caissierId,
+      dateOperation: versement.datePaiement,
+    });
+  }
 
   await creerOperationCaisseSiActive(
     tx, caissierId, montantEffectif,

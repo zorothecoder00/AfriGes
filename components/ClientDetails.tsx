@@ -261,6 +261,8 @@ interface ClientDetailsProps {
   apiBase?: string;
   /** Préfixe des routes dashboard pour retour/édition (défaut : admin). */
   basePath?: string;
+  /** Préfixe des routes dashboard pour le relevé de compte (défaut : admin). Ex. /dashboard/user/responsablesVenteCredit/clients */
+  relevePath?: string;
   /** Affiche les actions Modifier / Supprimer (réservé admin). */
   canModify?: boolean;
 }
@@ -269,6 +271,7 @@ export default function ClientDetails({
   clientId,
   apiBase = '/api/admin/clients',
   basePath = '/dashboard/admin/clients',
+  relevePath = '/dashboard/admin/clients',
   canModify = true,
 }: ClientDetailsProps) {
   const router = useRouter();
@@ -351,18 +354,24 @@ export default function ClientDetails({
               {client.codeClient && <p className="text-sm text-slate-400 font-mono mt-0.5">{client.codeClient}</p>}
             </div>
           </div>
-          {canModify && (
-            <div className="flex items-center gap-3">
-              <button onClick={() => setShowDeleteConfirm(true)}
-                className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 text-sm">
-                <Trash2 className="w-4 h-4" /> Supprimer
-              </button>
-              <Link href={`${basePath}/${clientId}/edit`}
-                className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 text-sm">
-                <Edit className="w-4 h-4" /> Modifier
-              </Link>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            <a href={`${relevePath}/${clientId}/releve`} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2 text-slate-600 bg-white border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50 text-sm">
+              <FileText className="w-4 h-4" /> Relevé de compte
+            </a>
+            {canModify && (
+              <>
+                <button onClick={() => setShowDeleteConfirm(true)}
+                  className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 text-sm">
+                  <Trash2 className="w-4 h-4" /> Supprimer
+                </button>
+                <Link href={`${basePath}/${clientId}/edit`}
+                  className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 text-sm">
+                  <Edit className="w-4 h-4" /> Modifier
+                </Link>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Modal suppression */}

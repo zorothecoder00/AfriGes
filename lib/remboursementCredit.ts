@@ -4,6 +4,7 @@ import { auditLog } from "@/lib/notifications";
 import { ecritureRemboursementCreditConfirme, ecripturePenaliteRetardCredit } from "@/lib/comptabilite/moteur";
 import { obtenirOuCreerCompteAuxiliaireClient } from "@/lib/comptabilite/auxiliaire";
 import { proposerLettrage, appliquerLettrage } from "@/lib/comptabilite/lettrage";
+import { enregistrerTransactionClient, mettreAJourTransactionClient, supprimerTransactionClient } from "@/lib/clientTransaction";
 
 type TX = Omit<Prisma.TransactionClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
 
@@ -258,6 +259,19 @@ export async function enregistrerRemboursementCredit(
   await tx.client.update({ where: { id: credit.clientId }, data: { soldeActuel: { decrement: montantEffectif } } });
 
   const remboursement = await tx.remboursementCredit.create({ data: { ...baseData, statut: "CONFIRME" } });
+
+  await enregistrerTransactionClient(tx, {
+    clientId: credit.clientId,
+    type: "REMBOURSEMENT_CREDIT",
+    montant: montantEffectif,
+    sens: "CREDIT",
+    reference: credit.reference,
+    description: `Remboursement crédit ${credit.reference}`,
+    sourceType: "REMBOURSEMENT_CREDIT",
+    sourceId: remboursement.id,
+    agentId: p.agentCollecteurId,
+    dateOperation: baseData.dateRemboursement,
+  });
 
   // ── Comptabilisation (CDC §57/§58) : cette fonction ne branchait jusqu'ici
   // jamais le moteur comptable — l'écriture de remboursement n'existait que
@@ -647,6 +661,17 @@ export async function modifierRemboursementCredit(p: ParamsModification): Promis
       await tx.remboursementCredit.update({ where: { id: remb.id }, data });
     }
 
+    // Le grand livre client n'a de ligne que pour un remboursement CONFIRME —
+    // la synchroniser sur toute correction qui la concerne (montant et/ou date).
+    if (remb.statut === "CONFIRME") {
+      const patch: { montant?: number; dateOperation?: Date } = {};
+      if (montantEffectif !== oldMontant) patch.montant = montantEffectif;
+      if (data.dateRemboursement) patch.dateOperation = data.dateRemboursement as Date;
+      if (Object.keys(patch).length > 0) {
+        await mettreAJourTransactionClient(tx, { sourceType: "REMBOURSEMENT_CREDIT", sourceId: remb.id }, patch);
+      }
+    }
+
     await auditLog(tx, p.userId, "MODIFICATION_REMBOURSEMENT_CREDIT", "RemboursementCredit", remb.id, {
       avant: { montant: oldMontant },
       apres: { montant: montantEffectif },
@@ -744,6 +769,10 @@ export async function supprimerRemboursementCredit(p: ParamsSuppression): Promis
 
       // 3. Recréditer le solde du client (annule le décrément fait à l'encaissement).
       await tx.client.update({ where: { id: credit.clientId }, data: { soldeActuel: { increment: montant } } });
+    }
+
+    if (recalcul) {
+      await supprimerTransactionClient(tx, { sourceType: "REMBOURSEMENT_CREDIT", sourceId: remb.id });
     }
 
     await tx.remboursementCredit.delete({ where: { id: remb.id } });

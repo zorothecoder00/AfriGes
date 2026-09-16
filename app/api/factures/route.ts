@@ -70,9 +70,29 @@ type FactureRow = {
   modePaiement: string | null; notes: string | null; garantie: string | null;
   lignes: { designation: string; unite: string | null; quantite: number; prixUnitaire: { toNumber(): number }; montant: { toNumber(): number } }[];
   pointDeVente: { nom: string; adresse: string | null; telephone: string | null } | null;
+  creditClientId?: number | null;
 };
 
-function buildResponse(f: FactureRow, getParam: (k: string) => string) {
+/** Échéancier complet (CDC digitalisation §5.2 — variante imprimable Facture à crédit). */
+async function chargerEcheancier(creditClientId: number | null | undefined) {
+  if (!creditClientId) return null;
+  const echeances = await prisma.echeanceCredit.findMany({
+    where: { creditId: creditClientId },
+    orderBy: { numeroEcheance: "asc" },
+    select: { numeroEcheance: true, dateEcheance: true, montantDu: true, montantPaye: true, statut: true },
+  });
+  if (!echeances.length) return null;
+  return echeances.map(e => ({
+    numeroEcheance: e.numeroEcheance,
+    dateEcheance: e.dateEcheance.toISOString(),
+    montantDu: e.montantDu.toNumber(),
+    montantPaye: e.montantPaye.toNumber(),
+    statut: e.statut,
+  }));
+}
+
+async function buildResponse(f: FactureRow, getParam: (k: string) => string) {
+  const echeancier = f.type === "CREDIT" ? await chargerEcheancier(f.creditClientId) : null;
   return {
     id: f.id,
     numero: f.numero,
@@ -95,6 +115,7 @@ function buildResponse(f: FactureRow, getParam: (k: string) => string) {
     modePaiement: f.modePaiement,
     notes: f.notes,
     garantie: f.garantie ?? null,
+    echeancier,
     lignes: f.lignes.map(l => ({
       designation: l.designation,
       unite: l.unite,
@@ -224,7 +245,7 @@ export async function POST(req: NextRequest) {
         where: { venteDirecteId: body.venteDirecteId },
         include: INCLUDE_FULL,
       });
-      if (existing) return NextResponse.json({ data: buildResponse(existing as unknown as FactureRow, getParam) });
+      if (existing) return NextResponse.json({ data: await buildResponse(existing as unknown as FactureRow, getParam) });
 
       const vente = await prisma.venteDirecte.findUnique({
         where: { id: body.venteDirecteId },
@@ -280,7 +301,7 @@ export async function POST(req: NextRequest) {
       );
 
       return NextResponse.json(
-        { data: buildResponse(created as unknown as FactureRow, getParam) },
+        { data: await buildResponse(created as unknown as FactureRow, getParam) },
         { status: 201 }
       );
     }
@@ -293,7 +314,7 @@ export async function POST(req: NextRequest) {
       });
       // Facture déjà annulée : document figé, on ne la resynchronise pas.
       if (existing && existing.statut === "ANNULEE") {
-        return NextResponse.json({ data: buildResponse(existing as unknown as FactureRow, getParam) });
+        return NextResponse.json({ data: await buildResponse(existing as unknown as FactureRow, getParam) });
       }
 
       const credit = await prisma.creditClient.findUnique({
@@ -367,7 +388,7 @@ export async function POST(req: NextRequest) {
             include: INCLUDE_FULL,
           });
         });
-        return NextResponse.json({ data: buildResponse(updated as unknown as FactureRow, getParam) });
+        return NextResponse.json({ data: await buildResponse(updated as unknown as FactureRow, getParam) });
       }
 
       const created = await createFactureWithRetry({
@@ -384,7 +405,7 @@ export async function POST(req: NextRequest) {
       );
 
       return NextResponse.json(
-        { data: buildResponse(created as unknown as FactureRow, getParam) },
+        { data: await buildResponse(created as unknown as FactureRow, getParam) },
         { status: 201 }
       );
     }
@@ -397,7 +418,7 @@ export async function POST(req: NextRequest) {
       });
       // Facture déjà annulée : document figé, on ne la resynchronise pas.
       if (existing && existing.statut === "ANNULEE") {
-        return NextResponse.json({ data: buildResponse(existing as unknown as FactureRow, getParam) });
+        return NextResponse.json({ data: await buildResponse(existing as unknown as FactureRow, getParam) });
       }
 
       const reception = await prisma.receptionProduitPack.findUnique({
@@ -464,7 +485,7 @@ export async function POST(req: NextRequest) {
             include: INCLUDE_FULL,
           });
         });
-        return NextResponse.json({ data: buildResponse(updated as unknown as FactureRow, getParam) });
+        return NextResponse.json({ data: await buildResponse(updated as unknown as FactureRow, getParam) });
       }
 
       const created = await createFactureWithRetry({
@@ -481,7 +502,7 @@ export async function POST(req: NextRequest) {
       );
 
       return NextResponse.json(
-        { data: buildResponse(created as unknown as FactureRow, getParam) },
+        { data: await buildResponse(created as unknown as FactureRow, getParam) },
         { status: 201 }
       );
     }
@@ -533,7 +554,7 @@ export async function POST(req: NextRequest) {
       );
 
       return NextResponse.json(
-        { data: buildResponse(created as unknown as FactureRow, getParam) },
+        { data: await buildResponse(created as unknown as FactureRow, getParam) },
         { status: 201 }
       );
     }

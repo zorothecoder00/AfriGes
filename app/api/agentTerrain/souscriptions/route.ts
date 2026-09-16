@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { notifyAdmins } from "@/lib/notifications";
+import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
 /**
  * POST /api/agentTerrain/souscriptions
@@ -190,7 +191,7 @@ export async function POST(req: Request) {
       }
 
       if (acompteNum > 0) {
-        await tx.versementPack.create({
+        const acompte = await tx.versementPack.create({
           data: {
             souscriptionId: souscription.id,
             type: "COTISATION_INITIALE",
@@ -201,6 +202,17 @@ export async function POST(req: Request) {
             encaisseParNom: agentNom,
             notes: `Acompte initial — ${pack.nom}`,
           },
+        });
+        await enregistrerTransactionClient(tx, {
+          clientId: client.id,
+          type: "VERSEMENT_PACK",
+          montant: acompteNum,
+          sens: "CREDIT",
+          description: `Acompte initial — ${pack.nom}`,
+          sourceType: "VERSEMENT_PACK",
+          sourceId: acompte.id,
+          agentId: parseInt(session.user.id),
+          dateOperation: acompte.datePaiement,
         });
       }
 

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId, souscriptionPdvWhere } from "@/lib/authCaissier";
 import { notifyAdmins } from "@/lib/notifications";
 import { resolveViewAs } from "@/lib/viewAs";
+import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
 /**
  * GET — Souscriptions actives + en attente (vue caissier).
@@ -355,7 +356,7 @@ export async function POST(req: Request) {
 
       // 3. Enregistrer l'acompte initial si fourni
       if (acompteNum > 0) {
-        await tx.versementPack.create({
+        const acompte = await tx.versementPack.create({
           data: {
             souscriptionId: souscription.id,
             type: "COTISATION_INITIALE",
@@ -367,6 +368,19 @@ export async function POST(req: Request) {
             notes: `Acompte initial — ${pack.nom}`,
           },
         });
+        if (souscription.clientId) {
+          await enregistrerTransactionClient(tx, {
+            clientId: souscription.clientId,
+            type: "VERSEMENT_PACK",
+            montant: acompteNum,
+            sens: "CREDIT",
+            description: `Acompte initial — ${pack.nom}`,
+            sourceType: "VERSEMENT_PACK",
+            sourceId: acompte.id,
+            agentId: parseInt(session.user.id),
+            dateOperation: acompte.datePaiement,
+          });
+        }
       }
 
       // 4. Notifier les admins

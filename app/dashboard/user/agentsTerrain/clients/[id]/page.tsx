@@ -12,6 +12,7 @@ export default function Page({ params }: PageProps) {
       clientId={id}
       apiBase="/api/agentTerrain/clients"
       basePath="/dashboard/user/agentsTerrain/credits"
+      relevePath="/dashboard/user/agentsTerrain/clients"
       canModify={false}
     />
   );

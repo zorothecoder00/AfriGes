@@ -9,6 +9,7 @@ import { tariferLigne } from "@/lib/venteTarification";
 import { estFormuleValide, dureeJoursPourFormule, remunerationFormule } from "@/lib/formuleCredit";
 import { randomUUID } from "crypto";
 import { conditionsNomPrenom } from "@/lib/clientNameSearch";
+import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
 /**
  * GET /api/rvc/credits
@@ -342,6 +343,21 @@ export async function POST(req: Request) {
       await tx.client.update({
         where: { id: client.id },
         data: { soldeActuel: { increment: montantTotal } },
+      });
+
+      // Grand livre client — création directe ACTIF par le RVC : la dette est
+      // réelle dès cette création (pas d'étape EN_ATTENTE_VALIDATION ici).
+      await enregistrerTransactionClient(tx, {
+        clientId: client.id,
+        type: "AUTRE",
+        montant: montantTotal,
+        sens: "DEBIT",
+        reference: credit.reference,
+        description: `Octroi crédit ${credit.reference}`,
+        sourceType: "CREDIT_CLIENT_OCTROI",
+        sourceId: credit.id,
+        agentId: userId,
+        dateOperation: maintenant,
       });
 
       // ── Réservation de stock pour les lignes non-en-rupture ────────────────

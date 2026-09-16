@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { ecritureVenteCreditValidee } from "@/lib/comptabilite/moteur";
+import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -122,6 +123,20 @@ export async function POST(_req: Request, { params }: Ctx) {
       await tx.client.update({
         where: { id: credit.clientId },
         data: { soldeActuel: { increment: montantTotal } },
+      });
+
+      // Grand livre client — la dette devient réelle ici (origine du crédit).
+      await enregistrerTransactionClient(tx, {
+        clientId: credit.clientId,
+        type: "AUTRE",
+        montant: montantTotal,
+        sens: "DEBIT",
+        reference: credit.reference,
+        description: `Octroi crédit ${credit.reference}`,
+        sourceType: "CREDIT_CLIENT_OCTROI",
+        sourceId: credit.id,
+        agentId: Number(session.user.id),
+        dateOperation: new Date(),
       });
 
       // ── 9a. Écriture comptable — vente à crédit (moteur central, CDC §7/§8) ─

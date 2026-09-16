@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
 import { notifyAdmins } from "@/lib/notifications";
+import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -107,6 +108,20 @@ export async function POST(req: Request, { params }: Ctx) {
           notes,
         },
       });
+
+      if (souscription.clientId) {
+        await enregistrerTransactionClient(tx, {
+          clientId: souscription.clientId,
+          type: "VERSEMENT_PACK",
+          montant: montantNum,
+          sens: "CREDIT",
+          description: `Versement pack ${souscription.pack.nom}`,
+          sourceType: "VERSEMENT_PACK",
+          sourceId: versement.id,
+          agentId: parseInt(session.user.id),
+          dateOperation: datePaiementResolved,
+        });
+      }
 
       // 2. Mettre à jour la souscription
       // Bug #5: Pour FAMILIAL, incrémenter numeroCycle quand le cycle est complété
@@ -246,7 +261,7 @@ export async function POST(req: Request, { params }: Ctx) {
               (Number(souscription.montantTotal) * Number(bonusPourcentage)) / 100
             );
 
-            await tx.versementPack.create({
+            const bonusVersement = await tx.versementPack.create({
               data: {
                 souscriptionId,
                 type: "BONUS",
@@ -258,6 +273,20 @@ export async function POST(req: Request, { params }: Ctx) {
                 notes: `Bonus ${bonusPourcentage}% — ${nouveauCycle} cycles complétés`,
               },
             });
+
+            if (souscription.clientId) {
+              await enregistrerTransactionClient(tx, {
+                clientId: souscription.clientId,
+                type: "VERSEMENT_PACK",
+                montant: bonusMontant,
+                sens: "CREDIT",
+                description: `Bonus ${bonusPourcentage}% — ${souscription.pack.nom}`,
+                sourceType: "VERSEMENT_PACK",
+                sourceId: bonusVersement.id,
+                agentId: parseInt(session.user.id),
+                dateOperation: bonusVersement.datePaiement,
+              });
+            }
 
             await tx.souscriptionPack.update({
               where: { id: souscriptionId },

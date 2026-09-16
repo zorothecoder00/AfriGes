@@ -8,6 +8,7 @@ import { getRVCSession } from "@/lib/authRVC";
 import { getCaissierSession } from "@/lib/authCaissier";
 import { requirePermission } from "@/lib/permissions";
 import { contrepasserEcriture } from "@/lib/comptabilite/moteur";
+import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -90,6 +91,21 @@ export async function POST(req: Request, { params }: Ctx) {
         await tx.client.update({
           where: { id: credit.clientId },
           data: { soldeActuel: { decrement: Number(credit.soldeRestant) } },
+        });
+
+        // Grand livre client — écriture correctrice plutôt que réécriture de
+        // l'octroi initial : les remboursements déjà journalisés restent valides.
+        await enregistrerTransactionClient(tx, {
+          clientId: credit.clientId,
+          type: "AUTRE",
+          montant: Number(credit.soldeRestant),
+          sens: "CREDIT",
+          reference: credit.reference,
+          description: `Annulation crédit ${credit.reference} — solde restant annulé`,
+          sourceType: "CREDIT_CLIENT_ANNULATION",
+          sourceId: credit.id,
+          agentId: Number(session.user.id),
+          dateOperation: new Date(),
         });
 
         // ── Défaire l'écriture comptable de vente à crédit déjà générée ──────

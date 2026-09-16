@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 import { notifyRoles } from "@/lib/notifications";
+import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -110,6 +111,18 @@ export async function POST(_req: Request, { params }: Ctx) {
         await tx.ligneCollecte.update({
           where: { id: ligne.id },
           data:  { versementPackId: versement.id },
+        });
+
+        await enregistrerTransactionClient(tx, {
+          clientId: ligne.clientId,
+          type: "VERSEMENT_PACK",
+          montant,
+          sens: "CREDIT",
+          description: `Versement pack ${souscription.pack.nom} — collecte ${collecte.reference}`,
+          sourceType: "VERSEMENT_PACK",
+          sourceId: versement.id,
+          agentId: collecte.agentId,
+          dateOperation: versement.datePaiement,
         });
 
         // Mettre à jour la souscription

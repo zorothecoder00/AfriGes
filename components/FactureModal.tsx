@@ -17,6 +17,14 @@ interface LigneFacture {
   montant: number;
 }
 
+interface EcheanceFacture {
+  numeroEcheance: number;
+  dateEcheance: string;
+  montantDu: number;
+  montantPaye: number;
+  statut: string;
+}
+
 interface FactureData {
   id: number;
   numero: string;
@@ -39,6 +47,7 @@ interface FactureData {
   modePaiement?: string | null;
   notes?: string | null;
   garantie?: string | null;
+  echeancier?: EcheanceFacture[] | null;
   lignes: LigneFacture[];
   entreprise: { nom: string; adresse?: string; telephone?: string };
 }
@@ -258,6 +267,44 @@ function InvoiceLayout({ f }: { f: FactureData }) {
           )}
         </div>
       </div>
+
+      {/* ── Échéancier (facture à crédit) ──────────────────────────────────── */}
+      {f.type === "CREDIT" && f.echeancier && f.echeancier.length > 0 && (
+        <div className="mb-6">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Échéancier</p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b-2 border-slate-200 text-xs uppercase tracking-wide">
+                <th className="text-left pb-2 text-slate-400 w-10">N°</th>
+                <th className="text-left pb-2 text-slate-400">Date</th>
+                <th className="text-right pb-2 text-slate-400">Montant dû</th>
+                <th className="text-right pb-2 text-slate-400">Payé</th>
+                <th className="text-right pb-2 text-slate-400">Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {f.echeancier.map(e => (
+                <tr key={e.numeroEcheance} className="border-b border-slate-100">
+                  <td className="py-1.5 text-slate-500 text-xs">{e.numeroEcheance}</td>
+                  <td className="py-1.5 text-slate-700">{new Date(e.dateEcheance).toLocaleDateString("fr-FR")}</td>
+                  <td className="py-1.5 text-right text-slate-600">{formatCurrency(e.montantDu)}</td>
+                  <td className="py-1.5 text-right text-slate-600">{formatCurrency(e.montantPaye)}</td>
+                  <td className="py-1.5 text-right">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      e.statut === "PAYE" ? "bg-emerald-100 text-emerald-700"
+                      : e.statut === "PARTIEL" ? "bg-amber-100 text-amber-700"
+                      : e.statut === "EN_RETARD" ? "bg-red-100 text-red-700"
+                      : "bg-slate-100 text-slate-600"
+                    }`}>
+                      {e.statut === "PAYE" ? "Payée" : e.statut === "PARTIEL" ? "Partielle" : e.statut === "EN_RETARD" ? "En retard" : "À venir"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* ── Garantie ────────────────────────────────────────────────────────── */}
       {f.garantie && (
@@ -792,6 +839,35 @@ function printInvoice(f: FactureData, opts?: { mono?: boolean }) {
   <div style="display:flex;justify-content:flex-end;margin-bottom:32px">
     <div style="width:280px">${totauxHtml}</div>
   </div>
+
+  ${f.type === "CREDIT" && f.echeancier && f.echeancier.length > 0 ? `
+  <!-- Échéancier -->
+  <div style="margin-bottom:24px">
+    <p style="font-size:10px;font-weight:700;color:${c.faint};letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Échéancier</p>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="border-bottom:2px solid ${c.headRule}">
+          <th style="text-align:left;padding-bottom:6px;color:${c.faint};font-size:10px;letter-spacing:1px;text-transform:uppercase;width:32px">N°</th>
+          <th style="text-align:left;padding-bottom:6px;color:${c.faint};font-size:10px;letter-spacing:1px;text-transform:uppercase">Date</th>
+          <th style="text-align:right;padding-bottom:6px;color:${c.faint};font-size:10px;letter-spacing:1px;text-transform:uppercase">Montant dû</th>
+          <th style="text-align:right;padding-bottom:6px;color:${c.faint};font-size:10px;letter-spacing:1px;text-transform:uppercase">Payé</th>
+          <th style="text-align:right;padding-bottom:6px;color:${c.faint};font-size:10px;letter-spacing:1px;text-transform:uppercase">Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${f.echeancier.map(e => `
+        <tr style="border-bottom:1px solid ${c.rowLine}">
+          <td style="padding:6px 0;color:${c.faint};font-size:11px">${e.numeroEcheance}</td>
+          <td style="padding:6px 0;color:${c.text}">${fmtDate(e.dateEcheance)}</td>
+          <td style="padding:6px 0;text-align:right;color:${c.muted}">${fmt(e.montantDu)}</td>
+          <td style="padding:6px 0;text-align:right;color:${c.muted}">${fmt(e.montantPaye)}</td>
+          <td style="padding:6px 0;text-align:right;color:${c.text}">${
+            e.statut === "PAYE" ? "Payée" : e.statut === "PARTIEL" ? "Partielle" : e.statut === "EN_RETARD" ? "En retard" : "À venir"
+          }</td>
+        </tr>`).join("")}
+      </tbody>
+    </table>
+  </div>` : ""}
 
   ${f.garantie ? `
   <!-- Garantie -->
