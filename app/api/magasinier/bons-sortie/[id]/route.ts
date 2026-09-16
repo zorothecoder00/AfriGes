@@ -5,6 +5,7 @@ import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getRPVSession } from "@/lib/authRPV";
 import { requirePermission } from "@/lib/permissions";
 import { auditLog, notify, notifyRoles } from "@/lib/notifications";
+import { getRequestMeta } from "@/lib/requestMeta";
 import { comptabiliserBonSortie } from "@/lib/comptabilite/ecrituresBonSortie";
 import { getSeuilVisaBonSortie } from "@/lib/parametresDocuments";
 import { nouveauJetonConfirmation, livraisonConfirmationUrl } from "@/lib/livraisonConfirmation";
@@ -33,6 +34,8 @@ export async function GET(_req: Request, { params }: Ctx) {
         creePar:  { select: { id: true, nom: true, prenom: true } },
         validePar: { select: { id: true, nom: true, prenom: true } },
         visePar:   { select: { id: true, nom: true, prenom: true } },
+        bonPreparation: { include: { lignes: { include: { produit: { select: { id: true, nom: true } } } }, preparateur: { select: { id: true, nom: true, prenom: true } } } },
+        bonLivraison: { select: { id: true, reference: true } },
       },
     });
 
@@ -112,6 +115,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       include: {
         lignes:      true,
         pointDeVente:{ select: { nom: true } },
+        bonPreparation: { select: { statut: true } },
       },
     });
     if (!bon) return NextResponse.json({ error: "Bon introuvable" }, { status: 404 });
@@ -125,6 +129,15 @@ export async function PATCH(req: Request, { params }: Ctx) {
           { status: 422 }
         );
       }
+    }
+
+    // Bon de Préparation (CDC digitalisation §5.7) — la préparation doit être
+    // clôturée par le magasinier avant de pouvoir confirmer l'expédition.
+    if (statut === "VALIDE" && bon.statut === "BROUILLON" && bon.bonPreparation && bon.bonPreparation.statut !== "PRETE") {
+      return NextResponse.json(
+        { error: "La préparation de la commande doit être marquée « prête » avant de confirmer l'expédition" },
+        { status: 422 }
+      );
     }
 
     // Cas spécial : LIVRAISON_CLIENT BROUILLON → VALIDE (confirmer expédition + décrémenter stock)
@@ -192,7 +205,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         // de la livraison client marque la commande d'origine comme "Livrée".
         const commandeClient = await tx.commandeClient.findUnique({
           where: { bonSortieId: bon.id },
-          select: { id: true, reference: true, agentId: true, client: { select: { nom: true, prenom: true, telephone: true, adresse: true } } },
+          select: { id: true, reference: true, agentId: true, lieuLivraison: true, client: { select: { nom: true, prenom: true, telephone: true, adresse: true } } },
         });
         if (commandeClient) {
           await tx.commandeClient.update({ where: { id: commandeClient.id }, data: { statut: "LIVREE" } });
@@ -202,6 +215,25 @@ export async function PATCH(req: Request, { params }: Ctx) {
             priorite: PrioriteNotification.NORMAL,
             actionUrl: `/dashboard/user/agentsTerrain/commandes-client?detail=${commandeClient.id}`,
           });
+
+          // Génération automatique du Bon de Livraison (CDC digitalisation §5.7) —
+          // document de transport accompagnant physiquement la marchandise, distinct
+          // du Bon de Réception (attestation du client à l'arrivée, généré juste après).
+          const referenceBL = `BL-${Date.now()}-${commandeClient.id}`;
+          const bonLivraison = await tx.bonLivraison.create({
+            data: {
+              reference: referenceBL,
+              bonSortieId: bon.id,
+              commandeClientId: commandeClient.id,
+              clientNom: `${commandeClient.client.prenom} ${commandeClient.client.nom}`,
+              clientTelephone: commandeClient.client.telephone,
+              adresseLivraison: commandeClient.lieuLivraison || commandeClient.client.adresse,
+              livreurId: parseInt(session.user.id),
+              moyenTransport: typeof body.moyenTransport === "string" ? body.moyenTransport.trim() || null : null,
+              lignes: { create: bon.lignes.map((l) => ({ produitId: l.produitId, quantite: l.quantite })) },
+            },
+          });
+          await auditLog(tx, parseInt(session.user.id), "BL_GENERE", "BonLivraison", bonLivraison.id, undefined, getRequestMeta(req));
 
           // Génération automatique du Bon de Réception (CDC digitalisation §3.5) —
           // lien de confirmation sans compte, à transmettre au client par le livreur.
@@ -224,7 +256,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           await auditLog(tx, parseInt(session.user.id), "BR_GENERE", "BonReception", bonReception.id, undefined, undefined);
           await notify(tx, [parseInt(session.user.id)], {
             titre: `Lien de confirmation de livraison généré (${referenceBR})`,
-            message: `Transmettez ce lien au client pour qu'il atteste la réception : ${livraisonConfirmationUrl(req, token)}`,
+            message: `Bon de livraison ${referenceBL} généré. Transmettez ce lien au client pour qu'il atteste la réception : ${livraisonConfirmationUrl(req, token)}`,
             priorite: PrioriteNotification.NORMAL,
             actionUrl: `/dashboard/user/magasiniers?tab=livraisons`,
           });

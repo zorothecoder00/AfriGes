@@ -837,6 +837,8 @@ model User {
   decaissementsExecutes      FicheDecaissement[]          @relation("DecaissementExecutePar")
   bonsReceptionLivreur       BonReception[]               @relation("BonReceptionLivreur")
   devisProformaAgent         DevisProforma[]              @relation("DevisProformaAgent")
+  bonsPreparationPreparateur BonPreparation[]             @relation("BonPreparationPreparateur")
+  bonsLivraisonLivreur       BonLivraison[]               @relation("BonLivraisonLivreur")
   demandesAjustement         DemandeAjustementStock[]     @relation("DemandesAjustement")
   validationsAjustement      DemandeAjustementStock[]     @relation("ValidationsAjustement")
 
@@ -2169,6 +2171,8 @@ model Produit {
   lignesCommandeClient LigneCommandeClient[]
   lignesBonReception   LigneBonReception[]
   lignesDevisProforma  LigneDevisProforma[]
+  lignesBonPreparation LigneBonPreparation[]
+  lignesBonLivraison   LigneBonLivraison[]
 
   // Crédits clients
   lignesCreditProduit   LigneCreditClient[] @relation("LigneCreditProduit")
@@ -3212,6 +3216,8 @@ model BonSortie {
   lignes         LigneBonSortie[]
   commandeClient CommandeClient?
   bonReception   BonReception?
+  bonPreparation BonPreparation?
+  bonLivraison   BonLivraison?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3385,9 +3391,11 @@ model CommandeClient {
   motifRejet           String?
 
   // Bon de Sortie de Marchandises auto-généré à la validation (§3.2)
-  bonSortieId  Int?          @unique
-  bonSortie    BonSortie?    @relation(fields: [bonSortieId], references: [id])
-  bonReception BonReception?
+  bonSortieId    Int?            @unique
+  bonSortie      BonSortie?      @relation(fields: [bonSortieId], references: [id])
+  bonReception   BonReception?
+  bonPreparation BonPreparation?
+  bonLivraison   BonLivraison?
 
   notes String?
 
@@ -3573,6 +3581,101 @@ model LigneBonReception {
   produit      Produit      @relation(fields: [produitId], references: [id])
 
   @@index([bonReceptionId])
+}
+
+enum StatutBonPreparation {
+  EN_COURS
+  PRETE
+}
+
+/// Bon de Préparation — liste de prélèvement remise au magasinier avant
+/// expédition (CDC digitalisation §5.7). Généré automatiquement avec le Bon de
+/// Sortie de Marchandises pour toute Commande Client (typeSortie
+/// LIVRAISON_CLIENT) — même scope que le Bon de Réception : pas de Bon de
+/// Préparation pour les sorties créées hors commande. C'est ici, et pas sur le
+/// Bon de Sortie lui-même, que le magasinier déclare la quantité réellement
+/// prélevée ; "Marquer prête" répercute ces quantités sur les lignes du Bon de
+/// Sortie et bloque la confirmation d'expédition tant que ce n'est pas fait.
+model BonPreparation {
+  id        Int                  @id @default(autoincrement())
+  reference String               @unique // BP-2026-000123
+  statut    StatutBonPreparation @default(EN_COURS)
+
+  bonSortieId      Int            @unique
+  bonSortie        BonSortie      @relation(fields: [bonSortieId], references: [id])
+  commandeClientId Int            @unique
+  commandeClient   CommandeClient @relation(fields: [commandeClientId], references: [id])
+
+  lignes LigneBonPreparation[]
+
+  preparateurId    Int?
+  preparateur      User?     @relation("BonPreparationPreparateur", fields: [preparateurId], references: [id])
+  datePreparation  DateTime?
+  commentaireEcart String?
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+}
+
+model LigneBonPreparation {
+  id               Int @id @default(autoincrement())
+  bonPreparationId Int
+  produitId        Int
+  quantiteDemandee Int
+  quantitePreparee Int
+
+  bonPreparation BonPreparation @relation(fields: [bonPreparationId], references: [id], onDelete: Cascade)
+  produit        Produit        @relation(fields: [produitId], references: [id])
+
+  @@index([bonPreparationId])
+}
+
+/// Bon de Livraison — document de transport accompagnant physiquement et
+/// juridiquement la marchandise expédiée (CDC digitalisation §5.7), distinct
+/// du Bon de Réception qui reste l'attestation du client à l'arrivée. Généré
+/// automatiquement au même moment que le Bon de Réception, à la confirmation
+/// d'expédition (validation du Bon de Sortie LIVRAISON_CLIENT) — même scope
+/// (Commande Client uniquement).
+model BonLivraison {
+  id        Int    @id @default(autoincrement())
+  reference String @unique // BL-2026-000123
+
+  bonSortieId      Int            @unique
+  bonSortie        BonSortie      @relation(fields: [bonSortieId], references: [id])
+  commandeClientId Int            @unique
+  commandeClient   CommandeClient @relation(fields: [commandeClientId], references: [id])
+
+  lignes LigneBonLivraison[]
+
+  clientNom        String
+  clientTelephone  String
+  adresseLivraison String?
+
+  livreurId      Int
+  livreur        User     @relation("BonLivraisonLivreur", fields: [livreurId], references: [id])
+  moyenTransport String?
+  dateDepart     DateTime @default(now())
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LigneBonLivraison {
+  id             Int @id @default(autoincrement())
+  bonLivraisonId Int
+  produitId      Int
+  quantite       Int
+
+  bonLivraison BonLivraison @relation(fields: [bonLivraisonId], references: [id], onDelete: Cascade)
+  produit      Produit      @relation(fields: [produitId], references: [id])
+
+  @@index([bonLivraisonId])
 }
 
 // ============================================================

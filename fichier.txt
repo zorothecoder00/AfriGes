@@ -1,6 +1,14 @@
+Identifiants sur Afriges en production : email = developpeurteste@gmail.com
+                                         mot de passe = Di1234
+
 -Pages user qu'il me reste à créer( types de gestionnaires [ COMMERCIAL, RESPONSABLE_VENTE_CREDIT, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING ] )
 
+-Clés VAPID générées localement (aucun compte tiers requis), service worker minimal (public/sw.js) pour les notifications push/PWA
 -exceljs est une lib pour styliser les exports
+-bibliothèque i18n (next-intl, i18next...)
+-extension PostgreSQL pg_trgm (similarite trigramme) pour tolerer fautes de frappe/variantes
+- Serwist pour le mode hors ligne
+La dictée vocale (ConversationalAssistantBar, client) — utilise directement l'API navigateur SpeechRecognition (Web Speech API, native Chrome/Edge,aucune clé requise). Pas supportée partout (Firefox notamment)
 
 -"test": "vitest run",
  11 +    "test:watch": "vitest",
@@ -49,8 +57,10 @@ netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriét�
   une vraie réunion dans l'application — tout en gardant la possibilité de
   coller un lien Meet/Zoom externe.  
 
-https://claude.ai/code/artifact/85ca1992-834f-491c-a227-0d0823885d85 ( un lien pour comprendre le module marketing d'afriges)
+-@xyflow/react librairie de graphe relationnel
 
+https://claude.ai/code/artifact/85ca1992-834f-491c-a227-0d0823885d85 ( un lien pour comprendre le module marketing d'afriges)
+   
 
  Voilà. Ce que tu dois remplir obligatoirement pour activer les alertes :
 
@@ -166,10 +176,98 @@ réussir les notifs par whatsapp
 
 Vérifie si ces choses seront bénéfiques et rendront l'app plus puissantes SEO , Embed stream , Cache/ISR, TanStack Query, SSE ou polling . Tu me donnes juste la réponse après analyses poussées et après je te dirai quoi faire
 
-Il reste aussi les sections du CDC non repassées au crible dans
-  cette re-vérification (§1-15, §21-23, §27-45 hors §40/§43, §51-56) 
 
 normalement le comptable doit recevoir les notifications quand le caissier fait ses enregistrements ( entrées , sorties que lui doit confirmer avec pièces justificatives) et même quand les agents font des collectes , quand le rvc ou celui concerné crée des dettes
 
+
+a u niveau de dashboard/user/caissiers , tu vois au niveau des souscritpions
+  dans l'onglet packs ; en fait lorsque la caissière supprime une
+  spouscription , elle voit toujours les versements dans l'onglet historique (
+  ce quu la mélange vu qu'elle a recréé une nouvelle souscription avec les
+  mêmes échéances et montant ; elle avait fait une erreur donc a supprimé et
+  recréé pour corriger) donc ça créé un petit problème pour savoir quel
+  versement manipuler . Elle voudrait donc que je lui donne la main pour
+  supprimer un versement directement dns l'onglet historique ( elle voudrait
+  aussi que logiquement quand elle supprime une souscription  dans l'onglet
+  packs , elle ne voit plus les versements liés dans historique ( pour lui
+  permettre de recréer la souscripotion et de suivre ses versement
+  transullement ). Et puis ça c'est une question , à chaque fois que je fais
+  un check , un lint ou un build , les post ou carrément tous les sites ne
+  fonctionnent plus correctement , ils bug même quand c'est pas le site que je
+  check ( c'est un comportement particulir de vercel ???)
+
+
+Avec ce commit, les 6 documents prioritaires de la Partie A
+  du CDC digitalisation sont maintenant tous implémentés :
+
+  1. Bon de Commande Fournisseur — enrichi (QR, visa CGT)
+  2. Bon de Sortie de Marchandises — enrichi (QR, seuils, écart)
+  3. Bordereau de Remise de Fonds — nouveau
+  4. Bon de Commande Client — nouveau
+  5. Fiche de Décaissement — nouveau
+  6. Bon de Réception — nouveau, ce dernier commit
+  J'ai vérifié le recoupement entre la Partie B (catalogue de 90+ documents,
+  feuille de route) et l'existant. Plusieurs documents de la liste "15
+  prioritaires (Phase 1)" existent déjà sous une autre forme dans l'app :
+
+  - Facture → FactureVente (déjà complet)
+  - Facture d'avoir → AvoirClient (déjà existant)
+  - Reçu de paiement → Paiement (déjà existant)
+  - Demande de crédit → la création d'un CreditClient en sert déjà de fait
+  - Échéancier client → EcheanceCredit (déjà existant)
+  - Bon de réception fournisseur → ReceptionApprovisionnement (déjà complet, CDC
+    Appro)
+
+  Les vrais net-new de cette liste de 15 sont : Devis, Proforma, Bon de
+  préparation, Bon de livraison, plus un document consolidé Relevé de compte
+  client (les données existent via ClientTransaction mais pas de document
+  imprimable dédié) et une variante imprimable Facture à crédit distincte de la
+  facture comptant.
+
+  Résumé — Devis & Proforma (Partie B) :
+  - Un seul modèle DevisProforma (type: DEVIS|PROFORMA), lignes tarifées via le
+    moteur de prix du catalogue (même logique que le Bon de Commande Client).
+  - Réponse client sans compte via lien à jeton opaque (/offre/[token]) :
+    accepter (signature électronique) ou refuser avec motif.
+  - Conversion Devis accepté → Proforma en un clic (copie des lignes,
+    traçabilité conservée).
+  - Expiration paresseuse à la date de validité (pas de cron dédié).
+  - Accusé PDF + QR (DEV/PRO), page dédiée agentsTerrain/devis-proforma.
+
+  Reste hors scope de ce lot (comme annoncé) : conversion automatique vers le
+  Bon de Commande Client — l'agent doit pour l'instant recréer la commande
+  manuellement en s'appuyant sur le devis/proforma accepté.
+
+  Dis-moi quand tu veux qu'on enchaîne sur la suite de la Partie B (Bon de
+  préparation + Bon de livraison, ou Relevé de compte client + Facture à crédit,
+  ou autre chose).
+
+Résumé — Bon de préparation & Bon de livraison (Partie B, §5.7) :
+  - Deux nouveaux modèles Prisma (BonPreparation/LigneBonPreparation,
+    BonLivraison/LigneBonLivraison), même scope que le Bon de Réception : générés
+    uniquement pour un Bon de Sortie LIVRAISON_CLIENT rattaché à une Commande
+    Client (pas pour les bons de sortie créés hors commande par le magasinier).
+  - Bon de préparation généré automatiquement avec le Bon de Sortie (dès EN_
+    PREPARATION), pré-rempli aux quantités demandées. C'est là — et non plus sur
+    le Bon de Sortie — que le magasinier déclare les quantités réellement
+    prélevées ("Marquer prête", commentaire d'écart obligatoire si en-deçà de la
+    demande). Ça bloque désormais la confirmation d'expédition tant que ce n'est
+    pas fait (nouveau gate dans PATCH bons-sortie/[id]), et répercute les
+    quantités + revalorise le montant du Bon de Sortie.
+  - Bon de livraison généré automatiquement en même temps que le Bon de
+    Réception, à la confirmation d'expédition : document de transport (livreur,
+    moyen de transport, quantités expédiées) distinct du Bon de Réception qui
+    reste l'attestation du client à l'arrivée.
+  - PDF + QR pour les deux (codes BP/BL dans lib/documentQr.ts et /q/[code]/[id]).
+    Surfacés dans dashboard/user/magasiniers (onglet Sorties, préparation
+    inline + impression) et dashboard/user/agentsTerrain/commandes-client (liens
+    de consultation).
+  - tsc --noEmit et eslint OK sur tous les fichiers touchés. Migration Prisma à
+    lancer par l'utilisateur (comme d'habitude).
+
+  Reste sur la liste des 15 prioritaires : Facture, Facture à crédit, Facture
+  d'avoir, Reçu de paiement, Demande de crédit, Échéancier client, Relevé de
+  compte client, Bon de réception fournisseur (rappel : plusieurs déjà couverts
+  sous une autre forme existante, voir plus haut). Dis-moi par quoi enchaîner.
 
 

@@ -127,6 +127,24 @@ interface LigneBonSortie {
   produit: { id: number; nom: string; prixUnitaire: string };
 }
 
+interface LigneBonPreparation {
+  id: number;
+  produitId: number;
+  quantiteDemandee: number;
+  quantitePreparee: number;
+  produit: { id: number; nom: string };
+}
+
+interface BonPreparation {
+  id: number;
+  reference: string;
+  statut: 'EN_COURS' | 'PRETE';
+  lignes: LigneBonPreparation[];
+  preparateur: { id: number; nom: string; prenom: string } | null;
+  datePreparation: string | null;
+  commentaireEcart: string | null;
+}
+
 interface BonSortie {
   id: number;
   reference: string;
@@ -143,6 +161,8 @@ interface BonSortie {
   visePar: { id: number; nom: string; prenom: string } | null;
   dateVisa: string | null;
   createdAt: string;
+  bonPreparation: BonPreparation | null;
+  bonLivraison: { id: number; reference: string } | null;
 }
 
 interface BonsSortieResponse {
@@ -280,6 +300,12 @@ export default function MagasinierPage() {
   const bonSortieUpdateIdRef = useRef<number | null>(null);
   const bonSortieViserIdRef = useRef<number | null>(null);
 
+  // Bon de préparation (liste de prélèvement, CDC digitalisation §5.7)
+  const bonPreparationUpdateIdRef = useRef<number | null>(null);
+  const [expandedPrepBonId, setExpandedPrepBonId] = useState<number | null>(null);
+  const [prepQuantites, setPrepQuantites] = useState<Record<number, string>>({});
+  const [prepEcartCommentaire, setPrepEcartCommentaire] = useState('');
+
   // Livraisons packs
   const [confirmingPackLivId, setConfirmingPackLivId] = useState<number | null>(null);
   const confirmingPackLivIdRef = useRef<number | null>(null);
@@ -365,6 +391,12 @@ export default function MagasinierPage() {
     () => `/api/magasinier/bons-sortie/${bonSortieViserIdRef.current}`,
     'PATCH',
     { successMessage: 'Bon de sortie visé' }
+  );
+
+  const { mutate: updateBonPreparation, loading: updatingBonPreparation } = useMutation<unknown, { lignes: { id: number; quantitePreparee: number }[]; marquerPrete?: boolean; commentaireEcart?: string }>(
+    () => `/api/magasinier/bons-preparation/${bonPreparationUpdateIdRef.current}`,
+    'PATCH',
+    { successMessage: 'Préparation mise à jour' }
   );
 
   // Bons de sortie
@@ -754,6 +786,42 @@ export default function MagasinierPage() {
   // Accusé PDF serveur (avec QR d'instance + signature électronique — CDC digitalisation §3.4/§4)
   const handlePrintBon = (bon: BonSortie) => {
     window.open(`/api/magasinier/bons-sortie/${bon.id}/pdf`, '_blank');
+  };
+
+  const handlePrintBonPreparation = (bonPreparationId: number) => {
+    window.open(`/api/magasinier/bons-preparation/${bonPreparationId}/pdf`, '_blank');
+  };
+
+  const handlePrintBonLivraison = (bonLivraisonId: number) => {
+    window.open(`/api/bons-livraison/${bonLivraisonId}/pdf`, '_blank');
+  };
+
+  const handleTogglePreparation = (bon: BonSortie) => {
+    if (expandedPrepBonId === bon.id) { setExpandedPrepBonId(null); return; }
+    setExpandedPrepBonId(bon.id);
+    const initial: Record<number, string> = {};
+    bon.bonPreparation?.lignes.forEach((l) => { initial[l.id] = String(l.quantitePreparee); });
+    setPrepQuantites(initial);
+    setPrepEcartCommentaire(bon.bonPreparation?.commentaireEcart || '');
+  };
+
+  const handleMarquerPreparationPrete = async (bon: BonSortie) => {
+    if (!bon.bonPreparation) return;
+    const lignesPayload = bon.bonPreparation.lignes.map((l) => ({
+      id: l.id,
+      quantitePreparee: Math.max(0, Math.min(l.quantiteDemandee, Number(prepQuantites[l.id] ?? l.quantitePreparee) || 0)),
+    }));
+    const aEcart = bon.bonPreparation.lignes.some((l, i) => lignesPayload[i].quantitePreparee < l.quantiteDemandee);
+    if (aEcart && !prepEcartCommentaire.trim()) {
+      toast.error("Quantité préparée inférieure à la demande : un commentaire d'écart est obligatoire");
+      return;
+    }
+    bonPreparationUpdateIdRef.current = bon.bonPreparation.id;
+    const result = await updateBonPreparation({ lignes: lignesPayload, marquerPrete: true, commentaireEcart: prepEcartCommentaire.trim() || undefined });
+    if (result) {
+      setExpandedPrepBonId(null);
+      refetchBonsSortie();
+    }
   };
 
   const handlePrintInventaire = () => {
@@ -2366,6 +2434,9 @@ export default function MagasinierPage() {
                   const seuil = bonsSortieResponse!.seuilVisaBonSortie;
                   const visaRequis = total > seuil;
                   const enAttenteVisa = bon.statut === 'BROUILLON' && visaRequis && !bon.visePar;
+                  const prep = bon.bonPreparation;
+                  const prepBloquante = bon.statut === 'BROUILLON' && !!prep && prep.statut === 'EN_COURS';
+                  const prepOuverte = expandedPrepBonId === bon.id;
                   return (
                     <div key={bon.id} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-all">
                       <div className="flex items-start justify-between">
@@ -2379,6 +2450,11 @@ export default function MagasinierPage() {
                               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statutColors[bon.statut]}`}>{statutLabels[bon.statut]}</span>
                               {bon.visePar && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Visé — {bon.visePar.prenom} {bon.visePar.nom}</span>}
                               {enAttenteVisa && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">Visa requis (&gt; {seuil.toLocaleString('fr-FR')} FCFA)</span>}
+                              {prep && (
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${prep.statut === 'PRETE' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-amber-50 text-amber-600 border border-amber-200'}`}>
+                                  {prep.statut === 'PRETE' ? 'Préparation prête' : 'Préparation en cours'}
+                                </span>
+                              )}
                             </div>
                             <p className="text-xs text-slate-500">{bon.typeSortie} — {bon.motif}</p>
                             {bon.commentaireEcart && <p className="text-xs text-amber-600 mt-0.5">Écart : {bon.commentaireEcart}</p>}
@@ -2386,6 +2462,8 @@ export default function MagasinierPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold text-slate-700">{total.toLocaleString('fr-FR')} FCFA</span>
+                          {prep && <button onClick={() => handlePrintBonPreparation(prep.id)} title="Imprimer le bon de préparation" className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><ClipboardList size={16} className="text-slate-500" /></button>}
+                          {bon.bonLivraison && <button onClick={() => handlePrintBonLivraison(bon.bonLivraison!.id)} title="Imprimer le bon de livraison" className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><Truck size={16} className="text-slate-500" /></button>}
                           <button onClick={() => handlePrintBon(bon)} title="Imprimer / QR" className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><Printer size={16} className="text-slate-500" /></button>
                         </div>
                       </div>
@@ -2398,6 +2476,11 @@ export default function MagasinierPage() {
                             {enAttenteVisa ? (
                               <button onClick={() => handleViserBonSortie(bon.id)} disabled={visantBonSortie && bonSortieViserIdRef.current === bon.id} title="Réservé au RPV / Chef d'agence / Direction"
                                 className="ml-auto text-xs px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors font-medium flex items-center gap-1 disabled:opacity-50"><CheckSquare size={12} /> Viser</button>
+                            ) : prepBloquante ? (
+                              <button onClick={() => handleTogglePreparation(bon)}
+                                className="ml-auto text-xs px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors font-medium flex items-center gap-1">
+                                <ClipboardList size={12} /> {prepOuverte ? 'Fermer la préparation' : 'Préparer la commande'}
+                              </button>
                             ) : (
                               <button onClick={() => handleUpdateBonStatut(bon.id, 'VALIDE')} disabled={updatingBonSortie && bonSortieUpdateIdRef.current === bon.id}
                                 className="ml-auto text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors font-medium flex items-center gap-1 disabled:opacity-50">
@@ -2408,6 +2491,41 @@ export default function MagasinierPage() {
                           </>
                         )}
                       </div>
+
+                      {/* Préparation de la commande (Bon de préparation, CDC digitalisation §5.7) */}
+                      {prepOuverte && prep && (
+                        <div className="mt-3 pt-3 border-t border-slate-100 bg-amber-50/50 -mx-5 -mb-5 px-5 pb-5 rounded-b-2xl">
+                          <p className="text-xs font-semibold text-slate-700 mb-2 mt-2">Quantités réellement prélevées</p>
+                          <div className="space-y-2">
+                            {prep.lignes.map(l => (
+                              <div key={l.id} className="flex items-center justify-between gap-3">
+                                <span className="text-xs text-slate-600 flex-1">{l.produit.nom} <span className="text-slate-400">(demandé : {l.quantiteDemandee})</span></span>
+                                <input
+                                  type="number" min={0} max={l.quantiteDemandee}
+                                  value={prepQuantites[l.id] ?? String(l.quantitePreparee)}
+                                  onChange={e => setPrepQuantites(prev => ({ ...prev, [l.id]: e.target.value }))}
+                                  className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center bg-white"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <textarea
+                            value={prepEcartCommentaire}
+                            onChange={e => setPrepEcartCommentaire(e.target.value)}
+                            placeholder="Commentaire d'écart (obligatoire si une quantité préparée est inférieure à la demande)"
+                            rows={2}
+                            className="w-full mt-3 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white resize-none"
+                          />
+                          <div className="flex justify-end gap-2 mt-3">
+                            <button onClick={() => setExpandedPrepBonId(null)} className="px-4 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-white">{t('btn_cancel')}</button>
+                            <button onClick={() => handleMarquerPreparationPrete(bon)} disabled={updatingBonPreparation}
+                              className="px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium disabled:opacity-50 flex items-center gap-1">
+                              <CheckSquare size={14} /> Marquer prête
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Lignes détail */}
                       <div className="mt-3 pt-3 border-t border-slate-100">
                         <div className="space-y-1">

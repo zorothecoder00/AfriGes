@@ -68,6 +68,19 @@ async function genererBonSortiePourCommande(
     },
   });
   await tx.commandeClient.update({ where: { id: commande.id }, data: { bonSortieId: bonSortie.id, statut: "EN_PREPARATION" } });
+
+  // Bon de Préparation (CDC digitalisation §5.7) — liste de prélèvement du magasinier,
+  // pré-remplie aux quantités demandées ; "Marquer prête" répercutera les quantités
+  // réellement prélevées sur les lignes du Bon de Sortie avant confirmation d'expédition.
+  await tx.bonPreparation.create({
+    data: {
+      reference: `BP-${Date.now()}-${commande.id}`,
+      bonSortieId: bonSortie.id,
+      commandeClientId: commande.id,
+      lignes: { create: lignes.map((l) => ({ produitId: l.produitId, quantiteDemandee: l.quantite, quantitePreparee: l.quantite })) },
+    },
+  });
+
   await notifyRoles(tx, ["MAGAZINIER", "RESPONSABLE_POINT_DE_VENTE"], {
     titre: `Commande client à préparer (${commande.reference})`,
     message: `Bon de sortie ${refBS} en attente de préparation.`,

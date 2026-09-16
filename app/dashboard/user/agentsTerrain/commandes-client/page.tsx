@@ -20,6 +20,8 @@ interface Commande {
   signatureClientNom: string;
   visaResponsablePar: PersonRef | null; motifRejet: string | null;
   bonSortie: { id: number; reference: string; statut: string } | null;
+  bonPreparation: { id: number; reference: string; statut: string } | null;
+  bonLivraison: { id: number; reference: string } | null;
   bonReception: { id: number; reference: string; statut: string; etatMarchandise: string | null; reserve: string | null; tokenConfirmation: string; signatureClientNom: string | null; dateSignatureClient: string | null } | null;
   lignes: Ligne[];
   createdAt: string;
@@ -325,6 +327,20 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
               {c.visaResponsablePar && <p className="text-sm text-amber-700">Visa RVC : {c.visaResponsablePar.prenom} {c.visaResponsablePar.nom}</p>}
               {c.motifRejet && <p className="text-sm text-red-600">Motif de rejet : {c.motifRejet}</p>}
               {c.bonSortie && <p className="text-sm text-slate-600">Bon de sortie : {c.bonSortie.reference} ({c.bonSortie.statut})</p>}
+              {c.bonPreparation && (
+                <p className="text-sm text-slate-600">
+                  Bon de préparation : {c.bonPreparation.reference} ({c.bonPreparation.statut === "PRETE" ? "Prête" : "En cours"})
+                  {" — "}
+                  <a href={`/api/magasinier/bons-preparation/${c.bonPreparation.id}/pdf`} target="_blank" rel="noreferrer" className="text-xs text-slate-400 hover:text-slate-600 underline">voir</a>
+                </p>
+              )}
+              {c.bonLivraison && (
+                <p className="text-sm text-slate-600">
+                  Bon de livraison : {c.bonLivraison.reference}
+                  {" — "}
+                  <a href={`/api/bons-livraison/${c.bonLivraison.id}/pdf`} target="_blank" rel="noreferrer" className="text-xs text-slate-400 hover:text-slate-600 underline">voir</a>
+                </p>
+              )}
               {c.bonReception && (
                 <div className="pt-2 border-t border-slate-100">
                   <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Bon de réception</p>

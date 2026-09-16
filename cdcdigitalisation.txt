@@ -10,7 +10,7 @@ de Sortie de Marchandises · Bon de Réception · Fiche de Décaissement
 Partie B — Catalogue documentaire global et feuille de route de digitalisation 
 Ventes · Crédit client · Achats · Fournisseurs · Dépôt-vente · Revendeurs B2B · Logistique · Retours 
 · Contrôle commercial 
-Version 2.0 
+Version 2.0   
 Septembre 2026 
 Statut : Document de travail — À remettre à l'équipe de développement 
 Page 1 / 43 
@@ -1639,7 +1639,7 @@ transporteurs.
 services concernés (enquête à 3 mois). 
   
 AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 43 / 43 
+Page 43 / 43   
 9. Annexe — Glossaire 
 Terme Définition 
 AfriGes Logiciel de gestion interne d'AfriSime SARL dans lequel les 

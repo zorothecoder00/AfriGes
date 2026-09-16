@@ -13,7 +13,7 @@ type Props = {
   searchParams: Promise<{ h?: string }>;
 };
 
-const CODES_VALIDES: CodeDocumentQr[] = ["BCF", "BSM", "BRF", "BCC", "FD", "BR", "DEV", "PRO"];
+const CODES_VALIDES: CodeDocumentQr[] = ["BCF", "BSM", "BRF", "BCC", "FD", "BR", "DEV", "PRO", "BP", "BL"];
 
 export default async function VerifierDocumentPage({ params, searchParams }: Props) {
   const { code, id } = await params;
@@ -80,6 +80,22 @@ export default async function VerifierDocumentPage({ params, searchParams }: Pro
       return <PageErreur message="Ce QR ne correspond à aucun devis/proforma valide (document falsifié ou introuvable)." />;
     }
     redirect(`/dashboard/user/agentsTerrain/devis-proforma?detail=${doc.id}`);
+  }
+
+  if (codeDoc === "BP") {
+    const bp = await prisma.bonPreparation.findUnique({ where: { id: docId }, select: { id: true, createdAt: true } });
+    if (!bp || !verifierHashInstance("BP", bp.id, bp.createdAt.toISOString(), h)) {
+      return <PageErreur message="Ce QR ne correspond à aucun bon de préparation valide (document falsifié ou introuvable)." />;
+    }
+    redirect(`/api/magasinier/bons-preparation/${bp.id}/pdf`);
+  }
+
+  if (codeDoc === "BL") {
+    const bl = await prisma.bonLivraison.findUnique({ where: { id: docId }, select: { id: true, createdAt: true } });
+    if (!bl || !verifierHashInstance("BL", bl.id, bl.createdAt.toISOString(), h)) {
+      return <PageErreur message="Ce QR ne correspond à aucun bon de livraison valide (document falsifié ou introuvable)." />;
+    }
+    redirect(`/api/bons-livraison/${bl.id}/pdf`);
   }
 
   return <PageErreur message="QR code invalide." />;

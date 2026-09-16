@@ -57,6 +57,8 @@ export async function GET(req: NextRequest) {
           lignes: {
             include: { produit: { select: { id: true, nom: true, reference: true, prixUnitaire: true } } },
           },
+          bonPreparation: { include: { lignes: { include: { produit: { select: { id: true, nom: true } } } }, preparateur: { select: { id: true, nom: true, prenom: true } } } },
+          bonLivraison: { select: { id: true, reference: true } },
         },
       }),
       prisma.bonSortie.count({ where }),

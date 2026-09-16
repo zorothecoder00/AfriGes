@@ -39,6 +39,8 @@ export const INCLUDE = {
   client: { select: { id: true, nom: true, prenom: true, telephone: true, adresse: true, typeClient: true, segment: true } },
   visaResponsablePar: { select: { id: true, nom: true, prenom: true } },
   bonSortie: { select: { id: true, reference: true, statut: true, dateValidation: true } },
+  bonPreparation: { select: { id: true, reference: true, statut: true } },
+  bonLivraison: { select: { id: true, reference: true } },
   bonReception: { select: { id: true, reference: true, statut: true, etatMarchandise: true, reserve: true, tokenConfirmation: true, signatureClientNom: true, dateSignatureClient: true } },
   lignes: { include: { produit: { select: { id: true, nom: true, codeProduit: true } } } },
 };
@@ -226,6 +228,18 @@ export async function POST(req: Request) {
             include: INCLUDE,
           });
           await auditLog(tx, userId, "BCC_BSM_GENERE", "CommandeClient", c.id, { bonSortieId: bonSortie.id }, getRequestMeta(req));
+
+          // Bon de Préparation (CDC digitalisation §5.7) — liste de prélèvement du
+          // magasinier ; "Marquer prête" répercutera les quantités réellement
+          // prélevées sur les lignes du Bon de Sortie avant confirmation d'expédition.
+          await tx.bonPreparation.create({
+            data: {
+              reference: `BP-${Date.now()}-${c.id}`,
+              bonSortieId: bonSortie.id,
+              commandeClientId: c.id,
+              lignes: { create: lignesCalc.map((l) => ({ produitId: l.produitId, quantiteDemandee: l.quantite, quantitePreparee: l.quantite })) },
+            },
+          });
           await notifyRoles(tx, ["MAGAZINIER", "RESPONSABLE_POINT_DE_VENTE"], {
             titre: `Commande client à préparer (${reference})`,
             message: `${session.user.prenom} ${session.user.nom} a validé une commande client. Bon de sortie ${refBS} en attente de préparation.`,
