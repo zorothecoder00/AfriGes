@@ -899,6 +899,13 @@ export default function LogistiqueApprovisionnementPage() {
               Bons de commande
             </Link>
             <Link
+              href="/dashboard/user/logistiquesApprovisionnements/depot-vente"
+              className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium"
+            >
+              <Archive size={16} />
+              Dépôt-vente
+            </Link>
+            <Link
               href="/dashboard/user/logistiquesApprovisionnements/dashboard"
               className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium"
             >

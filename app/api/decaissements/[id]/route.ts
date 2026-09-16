@@ -225,6 +225,15 @@ export async function PATCH(req: Request, { params }: Ctx) {
           });
         }
 
+        // Règlement dépôt-vente lié (§5.5) : passe REGLE seulement ici, à
+        // l'exécution effective — même logique que le Bon de Commande ci-dessus.
+        if (fiche.reglementDepotVenteId) {
+          await tx.reglementDepotVente.update({
+            where: { id: fiche.reglementDepotVenteId },
+            data: { statut: "REGLE" },
+          });
+        }
+
         await auditLog(tx, userId, "FD_PAYEE", "FicheDecaissement", ficheId, { montant, ecritureId }, getRequestMeta(req));
         await notify(tx, [fiche.demandeurId], {
           titre: `Fiche ${fiche.reference} payée`,

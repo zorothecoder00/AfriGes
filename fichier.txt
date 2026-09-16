@@ -197,48 +197,66 @@ a u niveau de dashboard/user/caissiers , tu vois au niveau des souscritpions
   check ( c'est un comportement particulir de vercel ???)
 
 
-Avec ce commit, les 6 documents prioritaires de la Partie A
-  du CDC digitalisation sont maintenant tous implémentés :
+  Bordereau de Remise de Fonds, Bon de Commande Client, Bon de Commande
+  Fournisseur, Bon de Sortie de Marchandises, Bon de Réception, Fiche de
+  Décaissement — tous livrés.
+  Devis, Proforma, Bon de commande client, Bon de préparation, Bon de livraison,
+  Bon de réception, Facture, Facture à crédit, Facture d'avoir, Reçu de
+  paiement.
 
-  1. Bon de Commande Fournisseur — enrichi (QR, visa CGT)
-  2. Bon de Sortie de Marchandises — enrichi (QR, seuils, écart)
-  3. Bordereau de Remise de Fonds — nouveau
-  4. Bon de Commande Client — nouveau
-  5. Fiche de Décaissement — nouveau
-  6. Bon de Réception — nouveau, ce dernier commit
-  J'ai vérifié le recoupement entre la Partie B (catalogue de 90+ documents,
-  feuille de route) et l'existant. Plusieurs documents de la liste "15
-  prioritaires (Phase 1)" existent déjà sous une autre forme dans l'app :
+  Demande de crédit         │                                             │
+  │ alimentaire, Échéancier   │ ✓ EXISTS                                    │
+  │ de remboursement, Relevé  │                                             │
+  │ de compte client          │                                             │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ Fiche d'identification    │ ✓ EXISTS (modèle Client)                    │
+  │ client                    │                                             │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ Fiche d'évaluation du     │ ✓ EXISTS (ClientScoreHistorique + scoring)  │
+  │ client                    │                                             │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ Carnet de crédit digital  │ ✓ EXISTS (équivalent fonctionnel :          │
+  │                           │ CreditClient+Échéances+Remboursements)      │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ Rapport de recouvrement,  │ ✓ EXISTS (dashboard/rapports admin)         │
+  │ État des impayés          │                                             │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │                           │ ⚠ PARTIAL (BordereauRemboursement =         │
+  │ Reçu de remboursement     │ échéancier complet, pas un reçu par         │
+  │                           │ versement)                                  │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ Avis d'échéance / Avis de │ ⚠ PARTIAL (notif SMS/WhatsApp, pas un       │
+  │  retard                   │ document)                                   │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ Mise en demeure           │ ⚠ PARTIAL (type d'action tracée côté RIA,   │
+  │                           │ pas de lettre générée)                      │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ Fiche de visite de        │ ⚠ PARTIAL (tracé côté RIA seulement, pas de 
+  │ recouvrement            
 
-  - Facture → FactureVente (déjà complet)
-  - Facture d'avoir → AvoirClient (déjà existant)
-  - Reçu de paiement → Paiement (déjà existant)
-  - Demande de crédit → la création d'un CreditClient en sert déjà de fait
-  - Échéancier client → EcheanceCredit (déjà existant)
-  - Bon de réception fournisseur → ReceptionApprovisionnement (déjà complet, CDC
-    Appro)
+  Le module Dépôt-vente est parti en construction — c'est un chantier conséquent
+  (12 documents, tout un nouveau domaine métier), donc je détaille la décision
+  d'architecture clé pendant que ça tourne :
 
-  Relevé de compte client & Facture à crédit — done, with a notable discovery
-  along the way:
+  L'idée centrale : plutôt que de bâtir un système de stock parallèle, je
+  réutilise l'infrastructure LotProduit/FEFO qui existe déjà. Quand un
+  fournisseur dépose de la marchandise, ça crée un lot tracé (fournisseur +
+  quantité) ; les ventes normales (caisse, RPV, agent terrain) le consomment
+  automatiquement en FEFO sans toucher au code de vente existant — c'est déjà
+  comme ça que ça marche pour n'importe quel produit avec des lots. Ça donne le
+  suivi "vendu / invendu" gratuitement et sans risque sur le flux de vente en
+  production.
 
-  - Relevé de compte client: I found a complete, already-printable version
-    existed under the Comptabilité module (genererGrandLivreClient), just locked
-    to the Comptable role. Rather than build a second, potentially-divergent
-    version, I opened the existing one to admin/RVC/agent terrain (new API
-    routes + dashboard pages + a shared ReleveCompteClient component + a "Relevé
-    de compte" link on the client fiche).
-  - ClientTransaction wiring (the parallel background task): completed — 17
-    files, lib/clientTransaction.ts, now recording every real credit/pack money
-    movement with correcting entries on edit/cancel rather than rewriting
-    history. It's solid infra but not yet consumed by any visible feature (the
-    relevé uses the accounting ledger, not this table).
-  - Facture à crédit: added the full échéancier (all instalments, not just the
-    final due date) to both the on-screen preview and the printed invoice for
-    CREDIT-type factures.
-  - tsc --noEmit and eslint are clean across everything touched (mine + the
-    fork's).
+  Le règlement au fournisseur réutilise aussi le circuit Fiche de Décaissement
+  (visa N1/N2) qu'on vient de corriger cette session — pas de nouveau système de
+  paiement parallèle, la "Demande de règlement" et le "Reçu de règlement"
+  passent par ce circuit déjà éprouvé.
 
-  This closes out the entire "15 documents prioritaires" list from Partie B (the
-  rest were already confirmed covered under existing forms last session).
+  Simplification assumée (documentée dans le code) : un produit déposé occupe
+  une ligne de stock dédiée à ce fournisseur (pas mélangé avec du stock propre
+  AfriSime pour le même produit/PDV) — cohérent avec l'esprit du CDC (gammes
+  partenaires distinctes).
+
+
 
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getRPVSession } from "@/lib/authRPV";
+import { getVisaRpvOuChefAgenceSession } from "@/lib/authRPV";
 import { auditLog, notify } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 import { getSession } from "../../fournisseurs/route";
@@ -11,7 +11,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Ctx) {
   try {
-    const session = (await getSession()) ?? (await getRPVSession());
+    const session = (await getSession()) ?? (await getVisaRpvOuChefAgenceSession());
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
@@ -39,7 +39,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const body = await req.json();
 
     if (body.action === "VISER") {
-      const session = await getRPVSession();
+      const session = await getVisaRpvOuChefAgenceSession();
       if (!session) return NextResponse.json({ error: "Visa réservé au Responsable Point de Vente / Chef d'agence / Direction" }, { status: 403 });
       if (demande.statut !== "EN_VALIDATION") {
         return NextResponse.json({ error: `Impossible depuis le statut ${demande.statut}` }, { status: 422 });
@@ -64,7 +64,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     }
 
     if (body.action === "REJETER") {
-      const session = await getRPVSession();
+      const session = await getVisaRpvOuChefAgenceSession();
       if (!session) return NextResponse.json({ error: "Réservé au Responsable Point de Vente / Chef d'agence / Direction" }, { status: 403 });
       if (demande.statut !== "EN_VALIDATION") {
         return NextResponse.json({ error: `Impossible depuis le statut ${demande.statut}` }, { status: 422 });

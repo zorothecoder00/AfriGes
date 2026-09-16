@@ -131,6 +131,7 @@ enum TypeEntreeStock {
   TRANSFERT_ENTRANT
   AJUSTEMENT_POSITIF
   RETOUR_CLIENT
+  DEPOT_VENTE // entrée en stock d'une marchandise déposée par un fournisseur (CDC §5.5), sans achat
 }
 
 enum TypeSortieStock {
@@ -804,45 +805,49 @@ model User {
   affectationsPDV           GestionnaireAffectation[]
 
   // Opérations stock
-  anomaliesSignalees         AnomalieStock[]              @relation("AnomaliesSignalees")
-  anomaliesTraitees          AnomalieStock[]              @relation("AnomaliesTraitees")
-  receptionsRealisees        ReceptionApprovisionnement[] @relation("ReceptionnaireAppro")
-  receptionsValidees         ReceptionApprovisionnement[] @relation("ValidateurAppro")
-  bonsCommandeCrees          BonCommande[]                @relation("BonCommandeCreateur")
-  bonsCommandeApprouves      BonCommande[]                @relation("BonCommandeApprobateur")
-  bonsCommandeEnvoyes        BonCommande[]                @relation("BonCommandeEnvoyeur")
-  bonsCommandeSignes         BonCommande[]                @relation("BonCommandeSignataire")
-  bonsCommandeVisesCGT       BonCommande[]                @relation("BonCommandeVisaCGT")
-  evenementsImportationCrees EvenementImportation[]       @relation("EvenementImportationCreateur")
-  transfertsCrees            TransfertStock[]             @relation("CreateurTransfert")
-  transfertsValides          TransfertStock[]             @relation("ValidateurTransfert")
-  transfertsApprouves        TransfertStock[]             @relation("ApprobateurTransfert")
-  inventairesRealises        InventaireSite[]             @relation("RealisateurInventaire")
-  inventairesValides         InventaireSite[]             @relation("ValidateurInventaire")
-  commandesInternes          CommandeInterne[]            @relation("DemandeurCommande")
-  mouvementsStock            MouvementStock[]             @relation("MouvementsStock")
-  changementsPrix            HistoriquePrixProduit[]      @relation("HistoriquePrixCreateur")
-  bonsSortieCreePar          BonSortie[]                  @relation("BonsSortieCreePar")
-  bonsSortieValidePar        BonSortie[]                  @relation("BonsSortieValidePar")
-  bonsSortieVisePar          BonSortie[]                  @relation("BonSortieVisePar")
-  bordereauxRemiseCollecteur BordereauRemiseFonds[]       @relation("BordereauCollecteur")
-  bordereauxRemiseTresorier  BordereauRemiseFonds[]       @relation("BordereauTresorier")
-  bordereauxRemiseVisesCGT   BordereauRemiseFonds[]       @relation("BordereauVisaCGT")
-  bordereauxRemiseClotures   BordereauRemiseFonds[]       @relation("BordereauCloture")
-  commandesClientAgent       CommandeClient[]             @relation("CommandeClientAgent")
-  commandesClientVisees      CommandeClient[]             @relation("CommandeClientVisaResponsable")
-  decaissementsDemandeur     FicheDecaissement[]          @relation("DecaissementDemandeur")
-  decaissementsApprouvesN1   FicheDecaissement[]          @relation("DecaissementApprobateurN1")
-  decaissementsApprouvesN2   FicheDecaissement[]          @relation("DecaissementApprobateurN2")
-  decaissementsExecutes      FicheDecaissement[]          @relation("DecaissementExecutePar")
-  bonsReceptionLivreur       BonReception[]               @relation("BonReceptionLivreur")
-  devisProformaAgent         DevisProforma[]              @relation("DevisProformaAgent")
-  bonsPreparationPreparateur BonPreparation[]             @relation("BonPreparationPreparateur")
-  bonsLivraisonLivreur       BonLivraison[]               @relation("BonLivraisonLivreur")
-  demandesAjustement         DemandeAjustementStock[]     @relation("DemandesAjustement")
-  validationsAjustement      DemandeAjustementStock[]     @relation("ValidationsAjustement")
-  demandesAchatDemandeur     DemandeAchatInterne[]        @relation("DemandeAchatDemandeur")
-  demandesAchatVisees        DemandeAchatInterne[]        @relation("DemandeAchatViseur")
+  anomaliesSignalees           AnomalieStock[]              @relation("AnomaliesSignalees")
+  anomaliesTraitees            AnomalieStock[]              @relation("AnomaliesTraitees")
+  receptionsRealisees          ReceptionApprovisionnement[] @relation("ReceptionnaireAppro")
+  receptionsValidees           ReceptionApprovisionnement[] @relation("ValidateurAppro")
+  bonsCommandeCrees            BonCommande[]                @relation("BonCommandeCreateur")
+  bonsCommandeApprouves        BonCommande[]                @relation("BonCommandeApprobateur")
+  bonsCommandeEnvoyes          BonCommande[]                @relation("BonCommandeEnvoyeur")
+  bonsCommandeSignes           BonCommande[]                @relation("BonCommandeSignataire")
+  bonsCommandeVisesCGT         BonCommande[]                @relation("BonCommandeVisaCGT")
+  evenementsImportationCrees   EvenementImportation[]       @relation("EvenementImportationCreateur")
+  transfertsCrees              TransfertStock[]             @relation("CreateurTransfert")
+  transfertsValides            TransfertStock[]             @relation("ValidateurTransfert")
+  transfertsApprouves          TransfertStock[]             @relation("ApprobateurTransfert")
+  inventairesRealises          InventaireSite[]             @relation("RealisateurInventaire")
+  inventairesValides           InventaireSite[]             @relation("ValidateurInventaire")
+  commandesInternes            CommandeInterne[]            @relation("DemandeurCommande")
+  mouvementsStock              MouvementStock[]             @relation("MouvementsStock")
+  changementsPrix              HistoriquePrixProduit[]      @relation("HistoriquePrixCreateur")
+  bonsSortieCreePar            BonSortie[]                  @relation("BonsSortieCreePar")
+  bonsSortieValidePar          BonSortie[]                  @relation("BonsSortieValidePar")
+  bonsSortieVisePar            BonSortie[]                  @relation("BonSortieVisePar")
+  bordereauxRemiseCollecteur   BordereauRemiseFonds[]       @relation("BordereauCollecteur")
+  bordereauxRemiseTresorier    BordereauRemiseFonds[]       @relation("BordereauTresorier")
+  bordereauxRemiseVisesCGT     BordereauRemiseFonds[]       @relation("BordereauVisaCGT")
+  bordereauxRemiseClotures     BordereauRemiseFonds[]       @relation("BordereauCloture")
+  commandesClientAgent         CommandeClient[]             @relation("CommandeClientAgent")
+  commandesClientVisees        CommandeClient[]             @relation("CommandeClientVisaResponsable")
+  decaissementsDemandeur       FicheDecaissement[]          @relation("DecaissementDemandeur")
+  decaissementsApprouvesN1     FicheDecaissement[]          @relation("DecaissementApprobateurN1")
+  decaissementsApprouvesN2     FicheDecaissement[]          @relation("DecaissementApprobateurN2")
+  decaissementsExecutes        FicheDecaissement[]          @relation("DecaissementExecutePar")
+  bonsReceptionLivreur         BonReception[]               @relation("BonReceptionLivreur")
+  devisProformaAgent           DevisProforma[]              @relation("DevisProformaAgent")
+  bonsPreparationPreparateur   BonPreparation[]             @relation("BonPreparationPreparateur")
+  bonsLivraisonLivreur         BonLivraison[]               @relation("BonLivraisonLivreur")
+  demandesAjustement           DemandeAjustementStock[]     @relation("DemandesAjustement")
+  validationsAjustement        DemandeAjustementStock[]     @relation("ValidationsAjustement")
+  demandesAchatDemandeur       DemandeAchatInterne[]        @relation("DemandeAchatDemandeur")
+  demandesAchatVisees          DemandeAchatInterne[]        @relation("DemandeAchatViseur")
+  conventionsDepotVenteCreees  ConventionDepotVente[]       @relation("ConventionDepotVenteCreePar")
+  depotsMarchandiseCrees       DepotMarchandise[]           @relation("DepotMarchandiseCreePar")
+  depotsMarchandiseEntrees     DepotMarchandise[]           @relation("DepotMarchandiseEntreePar")
+  reglementsDepotVenteDemandes ReglementDepotVente[]        @relation("ReglementDepotVenteDemandePar")
 
   // Caisse
   sessionsCaisseOuvertes CaissePDV[]          @relation("CaissesPDVRPV")
@@ -1064,6 +1069,7 @@ model PointDeVente {
   decaissements              FicheDecaissement[]
   devisProforma              DevisProforma[]
   demandesAchat              DemandeAchatInterne[]
+  depotsMarchandise          DepotMarchandise[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1802,6 +1808,7 @@ model Fournisseur {
   rfqRetenues            DemandeCotation[]            @relation("RFQFournisseurRetenu") // RFQ où ce fournisseur a été retenu
   bonsCommande           BonCommande[] // bons de commande émis vers ce fournisseur
   importationsTransitees Importation[]                @relation("ImportationTransitaire") // en tant que transitaire (type TRANSPORTEUR)
+  conventionsDepotVente  ConventionDepotVente[] // conventions de dépôt-vente (CDC §5.5)
 
   // Compte auxiliaire comptable réel (CDC Comptabilité §17) — sous-compte 401xxx
   // rattaché par FK, auto-provisionné par lib/comptabilite/auxiliaire.ts.
@@ -2164,19 +2171,20 @@ model Produit {
   packsCibleProduit   Pack[]               @relation("PackProduitCible")
 
   // Opérations stock
-  anomalies            AnomalieStock[]
-  lignesVenteDirecte   LigneVenteDirecte[]
-  lignesTransfert      LigneTransfertStock[]
-  lignesReceptionAppro LigneReceptionAppro[]
-  lignesInventaire     LigneInventaireSite[]
-  lignesCommande       LigneCommandeInterne[]
-  lignesBonSortie      LigneBonSortie[]
-  lignesCommandeClient LigneCommandeClient[]
-  lignesBonReception   LigneBonReception[]
-  lignesDevisProforma  LigneDevisProforma[]
-  lignesBonPreparation LigneBonPreparation[]
-  lignesBonLivraison   LigneBonLivraison[]
-  lignesDemandeAchat   LigneDemandeAchatInterne[]
+  anomalies              AnomalieStock[]
+  lignesVenteDirecte     LigneVenteDirecte[]
+  lignesTransfert        LigneTransfertStock[]
+  lignesReceptionAppro   LigneReceptionAppro[]
+  lignesInventaire       LigneInventaireSite[]
+  lignesCommande         LigneCommandeInterne[]
+  lignesBonSortie        LigneBonSortie[]
+  lignesCommandeClient   LigneCommandeClient[]
+  lignesBonReception     LigneBonReception[]
+  lignesDevisProforma    LigneDevisProforma[]
+  lignesBonPreparation   LigneBonPreparation[]
+  lignesBonLivraison     LigneBonLivraison[]
+  lignesDemandeAchat     LigneDemandeAchatInterne[]
+  lignesDepotMarchandise LigneDepotMarchandise[]
 
   // Crédits clients
   lignesCreditProduit   LigneCreditClient[] @relation("LigneCreditProduit")
@@ -2531,8 +2539,9 @@ model LotProduit {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  mouvements      MouvementLot[]
-  lignesReception LigneReceptionAppro[]
+  mouvements            MouvementLot[]
+  lignesReception       LigneReceptionAppro[]
+  ligneDepotMarchandise LigneDepotMarchandise?
 
   @@unique([produitId, pointDeVenteId, numeroLot])
   @@index([produitId, pointDeVenteId, statut])
@@ -2884,6 +2893,195 @@ model LigneDemandeAchatInterne {
   demandeCotation DemandeCotation?
 
   @@index([demandeId])
+}
+
+// ============================================================
+// DÉPÔT-VENTE (CDC digitalisation §5.5) — un fournisseur dépose des
+// marchandises qu'AfriSime vend pour son compte, sans achat ni paiement à
+// l'entrée : le règlement se fait périodiquement sur la base des ventes
+// réalisées, moins la commission AfriSime.
+//
+// Le stock déposé est tracé en réutilisant l'infrastructure de lots FEFO déjà
+// existante (Catalogue Ent.#5, lib/lotsFefo.ts) : à l'entrée en stock, chaque
+// LigneDepotMarchandise crée son propre LotProduit dédié (fournisseurId = le
+// fournisseur déposant). `consommerFEFOBestEffort` — déjà appelé par TOUTES
+// les routes de vente existantes — consomme alors ce lot automatiquement à
+// chaque vente, sans la moindre modification des routes de vente : c'est ce
+// qui donne, gratuitement, la traçabilité "quelles unités vendues appartenaient
+// à quel fournisseur déposant".
+//
+// Simplification assumée : un couple produit×point de vente est soit
+// entièrement stock AfriSime, soit entièrement stock déposé d'un même
+// fournisseur à un instant donné (pas de mélange de sources sur un même
+// lot) — cohérent avec le dépôt-vente comme gamme de produits distincte
+// (CDC §5.5), et c'est ce qui rend non ambiguë l'attribution d'une vente à
+// ce fournisseur sans traçabilité par transaction de vente (qui n'existe pas
+// dans ce codebase — `consommerFEFOBestEffort` renvoie une allocation que
+// tous les appelants actuels ignorent). Le règlement valorise donc les ventes
+// au prix convenu au dépôt (LigneDepotMarchandise.prixVenteConvenu), pas au
+// prix réel de la transaction (une promotion appliquée à la vente n'est donc
+// pas répercutée sur ce qui est dû au fournisseur).
+// ============================================================
+
+enum StatutConventionDepotVente {
+  ACTIVE
+  SUSPENDUE
+  TERMINEE
+}
+
+/// Convention de dépôt-vente — contrat cadre avec un fournisseur déposant.
+model ConventionDepotVente {
+  id        Int                        @id @default(autoincrement())
+  reference String                     @unique // CDV-2026-000123
+  statut    StatutConventionDepotVente @default(ACTIVE)
+
+  fournisseurId Int
+  fournisseur   Fournisseur @relation(fields: [fournisseurId], references: [id])
+
+  commissionPourcent   Decimal // part retenue par AfriSime sur les ventes
+  dateDebut            DateTime  @default(now())
+  dateFin              DateTime?
+  dureeMaxInvenduJours Int? // au-delà : signalé comme invendu à reprendre (indicatif, pas d'automatisation)
+  conditions           String?
+
+  creeParId Int
+  creePar   User @relation("ConventionDepotVenteCreePar", fields: [creeParId], references: [id])
+
+  depots     DepotMarchandise[]
+  reglements ReglementDepotVente[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fournisseurId])
+  @@index([statut])
+}
+
+enum StatutDepotMarchandise {
+  BROUILLON
+  EN_STOCK
+  CLOTURE
+}
+
+/// Fiche de dépôt de marchandises + Bon d'entrée en dépôt — un seul document
+/// couvrant les deux étapes du CDC (saisie du dépôt puis constat d'entrée
+/// physique en stock) : le fournisseur livre typiquement en main propre au
+/// même moment, contrairement à un Bon de Commande classique où commande et
+/// réception sont déjà séparées par le module Approvisionnement.
+model DepotMarchandise {
+  id        Int                    @id @default(autoincrement())
+  reference String                 @unique // DEP-2026-000123
+  statut    StatutDepotMarchandise @default(BROUILLON)
+
+  conventionId Int
+  convention   ConventionDepotVente @relation(fields: [conventionId], references: [id])
+
+  pointDeVenteId Int
+  pointDeVente   PointDeVente @relation(fields: [pointDeVenteId], references: [id])
+
+  dateDepot   DateTime  @default(now())
+  entreeParId Int?
+  entreePar   User?     @relation("DepotMarchandiseEntreePar", fields: [entreeParId], references: [id])
+  dateEntree  DateTime?
+
+  lignes LigneDepotMarchandise[]
+
+  creeParId Int
+  creePar   User @relation("DepotMarchandiseCreePar", fields: [creeParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([conventionId])
+  @@index([pointDeVenteId])
+  @@index([statut])
+}
+
+model LigneDepotMarchandise {
+  id      Int              @id @default(autoincrement())
+  depotId Int
+  depot   DepotMarchandise @relation(fields: [depotId], references: [id], onDelete: Cascade)
+
+  produitId Int
+  produit   Produit @relation(fields: [produitId], references: [id])
+
+  quantiteDeposee  Int
+  prixVenteConvenu Decimal
+  dlc              DateTime?
+
+  // Créé à la transition BROUILLON → EN_STOCK ; c'est ce lot qui rend le
+  // stock déposé traçable et auto-consommé par le flux de vente (voir
+  // commentaire du bloc dépôt-vente ci-dessus).
+  lotProduitId Int?        @unique
+  lotProduit   LotProduit? @relation(fields: [lotProduitId], references: [id])
+
+  quantiteReprise Int @default(0) // cumul repris au fournisseur (invendus)
+
+  ligneReglements LigneReglementDepotVente[]
+
+  @@index([depotId])
+}
+
+enum StatutReglementDepotVente {
+  BROUILLON
+  SOUMIS
+  REGLE
+}
+
+/// Demande de règlement fournisseur (dépôt-vente) — CDC §5.5 "Demande de
+/// règlement fournisseur" / "État des sommes dues au fournisseur". Pas de
+/// modèle séparé pour le "Reçu de règlement" ni le "Relevé fournisseur
+/// (dépôt-vente)" : une fois SOUMIS, le règlement passe par le circuit Fiche
+/// de Décaissement existant (visa N1/N2 + exécution, CDC §3.6) — sa
+/// confirmation bénéficiaire (déjà imprimable via /api/decaissements/[id]/pdf)
+/// sert de reçu, et son écriture PAIEMENT_FOURNISSEUR alimente le grand livre
+/// auxiliaire du fournisseur (lib/comptabilite/clientAuxiliaire.ts), donc son
+/// relevé général — sans code dédié supplémentaire pour ces deux documents.
+model ReglementDepotVente {
+  id        Int                       @id @default(autoincrement())
+  reference String                    @unique // RDV-2026-000123
+  statut    StatutReglementDepotVente @default(BROUILLON)
+
+  conventionId Int
+  convention   ConventionDepotVente @relation(fields: [conventionId], references: [id])
+
+  // Bornent quand ce règlement a été généré, pas une fenêtre stricte de
+  // filtrage des ventes (aucune traçabilité datée par vente individuelle,
+  // cf. simplification assumée en tête de bloc) — indicatif pour le rapport.
+  periodeDebut DateTime
+  periodeFin   DateTime
+
+  montantVentesBrut Decimal @default(0)
+  montantCommission Decimal @default(0)
+  montantDu         Decimal @default(0)
+
+  lignes        LigneReglementDepotVente[]
+  decaissements FicheDecaissement[]
+
+  demandeParId Int
+  demandePar   User @relation("ReglementDepotVenteDemandePar", fields: [demandeParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([conventionId])
+  @@index([statut])
+}
+
+model LigneReglementDepotVente {
+  id          Int                 @id @default(autoincrement())
+  reglementId Int
+  reglement   ReglementDepotVente @relation(fields: [reglementId], references: [id], onDelete: Cascade)
+
+  ligneDepotId Int
+  ligneDepot   LigneDepotMarchandise @relation(fields: [ligneDepotId], references: [id])
+
+  quantiteVendue    Int
+  montantBrut       Decimal
+  montantCommission Decimal
+  montantNet        Decimal
+
+  @@index([reglementId])
 }
 
 model DemandeCotation {
@@ -3547,6 +3745,9 @@ model FicheDecaissement {
 
   bonCommandeFournisseurId Int?
   bonCommandeFournisseur   BonCommande? @relation(fields: [bonCommandeFournisseurId], references: [id])
+
+  reglementDepotVenteId Int?
+  reglementDepotVente   ReglementDepotVente? @relation(fields: [reglementDepotVenteId], references: [id])
 
   piecesJustificatives String[] @default([]) // types de pièces déclarées (facture, BC, BL, contrat…)
 
