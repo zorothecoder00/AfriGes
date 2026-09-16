@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TypeSortieStock" ADD VALUE 'VENTE_REVENDEUR';

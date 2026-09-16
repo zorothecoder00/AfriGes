@@ -203,7 +203,7 @@ a u niveau de dashboard/user/caissiers , tu vois au niveau des souscritpions
   Devis, Proforma, Bon de commande client, Bon de préparation, Bon de livraison,
   Bon de réception, Facture, Facture à crédit, Facture d'avoir, Reçu de
   paiement.
-
+    
   Demande de crédit           │                                             │
   │ alimentaire, Échéancier   │ ✓ EXISTS                                    
   │ de remboursement, Relevé  │                                             │
@@ -253,4 +253,7 @@ a u niveau de dashboard/user/caissiers , tu vois au niveau des souscritpions
   à crédit, encaissements, impayés, recouvrement, retours, réclamations,
   tableau de bord commercial consolidé (des dashboards existent ailleurs — Paie,
   RIA, POPC — mais pas ce périmètre commercial spécifique du CDC).
+
+
+Créer un centre de commandement admin/superadmin et peut être aussi les rôles RPV et chef d'agence pour pouvoir centraliser tous les documents qu'on est entrain de créer ( je parle des documents digitalisés de cdcdigitalisattion.txt)
 

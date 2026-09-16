@@ -6,7 +6,7 @@ import {
   Wallet, ChevronLeft, ChevronRight, X, TrendingDown, Loader2,
   Eye, Ban, BadgeCheck, Banknote, Calendar, Clock, User, ChevronDown, ChevronUp,
   Plus, Trash, Info, Receipt, PackageCheck, ArrowLeftRight, Pencil, FolderTree, FileText,
-  Download, Printer,
+  Download, Printer, Store,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
@@ -951,6 +951,10 @@ export default function CreditsPage() {
             <a href="/dashboard/admin/credits/saisie-rapide"
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-blue-200 text-blue-700 rounded-xl hover:bg-blue-50 text-sm font-medium">
               <Banknote className="w-4 h-4" /> Saisie rapide
+            </a>
+            <a href="/dashboard/admin/revendeurs"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-rose-200 text-rose-700 rounded-xl hover:bg-rose-50 text-sm font-medium">
+              <Store className="w-4 h-4" /> Revendeurs
             </a>
             <a href="/dashboard/admin/archivage"
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-sm font-medium">
