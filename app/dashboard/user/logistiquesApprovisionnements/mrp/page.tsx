@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import RetourApprovisionnement from "@/components/RetourApprovisionnement";
 import {
-  Calculator, RefreshCw, Info, FileSearch, ChevronDown, ChevronUp,
+  Calculator, RefreshCw, Info, FileSearch, ChevronDown, ChevronUp, ClipboardCheck, Check,
 } from "lucide-react";
 
 interface PdvRef { id: number; nom: string; code: string }
@@ -25,11 +25,18 @@ interface MRPResponse {
 
 const inputCls = "px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500";
 
+interface PanierLigne { produitId: number; produitNom: string; quantite: number }
+
 export default function MRPPage() {
   const [pointDeVenteId, setPointDeVenteId] = useState("");
   const [horizonMois, setHorizonMois] = useState("1");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [panier, setPanier] = useState<PanierLigne[]>([]);
+
+  const ajouterAuPanier = (produitId: number, produitNom: string, quantite: number) => {
+    setPanier((p) => (p.some((l) => l.produitId === produitId) ? p : [...p, { produitId, produitNom, quantite }]));
+  };
 
   const { data: pdvData } = useApi<{ data: PdvRef[] }>("/api/admin/pdv?limit=200");
   const pdvs = pdvData?.data ?? [];
@@ -116,6 +123,7 @@ export default function MRPPage() {
                       <p className="text-xs text-slate-400">{a.detailPdv.length} agence(s) concernée(s)</p>
                     </div>
                     <span className="text-sm font-bold text-amber-600 flex-shrink-0">{a.besoinNetTotal.toLocaleString("fr-FR")} unité(s)</span>
+                    <AjouterPanierButton dansLePanier={panier.some((l) => l.produitId === a.produitId)} onClick={() => ajouterAuPanier(a.produitId, a.produitNom, a.besoinNetTotal)} />
                     <RfqLink produitId={a.produitId} produitNom={a.produitNom} quantite={a.besoinNetTotal} />
                   </div>
                   {expanded === a.produitId && (
@@ -167,7 +175,10 @@ export default function MRPPage() {
                       <td className="text-center px-3 py-2.5 text-slate-500">{l.commandesEnCours}</td>
                       <td className="text-center px-3 py-2.5 font-bold text-amber-600">{l.besoinNet}</td>
                       <td className="text-center px-3 py-2.5">
-                        <RfqLink produitId={l.produit.id} produitNom={l.produit.nom} quantite={l.besoinNet} />
+                        <div className="flex items-center justify-center gap-2">
+                          <AjouterPanierButton dansLePanier={panier.some((p) => p.produitId === l.produit.id)} onClick={() => ajouterAuPanier(l.produit.id, l.produit.nom, l.besoinNet)} />
+                          <RfqLink produitId={l.produit.id} produitNom={l.produit.nom} quantite={l.besoinNet} />
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -177,7 +188,32 @@ export default function MRPPage() {
           </div>
         )}
       </div>
+
+      {panier.length > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-white border border-slate-200 shadow-lg rounded-xl px-4 py-3 flex items-center gap-3 z-40">
+          <ClipboardCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span className="text-sm text-slate-700">{panier.length} produit(s) ajouté(s) à la demande d&apos;achat</span>
+          <Link
+            href={`/dashboard/user/logistiquesApprovisionnements/demandes-achat?panier=${encodeURIComponent(JSON.stringify(panier))}`}
+            className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700"
+          >
+            Créer la demande
+          </Link>
+          <button onClick={() => setPanier([])} className="text-xs text-slate-400 hover:text-slate-600">Vider</button>
+        </div>
+      )}
     </div>
+  );
+}
+
+function AjouterPanierButton({ dansLePanier, onClick }: { dansLePanier: boolean; onClick: () => void }) {
+  if (dansLePanier) {
+    return <span className="flex-shrink-0 flex items-center gap-1 text-xs text-slate-400"><Check className="w-3.5 h-3.5" /> Ajouté</span>;
+  }
+  return (
+    <button onClick={onClick} className="flex-shrink-0 flex items-center gap-1 text-xs text-slate-500 hover:text-emerald-600 font-medium">
+      <ClipboardCheck className="w-3.5 h-3.5" /> Ajouter
+    </button>
   );
 }
 

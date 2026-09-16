@@ -878,6 +878,13 @@ export default function LogistiqueApprovisionnementPage() {
               Demandes internes
             </Link>
             <Link
+              href="/dashboard/user/logistiquesApprovisionnements/demandes-achat"
+              className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium"
+            >
+              <ClipboardCheck size={16} />
+              Demandes d&apos;achat
+            </Link>
+            <Link
               href="/dashboard/user/logistiquesApprovisionnements/rfq"
               className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium"
             >

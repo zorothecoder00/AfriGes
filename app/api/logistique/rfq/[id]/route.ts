@@ -11,6 +11,7 @@ const INCLUDE = {
   produit: { select: { id: true, nom: true, codeProduit: true, uniteAchat: { select: { nom: true } } } },
   pointDeVente: { select: { id: true, nom: true, code: true } },
   fournisseurRetenu: { select: { id: true, nom: true, code: true } },
+  demandeAchatLigne: { select: { id: true, demande: { select: { id: true, reference: true } } } },
   reponses: {
     include: { fournisseur: { select: { id: true, nom: true, code: true, email: true, noteGlobale: true } } },
   },

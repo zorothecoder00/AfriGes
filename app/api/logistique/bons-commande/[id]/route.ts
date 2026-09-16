@@ -1,10 +1,9 @@
-import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
+import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { auditLog } from "@/lib/notifications";
+import { auditLog, notifyRoles } from "@/lib/notifications";
 import { getSession } from "../../fournisseurs/route";
 import { getRequestMeta } from "@/lib/requestMeta";
-import { ecripturePaiementFournisseur } from "@/lib/comptabilite/moteur";
 import { getSeuilVisaCGTBonCommande } from "@/lib/parametresDocuments";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -65,37 +64,73 @@ export async function PATCH(req: Request, { params }: Ctx) {
       };
 
       if (body.action === "ENREGISTRER_PAIEMENT") {
-        // CDC §14 — alimente "factures fournisseurs à payer" / prévisions de trésorerie.
+        // CDC §14 — le paiement fournisseur ne s'exécute plus directement ici : il
+        // passait auparavant en caisse sans aucun visa (contournait le circuit N1/N2
+        // de la Fiche de Décaissement, qui existe pourtant déjà pour ce même type de
+        // dépense — PAIEMENT_FOURNISSEUR). On soumet désormais une Fiche de
+        // Décaissement liée à ce bon ; montantPaye n'est incrémenté qu'à l'exécution
+        // réelle de cette fiche (app/api/decaissements/[id]/route.ts, action EXECUTER).
         const montant = Number(body.montant);
         if (!montant || montant <= 0) return NextResponse.json({ error: "Montant invalide" }, { status: 400 });
         const soldeDu = Number(bon.montantTotal) - Number(bon.montantPaye);
         if (montant > soldeDu) {
           return NextResponse.json({ error: `Le montant dépasse le solde dû (${soldeDu})` }, { status: 422 });
         }
-        const modePaiement = typeof body.modePaiement === "string" ? body.modePaiement : null;
-        const updated = await prisma.$transaction(async (tx) => {
-          const b = await tx.bonCommande.update({
-            where: { id: bonId },
-            data: { montantPaye: { increment: montant } },
-            include: INCLUDE,
-          });
-          // Écriture comptable (CDC Comptabilité — jusqu'ici ce paiement mettait
-          // à jour montantPaye sans jamais générer de contrepartie en comptabilité).
-          await ecripturePaiementFournisseur(tx, {
-            montant,
-            reference: `PO-${b.reference}-${randomUUID().slice(0, 8).toUpperCase()}`,
-            fournisseurNom: b.fournisseur.nom,
-            fournisseurId: b.fournisseurId,
-            modePaiement,
-            userId,
-            pointDeVenteId: b.pointDeVenteId,
-          });
-          await auditLog(tx, userId, "PO_PAIEMENT_ENREGISTRE", "BonCommande", bonId, {
-            montant, soldeRestant: Number(b.montantTotal) - Number(b.montantPaye),
-          }, getRequestMeta(req));
-          return b;
+
+        // Une seule demande de paiement à la fois par bon : une fiche déjà soumise
+        // (non encore payée/rejetée) compterait deux fois sur le même solde dû tant
+        // qu'aucune des deux n'est exécutée.
+        const ficheEnCours = await prisma.ficheDecaissement.findFirst({
+          where: { bonCommandeFournisseurId: bonId, statut: { in: ["SOUMISE", "APPROUVEE"] } },
+          select: { id: true, reference: true },
         });
-        return NextResponse.json({ data: updated });
+        if (ficheEnCours) {
+          return NextResponse.json(
+            { error: `Une fiche de décaissement (${ficheEnCours.reference}) est déjà en cours pour ce bon — attendez son paiement ou son rejet avant d'en soumettre une nouvelle` },
+            { status: 422 },
+          );
+        }
+
+        const fournisseur = await prisma.fournisseur.findUnique({ where: { id: bon.fournisseurId }, select: { nom: true } });
+
+        for (let attempt = 0; attempt < 6; attempt++) {
+          const count = await prisma.ficheDecaissement.count();
+          const annee = new Date().getFullYear();
+          const reference = `FD-${annee}-${String(count + 1 + attempt).padStart(6, "0")}`;
+          try {
+            const fiche = await prisma.$transaction(async (tx) => {
+              const f = await tx.ficheDecaissement.create({
+                data: {
+                  reference,
+                  statut: "SOUMISE",
+                  demandeurId: userId,
+                  pointDeVenteId: bon.pointDeVenteId,
+                  beneficiaireNom: fournisseur?.nom ?? "Fournisseur",
+                  fournisseurId: bon.fournisseurId,
+                  motif: `Paiement bon de commande ${bon.reference}`,
+                  typeDepense: "PAIEMENT_FOURNISSEUR",
+                  montantDemande: montant,
+                  bonCommandeFournisseurId: bonId,
+                  piecesJustificatives: [`Bon de commande ${bon.reference}`],
+                },
+              });
+              await auditLog(tx, userId, "FD_CREEE", "FicheDecaissement", f.id, { bonCommandeFournisseurId: bonId }, getRequestMeta(req));
+              await auditLog(tx, userId, "PO_PAIEMENT_SOUMIS", "BonCommande", bonId, { montant, ficheDecaissementId: f.id }, getRequestMeta(req));
+              await notifyRoles(tx, ["COMPTABLE", "CHEF_COMPTABLE"], {
+                titre: `Fiche de décaissement soumise (${reference})`,
+                message: `${session.user.prenom} ${session.user.nom} demande le paiement de ${montant.toLocaleString("fr-FR")} FCFA pour "${f.beneficiaireNom}" (bon de commande ${bon.reference}).`,
+                priorite: PrioriteNotification.NORMAL,
+                actionUrl: `/dashboard/user/decaissements?detail=${f.id}`,
+              });
+              return f;
+            });
+            return NextResponse.json({ data: fiche }, { status: 201 });
+          } catch (e) {
+            if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
+            throw e;
+          }
+        }
+        return NextResponse.json({ error: "Impossible de générer une référence unique" }, { status: 500 });
       }
 
       if (body.action === "VISER_CGT") {

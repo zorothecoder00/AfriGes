@@ -212,6 +212,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
           },
           include: INCLUDE,
         });
+
+        // Le Bon de Commande fournisseur lié (si présent) n'est mis à jour qu'ici,
+        // à l'exécution effective — pas à la soumission ni à l'approbation, pour
+        // que montantPaye ne reflète que des paiements réellement décaissés
+        // (CDC Approvisionnement §7/§14 — cf. app/api/logistique/bons-commande/[id]/route.ts,
+        // action ENREGISTRER_PAIEMENT, qui ne fait plus que soumettre cette fiche).
+        if (fiche.bonCommandeFournisseurId) {
+          await tx.bonCommande.update({
+            where: { id: fiche.bonCommandeFournisseurId },
+            data: { montantPaye: { increment: montant } },
+          });
+        }
+
         await auditLog(tx, userId, "FD_PAYEE", "FicheDecaissement", ficheId, { montant, ecritureId }, getRequestMeta(req));
         await notify(tx, [fiche.demandeurId], {
           titre: `Fiche ${fiche.reference} payée`,

@@ -841,6 +841,8 @@ model User {
   bonsLivraisonLivreur       BonLivraison[]               @relation("BonLivraisonLivreur")
   demandesAjustement         DemandeAjustementStock[]     @relation("DemandesAjustement")
   validationsAjustement      DemandeAjustementStock[]     @relation("ValidationsAjustement")
+  demandesAchatDemandeur     DemandeAchatInterne[]        @relation("DemandeAchatDemandeur")
+  demandesAchatVisees        DemandeAchatInterne[]        @relation("DemandeAchatViseur")
 
   // Caisse
   sessionsCaisseOuvertes CaissePDV[]          @relation("CaissesPDVRPV")
@@ -1061,6 +1063,7 @@ model PointDeVente {
   commandesClient            CommandeClient[]
   decaissements              FicheDecaissement[]
   devisProforma              DevisProforma[]
+  demandesAchat              DemandeAchatInterne[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2173,6 +2176,7 @@ model Produit {
   lignesDevisProforma  LigneDevisProforma[]
   lignesBonPreparation LigneBonPreparation[]
   lignesBonLivraison   LigneBonLivraison[]
+  lignesDemandeAchat   LigneDemandeAchatInterne[]
 
   // Crédits clients
   lignesCreditProduit   LigneCreditClient[] @relation("LigneCreditProduit")
@@ -2821,6 +2825,67 @@ enum StatutReponseRFQ {
   REJETEE
 }
 
+enum StatutDemandeAchat {
+  SOUMISE
+  EN_VALIDATION
+  APPROUVEE
+  REJETEE
+  ANNULEE
+  CLOTUREE
+}
+
+/// Demande d'Achat Interne (CDC digitalisation §5.3) — formalise en interne un
+/// besoin d'achat avant le lancement d'une RFQ/PO. Alimentable manuellement ou
+/// depuis le tableau MRP (besoin net calculé, app/api/logistique/mrp). Visa
+/// requis au-delà du seuil paramétré (lib/parametresDocuments.ts) ; une fois
+/// APPROUVEE, chaque ligne peut (facultativement, sans cascade automatique)
+/// être rattachée à une RFQ créée depuis l'écran RFQ existant.
+model DemandeAchatInterne {
+  id        Int                @id @default(autoincrement())
+  reference String             @unique // ex DAI-TG-2026-000001
+  statut    StatutDemandeAchat @default(SOUMISE)
+
+  demandeurId Int
+  demandeur   User @relation("DemandeAchatDemandeur", fields: [demandeurId], references: [id])
+
+  pointDeVenteId Int?
+  pointDeVente   PointDeVente? @relation(fields: [pointDeVenteId], references: [id])
+
+  motif String
+  notes String?
+
+  // Indicatif (quantite × prixUnitaire catalogue) — sert uniquement au seuil de
+  // visa, le prix réel reste à déterminer via RFQ.
+  montantEstimatif Decimal @default(0)
+
+  viseParId  Int?
+  visePar    User?     @relation("DemandeAchatViseur", fields: [viseParId], references: [id])
+  dateVisa   DateTime?
+  motifRejet String?
+
+  lignes LigneDemandeAchatInterne[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([demandeurId])
+}
+
+model LigneDemandeAchatInterne {
+  id            Int                 @id @default(autoincrement())
+  demandeId     Int
+  demande       DemandeAchatInterne @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  produitId     Int
+  produit       Produit             @relation(fields: [produitId], references: [id])
+  quantite      Int
+  justification String?
+
+  demandeCotation DemandeCotation?
+
+  @@index([demandeId])
+}
+
 model DemandeCotation {
   id        Int       @id @default(autoincrement())
   reference String    @unique // ex RFQ-TG-2026-000001
@@ -2842,6 +2907,11 @@ model DemandeCotation {
   fournisseurRetenuId Int?
   fournisseurRetenu   Fournisseur? @relation("RFQFournisseurRetenu", fields: [fournisseurRetenuId], references: [id])
   dateCloture         DateTime?
+
+  // Origine facultative (CDC §5.3) — trace la ligne de Demande d'Achat Interne
+  // qui a déclenché cette RFQ, si elle a été créée depuis une demande approuvée.
+  demandeAchatLigneId Int?                      @unique
+  demandeAchatLigne   LigneDemandeAchatInterne? @relation(fields: [demandeAchatLigneId], references: [id])
 
   reponses     ReponseRFQ[]
   bonsCommande BonCommande[] // PO créés à partir de cette RFQ

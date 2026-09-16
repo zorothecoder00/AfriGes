@@ -320,6 +320,8 @@ function FournisseurDetail({ id, onClose, onUpdated }: { id: number; onClose: ()
           <div className="flex items-center gap-1 flex-shrink-0">
             {!editMode && f && (
               <>
+                <a href={`/dashboard/user/logistiquesApprovisionnements/fournisseurs/${id}/releve`} target="_blank" rel="noopener noreferrer"
+                  title="Relevé de compte" className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg"><FileText className="w-4 h-4" /></a>
                 <button onClick={startEdit} title="Modifier" className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg"><Pencil className="w-4 h-4" /></button>
                 <button onClick={toggleActif} disabled={togglingActif} title={f.actif ? "Désactiver" : "Réactiver"}
                   className={`p-1.5 rounded-lg disabled:opacity-50 ${f.actif ? "text-red-500 hover:bg-red-50" : "text-emerald-600 hover:bg-emerald-50"}`}>

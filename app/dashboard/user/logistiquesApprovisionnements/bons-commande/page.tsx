@@ -297,7 +297,6 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
   const { data, loading, refetch } = useApi<{ data: BonCommande; seuilVisaCGT: number }>(`/api/logistique/bons-commande/${id}`);
   const [busy, setBusy] = useState(false);
   const [montantPaiement, setMontantPaiement] = useState("");
-  const [modePaiementPO, setModePaiementPO] = useState("ESPECES");
   const b = data?.data;
   const seuilVisaCGT = data?.seuilVisaCGT ?? Infinity;
   const visaCGTRequis = !!b && Number(b.montantTotal) > seuilVisaCGT;
@@ -309,11 +308,13 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
     try {
       const r = await fetch(`/api/logistique/bons-commande/${id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "ENREGISTRER_PAIEMENT", montant, modePaiement: modePaiementPO }),
+        body: JSON.stringify({ action: "ENREGISTRER_PAIEMENT", montant }),
       });
       const j = await r.json().catch(() => ({}));
-      if (r.ok) { toast.success("Paiement enregistré"); setMontantPaiement(""); refetch(); onUpdated(); }
-      else toast.error(j.error ?? "Erreur");
+      if (r.ok) {
+        toast.success(`Demande de paiement soumise (fiche ${j.data?.reference ?? ""}) — en attente d'approbation comptable`);
+        setMontantPaiement(""); refetch(); onUpdated();
+      } else toast.error(j.error ?? "Erreur");
     } finally { setBusy(false); }
   };
 
@@ -413,7 +414,9 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
               </div>
               <p className="text-right text-sm font-bold text-slate-800">Total : {Number(b.montantTotal).toLocaleString("fr-FR")} {b.devise}</p>
 
-              {/* Paiement fournisseur (CDC §14 — factures à payer) */}
+              {/* Paiement fournisseur (CDC §14 — factures à payer) — passe désormais par
+                  une Fiche de Décaissement (visa N1/N2) plutôt qu'un paiement direct :
+                  montantPaye ne bouge qu'à l'exécution réelle de cette fiche. */}
               {!["DRAFT", "PENDING_APPROVAL", "CANCELLED"].includes(b.statut) && (
                 <div className="pt-3 border-t border-slate-100">
                   <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Paiement fournisseur</p>
@@ -427,22 +430,16 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
                   </div>
                   {Number(b.montantTotal) - Number(b.montantPaye) > 0.01 && (
                     <div className="flex items-center gap-2">
-                      <input type="number" min="0" placeholder="Montant à enregistrer" value={montantPaiement}
+                      <input type="number" min="0" placeholder="Montant à soumettre" value={montantPaiement}
                         onChange={(e) => setMontantPaiement(e.target.value)}
                         className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                      <select value={modePaiementPO} onChange={(e) => setModePaiementPO(e.target.value)}
-                        className="px-2 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        <option value="ESPECES">Espèces</option>
-                        <option value="VIREMENT">Virement</option>
-                        <option value="CHEQUE">Chèque</option>
-                        <option value="MOBILE_MONEY">Mobile Money</option>
-                      </select>
                       <button onClick={enregistrerPaiement} disabled={busy}
                         className="px-3 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap">
-                        Enregistrer
+                        Soumettre le paiement
                       </button>
                     </div>
                   )}
+                  <p className="text-xs text-slate-400 mt-1.5">Génère une fiche de décaissement (visa comptable) — le solde payé ci-dessus se met à jour une fois le paiement exécuté.</p>
                 </div>
               )}
 

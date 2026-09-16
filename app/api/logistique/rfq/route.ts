@@ -9,6 +9,7 @@ const INCLUDE = {
   produit: { select: { id: true, nom: true, codeProduit: true, uniteAchat: { select: { nom: true } } } },
   pointDeVente: { select: { id: true, nom: true, code: true } },
   fournisseurRetenu: { select: { id: true, nom: true, code: true } },
+  demandeAchatLigne: { select: { id: true, demande: { select: { id: true, reference: true } } } },
   reponses: {
     include: { fournisseur: { select: { id: true, nom: true, code: true, email: true, noteGlobale: true } } },
   },
@@ -56,7 +57,10 @@ export async function GET(req: Request) {
 /**
  * POST /api/logistique/rfq
  * Crée une demande de cotation en BROUILLON (pas encore envoyée aux fournisseurs).
- * Body: { produitId, quantite, pointDeVenteId?, dateLimiteReponse?, notes?, fournisseurIds: number[] }
+ * Body: { produitId, quantite, pointDeVenteId?, dateLimiteReponse?, notes?,
+ *   fournisseurIds: number[], demandeAchatLigneId? }
+ * `demandeAchatLigneId` (facultatif) rattache la RFQ à une ligne de Demande
+ * d'Achat Interne APPROUVEE (CDC §5.3) — conversion manuelle, pas de cascade.
  */
 export async function POST(req: Request) {
   try {
@@ -64,13 +68,29 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const body = await req.json();
-    const { produitId, quantite, pointDeVenteId, dateLimiteReponse, notes, fournisseurIds } = body;
+    const { produitId, quantite, pointDeVenteId, dateLimiteReponse, notes, fournisseurIds, demandeAchatLigneId } = body;
 
     if (!produitId || !quantite || quantite <= 0) {
       return NextResponse.json({ error: "produitId et quantite (>0) sont obligatoires" }, { status: 400 });
     }
     if (!Array.isArray(fournisseurIds) || fournisseurIds.length < 1) {
       return NextResponse.json({ error: "Sélectionnez au moins un fournisseur à consulter" }, { status: 400 });
+    }
+
+    let demandeAchatLigneIdValide: number | null = null;
+    if (demandeAchatLigneId) {
+      const ligne = await prisma.ligneDemandeAchatInterne.findUnique({
+        where: { id: Number(demandeAchatLigneId) },
+        select: { id: true, demandeCotation: { select: { id: true } }, demande: { select: { statut: true } } },
+      });
+      if (!ligne) return NextResponse.json({ error: "Ligne de demande d'achat introuvable" }, { status: 404 });
+      if (ligne.demande.statut !== "APPROUVEE") {
+        return NextResponse.json({ error: "La demande d'achat d'origine doit être approuvée" }, { status: 422 });
+      }
+      if (ligne.demandeCotation) {
+        return NextResponse.json({ error: "Cette ligne est déjà rattachée à une RFQ" }, { status: 422 });
+      }
+      demandeAchatLigneIdValide = ligne.id;
     }
 
     const data = {
@@ -80,6 +100,7 @@ export async function POST(req: Request) {
       dateLimiteReponse: dateLimiteReponse ? new Date(dateLimiteReponse) : null,
       notes: notes || null,
       creeParId: parseInt(session.user.id),
+      demandeAchatLigneId: demandeAchatLigneIdValide,
     };
 
     for (let attempt = 0; attempt < 6; attempt++) {

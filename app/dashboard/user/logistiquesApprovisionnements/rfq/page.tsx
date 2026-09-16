@@ -137,7 +137,10 @@ function RFQPageInner() {
         <CreateRFQModal
           onClose={() => setShowCreate(false)}
           onCreated={(id) => { setShowCreate(false); refetch(); setDetailId(id); }}
-          prefill={{ produitId: searchParams.get("produitId"), produitNom: searchParams.get("produitNom"), quantite: searchParams.get("quantite") }}
+          prefill={{
+            produitId: searchParams.get("produitId"), produitNom: searchParams.get("produitNom"),
+            quantite: searchParams.get("quantite"), demandeAchatLigneId: searchParams.get("demandeAchatLigneId"),
+          }}
         />
       )}
       {detailId && <RFQDetail id={detailId} onClose={() => setDetailId(null)} onUpdated={refetch} />}
@@ -149,12 +152,13 @@ function RFQPageInner() {
 
 function CreateRFQModal({ onClose, onCreated, prefill }: {
   onClose: () => void; onCreated: (id: number) => void;
-  prefill?: { produitId: string | null; produitNom: string | null; quantite: string | null };
+  prefill?: { produitId: string | null; produitNom: string | null; quantite: string | null; demandeAchatLigneId?: string | null };
 }) {
   const [produitSearch, setProduitSearch] = useState("");
   const [produitId, setProduitId] = useState<number | null>(prefill?.produitId ? Number(prefill.produitId) : null);
   const [produitNom, setProduitNom] = useState(prefill?.produitNom ?? "");
   const [quantite, setQuantite] = useState(prefill?.quantite ?? "");
+  const demandeAchatLigneId = prefill?.demandeAchatLigneId ? Number(prefill.demandeAchatLigneId) : undefined;
   const [dateLimiteReponse, setDateLimiteReponse] = useState("");
   const [notes, setNotes] = useState("");
   const [fournisseurIds, setFournisseurIds] = useState<number[]>([]);
@@ -178,7 +182,7 @@ function CreateRFQModal({ onClose, onCreated, prefill }: {
     try {
       const r = await fetch("/api/logistique/rfq", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ produitId, quantite: Number(quantite), dateLimiteReponse: dateLimiteReponse || undefined, notes: notes || undefined, fournisseurIds }),
+        body: JSON.stringify({ produitId, quantite: Number(quantite), dateLimiteReponse: dateLimiteReponse || undefined, notes: notes || undefined, fournisseurIds, demandeAchatLigneId }),
       });
       const j = await r.json().catch(() => ({}));
       if (r.ok) { toast.success("RFQ créée"); onCreated(j.data.id); }
