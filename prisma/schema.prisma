@@ -884,6 +884,9 @@ model User {
   // Clients validés ou rejetés par ce RVC
   clientsValides    Client[]                @relation("ClientValidateur")
 
+  // Recouvrement crédit client classique (CDC digitalisation §5.4)
+  actionsRecouvrementCreditEffectuees ActionRecouvrementCredit[] @relation("ActionsRecouvrementCreditEffectuees")
+
   // RIA
   depotsRIAValides           DepotInvestisseur[]     @relation("DepotsValides")
   retraitsRIAValides         RetraitInvestisseur[]   @relation("RetraitsValides")
@@ -1556,6 +1559,7 @@ model CreditClient {
   facturesVente           FactureVente[]            @relation("CreditClientFactures")
   financementsRIA         OperationFinancementRIA[] @relation("FinancementsRIACredit")
   autorisationPrelevement AutorisationPrelevement? // prélèvement automatique CC (CDC §19.C)
+  actionsRecouvrement     ActionRecouvrementCredit[]
 
   // Attribution marketing (Phase 1, CDC §56-57) — tag optionnel à la saisie
   // pour rattacher ce crédit au CA d'une campagne.
@@ -8536,6 +8540,45 @@ model ActionRecouvrementRIA {
   updatedAt DateTime @updatedAt
 
   @@index([financementId])
+  @@index([statut])
+  @@index([dateAction])
+}
+
+/// Recouvrement du crédit client classique (CDC digitalisation §5.4) — distinct
+/// d'ActionRecouvrementRIA (financement investisseur) : ici la contrepartie est
+/// un CreditClient (vente à crédit alimentaire), pas un OperationFinancementRIA.
+/// Réutilise volontairement les mêmes enums Type/StatutActionRecouvrement — même
+/// vocabulaire métier, pas de raison d'en dupliquer un second jeu.
+/// Couvre "Mise en demeure" et "Fiche de visite de recouvrement" (impression via
+/// FicheActionRecouvrement.tsx) ainsi que les relances courantes (appel, note).
+model ActionRecouvrementCredit {
+  id       Int          @id @default(autoincrement())
+  creditId Int
+  credit   CreditClient @relation(fields: [creditId], references: [id], onDelete: Cascade)
+
+  type   TypeActionRecouvrement
+  statut StatutActionRecouvrement @default(EN_COURS)
+
+  notes    String?
+  resultat String?
+
+  // Mise en demeure : délai accordé au client avant action juridique.
+  delaiRegularisationJours Int?
+
+  // Visite terrain ("Fiche de visite de recouvrement").
+  lieuVisite         String?
+  personneRencontree String?
+
+  effectueParId Int?
+  effectuePar   User? @relation("ActionsRecouvrementCreditEffectuees", fields: [effectueParId], references: [id])
+
+  dateAction  DateTime  @default(now())
+  dateRelance DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([creditId])
   @@index([statut])
   @@index([dateAction])
 }

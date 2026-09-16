@@ -204,59 +204,53 @@ a u niveau de dashboard/user/caissiers , tu vois au niveau des souscritpions
   Bon de réception, Facture, Facture à crédit, Facture d'avoir, Reçu de
   paiement.
 
-  Demande de crédit         │                                             │
-  │ alimentaire, Échéancier   │ ✓ EXISTS                                    │
+  Demande de crédit           │                                             │
+  │ alimentaire, Échéancier   │ ✓ EXISTS                                    
   │ de remboursement, Relevé  │                                             │
   │ de compte client          │                                             │
   ├───────────────────────────┼─────────────────────────────────────────────┤
-  │ Fiche d'identification    │ ✓ EXISTS (modèle Client)                    │
+  │ Fiche d'identification    │ ✓ EXISTS (modèle Client)                    
   │ client                    │                                             │
   ├───────────────────────────┼─────────────────────────────────────────────┤
-  │ Fiche d'évaluation du     │ ✓ EXISTS (ClientScoreHistorique + scoring)  │
+  │ Fiche d'évaluation du     │ ✓ EXISTS (ClientScoreHistorique + scoring)  
   │ client                    │                                             │
   ├───────────────────────────┼─────────────────────────────────────────────┤
-  │ Carnet de crédit digital  │ ✓ EXISTS (équivalent fonctionnel :          │
+  │ Carnet de crédit digital  │ ✓ EXISTS (équivalent fonctionnel :          
   │                           │ CreditClient+Échéances+Remboursements)      │
   ├───────────────────────────┼─────────────────────────────────────────────┤
-  │ Rapport de recouvrement,  │ ✓ EXISTS (dashboard/rapports admin)         │
+  │ Rapport de recouvrement,  │ ✓ EXISTS (dashboard/rapports admin)         
   │ État des impayés          │                                             │
   ├───────────────────────────┼─────────────────────────────────────────────┤
-  │                           │ ⚠ PARTIAL (BordereauRemboursement =         │
-  │ Reçu de remboursement     │ échéancier complet, pas un reçu par         │
-  │                           │ versement)                                  │
-  ├───────────────────────────┼─────────────────────────────────────────────┤
-  │ Avis d'échéance / Avis de │ ⚠ PARTIAL (notif SMS/WhatsApp, pas un       │
-  │  retard                   │ document)                                   │
-  ├───────────────────────────┼─────────────────────────────────────────────┤
-  │ Mise en demeure           │ ⚠ PARTIAL (type d'action tracée côté RIA,   │
-  │                           │ pas de lettre générée)                      │
-  ├───────────────────────────┼─────────────────────────────────────────────┤
-  │ Fiche de visite de        │ ⚠ PARTIAL (tracé côté RIA seulement, pas de 
-  │ recouvrement            
+  
+ Phase 3 — Crédit client complet (§5.4) — partiellement fait, 4 trous
+  identifiés :
+  - Reçu de remboursement par versement (aujourd'hui : échéancier complet via
+    BordereauRemboursement, pas un reçu unitaire)
+  - Avis d'échéance / avis de retard en tant que document (existe seulement
+    comme notif SMS/WhatsApp)
+  - Mise en demeure (tracée côté RIA comme action, mais pas de lettre générée)
+  - Fiche de visite de recouvrement (tracée côté RIA, pas de formulaire dédié)
 
-  Le module Dépôt-vente est parti en construction — c'est un chantier conséquent
-  (12 documents, tout un nouveau domaine métier), donc je détaille la décision
-  d'architecture clé pendant que ça tourne :
+  Phase 4 — Revendeurs / B2B (§5.6) — rien n'existe, nouveau domaine complet
+  (j'ai vérifié : aucun modèle Revendeur en base) : fiche d'ouverture de compte,
+  fiche client pro, grille tarifaire, BC revendeur, facture revendeur, BL
+  revendeur, relevé de compte revendeur, état des achats, attestation fidélité,
+  convention commerciale, conditions particulières — 11 documents.
 
-  L'idée centrale : plutôt que de bâtir un système de stock parallèle, je
-  réutilise l'infrastructure LotProduit/FEFO qui existe déjà. Quand un
-  fournisseur dépose de la marchandise, ça crée un lot tracé (fournisseur +
-  quantité) ; les ventes normales (caisse, RPV, agent terrain) le consomment
-  automatiquement en FEFO sans toucher au code de vente existant — c'est déjà
-  comme ça que ça marche pour n'importe quel produit avec des lots. Ça donne le
-  suivi "vendu / invendu" gratuitement et sans risque sur le flux de vente en
-  production.
+  Phase 4 — Logistique avancée (§5.7) — seul le Bon de Livraison existe.
+  Manquent : fiche de chargement, bordereau de livraison (tournée), fiche de
+  tournée, fiche de mission livreur, rapport de livraison, fiche de livraison
+  non effectuée, fiche de retour marchandises (post-livraison), fiche d'incident
+  livraison.
 
-  Le règlement au fournisseur réutilise aussi le circuit Fiche de Décaissement
-  (visa N1/N2) qu'on vient de corriger cette session — pas de nouveau système de
-  paiement parallèle, la "Demande de règlement" et le "Reçu de règlement"
-  passent par ce circuit déjà éprouvé.
+  Phase 4 — Retours et réclamations (§5.8) — seul Avoir client existe. Manquent
+  : formulaire de réclamation client, fiche de retour marchandise, bon de
+  retour, rapport d'incident, fiche de traitement de réclamation, bon de
+  remplacement, fiche de clôture de réclamation — tout un circuit à construire.
 
-  Simplification assumée (documentée dans le code) : un produit déposé occupe
-  une ligne de stock dédiée à ce fournisseur (pas mélangé avec du stock propre
-  AfriSime pour le même produit/PDV) — cohérent avec l'esprit du CDC (gammes
-  partenaires distinctes).
-
-
-
+  Phase 5 — Contrôle commercial & reporting (§5.9) — à vérifier/construire :
+  rapports journalier/hebdo/mensuel des ventes, par agent/produit/agence, ventes
+  à crédit, encaissements, impayés, recouvrement, retours, réclamations,
+  tableau de bord commercial consolidé (des dashboards existent ailleurs — Paie,
+  RIA, POPC — mais pas ce périmètre commercial spécifique du CDC).
 

@@ -1664,3 +1664,5 @@ Tableau de bord
 Espace personnalisé affichant à chaque profil (agent, client, 
 transporteur, magasinier, service, direction) les documents et 
 indicateurs qui le concernent
+
+Créer un centre de commandement admin/superadmin et peut être aussi les rôles RPV et chef d'agence pour pouvoir centraliser tous les documents qu'on est entrain de créer ( je parle des documents digitalisés de cdcdigitalisattion.txt)

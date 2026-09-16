@@ -5,7 +5,7 @@ import {
   CreditCard, Search, RefreshCw, Loader2, Plus, X, Eye, Pencil,
   CheckCircle2, AlertCircle, TrendingDown, Calendar, Banknote,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, User,
-  PackageCheck, ArrowLeftRight, XCircle, Receipt, Edit3, Trash2, FolderTree, FileText, Ban, Menu,
+  PackageCheck, ArrowLeftRight, XCircle, Receipt, Edit3, Trash2, FolderTree, FileText, Ban, Menu, Printer,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import AccountMenuButton from "@/components/AccountMenuButton";
@@ -21,6 +21,9 @@ import { remunerationFormule } from "@/lib/formuleCredit";
 import { MonthGroupHeaderRow, useCollapsedMonths } from "@/components/MonthGroupHeaderRow";
 import { CreditRappelInfo } from "@/components/CreditRappelInfo";
 import BordereauRemboursement, { type BordereauCredit, type BordereauClient } from "@/components/BordereauRemboursement";
+import RecuRemboursement, { type RecuRemboursementData } from "@/components/RecuRemboursement";
+import AvisEcheance, { type EcheanceAvis, type VarianteAvis } from "@/components/AvisEcheance";
+import RecouvrementCreditPanel from "@/components/RecouvrementCreditPanel";
 import { toast } from "sonner";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -930,6 +933,10 @@ export default function RVCCreditsPage() {
     finally { setBordereauLoadingId(null); }
   };
 
+  // ── Reçu de remboursement / Avis d'échéance (Phase 3 CDC §5.4) ──────────────
+  const [printRecu, setPrintRecu] = useState<RecuRemboursementData | null>(null);
+  const [printAvis, setPrintAvis] = useState<{ variante: VarianteAvis; echeances: EcheanceAvis[] } | null>(null);
+
   // ── Éditer un remboursement déjà enregistré (via l'endpoint admin/RVC) ───────
   const openEditRemb = (r: RembItem) => {
     setEditRemb(r);
@@ -1511,11 +1518,30 @@ export default function RVCCreditsPage() {
                 {/* Échéancier */}
                 {detailCredit.echeances.length > 0 && (
                   <div>
-                    <button onClick={() => setShowEcheances((v) => !v)}
-                      className="w-full flex items-center justify-between text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 hover:text-gray-700">
-                      <span>Échéancier ({detailCredit.echeances.length} jours)</span>
-                      {showEcheances ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </button>
+                    <div className="flex items-center justify-between mb-2">
+                      <button onClick={() => setShowEcheances((v) => !v)}
+                        className="flex-1 flex items-center justify-between text-xs font-semibold text-gray-500 uppercase tracking-wide hover:text-gray-700">
+                        <span>Échéancier ({detailCredit.echeances.length} jours)</span>
+                        {showEcheances ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                      <button
+                        onClick={() => {
+                          const now = new Date();
+                          const impayees = detailCredit.echeances.filter((e) => e.statut !== "PAYE" && new Date(e.dateEcheance) < now);
+                          const base = (impayees.length > 0 ? impayees : detailCredit.echeances.filter((e) => e.statut !== "PAYE").slice(0, 1))
+                            .map((e) => ({
+                              numeroEcheance: e.numeroEcheance, dateEcheance: e.dateEcheance,
+                              montantDu: e.montantDu, montantPaye: e.montantPaye,
+                              joursRetard: Math.max(0, Math.floor((now.getTime() - new Date(e.dateEcheance).getTime()) / 86_400_000)),
+                            }));
+                          if (!base.length) { toast.info("Aucune échéance à notifier."); return; }
+                          setPrintAvis({ variante: impayees.length > 0 ? "RETARD" : "ECHEANCE", echeances: base });
+                        }}
+                        title="Imprimer un avis d'échéance / de retard"
+                        className="ml-2 flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg">
+                        <Printer className="w-3.5 h-3.5" /> Avis
+                      </button>
+                    </div>
                     {showEcheances && (
                       <div className="space-y-1 max-h-60 overflow-y-auto">
                         {detailCredit.echeances.map((e) => {
@@ -1567,6 +1593,10 @@ export default function RVCCreditsPage() {
                           </span>
                           <span className="text-gray-400">{r.modePaiement.replace("_", " ")}</span>
                           <span className="font-bold text-emerald-700">{formatCurrency(Number(r.montant))}</span>
+                          <button type="button" onClick={() => setPrintRecu(r)}
+                            className="p-1 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded" title="Imprimer le reçu">
+                            <Printer className="w-3.5 h-3.5" />
+                          </button>
                           <button type="button" onClick={() => openEditRemb(r)}
                             className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded" title="Corriger ce remboursement">
                             <Pencil className="w-3.5 h-3.5" />
@@ -1578,6 +1608,14 @@ export default function RVCCreditsPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Recouvrement (CDC digitalisation §5.4, Phase 3) */}
+                <RecouvrementCreditPanel
+                  creditId={detailCredit.id}
+                  creditReference={detailCredit.reference}
+                  soldeRestant={detailCredit.soldeRestant}
+                  client={detailCredit.client}
+                />
               </div>
             ) : null}
           </div>
@@ -1735,6 +1773,26 @@ export default function RVCCreditsPage() {
           credit={bordereauData.credit}
           client={bordereauData.client}
           onClose={() => setBordereauData(null)}
+        />
+      )}
+
+      {printRecu && detailCredit && (
+        <RecuRemboursement
+          remboursement={printRecu}
+          creditReference={detailCredit.reference}
+          soldeRestant={detailCredit.soldeRestant}
+          client={detailCredit.client}
+          onClose={() => setPrintRecu(null)}
+        />
+      )}
+
+      {printAvis && detailCredit && (
+        <AvisEcheance
+          variante={printAvis.variante}
+          creditReference={detailCredit.reference}
+          client={detailCredit.client}
+          echeances={printAvis.echeances}
+          onClose={() => setPrintAvis(null)}
         />
       )}
 
