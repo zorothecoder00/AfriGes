@@ -13,12 +13,11 @@ circuit de validation. La numérotation §X.Y est conservée pour rester
 traçable par rapport au CDC d'origine (consultable dans l'historique git si
 besoin : `git log -- cdcdigitalisation.txt`).
 
-Deux familles de documents coexistent dans AfriGes :
-- Documents "historiques" (Partie A, §5.2-5.5) : impression via PDF serveur,
-  route `GET /api/.../[id]/pdf` (moteur Chromium headless, lib/pdf.ts).
-- Documents "récents" (§5.4 recouvrement, §5.6 à §5.9, ajoutés en
-  septembre 2026) : impression via aperçu navigateur imprimable
-  (composant DocumentPrintShell, zoom + impression couleur/N-B).
+Tous les documents s'impriment de la même façon : PDF généré côté serveur
+(moteur Chromium headless, lib/pdf.ts), accessible via un lien/bouton
+"Imprimer" qui ouvre `GET /api/.../[id]/pdf` dans un nouvel onglet. Chaque
+PDF embarque un QR sécurisé par empreinte cryptographique (hash HMAC,
+lib/documentQr.ts) qui permet de retrouver le document via `/q/[code]/[id]`.
 
 Connexion : chaque gestionnaire se connecte avec son compte AfriGes
 (identifiant/mot de passe ou Google selon configuration). L'accès à chaque
@@ -262,9 +261,12 @@ RÉCEPTION FOURNISSEUR + FICHE DE CONTRÔLE
     contrôle conformité qualité/quantité et met à jour le stock
 
 FACTURE FOURNISSEUR
-  Gérée uniquement par le Comptable via l'API (pas de page dashboard
-  dédiée à ce jour) — rapprochement possible depuis la fiche fournisseur.
-  Une facture non rapprochée déclenche une alerte comptable automatique.
+  Accéder : /dashboard/user/comptables/factures-achat (Comptable)
+  Remplir : fournisseur (recherche), n° de facture, date, montant TTC,
+    réception liée (optionnel)
+  Gérer : NON_RAPPROCHEE → RAPPROCHEE (bouton "Rapprocher", éventuellement
+    en la liant à une réception). Une facture non rapprochée déclenche une
+    alerte comptable automatique.
 
 AVOIR FOURNISSEUR, ORDRE DE PAIEMENT, PREUVE DE PAIEMENT
   Avoir fournisseur : fiche fournisseur, onglet dédié
@@ -302,12 +304,15 @@ CARNET DE CRÉDIT DIGITAL / ÉCHÉANCIER / RELEVÉ DE COMPTE
     /dashboard/user/responsablesVenteCredit/credits
 
 REÇU DE REMBOURSEMENT
-  Généré depuis le détail du crédit (bouton d'impression sur chaque
-  remboursement enregistré) — composant RecuRemboursement.
+  Généré depuis le détail du crédit (bouton imprimante sur chaque
+  remboursement enregistré) : GET /api/admin/credits/[id]/remboursements/
+  [rembId]/pdf
 
 AVIS D'ÉCHÉANCE / AVIS DE RETARD
-  Généré depuis le détail du crédit — composant AvisEcheance (document,
-  en plus de la notification SMS/WhatsApp automatique).
+  Généré depuis le détail du crédit, bouton "Avis" sur l'échéancier :
+  GET /api/admin/credits/[id]/avis-echeance/pdf (calcul automatique —
+  échéances impayées et échues → Avis de retard, sinon prochaine échéance
+  → Avis d'échéance), en plus de la notification SMS/WhatsApp automatique.
 
 MISE EN DEMEURE / FICHE DE VISITE DE RECOUVREMENT / RAPPORT DE
 RECOUVREMENT / FICHE DE VISITE
@@ -318,17 +323,18 @@ RECOUVREMENT / FICHE DE VISITE
     demeure / Accord d'échéancier / Saisie de garantie / Note interne) ;
     pour une visite : lieu (obligatoire) et personne rencontrée ; pour une
     mise en demeure : délai de régularisation (8 jours par défaut)
-  Imprimer : la Mise en demeure et la Fiche de visite s'impriment
-    automatiquement à la création (composant FicheActionRecouvrement)
+  Imprimer : GET /api/admin/credits/[id]/recouvrement/[actionId]/pdf — la
+    Mise en demeure et la Fiche de visite s'ouvrent automatiquement dans
+    un nouvel onglet à la création de l'action.
 
 ÉTAT DES IMPAYÉS
   Vue consolidée disponible dans le Contrôle commercial, voir §5.9
   ci-dessous (onglet "Impayés").
 
 ATTESTATION DE SOLDE / QUITTANCE FINALE
-  Pas de document imprimable dédié à ce jour : le statut SOLDE est visible
-  sur /suivi/[reference] et dans le détail du crédit, mais aucune
-  attestation formelle séparée n'existe encore.
+  Accéder : détail du crédit → bouton "Attestation de solde / quittance
+    finale" (visible uniquement une fois le crédit intégralement soldé)
+  Imprimer : GET /api/admin/credits/[id]/attestation-solde/pdf
 
 
 §5.5 — DOCUMENTS SPÉCIFIQUES AU DÉPÔT-VENTE
@@ -378,28 +384,33 @@ FICHE D'OUVERTURE DE COMPTE / CARTE CLIENT PROFESSIONNEL
   utilisateur ayant le rôle REVENDEUR, puis renseigner raison sociale, nom
   commercial, NIF, RCCM, adresse, ville, contact, point de vente rattaché,
   conditions particulières. Statuts : ACTIF / SUSPENDU / RESILIÉ.
-  Imprimer : composant FicheRevendeur (variantes : ouverture de compte,
-  carte professionnelle, attestation de fidélité, convention commerciale
-  — tout est dans le même composant, sélection par variante).
+  Imprimer (variantes ouverture/carte/convention/attestation, sélection par
+  bouton) : GET /api/admin/revendeurs/[id]/pdf?variante=OUVERTURE|CARTE|
+  CONVENTION|ATTESTATION (self-service revendeur : /api/revendeur/profil/pdf)
 
 GRILLE TARIFAIRE REVENDEUR
   Réutilise le type de prix "GROS" du Catalogue Produits — visible/gérée
   depuis la fiche produit (module Catalogue), pas une page séparée.
+  Imprimable via ?variante=GRILLE sur la route ci-dessus.
 
 BON DE COMMANDE REVENDEUR
   Créé par le revendeur depuis /dashboard/user/revendeurs (ou par
   l'Admin/RVC pour son compte) : produits, quantités — la grille GROS
   s'applique automatiquement.
   Statuts : BROUILLON → CONFIRMEE → LIVREE → FACTUREE (ou ANNULEE)
-  Imprimer : composant BonCommandeRevendeur
+  Imprimer : GET /api/admin/revendeurs/[id]/commandes/[commandeId]/pdf
+  (self-service : /api/revendeur/commandes/[id]/pdf)
 
 FACTURE REVENDEUR / BON DE LIVRAISON REVENDEUR
   Générés automatiquement à la confirmation/livraison de la commande.
-  Imprimer : composants FactureRevendeurDoc, BonLivraisonRevendeurDoc
+  Imprimer : .../commandes/[commandeId]/facture/pdf et
+  .../commandes/[commandeId]/bon-livraison/pdf (mêmes routes admin/RVC et
+  self-service que ci-dessus)
 
 RELEVÉ DE COMPTE REVENDEUR / ÉTAT DES ACHATS
   Depuis la fiche du revendeur (/dashboard/admin/revendeurs, détail) :
-  composant ReleveAchatsRevendeur — historique des commandes/factures.
+  GET /api/admin/revendeurs/[id]/releve/pdf — historique des commandes/
+  factures (self-service : /api/revendeur/releve/pdf).
 
 CONDITIONS PARTICULIÈRES ACCORDÉES
   Champ libre dans la fiche d'ouverture de compte (voir plus haut).
@@ -413,18 +424,21 @@ Accéder : /dashboard/user/logistiquesApprovisionnements/tournees
 
 FICHE DE TOURNÉE / FICHE DE MISSION DU LIVREUR / FICHE DE CHARGEMENT /
 BORDEREAU DE LIVRAISON
-  Un seul modèle (TourneeLivraison) avec plusieurs variantes d'impression
-  regroupées dans le composant FicheTournee. Créer une tournée : point de
-  vente, livreur (utilisateur), date, arrêts (client + adresse, ou
-  rattachés à un Bon de Livraison existant).
+  Un seul modèle (TourneeLivraison) avec plusieurs variantes d'impression.
+  Créer une tournée : point de vente, livreur (utilisateur), date, arrêts
+  (client + adresse, ou rattachés à un Bon de Livraison existant).
   Statuts : PLANIFIEE → EN_COURS → TERMINEE (ou ANNULEE)
+  Imprimer : GET /api/logistique/tournees/[id]/pdf?variante=MISSION|
+  CHARGEMENT|BORDEREAU (3 boutons sur le détail de la tournée)
 
 FICHE DE LIVRAISON NON EFFECTUÉE / FICHE D'INCIDENT LIVRAISON / FICHE DE
 RETOUR MARCHANDISES (post-livraison)
-  Pour chaque arrêt de la tournée, composant FicheArretLivraison :
-  renseigner le résultat (Effectué / Non effectué + motif / Incident +
-  description / Retour de marchandise + lignes retournées et motif).
+  Pour chaque arrêt de la tournée : renseigner le résultat (Effectué / Non
+  effectué + motif / Incident + description / Retour de marchandise +
+  lignes retournées et motif).
   Statuts de l'arrêt : PLANIFIE → EFFECTUE / NON_EFFECTUE / INCIDENT
+  Imprimer : GET /api/logistique/tournees/[id]/arrets/[arretId]/pdf (le
+  titre s'adapte automatiquement au statut constaté)
 
 RAPPORT DE LIVRAISON
   Onglet "Rapport" de la page tournées : agrégation des tournées/arrêts
@@ -447,7 +461,7 @@ FORMULAIRE DE RÉCLAMATION CLIENT
   non conforme / Erreur de facturation / Retard de livraison / Qualité de
   service / Autre), objet, description, référence de la vente/facture/
   crédit d'origine (facultatif).
-  Imprimer : composant FormulaireReclamation.
+  Imprimer : GET /api/admin/reclamations/[id]/pdf
 
 FICHE DE TRAITEMENT DE RÉCLAMATION / FICHE DE CLÔTURE
   Depuis le détail de la réclamation : ajouter des actions au journal de
@@ -455,8 +469,8 @@ FICHE DE TRAITEMENT DE RÉCLAMATION / FICHE DE CLÔTURE
   prendre en charge, rejeter (motif obligatoire) ou clôturer (résumé de
   clôture obligatoire, uniquement depuis le statut Résolue).
   Statuts : ENREGISTREE → EN_TRAITEMENT → RESOLUE → CLOTUREE (ou REJETEE)
-  Imprimer : composant FicheTraitementReclamation (devient automatiquement
-  "Fiche de clôture" une fois le statut Clôturée atteint).
+  Imprimer : GET /api/admin/reclamations/[id]/traitement/pdf (devient
+  automatiquement "Fiche de clôture" une fois le statut Clôturée atteint).
 
 FICHE DE RETOUR MARCHANDISE / BON DE RETOUR
   Depuis le détail d'une réclamation, bouton "Fiche de retour" : choisir
@@ -464,7 +478,9 @@ FICHE DE RETOUR MARCHANDISE / BON DE RETOUR
   puis valide sur /dashboard/user/magasiniers/retours-client (la
   validation recrédite automatiquement le stock).
   Statuts : DECLARE → RECEPTIONNE → VALIDE (devient alors "Bon de retour")
-  Imprimer : composant FicheRetourMarchandise (variante selon le statut).
+  Imprimer : GET /api/admin/reclamations/[id]/retours/[retourId]/pdf
+  (variante selon le statut ; accessible au Service Commercial comme au
+  Magasinier).
 
 BON DE REMPLACEMENT
   Depuis le détail d'une réclamation, bouton "Bon de remplacement" :
@@ -473,14 +489,15 @@ BON DE REMPLACEMENT
   /dashboard/user/magasiniers/remplacements (la livraison décrémente
   automatiquement le stock du produit de remplacement).
   Statuts : DEMANDE → APPROUVE → LIVRE
-  Imprimer : composant BonRemplacement.
+  Imprimer : GET /api/admin/reclamations/[id]/remplacements/
+  [remplacementId]/pdf
 
 RAPPORT D'INCIDENT
   Depuis le détail d'une réclamation (bouton "Déclarer un incident") ou de
   façon autonome via l'API : lieu, type (Livraison / Produit / Comportement
   client / Comportement agent / Autre), description, personnes impliquées,
   actions correctives.
-  Imprimer : composant RapportIncidentCommercial.
+  Imprimer : GET /api/admin/reclamations/incidents/[incidentId]/pdf
 
 AVOIR CLIENT (dans ce circuit)
   Depuis le détail d'une réclamation, bouton "Émettre un avoir" (action
