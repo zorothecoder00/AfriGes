@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { TypeIncidentCommercial } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getReclamationSession } from "@/lib/authReclamation";
-import { resolvePdvIdsAutorises } from "@/lib/reclamationClient";
+import { resolvePdvIdsAutorises } from "@/lib/reclamationClientServer";
 import { genererReferenceUnique } from "@/lib/depotVente";
 import { auditLog, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";

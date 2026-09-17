@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { TypeActionReclamation } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getReclamationSession } from "@/lib/authReclamation";
-import { resolvePdvIdsAutorises, rolesANotifierAction, LABEL_TYPE_ACTION_RECLAMATION } from "@/lib/reclamationClient";
+import { rolesANotifierAction, LABEL_TYPE_ACTION_RECLAMATION } from "@/lib/reclamationClient";
+import { resolvePdvIdsAutorises } from "@/lib/reclamationClientServer";
 import { auditLog, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 

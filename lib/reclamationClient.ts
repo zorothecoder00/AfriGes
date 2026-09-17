@@ -1,12 +1,13 @@
 import { TypeActionReclamation, TypeReclamation, StatutRetourMarchandise, StatutRemplacementProduit } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
 
 /**
- * Retours et réclamations client (CDC digitalisation §5.8). Helpers partagés
- * entre les routes /api/admin/reclamations/* et /api/magasinier/{retours-
- * client,remplacements}/*, et les composants d'impression (FormulaireReclamation,
+ * Retours et réclamations client (CDC digitalisation §5.8). Lib PURE (aucun
+ * import Prisma) : importée aussi bien par les routes API que par les
+ * composants d'impression "use client" (FormulaireReclamation,
  * FicheRetourMarchandise, BonRemplacement, RapportIncidentCommercial,
- * FicheTraitementReclamation).
+ * FicheTraitementReclamation) et la page admin. La frontière client/serveur
+ * Prisma est câblée à part dans lib/reclamationClientServer.ts
+ * (resolvePdvIdsAutorises).
  */
 
 export const LABEL_TYPE_RECLAMATION: Record<TypeReclamation, string> = {
@@ -43,28 +44,6 @@ export const LABEL_STATUT_REMPLACEMENT: Record<StatutRemplacementProduit, string
   LIVRE: "Livré",
   REJETE: "Rejeté",
 };
-
-/**
- * Résout les points de vente auxquels une session getReclamationSession() a
- * accès : null = pas de restriction (admin), [] = aucun PDV rattaché.
- */
-export async function resolvePdvIdsAutorises(session: {
-  user: { id: string; role: string; gestionnaireRole?: string | null };
-}): Promise<number[] | null> {
-  const { role, gestionnaireRole: gRole } = session.user;
-  if (role === "ADMIN" || role === "SUPER_ADMIN") return null;
-
-  const userId = Number(session.user.id);
-  if (gRole === "RESPONSABLE_POINT_DE_VENTE") {
-    const pdv = await prisma.pointDeVente.findFirst({ where: { rpvId: userId }, select: { id: true } });
-    return pdv ? [pdv.id] : [];
-  }
-  if (gRole === "CHEF_AGENCE") {
-    const pdvs = await prisma.pointDeVente.findMany({ where: { chefAgenceId: userId, actif: true }, select: { id: true } });
-    return pdvs.map((p) => p.id);
-  }
-  return [];
-}
 
 /** Rôles gestionnaires à notifier selon le type d'action de traitement loggé. */
 export function rolesANotifierAction(type: TypeActionReclamation): { roles: string[]; haute: boolean } {

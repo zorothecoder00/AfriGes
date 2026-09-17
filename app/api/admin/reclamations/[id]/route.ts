@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getReclamationSession } from "@/lib/authReclamation";
-import { resolvePdvIdsAutorises } from "@/lib/reclamationClient";
+import { resolvePdvIdsAutorises } from "@/lib/reclamationClientServer";
 import { auditLog, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 import { INCLUDE as LISTE_INCLUDE } from "../route";

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getReclamationSession } from "@/lib/authReclamation";
-import { resolvePdvIdsAutorises } from "@/lib/reclamationClient";
+import { resolvePdvIdsAutorises } from "@/lib/reclamationClientServer";
 
 /**
  * GET /api/admin/reclamations/clients-recherche?q=
