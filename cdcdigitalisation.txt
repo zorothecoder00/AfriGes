@@ -1,1666 +1,536 @@
-AFRISIME SARL 
-Lomé – Adidogomé 
-CAHIER DES CHARGES 
-Digitalisation des documents de gestion et du cycle 
-commercial 
-Intégration au logiciel de gestion AfriGes 
-Partie A — 6 documents prioritaires spécifiés pour développement immédiat 
-Bordereau de Remise de Fonds · Bon de Commande Client · Bon de Commande Fournisseur · Bon 
-de Sortie de Marchandises · Bon de Réception · Fiche de Décaissement 
-Partie B — Catalogue documentaire global et feuille de route de digitalisation 
-Ventes · Crédit client · Achats · Fournisseurs · Dépôt-vente · Revendeurs B2B · Logistique · Retours 
-· Contrôle commercial 
-Version 2.0   
-Septembre 2026 
-Statut : Document de travail — À remettre à l'équipe de développement 
-Page 1 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 2 / 43 
-Sommaire 
-Sommaire ............................................................................................................................................... 2 
-1. Contexte et objectifs ..................................................................................................................... 5 
-1.1 Contexte ....................................................................................................................................... 5 
-1.2 Objectifs de la digitalisation ................................................................................................ 5 
-1.3 Périmètre du présent document ....................................................................................... 5 
-2. Principes généraux communs aux documents de la Partie A ..................................... 7 
-2.1 Acteurs et rôles ......................................................................................................................... 7 
-2.2 Cycle de vie générique d'un document ........................................................................... 7 
-2.3 Tableaux de bord par profil ................................................................................................ 8 
-2.4 Notifications ............................................................................................................................... 8 
-2.5 Fonctionnement hors-ligne et synchronisation ......................................................... 8 
-2.6 Traçabilité et audit .................................................................................................................. 8 
-2.7 Sécurité et droits d'accès ...................................................................................................... 9 
-3. Spécifications détaillées des documents prioritaires (Partie A) ............................... 9 
-3.1 Bordereau de Remise de Fonds ....................................................................................... 10 
-Objectif du document ............................................................................................................... 10 
-Acteurs impliqués...................................................................................................................... 10 
-Identification et compte à créditer .................................................................................... 10 
-Récapitulatif des fonds remis ............................................................................................... 10 
-Billetage (III)................................................................................................................................ 11 
-Workflow et statuts spécifiques .......................................................................................... 11 
-Règles de gestion spécifiques ............................................................................................... 11 
-Retour dans les tableaux de bord ....................................................................................... 12 
-Pièces jointes numériques acceptées ................................................................................ 12 
-3.2 Bon de Commande Client ................................................................................................... 13 
-Objectif du document ............................................................................................................... 13 
-Acteurs impliqués...................................................................................................................... 13 
-Informations sur l'agent et le point de vente (pré-remplies) ................................. 13 
-Informations sur le client ....................................................................................................... 13 
-Détails de la commande .......................................................................................................... 14 
-Conditions et validation .......................................................................................................... 14 
-Workflow et statuts spécifiques .......................................................................................... 14 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 3 / 43 
-Règles de gestion spécifiques ............................................................................................... 15 
-Retour dans les tableaux de bord ....................................................................................... 15 
-Pièces jointes numériques acceptées ................................................................................ 15 
-3.3 Bon de Commande Fournisseur ...................................................................................... 16 
-Objectif du document ............................................................................................................... 16 
-Acteurs impliqués...................................................................................................................... 16 
-Acheteur et fournisseur .......................................................................................................... 16 
-Détails de la commande .......................................................................................................... 16 
-Conditions ..................................................................................................................................... 17 
-Workflow et statuts spécifiques .......................................................................................... 17 
-Règles de gestion spécifiques ............................................................................................... 17 
-Retour dans les tableaux de bord ....................................................................................... 18 
-Pièces jointes numériques acceptées ................................................................................ 18 
-3.4 Bon de Sortie de Marchandises ....................................................................................... 19 
-Objectif du document ............................................................................................................... 19 
-Acteurs impliqués...................................................................................................................... 19 
-Informations générales et motif .......................................................................................... 19 
-Lignes d'articles ......................................................................................................................... 20 
-Workflow et statuts spécifiques .......................................................................................... 20 
-Règles de gestion spécifiques ............................................................................................... 20 
-Retour dans les tableaux de bord ....................................................................................... 21 
-Pièces jointes numériques acceptées ................................................................................ 21 
-3.5 Bon de Réception ................................................................................................................... 22 
-Objectif du document ............................................................................................................... 22 
-Acteurs impliqués...................................................................................................................... 22 
-Références et informations générales .............................................................................. 22 
-Contrôle de la marchandise .................................................................................................. 22 
-Attestation et signatures ........................................................................................................ 23 
-Workflow et statuts spécifiques .......................................................................................... 23 
-Règles de gestion spécifiques ............................................................................................... 24 
-Retour dans les tableaux de bord ....................................................................................... 24 
-Pièces jointes numériques acceptées ................................................................................ 24 
-3.6 Fiche de Décaissement ........................................................................................................ 25 
-Objectif du document ............................................................................................................... 25 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 4 / 43 
-Acteurs impliqués...................................................................................................................... 25 
-Objet et type de dépense ........................................................................................................ 25 
-Détails financiers et paiement ............................................................................................. 25 
-Pièces justificatives et approbation ................................................................................... 26 
-Workflow et statuts spécifiques .......................................................................................... 26 
-Règles de gestion spécifiques ............................................................................................... 27 
-Retour dans les tableaux de bord ....................................................................................... 27 
-Pièces jointes numériques acceptées ................................................................................ 27 
-4. Génération et usage des codes QR ........................................................................................ 29 
-4.1 Principe général ..................................................................................................................... 29 
-4.2 Deux types de QR codes ...................................................................................................... 29 
-4.3 Contenu encodé ...................................................................................................................... 29 
-4.4 Exemple de QR Code d'instance ...................................................................................... 30 
-4.5 Cycle d'utilisation sur le terrain ...................................................................................... 30 
-4.6 Sécurité des QR codes .......................................................................................................... 30 
-5. Catalogue documentaire global AfriGes — feuille de route de digitalisation .... 32 
-5.1 Structuration du menu « Documents commerciaux » dans AfriGes ................ 32 
-5.2 Documents de vente ............................................................................................................. 32 
-5.3 Documents d'achat et fournisseurs ............................................................................... 33 
-5.4 Documents spécifiques à la vente à crédit .................................................................. 34 
-5.5 Documents spécifiques au dépôt-vente ....................................................................... 34 
-5.6 Documents commerciaux pour les revendeurs / clients B2B ............................ 35 
-5.7 Documents de livraison et logistique ............................................................................ 36 
-5.8 Documents de retour et réclamation ............................................................................ 37 
-5.9 Documents de contrôle commercial .............................................................................. 37 
-5.10 Les 15 documents à développer en priorité (Phase 1) ....................................... 38 
-6. Modèle de données simplifié (transverse) ........................................................................ 40 
-7. Exigences non fonctionnelles .................................................................................................. 41 
-8. Plan de mise en œuvre proposé ............................................................................................. 42 
-Indicateurs de succès (KPI) ...................................................................................................... 42 
-9. Annexe — Glossaire .................................................................................................................... 43 
- 
-  
-1. Contexte et objectifs 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-1.1 Contexte 
-AfriSime SARL est une entreprise commerciale organisée autour d'un réseau 
-d'agents terrain (collecteurs, agents commerciaux), de services internes 
-(Trésorerie, Comptabilité/Finance, Achats, Commercial, Direction Générale), d'un 
-magasin géré par un magasinier et d'un réseau de transporteurs/livreurs. Son 
-activité couvre la vente directe, la vente à crédit, les achats fournisseurs et, à 
-terme, le dépôt-vente et la vente en gros à des revendeurs (B2B). 
-Aujourd'hui, les documents de gestion existent au format papier (remises de 
-fonds, commandes, sorties de stock, décaissements) et le reste du cycle 
-commercial (devis, factures, crédit client, logistique, réclamations, reporting) n'est 
-pas encore structuré ni digitalisé. Ce fonctionnement génère des délais de 
-circulation de l'information, des risques de perte ou de falsification, une difficulté 
-de traçabilité et de consolidation, ainsi qu'un manque de visibilité en temps réel 
-pour les agents terrain, les services concernés, le magasinier et les transporteurs. 
-1.2 Objectifs de la digitalisation 
-• Permettre aux agents terrain de saisir chaque document directement depuis 
-un mobile ou une tablette, y compris en zone à connectivité limitée. 
-• Acheminer automatiquement chaque document au service compétent pour 
-traitement, sans ressaisie. 
-• Offrir à chaque agent terrain un retour en temps réel sur le statut de son 
-document dans son tableau de bord. 
-• Offrir au magasinier une visibilité et un pouvoir d'attestation/approbation sur 
-les documents ayant un impact sur le stock. 
-• Offrir aux transporteurs et aux clients un moyen simple d'attester la livraison 
-effective des marchandises. 
-• Sécuriser l'accès et la traçabilité de chaque document grâce à un code QR 
-unique. 
-• Fiabiliser les contrôles, les seuils de validation et la consolidation comptable 
-dans AfriGes. 
-• Structurer, dès à présent, l'ensemble du catalogue documentaire commercial 
-d'AfriSime (ventes, crédit, achats, fournisseurs, dépôt-vente, B2B, logistique, 
-retours, reporting) afin de planifier les développements futurs sans repartir de 
-zéro à chaque nouveau document. 
-1.3 Périmètre du présent document 
-Page 5 / 43 
-Le présent cahier des charges comporte deux parties complémentaires : 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-• Partie A (section 3) : spécifications complètes et détaillées de six (6) 
-documents prioritaires, prêts à être développés immédiatement — champs, 
-workflow, règles de gestion, retours aux tableaux de bord. Chacun est 
-indépendant : formulaire, circuit de validation, statuts et QR code propres. 
-• Partie B (section 5) : catalogue documentaire global d'AfriSime, organisant 
-l'ensemble des documents commerciaux identifiés (plus de 90 documents) en 
-modules cohérents, avec leur utilité et une feuille de route de mise en œuvre 
-par phases. 
-N° 
-Document (Partie A) 
-Processus métier concerné 
-1 
-Bordereau de Remise de Fonds 
-Collecte de fonds terrain → Trésorerie 
-2 
-Bon de Commande Client 
-Prise de commande d'un client par un 
-agent terrain 
-3 
-Bon de Commande Fournisseur 
-Achats d'AfriSime auprès de ses 
-fournisseurs 
-4 
-Bon de Sortie de Marchandises 
-Sortie de stock du magasin 
-5 
-Bon de Réception 
-Attestation de livraison par le client 
-6 
-Fiche de Décaissement 
-Sortie de fonds / paiement 
-Page 6 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 7 / 43 
-2. Principes généraux communs aux documents de la 
-Partie A 
-2.1 Acteurs et rôles 
-Rôle Description Accès principal 
-Agent terrain / 
-Demandeur 
-Collecteur, agent commercial, service 
-demandeur — initie le document depuis le 
-terrain 
-Application mobile 
-AfriGes 
-Client Personne ou entreprise qui passe 
-commande et réceptionne la marchandise 
-Lien / QR de 
-confirmation (sans 
-compte complet) 
-Transporteur / 
-Livreur 
-Assure la livraison physique et fait attester 
-la réception 
-Application mobile 
-AfriGes (module 
-livreur) 
-Service concerné 
-Trésorerie, Comptabilité/Finance, Achats, 
-Commercial — reçoit, contrôle et traite le 
-document 
-AfriGes Web (back
-office) 
-Magasinier 
-Gère le stock physique, atteste la 
-disponibilité, exécute les sorties, 
-réceptionne les livraisons fournisseurs 
-Application mobile / 
-tablette magasin 
-Validateurs 
-Chef de service, Trésorier, Président CGT, 
-Direction Générale — valident selon les 
-seuils définis 
-AfriGes Web (back
-office) 
-Administrateur 
-AfriGes 
-Paramètre les circuits, seuils, utilisateurs et 
-droits d'accès 
-AfriGes Web 
-(administration) 
- 
-2.2 Cycle de vie générique d'un document 
-Statut Signification Qui peut le 
-déclencher 
-Brouillon Saisie en cours, non soumise, modifiable, 
-stockage local si hors-ligne Agent terrain 
-Soumis Document envoyé, QR code d'instance 
-généré, numéro définitif attribué Agent terrain 
-En traitement Pris en charge par le service concerné ou le 
-magasinier 
-Service concerné / 
-Magasinier 
-Écart / Anomalie Incohérence détectée (montant, stock, 
-quantité livrée…) 
-Service concerné / 
-Magasinier / Client 
-Validé Toutes les validations requises sont 
-obtenues 
-Validateur(s) selon 
-seuil 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Statut 
-Signification 
-Qui 
-peut 
-le 
-déclencher 
-Rejeté 
-Document refusé, motif obligatoire 
-Service concerné / 
-Validateur 
-Clôturé 
-Traitement terminé, archivé, opposable 
-comptablement 
-2.3 Tableaux de bord par profil 
-Système 
-(automatique) 
-• Tableau de bord Agent terrain : liste de ses documents avec statut en temps 
-réel, montants, dates, motifs de rejet/écart, accusés téléchargeables, 
-historique. 
-• Tableau de bord Magasinier : demandes de sortie à attester et approuver, 
-commandes fournisseurs à réceptionner, état du stock en temps réel, alertes 
-de seuil. 
-• Tableau de bord Transporteur : livraisons du jour à effectuer, bons de 
-réception en attente de signature client, preuves de livraison archivées. 
-• Tableau de bord Service concerné : file d'attente des documents à traiter, 
-indicateurs de délai de traitement, écarts en cours. 
-• Tableau de bord Direction : vue consolidée multi-documents, seuils dépassés, 
-indicateurs financiers et de stock. 
-2.4 Notifications 
-Chaque changement de statut déclenche une notification push (application 
-mobile) et, si disponible, un SMS / message WhatsApp Business, à destination de 
-l'agent, du magasinier, du transporteur ou du client concernés. Les validateurs 
-reçoivent une notification dès qu'un document nécessite leur action. 
-2.5 Fonctionnement hors-ligne et synchronisation 
-Les agents terrain et les transporteurs opèrent parfois en zone de connectivité 
-faible ou nulle. L'application mobile doit permettre la saisie complète d'un 
-document (y compris la signature client) en mode hors-ligne, son enregistrement 
-local chiffré, puis sa synchronisation et l'obtention du numéro définitif et du QR 
-code d'instance dès le retour de connexion. 
-2.6 Traçabilité et audit 
-Chaque document conserve un historique complet et non modifiable : qui a créé, 
-modifié, validé, rejeté, à quelle date et depuis quel terminal. Toute modification 
-après soumission est tracée avec ancien et nouveau contenu (piste d'audit). 
-Page 8 / 43 
-2.7 Sécurité et droits d'accès 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-• Authentification individuelle (identifiant / mot de passe ou PIN + code 
-collecteur), avec option d'authentification à deux facteurs pour les validateurs. 
-• Droits d'accès basés sur le rôle (RBAC) : un agent ne voit que ses documents, 
-un service ne voit que les documents qui lui sont adressés. 
-• Chiffrement des données en transit (HTTPS/TLS) et au repos. 
-• Signature électronique horodatée (agent, magasinier, client, transporteur) en 
-remplacement de la signature manuscrite, avec valeur probante interne. 
-3. 
-Spécifications 
-prioritaires (Partie A) 
-détaillées 
-des 
-documents 
-Chaque document ci-dessous est traité de manière indépendante : formulaire 
-propre, circuit de validation propre, statuts propres, et QR code propre. 
-Page 9 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 10 / 43 
-3.1 Bordereau de Remise de Fonds 
-Objectif du document 
-Digitaliser la remise de fonds collectés sur le terrain (cotisations, 
-remboursements, ventes) par un collecteur au trésorier, avec un contrôle de 
-billetage et un circuit de validation selon le montant. 
-Acteurs impliqués 
-Étape Acteur Action 
-1 Collecteur (agent 
-terrain) 
-Saisit le bordereau (identification, récapitulatif 
-des fonds, billetage) et le soumet 
-2 Trésorier Réceptionne, compte les espèces, compare au 
-billetage déclaré, saisit l'écart éventuel 
-3 Président CGT Vise le bordereau si le montant total dépasse le 
-seuil paramétré (500 000 FCFA par défaut) 
-4 Système AfriGes Rapproche le dépôt bancaire, clôture le 
-bordereau, met à jour la caisse 
- 
-Identification et compte à créditer 
-Champ Type de 
-saisie Obligatoire Règle de gestion / validation 
-Agence / Point de 
-dépôt 
-Liste 
-déroulante Oui Issue du référentiel des points de 
-collecte 
-Compte à créditer, N° 
-compte, Banque, 
-Guichet 
-Pré-rempli Oui Auto-rempli depuis le référentiel 
-comptes AfriGes 
-Nom, Code 
-Collecteur, 
-Zone/Secteur, 
-Téléphone 
-Pré-rempli 
-depuis le 
-profil 
-Oui Lié au compte utilisateur connecté, 
-non modifiable 
- 
-Récapitulatif des fonds remis 
-Champ Type de 
-saisie Obligatoire Règle de gestion / validation 
-Cotisations espèces / 
-mobile money 
-Numérique 
-(FCFA) Conditionnel N° de transaction obligatoire si 
-mobile money 
-Remboursements, 
-Ventes, Vente de 
-Numérique 
-(FCFA) Non Somme automatique vers « Total 
-espèces attendu » 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Champ 
-Type 
-saisie 
-de 
-Obligatoire 
-Règle de gestion / validation 
-carnet, 
-livraison 
-Frais 
-Montant remis par 
-virement / dépôt 
-Numérique + 
-N° transaction Conditionnel Requiert une pièce jointe (avis de 
-virement) 
-Billetage (III) 
-Champ 
-Type de saisie 
-Obligatoire 
-Nombre 
-de 
-billets/pièces 
-dénomination 
-par 
-Numérique (grille 
-10 lignes) 
-Oui 
-Règle de gestion / validation 
-Calcul automatique : Nbre × 
-Dénomination 
-Total 
-calculé 
-espèces 
-Calculé 
-automatiquement 
-Écart et motif 
-Numérique 
-+ 
-— 
-Oui si écart 
-Comparé au Total espèces 
-attendu (section II) 
-texte libre 
-≠ 0 
-Workflow et statuts spécifiques 
-Blocage de la soumission tant 
-que le motif n'est pas renseigné 
-Figure 1 — Cycle de traitement du Bordereau de Remise de Fonds 
-Règles de gestion spécifiques 
-• Le numéro de bordereau est généré automatiquement par AfriGes (séquentiel, 
-non modifiable). 
-Page 11 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-• Le billetage doit être compté contradictoirement devant le trésorier ; en mode 
-digital, le trésorier confirme le comptage depuis son interface avant validation. 
-• Tout écart déclenche automatiquement un statut « Écart signalé » et une 
-notification à la Cellule de Contrôle et d'Audit (CCA). 
-• Au-delà du seuil paramétrable (500 000 FCFA), le visa du Président CGT est 
-obligatoire avant clôture. 
-• Les espèces ne doivent pas rester plus de 24h en caisse : une alerte 
-automatique est envoyée au trésorier si le dépôt bancaire n'est pas rattaché 
-dans ce délai. 
-Retour dans les tableaux de bord 
-• Collecteur : statut du bordereau (Soumis / En traitement / Écart signalé / 
-Validé), montant confirmé par le trésorier, accusé de remise numéroté 
-téléchargeable. 
-• Trésorier : file d'attente des bordereaux à vérifier, historique des écarts par 
-collecteur. 
-• Le magasinier n'est pas destinataire de ce document (aucun impact sur le 
-stock) ; il n'apparaît pas dans son tableau de bord. 
-Pièces jointes numériques acceptées 
-• Photo des reçus numérotés 
-• Justificatif Mobile Money / Virement 
-• Fiches journalières de collecte scannées 
-Page 12 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 13 / 43 
-3.2 Bon de Commande Client 
-Objectif du document 
-Digitaliser la prise de commande effectuée par un agent terrain directement 
-auprès d'un client (particulier ou professionnel), depuis la saisie sur le terrain 
-jusqu'à la transmission au magasinier pour préparation et livraison. 
-Acteurs impliqués 
-Étape Acteur Action 
-1 Agent terrain 
-(commercial) 
-Reçoit la commande du client et la saisit depuis 
-son mobile 
-2 Service Commercial / 
-Ventes 
-Vérifie la disponibilité, applique la grille 
-tarifaire, contrôle les conditions de vente 
-3 
-Responsable 
-Commercial / 
-Direction 
-Valide si une remise ou une vente à crédit est 
-demandée, selon seuil 
-4 Magasinier Reçoit la commande validée pour préparation 
-(déclenche un Bon de Sortie de Marchandises) 
-5 Transporteur Assure la livraison au client (voir Bon de 
-Réception, section 3.5) 
- 
-Informations sur l'agent et le point de vente (pré-remplies) 
-Champ Type de saisie Obligatoire Règle de gestion / validation 
-Agent terrain, 
-Agence / Zone 
-Pré-rempli 
-depuis le profil Oui Lié à l'utilisateur connecté, non 
-modifiable 
-Numéro de Bon de 
-Commande Client, 
-Date 
-Généré 
-automatiquement — Séquentiel par agence 
- 
-Informations sur le client 
-Champ Type de 
-saisie Obligatoire Règle de gestion / validation 
-Nom / Raison sociale 
-du client 
-Texte ou 
-sélection dans 
-le référentiel 
-clients 
-Oui Recherche par téléphone pour 
-éviter les doublons 
-Téléphone, Adresse / 
-Zone de livraison Texte Oui Utilisé pour la planification de la 
-tournée du transporteur 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 14 / 43 
-Champ Type de 
-saisie Obligatoire Règle de gestion / validation 
-Type de client 
-Choix unique 
-(Particulier / 
-Revendeur) 
-Oui 
-Si « Revendeur », applique la grille 
-tarifaire B2B (voir catalogue, 
-module Revendeurs) 
-Mode de règlement 
-souhaité 
-Choix unique 
-(Comptant / 
-Mobile Money 
-/ À crédit) 
-Oui Si « À crédit », déclenche le contrôle 
-d'encours (module Crédit client) 
- 
-Détails de la commande 
-Champ Type de saisie Obligatoire Règle de gestion / validation 
-Désignation du 
-produit 
-Sélection dans le 
-catalogue 
-produits 
-Oui 
-Prix unitaire proposé 
-automatiquement selon la grille 
-tarifaire 
-Quantité, Prix 
-unitaire Numérique Oui Montant total ligne = Quantité × 
-Prix unitaire (auto) 
-Remise éventuelle 
-(%, ou montant) Numérique Non 
-Validation du Responsable 
-Commercial obligatoire au-delà 
-du seuil paramétré 
-Total HT, TVA, Total 
-TTC 
-Calculé 
-automatiquement — TVA appliquée selon 
-paramétrage fiscal 
- 
-Conditions et validation 
-Champ Type de 
-saisie Obligatoire Règle de gestion / validation 
-Date et lieu de 
-livraison souhaités Date / texte Oui Transmis au module logistique 
-pour planification 
-Signature 
-électronique du 
-client 
-Signature 
-tactile ou code 
-de 
-confirmation 
-SMS 
-Oui Vaut engagement d'achat ferme de 
-la commande 
-Visa Responsable 
-Commercial 
-Signature 
-électronique Conditionnel Obligatoire si remise ou vente à 
-crédit 
- 
-Workflow et statuts spécifiques 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Figure 2 — Cycle de traitement du Bon de Commande Client 
-Règles de gestion spécifiques 
-• Le stock disponible est vérifié en temps réel dès la saisie de la commande ; une 
-rupture partielle est signalée immédiatement à l'agent et au client. 
-• Toute remise ou vente à crédit déclenche automatiquement un circuit de 
-validation avant transmission au magasinier. 
-• Dès validation, un Bon de Sortie de Marchandises est généré automatiquement 
-et rattaché à la commande (voir section 3.4). 
-• La commande reste modifiable par l'agent tant qu'elle n'a pas été prise en 
-charge par le magasinier ; au-delà, toute modification nécessite un avenant. 
-Retour dans les tableaux de bord 
-• Agent terrain : statut de la commande (Soumise / Validée / En préparation / 
-Livrée / Clôturée), accusé de commande signé par le client. 
-• Magasinier : commandes clients validées en attente de préparation, avec 
-articles et quantités. 
-• Service Commercial : suivi des commandes par agent, par zone, par produit. 
-Pièces jointes numériques acceptées 
-• Photo de la carte d'identité du client (vente à crédit) 
-• Bon de commande papier scanné (commande passée hors application) 
-Page 15 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 16 / 43 
-3.3 Bon de Commande Fournisseur 
-Objectif du document 
-Digitaliser l'émission des commandes auprès des fournisseurs d'AfriSime, depuis 
-la demande d'un service jusqu'à la confirmation du fournisseur et la préparation 
-de la réception en magasin. 
-Acteurs impliqués 
-Étape Acteur Action 
-1 Service demandeur Crée le bon de commande avec les articles et le 
-fournisseur pressenti 
-2 Chef de service Vise la demande (cohérence du besoin) 
-3 Trésorier Valide la disponibilité budgétaire 
-4 Président CGT Approuve si le montant dépasse le seuil 
-paramétré 
-5 Fournisseur Confirme la commande en ligne (accès via lien / 
-QR) 
-6 Magasinier Prépare la réception de la marchandise 
-commandée 
- 
-Acheteur et fournisseur 
-Champ Type de 
-saisie Obligatoire Règle de gestion / validation 
-Raison sociale 
-acheteur Pré-rempli — AFRISIME SARL, non modifiable 
-Service demandeur, 
-nom du responsable 
-Pré-rempli 
-depuis le 
-profil 
-Oui Lié à l'utilisateur connecté 
-Fournisseur (nom, 
-adresse, téléphone, 
-email, contact) 
-Sélection dans 
-le référentiel 
-fournisseurs 
-ou création 
-Oui Contrôle doublon sur nom / 
-téléphone 
- 
-Détails de la commande 
-Champ Type de saisie Obligatoire Règle de gestion / validation 
-Désignation, 
-Quantité, Unité, Prix 
-unitaire 
-Ligne de 
-commande 
-répétable 
-Oui Montant total ligne = Quantité × 
-Prix unitaire (auto) 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Champ 
-Type de saisie 
-Obligatoire 
-Règle de gestion / validation 
-Délai de livraison, 
-Observations 
-Texte / date 
-Non 
-— 
-Total HT, TVA, Total 
-TTC 
-Calculé 
-automatiquement — 
-TVA 
-appliquée 
-paramétrage fiscal 
-Conditions 
-Champ 
-Type 
-saisie 
-selon 
-de 
-Obligatoire 
-Règle de gestion / validation 
-Mode de paiement 
-Choix unique 
-Oui 
-Espèces / Mobile Money / Chèque / 
-Virement 
-Modalités 
-règlement 
-de 
-Choix unique 
-Oui 
-50/50, Total, ou Autre (texte libre) 
-Lieu 
-et date de 
-livraison prévue 
-Texte / date 
-Oui 
-Génère l'alerte de réception au 
-magasinier 
-Validité de l'offre 
-fournisseur (jours) 
-Numérique 
-Non 
-Déclenche une alerte d'expiration 
-Workflow et statuts spécifiques 
-Figure 3 — Cycle de traitement du Bon de Commande Fournisseur 
-Règles de gestion spécifiques 
-Page 17 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-• Le bon de commande ne peut être envoyé au fournisseur qu'après validation 
-du Trésorier (et du Président CGT si le seuil est dépassé). 
-• Le montant total TTC est automatiquement comparé au budget disponible du 
-service demandeur ; en cas de dépassement, la soumission est bloquée avec 
-message explicite. 
-• Dès validation finale, une pré-alerte de réception (référence commande, 
-articles, quantités, date prévue) est envoyée au tableau de bord du magasinier. 
-• Toute modification après envoi au fournisseur doit faire l'objet d'un avenant 
-numéroté, lié au bon de commande d'origine. 
-Retour dans les tableaux de bord 
-• Service demandeur : statut de la commande (En attente de visa / Validée / 
-Envoyée / Confirmée fournisseur / Livrée). 
-• Magasinier : liste des commandes fournisseurs en attente de réception, avec 
-articles et quantités attendues. 
-• Trésorier / Direction : suivi budgétaire des commandes engagées. 
-Pièces jointes numériques acceptées 
-• Devis fournisseur validé 
-• Facture pro-forma 
-Page 18 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 19 / 43 
-3.4 Bon de Sortie de Marchandises 
-Objectif du document 
-Digitaliser la sortie physique de marchandises du magasin (livraison client, 
-transfert, consommation interne), avec attestation de disponibilité et approbation 
-de la sortie effective directement par le magasinier, et mise à jour automatique et 
-en temps réel du stock. 
-Acteurs impliqués 
-Étape Acteur Action 
-1 Demandeur (agent / 
-service) 
-Formule la demande de sortie avec motif et 
-articles (ou générée automatiquement depuis 
-un Bon de Commande Client validé) 
-2 Système AfriGes Transmet automatiquement la demande au 
-tableau de bord du magasinier 
-3 Magasinier Atteste la disponibilité réelle du produit, puis 
-approuve et exécute la sortie effective 
-4 Réceptionnaire / 
-Transporteur 
-Prend en charge la marchandise sortie pour 
-livraison ou transfert 
- 
-Informations générales et motif 
-Champ Type de saisie Obligatoire Règle de gestion / validation 
-Magasin / Dépôt 
-Sélection dans 
-le référentiel 
-des dépôts 
-Oui Filtre le stock affiché selon le dépôt 
-choisi 
-Destinataire / 
-Service, Adresse 
-Texte ou 
-rattachement 
-automatique à 
-un Bon de 
-Commande 
-Client 
-Oui — 
-Motif de la sortie 
-Choix unique 
-(Livraison 
-client / 
-Transfert de 
-stock / 
-Consommation 
-interne / 
-Remplacement
-Retour / Autre) 
-Oui 
-Conditionne le circuit (ex : 
-transfert = double confirmation 
-dépôt source/destination) 
- 
-Lignes d'articles 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Champ 
-Type 
-saisie 
-de 
-Obligatoire 
-Désignation 
-produit 
-du 
-Sélection dans 
-le 
-catalogue 
-produits 
-Oui 
-Règle de gestion / validation 
-Recherche par code-barres / scan 
-possible 
-Quantité demandée 
-Numérique 
-Oui 
-Reprise automatique depuis le Bon 
-de Commande Client le cas échéant 
-Quantité disponible 
-attestée 
-Numérique 
-(saisie 
-magasinier) 
-Oui 
-Comparaison automatique au stock 
-théorique AfriGes ; écart bloquant 
-sauf commentaire 
-Quantité 
-effectivement sortie, 
-Prix unitaire, Unité 
-Numérique 
-Oui 
-Bloqué si quantité sortie > quantité 
-attestée disponible 
-Observations 
-Texte libre 
-Non 
-Workflow et statuts spécifiques 
-— 
-Figure 4 — Cycle de traitement du Bon de Sortie de Marchandises 
-Règles de gestion spécifiques 
-• Une fois traité (soumis), le bon de sortie est transmis automatiquement au 
-tableau de bord du magasinier : il n'y a plus d'étape d'autorisation 
-intermédiaire distincte. 
-Page 20 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-• Le magasinier atteste d'abord la disponibilité réelle du produit en rayon, puis 
-approuve et exécute la sortie effective en une seule séquence depuis son 
-interface. 
-• Le magasinier peut ajuster la quantité réellement sortie par rapport à la 
-quantité demandée (rupture partielle), avec commentaire obligatoire si écart. 
-• Chaque sortie génère automatiquement une écriture de mouvement de stock, 
-une mise à jour de la valorisation et une alerte si le stock résiduel passe sous 
-le seuil minimum paramétré. 
-• Un seuil de montant/quantité optionnel peut être paramétré pour exiger, en 
-plus, un visa du Responsable Stock sur les sorties les plus importantes. 
-Retour dans les tableaux de bord 
-• Demandeur : statut du bon (Demandé / Transmis au magasin / Disponibilité 
-attestée / Sorti), accusé de sortie signé électroniquement par le magasinier. 
-• Magasinier : tableau de bord de stock en temps réel, liste des sorties à attester 
-et approuver, alertes de seuil minimum, historique des mouvements. 
-• Transporteur (si livraison client) : notification de marchandise prête, avec 
-référence au Bon de Réception à faire signer (section 3.5). 
-Pièces jointes numériques acceptées 
-• Bon de Commande Client ou Fournisseur lié (si applicable) 
-• Photo de l'état des marchandises à la sortie 
-Page 21 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 22 / 43 
-3.5 Bon de Réception 
-Objectif du document 
-Permettre au client d'attester que la marchandise commandée lui a été livrée en 
-totalité (ou de signaler une livraison partielle / non conforme), avec un document 
-annexé automatiquement aux tableaux de bord du transporteur et de l'agent 
-terrain à l'origine de la commande. 
-Acteurs impliqués 
-Étape Acteur Action 
-1 Transporteur / 
-Livreur 
-Se présente chez le client avec la marchandise, 
-le Bon de Livraison et le Bon de Sortie associés 
-2 Client Vérifie la marchandise reçue et atteste la 
-réception (totale ou partielle) 
-3 Système AfriGes Génère automatiquement le Bon de Réception 
-et le rattache aux documents source 
-4 Agent terrain / Service 
-Commercial 
-Est notifié en cas de réserve et assure le suivi 
-(réclamation le cas échéant) 
- 
-Références et informations générales 
-Champ Type de saisie Obligatoire Règle de gestion / validation 
-Numéro de Bon de 
-Réception, Date et 
-heure 
-Généré 
-automatiquement — Horodatage précis de 
-l'attestation client 
-Référence Bon de 
-Commande Client, 
-Bon de Livraison, 
-Bon de Sortie 
-Pré-rempli Oui Rattachement automatique aux 
-documents source 
-Client (nom, 
-téléphone, adresse 
-de livraison) 
-Pré-rempli 
-depuis la 
-commande 
-Oui Non modifiable 
- 
-Contrôle de la marchandise 
-Champ Type de saisie Obligatoire Règle de gestion / validation 
-Désignation du 
-produit, Quantité 
-commandée, 
-Quantité livrée 
-Tableau pré
-rempli, quantité 
-livrée modifiable 
-par le 
-client/transporteur 
-Oui Écart calculé automatiquement 
-(livrée − commandée) 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 23 / 43 
-Champ Type de saisie Obligatoire Règle de gestion / validation 
-État de la 
-marchandise 
-Choix unique 
-(Conforme / Non 
-conforme) 
-Oui 
-Si « Non conforme », 
-description de la réserve 
-obligatoire 
-Réserve / 
-Observations 
-Texte libre + photo 
-jointe possible Conditionnel Obligatoire si état « Non 
-conforme » ou écart de quantité 
- 
-Attestation et signatures 
-Champ Type de 
-saisie Obligatoire Règle de gestion / validation 
-Signature 
-électronique du 
-client 
-Signature 
-tactile sur le 
-terminal du 
-transporteur, 
-ou 
-confirmation 
-via lien/QR 
-envoyé par 
-SMS 
-Oui Vaut attestation officielle de 
-réception 
-Signature du 
-transporteur / 
-livreur 
-Signature 
-électronique Oui Horodatée, avec position GPS de la 
-livraison si disponible 
- 
-Workflow et statuts spécifiques 
- 
-Figure 5 — Cycle de traitement du Bon de Réception 
-Règles de gestion spécifiques 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-• Le Bon de Réception ne peut être généré que si un Bon de Livraison et un Bon 
-de Sortie existent et sont rattachés à la commande. 
-• Une réception « Non conforme » ou avec écart de quantité déclenche 
-automatiquement une notification à l'agent terrain et au Service Commercial, 
-en vue d'une réclamation (voir catalogue, module Retours et réclamations). 
-• En l'absence de connexion, le client peut signer sur le terminal du transporteur 
-en mode hors-ligne ; la synchronisation se fait au retour de réseau. 
-• Ce document constitue la preuve juridique et comptable de la livraison, utilisée 
-pour la facturation définitive et la clôture de la commande. 
-Retour dans les tableaux de bord 
-• Transporteur : preuve de livraison archivée, liste des livraisons du jour restant 
-à faire signer. 
-• Agent terrain : commande clôturée avec accusé de réception signé, ou alerte de 
-réserve/litige à traiter. 
-• Magasinier : confirmation que la marchandise sortie a bien été livrée (aucune 
-action requise sauf litige nécessitant un retour). 
-Pièces jointes numériques acceptées 
-• Photo de la marchandise livrée 
-• Photo de la pièce d'identité du réceptionnaire (si différent du client) 
-Page 24 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 25 / 43 
-3.6 Fiche de Décaissement 
-Objectif du document 
-Digitaliser toute demande de sortie de fonds (achat, paiement fournisseur, avance 
-de caisse, frais de fonctionnement…), avec un circuit d'approbation à plusieurs 
-niveaux et rattachement automatique aux documents liés (bon de commande, 
-stock). 
-Acteurs impliqués 
-Étape Acteur Action 
-1 Demandeur Saisit la fiche avec l'objet, le type de dépense et 
-le montant demandé 
-2 Responsable 
-hiérarchique Approuve en premier niveau 
-3 Direction Générale / 
-Finance 
-Approuve en second niveau si le seuil est 
-dépassé 
-4 Caissier / Comptable Exécute le décaissement selon le mode de 
-paiement choisi 
-5 Bénéficiaire Confirme la réception des fonds 
- 
-Objet et type de dépense 
-Champ Type de saisie Obligatoire Règle de gestion / validation 
-Bénéficiaire, contact Texte / 
-sélection tiers Oui 
-Recherche dans le référentiel tiers 
-(fournisseurs, employés, 
-partenaires) 
-Motif / description 
-détaillée Texte libre Oui Minimum 10 caractères 
-Type de dépense 
-Choix unique 
-(Achat 
-marchandises / 
-Fournitures / 
-Paiement 
-fournisseur / 
-Avance de 
-caisse / Frais de 
-fonctionnement 
-/ Transport / 
-Autres) 
-Oui Conditionne les pièces 
-justificatives requises 
- 
-Détails financiers et paiement 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 26 / 43 
-Champ Type de 
-saisie Obligatoire Règle de gestion / validation 
-Montant demandé Numérique 
-(FCFA) Oui — 
-Montant approuvé Numérique 
-(FCFA) 
-Oui (après 
-approbation) 
-Peut différer du montant demandé, 
-motif obligatoire si différent 
-Mode de paiement 
-Choix unique 
-(Espèces / 
-Mobile Money 
-/ Chèque / 
-Virement) 
-Oui Conditionne les champs de 
-référence de paiement 
-Référence de 
-paiement Texte Conditionnel Obligatoire dès exécution du 
-décaissement 
- 
-Pièces justificatives et approbation 
-Champ Type de 
-saisie Obligatoire Règle de gestion / validation 
-Pro-forma / Facture 
-/ Bon de commande 
-/ Bon de livraison / 
-Contrat 
-Case à cocher 
-+ pièce jointe 
-Selon type 
-de dépense 
-Au moins une pièce requise pour « 
-Achat de marchandises » et « 
-Paiement fournisseur » 
-Visas (Demandeur, 
-Responsable, 
-DG/Finance) 
-Signature 
-électronique + 
-horodatage 
-Oui 
-Le franchissement de chaque seuil 
-ajoute un niveau de validation 
-obligatoire 
- 
-Workflow et statuts spécifiques 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Figure 6 — Cycle de traitement de la Fiche de Décaissement 
-Règles de gestion spécifiques 
-• Les seuils de validation (montant nécessitant l'approbation de la Direction 
-Générale/Finance) sont paramétrables dans AfriGes. 
-• Si le type de dépense est « Achat de marchandises » et qu'un Bon de Commande 
-Fournisseur existe, la fiche doit obligatoirement être rattachée à ce bon de 
-commande. 
-• Le décaissement ne peut être exécuté par le Caissier/Comptable qu'après 
-obtention de tous les visas requis. 
-• La réception par le bénéficiaire (nom, pièce d'identité, signature électronique) 
-est obligatoire pour clôturer la fiche. 
-Retour dans les tableaux de bord 
-• Demandeur : statut (Soumis / En attente d'approbation / Approuvé / Payé / 
-Rejeté), reçu de paiement téléchargeable. 
-• Magasinier : si la dépense est liée à un achat de marchandises, notification de 
-paiement effectué afin d'anticiper la réception en stock. 
-• Direction / Finance : tableau de bord des décaissements par type de dépense, 
-par service et par période. 
-Pièces jointes numériques acceptées 
-• Facture / Pro-forma 
-• Bon de commande lié 
-• Bon de livraison 
-Page 27 / 43 
-• Pièce d'identité du bénéficiaire 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 28 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 29 / 43 
-4. Génération et usage des codes QR 
-4.1 Principe général 
-Chaque document de la Partie A dispose d'un accès simplifié par code QR, 
-permettant aux agents terrain, magasiniers, transporteurs et clients d'ouvrir 
-instantanément le bon formulaire dans AfriGes ou de retrouver un document 
-précis en le scannant. Deux niveaux de QR codes sont mis en place. 
-4.2 Deux types de QR codes 
-Type Support Usage 
-QR Code « Modèle » 
-(statique, par type de 
-document) 
-Badge / carte plastifiée 
-remise à chaque agent 
-terrain ou magasinier, 
-affiche du bureau du 
-service 
-Ouvre directement, dans 
-l'application AfriGes, le formulaire 
-vierge correspondant, pré-rempli 
-avec l'identité de l'agent connecté 
-QR Code « Instance » 
-(dynamique, par 
-document créé) 
-Généré 
-automatiquement et 
-imprimé/affiché sur 
-chaque document une 
-fois soumis 
-Permet de retrouver, suivre et 
-vérifier CE document précis à chaque 
-étape du circuit (remise physique, 
-contrôle, livraison, archivage) 
- 
-4.3 Contenu encodé 
-Le QR code encode un lien profond (deep link) vers l'application AfriGes, sous la 
-forme : 
-afriges://doc/{CODE_DOCUMENT}/{NUMERO}?type={TYPE_DOCUMENT}&hash={EMPREINT
-E_SECURITE} 
-Paramètre Exemple Description 
-CODE_DOCUMENT BRF, BCC, BCF, BSM, 
-BR, FD 
-Identifiant court du type de document 
-(voir tableau ci-dessous) 
-NUMERO 2026-000123 Numéro unique attribué à la création 
-(année + séquentiel) 
-TYPE_DOCUMENT bon_commande_client Nom complet du type, utilisé pour 
-router vers le bon écran 
-EMPREINTE_SECURITE 
-(hash) 9f2a7c… Empreinte cryptographique 
-empêchant la falsification du QR 
- 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Document 
-Code court 
-Exemple de QR « Modèle » (accès 
-agent) 
-Bordereau de Remise de Fonds 
-Bon de Commande Client 
-BRF 
-afriges://new/BRF 
-BCC 
-afriges://new/BCC 
-Bon de Commande Fournisseur 
-BCF 
-Bon de Sortie de Marchandises 
-afriges://new/BCF 
-BSM 
-afriges://new/BSM 
-Bon de Réception 
-BR 
-Fiche de Décaissement 
-afriges://new/BR 
-FD 
-afriges://new/FD 
-4.4 Exemple de QR Code d'instance 
-Exemple : QR Code d'instance généré pour le Bordereau de Remise de Fonds N° 2026-000123 
-4.5 Cycle d'utilisation sur le terrain 
-• Chaque agent terrain, magasinier ou transporteur reçoit, lors de son 
-intégration, une carte/badge avec les QR codes « Modèle » des documents qu'il 
-est habilité à créer. 
-• Il scanne le QR correspondant depuis l'application mobile AfriGes pour ouvrir 
-directement le bon formulaire, déjà pré-rempli avec son identité et sa zone. 
-• Une fois le document soumis, AfriGes génère automatiquement le QR « 
-Instance » et l'imprime (ou l'affiche) sur l'accusé remis à l'agent, au magasinier 
-ou au client. 
-• À chaque étape du circuit, l'acteur concerné peut scanner ce QR pour ouvrir 
-directement le document et agir (attester, valider, rejeter, réceptionner). 
-• Le client peut également recevoir le lien du Bon de Réception par SMS, sans 
-avoir besoin de l'application, pour confirmer sa livraison depuis son propre 
-téléphone. 
-4.6 Sécurité des QR codes 
-Page 30 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-• Chaque QR d'instance intègre une empreinte de sécurité (hash) calculée à 
-partir du contenu du document, empêchant toute falsification ou réutilisation 
-frauduleuse. 
-• Les QR « Modèle » sont liés au compte de l'agent et ne fonctionnent qu'après 
-authentification dans l'application (le QR seul ne donne pas accès aux 
-données). 
-• Les QR d'instance expirent en lecture publique après clôture du document 
-(seuls les utilisateurs autorisés peuvent encore le consulter). 
-• Toute lecture de QR est journalisée (qui, quand, où) à des fins d'audit. 
-Page 31 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 32 / 43 
-5. Catalogue documentaire global AfriGes — feuille de 
-route de digitalisation 
-Au-delà des six documents prioritaires détaillés en section 3, AfriSime a vocation 
-à digitaliser l'ensemble de son cycle commercial. Cette section recense, structure 
-et priorise l'ensemble des documents identifiés, afin de servir de feuille de route à 
-l'équipe de développement pour les phases suivantes. Chaque document listé ici 
-sera spécifié en détail (champs, workflow, statuts) au moment de son 
-développement, selon le même modèle que la section 3. 
-5.1 Structuration du menu « Documents commerciaux » 
-dans AfriGes 
-Le menu applicatif est organisé en sept modules, reflétant les grandes familles de 
-documents : 
-Module Contenu 
-�
-� VENTES Devis, Proforma, Commandes clients, Bons de préparation, Bons de 
-livraison, Bons de réception, Factures, Avoirs, Reçus 
-�
-� CLIENTS & 
-CRÉDIT 
-Demandes de crédit, Contrats de crédit, Échéanciers, Relevés clients, 
-Reçus de remboursement, Avis d'échéance, Documents de 
-recouvrement 
-�
-� ACHATS 
-Demandes d'achat, Demandes de prix, Comparatifs fournisseurs, 
-Commandes fournisseurs, Réceptions, Factures fournisseurs, Avoirs 
-fournisseurs 
-�
-� FOURNISSEURS Contrats, Dépôt-vente, États de stock, États des ventes, Relevés 
-fournisseurs, Règlements 
-�
-� LOGISTIQUE Bons de sortie, Bons de livraison, Bons de réception, Fiches de 
-tournée, Rapports de livraison, Retours 
-�
-� COMMERCIAL Fiches prospects, Fiches visites, Propositions commerciales, 
-Catalogues, Tarifs, Promotions, Partenariats (revendeurs B2B) 
-�
-� CONTRÔLE & 
-REPORTING 
-Rapports de ventes, Rapports de crédit, Rapports de recouvrement, 
-Rapports de stock, Rapports commerciaux, Tableaux de bord 
- 
-5.2 Documents de vente 
-Document Utilité pour AfriSime 
-Devis Proposer des produits, quantités, prix et conditions à un client 
-Proforma Présenter une offre commerciale avant facturation définitive, 
-notamment pour les commandes importantes 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 33 / 43 
-Document Utilité pour AfriSime 
-Bon de commande 
-client 
-Formaliser la commande passée par le client (spécifié en détail 
-— section 3.2) 
-Bon de préparation Permettre au magasinier de préparer les produits commandés 
-Bon de livraison (BL) Accompagner et constater la livraison des marchandises 
-Bon de réception client Faire confirmer la réception effective des marchandises (spécifié 
-en détail — section 3.5) 
-Facture Formaliser la vente et constater la créance client 
-Facture à crédit Facture associée à une vente dont le paiement est différé 
-Facture d'avoir Corriger une facture, gérer un retour ou une remise ultérieure 
-Reçu de paiement Confirmer le règlement effectué par le client 
- 
-5.3 Documents d'achat et fournisseurs 
-Document Utilité pour AfriSime 
-Demande d'achat 
-interne 
-Formaliser en interne un besoin d'achat avant lancement de la 
-commande 
-Demande de cotation / 
-demande de prix Solliciter les prix et conditions auprès de plusieurs fournisseurs 
-Tableau comparatif des 
-offres fournisseurs Comparer objectivement les offres reçues avant sélection 
-Bon de commande 
-fournisseur 
-Formaliser la commande passée au fournisseur retenu (spécifié 
-en détail — section 3.3) 
-Confirmation de 
-commande fournisseur Faire valider par le fournisseur les termes de la commande 
-Bon de réception 
-fournisseur 
-Constater la réception physique de la marchandise livrée par le 
-fournisseur 
-Fiche de contrôle de 
-réception Vérifier la conformité qualité/quantité de la livraison reçue 
-Facture fournisseur Formaliser la dette d'AfriSime envers le fournisseur 
-Avoir fournisseur Corriger une facture fournisseur (retour, remise, erreur) 
-Relevé fournisseur Suivre l'état des comptes et échéances avec chaque fournisseur 
-Ordre de paiement Autoriser en interne le règlement d'un fournisseur 
-Preuve de paiement Justifier le règlement effectué au fournisseur 
-Fiche d'évaluation 
-fournisseur Évaluer la performance et la fiabilité d'un fournisseur 
- 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 34 / 43 
-5.4 Documents spécifiques à la vente à crédit 
-AfriSime souhaite aller plus loin qu'un commerce classique en structurant un 
-véritable cycle de crédit client. 
-Document Utilité pour AfriSime 
-Demande d'ouverture 
-de compte client 
-Recueillir la demande d'un client souhaitant un compte chez 
-AfriSime 
-Fiche d'identification 
-client Centraliser les informations d'identité et de contact du client 
-Demande de crédit 
-alimentaire Formaliser la demande d'achat à crédit d'un client 
-Fiche d'évaluation du 
-client Apprécier la solvabilité et le risque avant octroi du crédit 
-Contrat / convention 
-de vente à crédit Formaliser juridiquement les conditions du crédit accordé 
-Carnet de crédit digital Suivre en continu les achats et remboursements du client à crédit 
-Échéancier de 
-remboursement Planifier les dates et montants de remboursement attendus 
-Relevé de compte client Donner une vue consolidée des mouvements du compte client 
-Reçu de 
-remboursement Confirmer un remboursement effectué par le client 
-Avis d'échéance Rappeler au client une échéance de paiement à venir 
-Avis de retard Notifier un client d'un retard de paiement constaté 
-Mise en demeure Formaliser une demande de paiement avant procédure de 
-recouvrement 
-Rapport de 
-recouvrement Synthétiser les actions de recouvrement menées 
-Fiche de visite de 
-recouvrement Tracer chaque visite effectuée chez un client débiteur 
-État des impayés Lister l'ensemble des créances clients non recouvrées 
-Attestation de solde / 
-quittance finale Certifier qu'un client a soldé l'intégralité de sa dette 
- 
-5.5 Documents spécifiques au dépôt-vente 
-Catégorie particulièrement importante pour le modèle qu'AfriSime développe 
-avec ses fournisseurs partenaires. 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 35 / 43 
-Document Utilité pour AfriSime 
-Convention de dépôt
-vente 
-Formaliser les conditions du dépôt entre AfriSime et le 
-fournisseur 
-Fiche de dépôt de 
-marchandises Enregistrer le détail des produits déposés 
-Bon d'entrée en dépôt Constater l'entrée physique des produits déposés en stock 
-État du stock en dépôt 
-par fournisseur Suivre le stock disponible par fournisseur déposant 
-État des ventes des 
-produits déposés Suivre les ventes réalisées sur les produits en dépôt 
-État des invendus Identifier les produits déposés non encore vendus 
-Bon de sortie / reprise 
-des invendus Organiser le retour des invendus au fournisseur 
-Relevé fournisseur 
-(dépôt-vente) Présenter la situation des sommes dues au fournisseur déposant 
-État des sommes dues 
-au fournisseur Calculer le montant à reverser selon les ventes réalisées 
-Demande de règlement 
-fournisseur Formaliser la demande de paiement du fournisseur déposant 
-Reçu de règlement Confirmer le paiement effectué au fournisseur déposant 
-Rapport périodique de 
-dépôt-vente Synthétiser l'activité de dépôt-vente sur une période 
- 
-5.6 Documents commerciaux pour les revendeurs / clients 
-B2B 
-Pour l'activité de vente en gros à des revendeurs partenaires. 
-Document Utilité pour AfriSime 
-Fiche d'ouverture de 
-compte revendeur Enregistrer un nouveau revendeur partenaire 
-Carte / fiche client 
-professionnel Centraliser le profil commercial du revendeur 
-Grille tarifaire 
-revendeur Définir les conditions tarifaires spécifiques accordées 
-Bon de commande 
-revendeur Formaliser les commandes passées par le revendeur 
-Facture revendeur Formaliser la vente au revendeur 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 36 / 43 
-Document Utilité pour AfriSime 
-Bon de livraison 
-revendeur Accompagner la livraison des marchandises au revendeur 
-Relevé de compte 
-revendeur Suivre les mouvements du compte du revendeur 
-État des achats du 
-revendeur Analyser le volume d'achats du revendeur dans le temps 
-Attestation de fidélité / 
-partenariat Valoriser la relation commerciale avec le revendeur 
-Convention 
-commerciale 
-revendeur 
-Formaliser contractuellement le partenariat 
-Conditions 
-particulières accordées 
-au revendeur 
-Documenter les remises et avantages spécifiques 
- 
-5.7 Documents de livraison et logistique 
-Document Utilité pour AfriSime 
-Bon de préparation Permettre au magasinier de préparer la commande avant 
-expédition 
-Bon de sortie magasin Constater la sortie physique des produits du magasin (spécifié 
-en détail — section 3.4) 
-Bon de livraison Accompagner juridiquement et physiquement la marchandise 
-livrée 
-Bon de réception Faire attester par le client la réception effective de la commande 
-(spécifié en détail — section 3.5) 
-Fiche de chargement Détailler le chargement réalisé dans le véhicule de livraison 
-Bordereau de livraison Récapituler l'ensemble des livraisons d'une tournée 
-Fiche de tournée Planifier et suivre l'itinéraire du livreur 
-Fiche de mission du 
-livreur Formaliser la mission confiée au livreur pour la journée 
-Rapport de livraison Synthétiser les livraisons effectuées sur une période 
-Fiche de livraison non 
-effectuée Documenter les causes d'une livraison non aboutie 
-Fiche de retour 
-marchandises Tracer les marchandises retournées après livraison 
-Fiche d'incident 
-livraison Signaler tout incident survenu pendant la livraison 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 37 / 43 
- 
-5.8 Documents de retour et réclamation 
-Un circuit documentaire dédié doit être prévu pour la gestion des problèmes 
-clients. 
-Document Utilité pour AfriSime 
-Formulaire de 
-réclamation client Recueillir formellement une réclamation client 
-Fiche de retour 
-marchandise Documenter le retour d'un produit par le client 
-Bon de retour Formaliser administrativement le retour de marchandise 
-Rapport d'incident Décrire un incident survenu en lien avec une vente ou une 
-livraison 
-Fiche de traitement de 
-réclamation Suivre les actions menées pour résoudre la réclamation 
-Avoir client Corriger une facture suite à un retour ou une réclamation 
-Bon de remplacement Organiser le remplacement d'un produit défectueux 
-Fiche de clôture de 
-réclamation Acter la résolution définitive d'une réclamation 
- 
-5.9 Documents de contrôle commercial 
-Pour le pilotage de l'activité par la Direction. 
-Document Utilité pour AfriSime 
-Rapport journalier des 
-ventes Suivre l'activité commerciale quotidienne 
-Rapport hebdomadaire 
-des ventes Analyser la performance commerciale sur la semaine 
-Rapport mensuel des 
-ventes Consolider les ventes du mois pour le pilotage 
-Rapport des ventes par 
-agent Évaluer la performance individuelle de chaque agent 
-Rapport des ventes par 
-produit Identifier les produits les plus / moins performants 
-Rapport des ventes par 
-agence Comparer la performance entre points de vente 
-Rapport des ventes à 
-crédit Suivre le volume et l'évolution des ventes à crédit 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 38 / 43 
-Document Utilité pour AfriSime 
-Rapport des 
-encaissements Suivre les entrées de trésorerie liées aux ventes 
-Rapport des impayés Donner une vue consolidée des créances en souffrance 
-Rapport de 
-recouvrement Mesurer l'efficacité des actions de recouvrement 
-Rapport des retours Analyser le volume et les causes des retours produits 
-Rapport des 
-réclamations Suivre le volume et le traitement des réclamations 
-Rapport des 
-performances 
-commerciales 
-Offrir une vue globale de la performance commerciale 
-Tableau de bord 
-commercial Centraliser en un coup d'œil les indicateurs clés de l'activité 
- 
-5.10 Les 15 documents à développer en priorité (Phase 1) 
-Afin de digitaliser rapidement le cœur du cycle commercial d'AfriSime sans 
-complexité inutile, les 15 documents suivants constituent la priorité de 
-développement, immédiatement après les 6 documents de la Partie A : 
-N° Document Statut 
-1 Devis À spécifier — Phase 1 
-2 Proforma À spécifier — Phase 1 
-3 Bon de commande client Déjà spécifié — section 3.2 
-4 Bon de préparation À spécifier — Phase 1 
-5 Bon de livraison À spécifier — Phase 1 
-6 Bon de réception Déjà spécifié — section 3.5 
-7 Facture À spécifier — Phase 1 
-8 Facture à crédit À spécifier — Phase 1 
-9 Facture d'avoir À spécifier — Phase 1 
-10 Reçu de paiement À spécifier — Phase 1 
-11 Demande de crédit À spécifier — Phase 1 
-12 Échéancier client À spécifier — Phase 1 
-13 Relevé de compte client À spécifier — Phase 1 
-14 Bon de commande fournisseur Déjà spécifié — section 3.3 
-15 Bon de réception fournisseur À spécifier — Phase 1 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 39 / 43 
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 40 / 43 
-6. Modèle de données simplifié (transverse) 
-L'ensemble des documents — ceux de la Partie A comme ceux du catalogue de la 
-Partie B — s'appuie sur un socle de données commun et extensible dans AfriGes : 
-un moteur générique de « Document » paramétrable par type, permettant 
-d'ajouter de nouveaux documents du catalogue sans remettre en cause 
-l'architecture. 
-Entité Description Champs clés 
-Document 
-Enregistrement générique (une 
-ligne par document créé, quel 
-que soit son type) 
-id, type_document, numero, 
-statut, date_creation, créé_par, 
-hash_qr 
-TypeDocument 
-Référentiel des types de 
-documents disponibles 
-(catalogue extensible) 
-code, libellé, module, 
-circuit_validation, actif 
-Utilisateur 
-Agent terrain, client, 
-transporteur, service, 
-magasinier, validateur, 
-administrateur 
-id, nom, rôle, zone/secteur, 
-service, droits 
-HistoriqueStatut Piste d'audit des changements de 
-statut 
-id_document, ancien_statut, 
-nouveau_statut, acteur, date, 
-commentaire 
-PieceJointe Justificatifs numérisés liés à un 
-document 
-id_document, type_pièce, fichier, 
-date_ajout 
-Notification Notifications envoyées aux 
-utilisateurs 
-id_utilisateur, id_document, 
-canal, contenu, date, lu/non lu 
-MouvementStock Généré par Bon de Commande 
-Fournisseur / Bon de Sortie 
-id_produit, dépôt, quantité, sens 
-(entrée/sortie), id_document 
-CompteClient Encours, crédit, échéancier 
-(module Crédit client) 
-id_client, plafond_crédit, 
-encours, statut 
-ReferentielProduits 
-/ Clients / 
-Fournisseurs / 
-Comptes 
-Référentiels partagés code, libellé, attributs métier 
- 
-  
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 41 / 43 
-7. Exigences non fonctionnelles 
-Catégorie Exigence 
-Disponibilité hors
-ligne 
-Saisie complète possible sans connexion, y compris la signature 
-client sur le terrain ; synchronisation automatique dès 
-rétablissement du réseau ; aucune perte de données 
-Performance Ouverture d'un formulaire en moins de 2 secondes ; scan de QR 
-reconnu en moins de 1 seconde 
-Ergonomie mobile Formulaires adaptés à une saisie tactile rapide sur smartphone, 
-gros boutons, champs numériques avec clavier adapté 
-Multilingue Interface en français par défaut (langue de travail actuelle), 
-extensible à d'autres langues locales 
-Sécurité Authentification individuelle, chiffrement des données, empreinte 
-de sécurité sur chaque QR, journalisation complète 
-Intégration 
-comptable 
-Les documents validés (Bordereau de Remise de Fonds, Fiche de 
-Décaissement, Factures, Bons) génèrent automatiquement les 
-écritures correspondantes dans le module comptable d'AfriGes 
-Impression 
-Génération de PDF imprimables (avec QR intégré) pour chaque 
-document, conformes à la mise en page actuelle des formulaires 
-papier 
-Évolutivité 
-Le moteur générique de documents et de circuits doit permettre 
-d'ajouter, sans développement lourd, chacun des documents 
-recensés dans le catalogue de la Partie B 
- 
-  
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 42 / 43 
-8. Plan de mise en œuvre proposé 
-Phase Contenu Durée 
-indicative 
-0. Fondations 
-Moteur générique de documents, tableaux de bord, 
-notifications, module QR, et développement des 6 
-documents de la Partie A (sections 3.1 à 3.6) 
-10 à 12 
-semaines 
-1. Cycle de vente 
-prioritaire 
-Développement des 15 documents prioritaires du 
-catalogue (Devis, Proforma, Facture, Bon de livraison, 
-Crédit client de base, Bon de réception fournisseur…) 
-8 à 10 semaines 
-2. Achats & 
-Fournisseurs 
-approfondis 
-Demandes d'achat, comparatifs fournisseurs, fiche 
-d'évaluation, relevés fournisseurs, module Dépôt
-vente complet 
-6 à 8 semaines 
-3. Crédit client 
-complet 
-Contrats de crédit, échéanciers avancés, 
-recouvrement, mises en demeure, états des impayés 6 semaines 
-4. B2B, 
-logistique 
-avancée & 
-retours 
-Module Revendeurs, tournées et fiches de mission 
-livreur, retours et réclamations 6 à 8 semaines 
-5. Contrôle & 
-reporting 
-Ensemble des rapports commerciaux et tableaux de 
-bord consolidés pour la Direction 4 semaines 
- 
-Indicateurs de succès (KPI) 
-• Taux de digitalisation : % de documents saisis digitalement vs papier (cible : 
-100 % à 3 mois post-déploiement de la Phase 0). 
-• Délai moyen de traitement par document (de la soumission à la clôture), par 
-type de document. 
-• Taux d'écarts détectés (billetage, stock, livraison) et délai moyen de résolution. 
-• Taux d'adoption des QR codes par les agents terrain, magasiniers et 
-transporteurs. 
-• Taux de commandes clôturées avec Bon de Réception signé sans réserve. 
-• Satisfaction des agents terrain, du magasinier, des transporteurs et des 
-services concernés (enquête à 3 mois). 
-  
-AfriSime SARL — Cahier des charges de digitalisation (AfriGes) 
-Page 43 / 43   
-9. Annexe — Glossaire 
-Terme Définition 
-AfriGes Logiciel de gestion interne d'AfriSime SARL dans lequel les 
-documents commerciaux sont intégrés 
-Agent terrain Collecteur ou agent commercial opérant hors des locaux 
-administratifs, notamment pour la prise de commandes clients 
-BCC / BCF Bon de Commande Client / Bon de Commande Fournisseur — deux 
-documents distincts et indépendants 
-QR Modèle Code QR statique donnant accès à un formulaire vierge d'un type 
-de document 
-QR Instance Code QR unique généré pour un document précis une fois soumis, 
-utilisé pour le suivi et le contrôle 
-Circuit de validation Suite ordonnée d'approbations requises avant clôture d'un 
-document, selon des seuils paramétrables 
-Dépôt-vente Modèle dans lequel un fournisseur dépose des marchandises chez 
-AfriSime, réglées uniquement sur les ventes réalisées 
-Revendeur / B2B Client professionnel achetant en gros auprès d'AfriSime pour 
-revente 
-CCA Cellule de Contrôle et d'Audit, en charge des investigations en cas 
-d'écart 
-Tableau de bord 
-Espace personnalisé affichant à chaque profil (agent, client, 
-transporteur, magasinier, service, direction) les documents et 
-indicateurs qui le concernent
+AFRISIME SARL — AfriGes
+GUIDE D'UTILISATION DES DOCUMENTS DIGITALISÉS
+==============================================
+
+À PROPOS DE CE DOCUMENT
+------------------------
+Ce fichier contenait à l'origine le Cahier des Charges de digitalisation
+(spécifications, Partie A §3.1-3.6 + Partie B §5.1-5.10). Ce CDC a été
+intégralement implémenté et vérifié (audit final, septembre 2026). Il est
+remplacé ici par un GUIDE OPÉRATIONNEL : comment accéder à chaque document
+dans AfriGes, comment le remplir, et comment le faire progresser dans son
+circuit de validation. La numérotation §X.Y est conservée pour rester
+traçable par rapport au CDC d'origine (consultable dans l'historique git si
+besoin : `git log -- cdcdigitalisation.txt`).
+
+Deux familles de documents coexistent dans AfriGes :
+- Documents "historiques" (Partie A, §5.2-5.5) : impression via PDF serveur,
+  route `GET /api/.../[id]/pdf` (moteur Chromium headless, lib/pdf.ts).
+- Documents "récents" (§5.4 recouvrement, §5.6 à §5.9, ajoutés en
+  septembre 2026) : impression via aperçu navigateur imprimable
+  (composant DocumentPrintShell, zoom + impression couleur/N-B).
+
+Connexion : chaque gestionnaire se connecte avec son compte AfriGes
+(identifiant/mot de passe ou Google selon configuration). L'accès à chaque
+page ci-dessous est automatiquement filtré par rôle — un agent ne voit que
+ses propres documents, un service ne voit que ceux qui lui sont adressés.
+Un Admin/Super Admin a accès à tout, en plus des rôles cités par document.
+
+
+PARTIE A — LES 6 DOCUMENTS PRIORITAIRES (§3.1 à §3.6)
+======================================================
+Ce sont les seuls documents dotés d'un QR code "Instance" sécurisé par
+empreinte cryptographique (hash HMAC) au sens strict du CDC §4 — chaque
+document imprimé porte un QR qui permet de le retrouver et de vérifier son
+authenticité via `/q/[code]/[id]`.
+
+§3.1 — BORDEREAU DE REMISE DE FONDS
+------------------------------------
+Objectif : un collecteur/agent terrain remet à la trésorerie les fonds
+collectés sur le terrain (cotisations, remboursements, ventes).
+
+Accéder :
+  - Créer : /dashboard/user/agentsTerrain/bordereaux-remise (Agent terrain)
+  - Traiter/clôturer : /dashboard/user/comptables/tresorerie/bordereaux-remise
+    (Comptable / Chef Comptable / Trésorier)
+  - Visa Président CGT (montant élevé) et vue globale : Admin/Super Admin
+
+Remplir (à la création) :
+  - Point de vente (pré-rempli selon votre affectation)
+  - Cotisations espèces, cotisations mobile money (+ référence de
+    transaction si > 0), remboursements, ventes, vente de carnet, frais de
+    livraison, montant viré/déposé (+ référence si > 0)
+  - Billetage : nombre de billets/pièces par dénomination (grille de 10
+    lignes) — le total est calculé automatiquement
+  - Motif de l'écart : obligatoire si le billetage ne correspond pas au
+    total espèces attendu
+
+Gérer (workflow) :
+  SOUMIS → (le trésorier compare au billetage déclaré) → VALIDE ou
+  ECART_SIGNALE → (si montant total > seuil paramétré) visa du Président
+  CGT obligatoire → CLOTURE (référence de dépôt bancaire obligatoire —
+  déclenche désormais automatiquement l'écriture comptable Dr Banque /
+  Cr Caisse).
+  Actions disponibles : Traiter (trésorier), Viser CGT (Direction),
+  Clôturer (trésorier).
+
+Imprimer : PDF serveur — bouton dédié sur la page, ou
+  GET /api/tresorerie/bordereaux-remise/[id]/pdf
+
+
+§3.2 — BON DE COMMANDE CLIENT
+-------------------------------
+Objectif : un agent terrain prend commande auprès d'un client.
+
+Accéder :
+  - Créer/suivre : /dashboard/user/agentsTerrain/commandes-client
+    (Agent terrain, Commercial)
+  - Superviser : /dashboard/user/responsablesVenteCredit/commandes-client
+    (Responsable Vente Crédit)
+
+Remplir :
+  - Client (recherche par téléphone pour éviter les doublons)
+  - Type de client (Particulier / Revendeur — bascule sur la grille
+    tarifaire B2B), mode de règlement (Comptant / Mobile Money / À crédit)
+  - Lignes produits (produit, quantité, remise % éventuelle — validation
+    du Responsable Commercial requise au-delà d'un seuil)
+  - Date/lieu de livraison souhaités
+  - Signature électronique du client (tactile ou code SMS) — obligatoire
+
+Gérer (workflow) :
+  Soumis → Visé (si remise/crédit) ou rejeté → une fois validée, un Bon de
+  Sortie de Marchandises est généré automatiquement → Clôturé une fois
+  livrée. Actions : Viser, Rejeter, Annuler, Clôturer.
+
+Imprimer : GET /api/ventes/commandes-client/[id]/pdf
+
+
+§3.3 — BON DE COMMANDE FOURNISSEUR
+------------------------------------
+Objectif : commande passée par AfriSime à un fournisseur.
+
+Accéder : /dashboard/user/logistiquesApprovisionnements/bons-commande
+  (Agent Logistique/Approvisionnement, Admin)
+
+Remplir :
+  - Fournisseur, point de vente/dépôt destinataire, date de livraison
+    prévue, devise
+  - Lien optionnel vers une Demande de cotation (RFQ) déjà comparée
+  - Lignes (produit, quantité, prix unitaire)
+
+Gérer (workflow) :
+  DRAFT → PENDING_APPROVAL → APPROVED → SENT → ACKNOWLEDGED (fournisseur)
+  → PARTIALLY_DELIVERED → COMPLETED (ou CANCELLED à tout moment avant
+  envoi). Actions : Approuver, Signer, Viser CGT (montant élevé),
+  Enregistrer un paiement ; boutons dédiés Envoyer / Livraison / Importation.
+
+Imprimer : GET /api/logistique/bons-commande/[id]/pdf
+
+
+§3.4 — BON DE SORTIE DE MARCHANDISES
+---------------------------------------
+Objectif : constate et exécute la sortie physique de stock.
+
+Accéder : /dashboard/user/magasiniers, onglet "Sorties" (Magasinier, Admin)
+
+Remplir :
+  - Point de vente/dépôt (votre affectation)
+  - Motif : Livraison client (généré automatiquement depuis une commande
+    validée) / Transfert de stock / Consommation interne / Perte / Casse /
+    Don / Autre
+  - Lignes (produit, quantité demandée) — la quantité effectivement sortie
+    peut être ajustée en cas de rupture partielle, avec commentaire
+
+Gérer (workflow) :
+  BROUILLON → VALIDE (le magasinier atteste la disponibilité et exécute la
+  sortie en une fois) ou ANNULE. La validation déduit le stock et génère
+  automatiquement le Bon de Livraison (+ Bon de Réception si rattaché à
+  une commande client).
+
+Imprimer : GET /api/magasinier/bons-sortie/[id]/pdf
+
+
+§3.5 — BON DE RÉCEPTION (client)
+------------------------------------
+Objectif : le client atteste avoir reçu sa commande.
+
+Accéder :
+  - Côté interne : consultable depuis le détail de la Commande Client liée
+    (/dashboard/user/agentsTerrain/commandes-client) — pas de page dédiée,
+    ce n'est pas nécessaire puisqu'il est rattaché à la commande.
+  - Côté client (SANS COMPTE) : lien envoyé par SMS vers
+    /livraison/[jeton] — jeton opaque à usage unique, aucune connexion
+    requise (conforme CDC §2.1 "lien de confirmation sans compte complet").
+
+Remplir (par le client, sur le lien reçu) :
+  - Quantité livrée par ligne (écart calculé automatiquement)
+  - État de la marchandise (Conforme / Non conforme + réserve obligatoire
+    si non conforme, avec photo possible)
+  - Signature électronique tactile (ou confirmation SMS)
+
+Gérer (workflow) :
+  EN_ATTENTE_SIGNATURE → signé (clôture la commande) ; une réserve ou un
+  écart déclenche une notification automatique à l'agent terrain et au
+  Service Commercial (pour ouvrir, si besoin, une réclamation — §5.8).
+
+Imprimer : GET /api/bons-reception/[id]/pdf
+
+
+§3.6 — FICHE DE DÉCAISSEMENT
+--------------------------------
+Objectif : toute sortie de fonds (achat, avance, frais...).
+
+Accéder : /dashboard/user/decaissements (tout gestionnaire connecté peut
+  en créer une — namespace neutre ; approbation/exécution par
+  hiérarchie/Comptable)
+
+Remplir :
+  - Bénéficiaire, motif (10 caractères minimum), type de dépense (Achat
+    marchandises / Fournitures / Paiement fournisseur / Avance de caisse /
+    Frais de fonctionnement / Transport / Autres)
+  - Montant demandé, pièces justificatives (obligatoires pour Achat de
+    marchandises et Paiement fournisseur)
+  - Rattachement à un Bon de Commande Fournisseur si applicable
+
+Gérer (workflow) :
+  SOUMISE → APPROUVEE (niveau 1, puis niveau 2 si seuil dépassé) → PAYEE
+  (Comptable exécute, génère l'écriture comptable) — ou REJETEE.
+  Actions : Approuver N1, Approuver N2, Rejeter, Exécuter.
+
+Imprimer : GET /api/decaissements/[id]/pdf
+
+
+PARTIE B — CATALOGUE DOCUMENTAIRE PAR MODULE (§5.2 à §5.10)
+=============================================================
+
+§5.2 — DOCUMENTS DE VENTE
+---------------------------
+
+DEVIS / PROFORMA
+  Accéder : /dashboard/user/agentsTerrain/devis-proforma
+    (Agent terrain, Commercial, Admin)
+  Remplir : type (Devis ou Proforma), client, date de validité (15 jours
+    par défaut), conditions (texte libre saisi par l'agent — pas de
+    format imposé), lignes produits (quantité, remise % éventuelle), notes
+  Gérer : Envoyer, Convertir un Devis en Proforma, Annuler
+  Imprimer : GET /api/ventes/devis-proforma/[id]/pdf
+
+BON DE PRÉPARATION
+  Généré automatiquement à la validation d'une Commande Client ; le
+  magasinier le traite depuis /dashboard/user/magasiniers en prélevant les
+  articles puis en le marquant "prêt" (répercute sur le Bon de Sortie lié).
+  Document de travail interne, pas d'impression dédiée.
+
+BON DE LIVRAISON
+  Généré automatiquement à la validation du Bon de Sortie, visible dans
+  /dashboard/user/magasiniers. Pas de statut/workflow propre (figé une
+  fois émis). Imprimer : GET /api/bons-livraison/[id]/pdf
+
+FACTURE / FACTURE À CRÉDIT / FACTURE D'AVOIR
+  Générée automatiquement à chaque vente (pas de page de création
+  séparée) ; consultable via la fenêtre "Facture" présente sur : ventes
+  admin, crédits admin, packs admin, agentsTerrain, agentsTerrain/credits,
+  caissiers, responsablesPointDeVente, responsablesVenteCredit et
+  responsablesVenteCredit/credits.
+  Facture d'avoir (correction après retour/réclamation) : réservée au
+  Comptable, via la fiche client → onglet Avoirs (peut désormais être
+  rattachée à une réclamation, cf. §5.8).
+
+REÇU DE PAIEMENT
+  Pas de document séparé : la facture comptant fait foi de reçu de
+  paiement (choix assumé, évite un doublon).
+
+
+§5.3 — DOCUMENTS D'ACHAT ET FOURNISSEURS
+-------------------------------------------
+
+DEMANDE D'ACHAT INTERNE
+  Accéder : /dashboard/user/logistiquesApprovisionnements/demandes-achat
+    (Agent Logistique/Approvisionnement)
+  Remplir : motif, lignes (produit, quantité)
+  Gérer : Viser (RPV / Chef d'agence / Direction selon seuil), Rejeter,
+    Annuler, Clôturer
+
+DEMANDE DE COTATION (RFQ) + TABLEAU COMPARATIF
+  Accéder : /dashboard/user/logistiquesApprovisionnements/rfq
+  Remplir : produit, quantité, point de vente, fournisseurs sollicités
+    (au moins un), date limite de réponse, lien optionnel vers une ligne
+    de demande d'achat
+  Gérer : BROUILLON → ENVOYEE → REPONSES_RECUES (saisie des cotations
+    reçues) → comparatif → "Retenir" un fournisseur → CLOTUREE
+
+BON DE COMMANDE FOURNISSEUR ET CONFIRMATION
+  Voir §3.3 ci-dessus (Partie A) — peut être initié depuis une RFQ retenue.
+
+RÉCEPTION FOURNISSEUR + FICHE DE CONTRÔLE
+  Accéder : /dashboard/user/logistiquesApprovisionnements (hub),
+    également visible depuis /dashboard/user/magasiniers et
+    /dashboard/gestionnaire/logistique
+  Remplir : type de réception, point de vente, fournisseur, date
+    prévisionnelle, lignes, mode de règlement
+  Gérer : BROUILLON → EN_COURS → RECU → VALIDE (ou ANNULE) — la validation
+    contrôle conformité qualité/quantité et met à jour le stock
+
+FACTURE FOURNISSEUR
+  Gérée uniquement par le Comptable via l'API (pas de page dashboard
+  dédiée à ce jour) — rapprochement possible depuis la fiche fournisseur.
+  Une facture non rapprochée déclenche une alerte comptable automatique.
+
+AVOIR FOURNISSEUR, ORDRE DE PAIEMENT, PREUVE DE PAIEMENT
+  Avoir fournisseur : fiche fournisseur, onglet dédié
+    (/dashboard/user/comptables/auxiliaire/fournisseurs/[id]) — Comptable
+  Ordre/preuve de paiement : couverts par la Fiche de Décaissement (§3.6),
+    rattachable au fournisseur — pas de document séparé (réutilisation
+    assumée du circuit de décaissement existant)
+
+FICHE D'ÉVALUATION FOURNISSEUR
+  Pas de document séparé : la note globale du fournisseur (visible sur sa
+  fiche) est recalculée automatiquement à partir des réceptions.
+
+
+§5.4 — DOCUMENTS SPÉCIFIQUES À LA VENTE À CRÉDIT
+----------------------------------------------------
+
+DEMANDE DE CRÉDIT / CONTRAT DE CRÉDIT
+  Accéder : /dashboard/user/responsablesVenteCredit/credits (RVC),
+    /dashboard/admin/credits (Admin)
+  Remplir : client, produits, montant, durée (Quinzaine = 16 échéances ou
+    Trentaine = 31 échéances), frais de dossier, assurance, garantie
+    (nom/téléphone/adresse/type/valeur du garant)
+  Gérer : EN_ATTENTE_VALIDATION → VALIDE → ACTIF (remboursement en cours)
+    → EN_RETARD si échéance impayée → SOLDE (intégralement remboursé)
+
+FICHE D'IDENTIFICATION / ÉVALUATION CLIENT
+  Fiche client standard (codeClient, coordonnées) + historique de score
+  (ClientScoreHistorique) consultés depuis la fiche client.
+
+CARNET DE CRÉDIT DIGITAL / ÉCHÉANCIER / RELEVÉ DE COMPTE
+  Accéder (sans compte, lien envoyé au client) : /suivi/[reference] — vue
+    complète : progression du remboursement, calendrier jour par jour,
+    montants payés/restants, statut de chaque échéance
+  Accéder (interne) : détail du crédit dans /dashboard/admin/credits ou
+    /dashboard/user/responsablesVenteCredit/credits
+
+REÇU DE REMBOURSEMENT
+  Généré depuis le détail du crédit (bouton d'impression sur chaque
+  remboursement enregistré) — composant RecuRemboursement.
+
+AVIS D'ÉCHÉANCE / AVIS DE RETARD
+  Généré depuis le détail du crédit — composant AvisEcheance (document,
+  en plus de la notification SMS/WhatsApp automatique).
+
+MISE EN DEMEURE / FICHE DE VISITE DE RECOUVREMENT / RAPPORT DE
+RECOUVREMENT / FICHE DE VISITE
+  Accéder : détail du crédit (/dashboard/admin/credits ou
+    /dashboard/user/responsablesVenteCredit/credits) → panneau
+    "Recouvrement" (RVC, Admin)
+  Remplir : type d'action (Appel téléphonique / Visite terrain / Mise en
+    demeure / Accord d'échéancier / Saisie de garantie / Note interne) ;
+    pour une visite : lieu (obligatoire) et personne rencontrée ; pour une
+    mise en demeure : délai de régularisation (8 jours par défaut)
+  Imprimer : la Mise en demeure et la Fiche de visite s'impriment
+    automatiquement à la création (composant FicheActionRecouvrement)
+
+ÉTAT DES IMPAYÉS
+  Vue consolidée disponible dans le Contrôle commercial, voir §5.9
+  ci-dessous (onglet "Impayés").
+
+ATTESTATION DE SOLDE / QUITTANCE FINALE
+  Pas de document imprimable dédié à ce jour : le statut SOLDE est visible
+  sur /suivi/[reference] et dans le détail du crédit, mais aucune
+  attestation formelle séparée n'existe encore.
+
+
+§5.5 — DOCUMENTS SPÉCIFIQUES AU DÉPÔT-VENTE
+------------------------------------------------
+Tout le module est regroupé sur une seule page :
+  /dashboard/user/logistiquesApprovisionnements/depot-vente
+  (Agent Logistique/Approvisionnement, Admin)
+
+CONVENTION DE DÉPÔT-VENTE
+  Remplir : fournisseur, taux de commission (%), date de fin éventuelle,
+    conditions. Statuts : ACTIVE / SUSPENDUE / TERMINEE
+
+FICHE DE DÉPÔT DE MARCHANDISES / BON D'ENTRÉE EN DÉPÔT
+  Un seul document couvre les deux (fusion assumée) : convention liée,
+  point de vente, lignes de produits déposés.
+  Statuts : BROUILLON → EN_STOCK → CLOTURE
+
+ÉTAT DU STOCK EN DÉPÔT / ÉTAT DES VENTES / ÉTAT DES INVENDUS / RAPPORT
+PÉRIODIQUE
+  Un seul écran agrégé (au lieu de 4 documents séparés) : sur la page,
+  sélectionner la convention pour voir stock restant, ventes réalisées et
+  invendus sur la période.
+
+BON DE SORTIE / REPRISE DES INVENDUS
+  Depuis l'état des invendus, action de reprise disponible pour organiser
+  le retour au fournisseur.
+
+DEMANDE DE RÈGLEMENT FOURNISSEUR
+  Remplir : convention concernée — le montant dû est calculé
+    automatiquement depuis les ventes réalisées. Statuts : BROUILLON →
+    SOUMIS → REGLE (passe alors par le circuit Fiche de Décaissement, §3.6)
+
+REÇU DE RÈGLEMENT / RELEVÉ FOURNISSEUR (DÉPÔT-VENTE)
+  Pas de document séparé : le PDF de la Fiche de Décaissement associée
+  sert de reçu ; le relevé général du fournisseur (grand livre auxiliaire)
+  est visible depuis sa fiche comptable.
+
+
+§5.6 — DOCUMENTS COMMERCIAUX REVENDEURS / B2B
+--------------------------------------------------
+Accéder :
+  - Gestion des comptes (Admin, RVC) : /dashboard/admin/revendeurs
+  - Espace self-service du revendeur : /dashboard/user/revendeurs
+
+FICHE D'OUVERTURE DE COMPTE / CARTE CLIENT PROFESSIONNEL
+  Sur /dashboard/admin/revendeurs, bouton "Ouvrir un compte" : choisir un
+  utilisateur ayant le rôle REVENDEUR, puis renseigner raison sociale, nom
+  commercial, NIF, RCCM, adresse, ville, contact, point de vente rattaché,
+  conditions particulières. Statuts : ACTIF / SUSPENDU / RESILIÉ.
+  Imprimer : composant FicheRevendeur (variantes : ouverture de compte,
+  carte professionnelle, attestation de fidélité, convention commerciale
+  — tout est dans le même composant, sélection par variante).
+
+GRILLE TARIFAIRE REVENDEUR
+  Réutilise le type de prix "GROS" du Catalogue Produits — visible/gérée
+  depuis la fiche produit (module Catalogue), pas une page séparée.
+
+BON DE COMMANDE REVENDEUR
+  Créé par le revendeur depuis /dashboard/user/revendeurs (ou par
+  l'Admin/RVC pour son compte) : produits, quantités — la grille GROS
+  s'applique automatiquement.
+  Statuts : BROUILLON → CONFIRMEE → LIVREE → FACTUREE (ou ANNULEE)
+  Imprimer : composant BonCommandeRevendeur
+
+FACTURE REVENDEUR / BON DE LIVRAISON REVENDEUR
+  Générés automatiquement à la confirmation/livraison de la commande.
+  Imprimer : composants FactureRevendeurDoc, BonLivraisonRevendeurDoc
+
+RELEVÉ DE COMPTE REVENDEUR / ÉTAT DES ACHATS
+  Depuis la fiche du revendeur (/dashboard/admin/revendeurs, détail) :
+  composant ReleveAchatsRevendeur — historique des commandes/factures.
+
+CONDITIONS PARTICULIÈRES ACCORDÉES
+  Champ libre dans la fiche d'ouverture de compte (voir plus haut).
+
+
+§5.7 — DOCUMENTS DE LIVRAISON ET LOGISTIQUE (TOURNÉES)
+------------------------------------------------------------
+Accéder : /dashboard/user/logistiquesApprovisionnements/tournees
+  (Agent Logistique/Approvisionnement, Magasinier, Admin — pas de rôle
+  "livreur" séparé : les tournées sont pilotées depuis le back-office)
+
+FICHE DE TOURNÉE / FICHE DE MISSION DU LIVREUR / FICHE DE CHARGEMENT /
+BORDEREAU DE LIVRAISON
+  Un seul modèle (TourneeLivraison) avec plusieurs variantes d'impression
+  regroupées dans le composant FicheTournee. Créer une tournée : point de
+  vente, livreur (utilisateur), date, arrêts (client + adresse, ou
+  rattachés à un Bon de Livraison existant).
+  Statuts : PLANIFIEE → EN_COURS → TERMINEE (ou ANNULEE)
+
+FICHE DE LIVRAISON NON EFFECTUÉE / FICHE D'INCIDENT LIVRAISON / FICHE DE
+RETOUR MARCHANDISES (post-livraison)
+  Pour chaque arrêt de la tournée, composant FicheArretLivraison :
+  renseigner le résultat (Effectué / Non effectué + motif / Incident +
+  description / Retour de marchandise + lignes retournées et motif).
+  Statuts de l'arrêt : PLANIFIE → EFFECTUE / NON_EFFECTUE / INCIDENT
+
+RAPPORT DE LIVRAISON
+  Onglet "Rapport" de la page tournées : agrégation des tournées/arrêts
+  sur une période (pas un document imprimable séparé, une vue de synthèse).
+
+
+§5.8 — DOCUMENTS DE RETOUR ET RÉCLAMATION
+------------------------------------------------
+Accéder :
+  - Enregistrement et suivi : /dashboard/admin/reclamations
+    (Admin, Responsable Point de Vente, Chef d'agence)
+  - Traitement physique des retours : /dashboard/user/magasiniers/retours-client
+    (Magasinier)
+  - Traitement des remplacements : /dashboard/user/magasiniers/remplacements
+    (Magasinier)
+
+FORMULAIRE DE RÉCLAMATION CLIENT
+  Sur /dashboard/admin/reclamations, bouton "Nouvelle réclamation" :
+  rechercher le client, choisir le type (Produit défectueux / Livraison
+  non conforme / Erreur de facturation / Retard de livraison / Qualité de
+  service / Autre), objet, description, référence de la vente/facture/
+  crédit d'origine (facultatif).
+  Imprimer : composant FormulaireReclamation.
+
+FICHE DE TRAITEMENT DE RÉCLAMATION / FICHE DE CLÔTURE
+  Depuis le détail de la réclamation : ajouter des actions au journal de
+  traitement (prise en charge, investigation, décision, note interne),
+  prendre en charge, rejeter (motif obligatoire) ou clôturer (résumé de
+  clôture obligatoire, uniquement depuis le statut Résolue).
+  Statuts : ENREGISTREE → EN_TRAITEMENT → RESOLUE → CLOTUREE (ou REJETEE)
+  Imprimer : composant FicheTraitementReclamation (devient automatiquement
+  "Fiche de clôture" une fois le statut Clôturée atteint).
+
+FICHE DE RETOUR MARCHANDISE / BON DE RETOUR
+  Depuis le détail d'une réclamation, bouton "Fiche de retour" : choisir
+  le(s) produit(s), quantité, état constaté. Le magasinier réceptionne
+  puis valide sur /dashboard/user/magasiniers/retours-client (la
+  validation recrédite automatiquement le stock).
+  Statuts : DECLARE → RECEPTIONNE → VALIDE (devient alors "Bon de retour")
+  Imprimer : composant FicheRetourMarchandise (variante selon le statut).
+
+BON DE REMPLACEMENT
+  Depuis le détail d'une réclamation, bouton "Bon de remplacement" :
+  produit d'origine (défectueux), produit de remplacement, quantité. Le
+  magasinier approuve puis livre sur
+  /dashboard/user/magasiniers/remplacements (la livraison décrémente
+  automatiquement le stock du produit de remplacement).
+  Statuts : DEMANDE → APPROUVE → LIVRE
+  Imprimer : composant BonRemplacement.
+
+RAPPORT D'INCIDENT
+  Depuis le détail d'une réclamation (bouton "Déclarer un incident") ou de
+  façon autonome via l'API : lieu, type (Livraison / Produit / Comportement
+  client / Comportement agent / Autre), description, personnes impliquées,
+  actions correctives.
+  Imprimer : composant RapportIncidentCommercial.
+
+AVOIR CLIENT (dans ce circuit)
+  Depuis le détail d'une réclamation, bouton "Émettre un avoir" (action
+  réservée au Comptable/Admin — un RPV/Chef d'agence recevra un refus
+  d'accès, c'est voulu, séparation des tâches) : montant, motif. L'avoir
+  est automatiquement rattaché à la réclamation et fait passer son statut
+  à Résolue.
+
+
+§5.9 — CONTRÔLE COMMERCIAL & REPORTING
+-------------------------------------------
+Accéder : /dashboard/admin/controle-commercial (Admin/Super Admin
+  uniquement — module de pilotage, pas de saisie)
+
+Ce n'est pas un document à remplir mais un tableau de bord à consulter :
+  1. Choisir la période (Jour / Semaine / Mois) et une date de référence
+  2. Filtrer, si besoin, sur une agence (point de vente) précise
+  3. Naviguer entre les onglets :
+     - Tableau de bord : vue consolidée (CA, panier moyen, encaissé,
+       crédit, impayés, recouvrement, retours, réclamations)
+     - Ventes : chiffre d'affaires et détail jour par jour
+     - Par agent / Par produit / Par agence : classements
+     - Ventes à crédit : volume et encours des crédits ouverts
+     - Encaissements : répartition par mode de paiement + remboursements
+       crédit encaissés
+     - Impayés : liste des échéances en retard par client, avec pénalités
+     - Recouvrement : actions de recouvrement par type et par statut
+     - Retours / Réclamations : volumes par statut
+     - Performances : taux de crédit, taux de retour, taux de réclamation
+
+Tout se rafraîchit automatiquement selon les filtres choisis ; aucune
+action de validation n'est nécessaire ici, c'est un outil de lecture.
+
+
+RÉCAPITULATIF DES RÔLES ET DE LEURS DOCUMENTS PRINCIPAUX
+=============================================================
+  Agent terrain         : Bordereau de remise, Commande client, Devis/Proforma
+  RPV / Chef d'agence    : réclamations, visas, supervision agence
+  Caissier               : ventes comptant, factures
+  Magasinier             : sorties de stock, réceptions, retours, remplacements
+  Agent Logistique/Appro : achats, RFQ, dépôt-vente, tournées de livraison
+  Comptable              : décaissements, avoirs, factures fournisseur, écritures
+  RVC (Vente Crédit)     : crédits, recouvrement
+  Revendeur (B2B)        : ses propres commandes, factures, relevé
+  Admin / Super Admin    : accès total + Contrôle commercial & reporting
+
+
+NOTE DE MAINTENANCE
+=====================
+Ce guide a été généré à partir de l'état réel du code au 17 septembre 2026
+(audit exhaustif). Si un module évolue (nouveau champ, nouveau statut,
+nouvelle page), ce fichier doit être mis à jour manuellement ou via Claude
+Code — il ne se régénère pas automatiquement.
