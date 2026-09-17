@@ -197,63 +197,6 @@ a u niveau de dashboard/user/caissiers , tu vois au niveau des souscritpions
   check ( c'est un comportement particulir de vercel ???)
 
 
-  Bordereau de Remise de Fonds, Bon de Commande Client, Bon de Commande
-  Fournisseur, Bon de Sortie de Marchandises, Bon de Réception, Fiche de
-  Décaissement — tous livrés.
-  Devis, Proforma, Bon de commande client, Bon de préparation, Bon de livraison,
-  Bon de réception, Facture, Facture à crédit, Facture d'avoir, Reçu de
-  paiement.
-    
-  Demande de crédit           │                                             │
-  │ alimentaire, Échéancier   │ ✓ EXISTS                                    
-  │ de remboursement, Relevé  │                                             │
-  │ de compte client          │                                             │
-  ├───────────────────────────┼─────────────────────────────────────────────┤
-  │ Fiche d'identification    │ ✓ EXISTS (modèle Client)                    
-  │ client                    │                                             │
-  ├───────────────────────────┼─────────────────────────────────────────────┤
-  │ Fiche d'évaluation du     │ ✓ EXISTS (ClientScoreHistorique + scoring)  
-  │ client                    │                                             │
-  ├───────────────────────────┼─────────────────────────────────────────────┤
-  │ Carnet de crédit digital  │ ✓ EXISTS (équivalent fonctionnel :          
-  │                           │ CreditClient+Échéances+Remboursements)      │
-  ├───────────────────────────┼─────────────────────────────────────────────┤
-  │ Rapport de recouvrement,  │ ✓ EXISTS (dashboard/rapports admin)         
-  │ État des impayés          │                                             │
-  ├───────────────────────────┼─────────────────────────────────────────────┤
-  
- Phase 3 — Crédit client complet (§5.4) — partiellement fait, 4 trous
-  identifiés :
-  - Reçu de remboursement par versement (aujourd'hui : échéancier complet via
-    BordereauRemboursement, pas un reçu unitaire)
-  - Avis d'échéance / avis de retard en tant que document (existe seulement
-    comme notif SMS/WhatsApp)
-  - Mise en demeure (tracée côté RIA comme action, mais pas de lettre générée)
-  - Fiche de visite de recouvrement (tracée côté RIA, pas de formulaire dédié)
-
-  Phase 4 — Revendeurs / B2B (§5.6) — rien n'existe, nouveau domaine complet
-  (j'ai vérifié : aucun modèle Revendeur en base) : fiche d'ouverture de compte,
-  fiche client pro, grille tarifaire, BC revendeur, facture revendeur, BL
-  revendeur, relevé de compte revendeur, état des achats, attestation fidélité,
-  convention commerciale, conditions particulières — 11 documents.
-
-  Phase 4 — Logistique avancée (§5.7) — seul le Bon de Livraison existe.
-  Manquent : fiche de chargement, bordereau de livraison (tournée), fiche de
-  tournée, fiche de mission livreur, rapport de livraison, fiche de livraison
-  non effectuée, fiche de retour marchandises (post-livraison), fiche d'incident
-  livraison.
-
-  Phase 4 — Retours et réclamations (§5.8) — seul Avoir client existe. Manquent
-  : formulaire de réclamation client, fiche de retour marchandise, bon de
-  retour, rapport d'incident, fiche de traitement de réclamation, bon de
-  remplacement, fiche de clôture de réclamation — tout un circuit à construire.
-
-  Phase 5 — Contrôle commercial & reporting (§5.9) — à vérifier/construire :
-  rapports journalier/hebdo/mensuel des ventes, par agent/produit/agence, ventes
-  à crédit, encaissements, impayés, recouvrement, retours, réclamations,
-  tableau de bord commercial consolidé (des dashboards existent ailleurs — Paie,
-  RIA, POPC — mais pas ce périmètre commercial spécifique du CDC).
-
 
 Créer un centre de commandement admin/superadmin et peut être aussi les rôles RPV et chef d'agence pour pouvoir centraliser tous les documents qu'on est entrain de créer ( je parle des documents digitalisés de cdcdigitalisattion.txt)
 

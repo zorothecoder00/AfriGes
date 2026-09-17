@@ -139,6 +139,7 @@ enum TypeSortieStock {
   VENTE_REVENDEUR // confirmation d'une CommandeRevendeur (CDC §5.6)
   LIVRAISON_PACK
   LIVRAISON_CLIENT
+  REMPLACEMENT_CLIENT // sortie du produit de remplacement (CDC §5.8)
   RETOUR_FOURNISSEUR
   CONSOMMATION_INTERNE
   TRANSFERT_SORTANT
@@ -766,33 +767,39 @@ model User {
   collectesValidees CollecteJournaliere[] @relation("CollectesValideur")
 
   // Comptabilité
-  cloturesComptables          ClotureComptable[]
-  ecrituresComptables         EcritureComptable[]
-  ecrituresValidees           EcritureComptable[]        @relation("EcritureValidateur")
-  ecrituresControlees         EcritureComptable[]        @relation("EcritureControleur")
-  propositionsOCRAnalysees    PropositionImputationOCR[] @relation("PropositionOCRAnalysePar")
-  propositionsOCRValidees     PropositionImputationOCR[] @relation("PropositionOCRValidePar")
-  rapprochements              RapprochementBancaire[]
-  declarationsTVA             DeclarationTVA[]
-  journalValidations          JournalValidation[]
-  immobilisationsResponsable  Immobilisation[]           @relation("ImmobilisationResponsable")
-  immobilisationsCreees       Immobilisation[]           @relation("ImmobilisationCreateur")
-  budgets                     Budget[]
-  ecrituresRecurrentes        EcritureRecurrente[]
-  exercicesClotures           ExerciceComptable[]
-  lignesReleveBancaire        LigneReleveBancaire[]
-  provisionsCreees            ProvisionDepreciation[]    @relation("ProvisionCreateur")
-  mouvementsProvision         MouvementProvision[]
-  regularisationsCreees       RegularisationAvance[]     @relation("RegulCreateur")
-  comptesComptablesCrees      CompteComptable[]          @relation("CompteComptableCreateur")
-  avoirsClientsCrees          AvoirClient[]              @relation("AvoirClientCreateur")
-  litigesClientsCrees         LitigeClient[]             @relation("LitigeClientCreateur")
-  avoirsFournisseursCrees     AvoirFournisseur[]         @relation("AvoirFournisseurCreateur")
-  avancesFournisseursCrees    AvanceFournisseur[]        @relation("AvanceFournisseurCreateur")
-  facturesAchatCrees          FactureAchat[]             @relation("FactureAchatCreateur")
-  facturesAchatRapprochees    FactureAchat[]             @relation("FactureAchatRapprochePar")
-  chargesProduitsAttenteCrees ChargeProduitAttente[]     @relation("ChargeProduitAttenteCreateur")
-  engagementsHorsBilanCrees   EngagementHorsBilan[]      @relation("EngagementHorsBilanCreateur")
+  cloturesComptables           ClotureComptable[]
+  ecrituresComptables          EcritureComptable[]
+  ecrituresValidees            EcritureComptable[]        @relation("EcritureValidateur")
+  ecrituresControlees          EcritureComptable[]        @relation("EcritureControleur")
+  propositionsOCRAnalysees     PropositionImputationOCR[] @relation("PropositionOCRAnalysePar")
+  propositionsOCRValidees      PropositionImputationOCR[] @relation("PropositionOCRValidePar")
+  rapprochements               RapprochementBancaire[]
+  declarationsTVA              DeclarationTVA[]
+  journalValidations           JournalValidation[]
+  immobilisationsResponsable   Immobilisation[]           @relation("ImmobilisationResponsable")
+  immobilisationsCreees        Immobilisation[]           @relation("ImmobilisationCreateur")
+  budgets                      Budget[]
+  ecrituresRecurrentes         EcritureRecurrente[]
+  exercicesClotures            ExerciceComptable[]
+  lignesReleveBancaire         LigneReleveBancaire[]
+  provisionsCreees             ProvisionDepreciation[]    @relation("ProvisionCreateur")
+  mouvementsProvision          MouvementProvision[]
+  regularisationsCreees        RegularisationAvance[]     @relation("RegulCreateur")
+  comptesComptablesCrees       CompteComptable[]          @relation("CompteComptableCreateur")
+  avoirsClientsCrees           AvoirClient[]              @relation("AvoirClientCreateur")
+  litigesClientsCrees          LitigeClient[]             @relation("LitigeClientCreateur")
+  reclamationsCreees           ReclamationClient[]        @relation("ReclamationCreateur")
+  reclamationsAssignees        ReclamationClient[]        @relation("ReclamationAssignee")
+  actionsReclamationEffectuees ActionReclamation[]        @relation("ActionReclamationAuteur")
+  retoursMarchandiseTraites    RetourMarchandiseClient[]  @relation("RetourMarchandiseMagasinier")
+  remplacementsProduitTraites  RemplacementProduit[]      @relation("RemplacementMagasinier")
+  incidentsCommerciauxDeclares IncidentCommercial[]       @relation("IncidentCommercialDeclarant")
+  avoirsFournisseursCrees      AvoirFournisseur[]         @relation("AvoirFournisseurCreateur")
+  avancesFournisseursCrees     AvanceFournisseur[]        @relation("AvanceFournisseurCreateur")
+  facturesAchatCrees           FactureAchat[]             @relation("FactureAchatCreateur")
+  facturesAchatRapprochees     FactureAchat[]             @relation("FactureAchatRapprochePar")
+  chargesProduitsAttenteCrees  ChargeProduitAttente[]     @relation("ChargeProduitAttenteCreateur")
+  engagementsHorsBilanCrees    EngagementHorsBilan[]      @relation("EngagementHorsBilanCreateur")
 
   // Points de vente — cet user est RPV d'un PDV (1-1)
   pointDeVenteRPV           PointDeVente?             @relation("RPVPointDeVente")
@@ -890,12 +897,12 @@ model User {
   actionsRecouvrementCreditEffectuees ActionRecouvrementCredit[] @relation("ActionsRecouvrementCreditEffectuees")
 
   // Revendeurs / B2B (CDC digitalisation §5.6) — présent seulement si role = REVENDEUR
-  profilRevendeur              ProfilRevendeur?    @relation("ProfilRevendeurUser")
-  profilsRevendeurOuverts      ProfilRevendeur[]   @relation("ProfilRevendeurOuvertPar")
-  commandesRevendeur           CommandeRevendeur[] @relation("CommandeRevendeurRevendeur")
-  commandesRevendeurCreees     CommandeRevendeur[] @relation("CommandeRevendeurCreateur")
+  profilRevendeur               ProfilRevendeur?        @relation("ProfilRevendeurUser")
+  profilsRevendeurOuverts       ProfilRevendeur[]       @relation("ProfilRevendeurOuvertPar")
+  commandesRevendeur            CommandeRevendeur[]     @relation("CommandeRevendeurRevendeur")
+  commandesRevendeurCreees      CommandeRevendeur[]     @relation("CommandeRevendeurCreateur")
   bonsLivraisonRevendeurLivreur BonLivraisonRevendeur[] @relation("BonLivraisonRevendeurLivreur")
-  facturesRevendeur            FactureVente[]      @relation("FacturesVenteRevendeur")
+  facturesRevendeur             FactureVente[]          @relation("FacturesVenteRevendeur")
 
   // Tournées de livraison (CDC digitalisation §5.7)
   tourneesLivreur TourneeLivraison[] @relation("TourneeLivreur")
@@ -1090,6 +1097,9 @@ model PointDeVente {
   profilsRevendeur           ProfilRevendeur[]
   commandesRevendeur         CommandeRevendeur[]
   tournees                   TourneeLivraison[]
+  reclamations               ReclamationClient[]
+  retoursMarchandiseClient   RetourMarchandiseClient[]
+  remplacementsProduit       RemplacementProduit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1250,6 +1260,9 @@ model Client {
   // Marketing (Phase 7 — Analytics & IA)
   assignationsTestAB TestABAssignation[]
 
+  // Retours et réclamations (CDC digitalisation §5.8)
+  reclamations ReclamationClient[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1286,6 +1299,10 @@ model AvoirClient {
   notes        String?
   creeParId    Int
   creePar      User              @relation("AvoirClientCreateur", fields: [creeParId], references: [id])
+
+  // Rattachement à une réclamation client (CDC digitalisation §5.8), optionnel
+  reclamationId Int?
+  reclamation   ReclamationClient? @relation(fields: [reclamationId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1573,8 +1590,8 @@ model CreditClient {
   echeances               EcheanceCredit[]
   remboursements          RemboursementCredit[]
   livraisons              VenteDirecte[]
-  facturesVente           FactureVente[]            @relation("CreditClientFactures")
-  financementsRIA         OperationFinancementRIA[] @relation("FinancementsRIACredit")
+  facturesVente           FactureVente[]             @relation("CreditClientFactures")
+  financementsRIA         OperationFinancementRIA[]  @relation("FinancementsRIACredit")
   autorisationPrelevement AutorisationPrelevement? // prélèvement automatique CC (CDC §19.C)
   actionsRecouvrement     ActionRecouvrementCredit[]
 
@@ -2192,23 +2209,29 @@ model Produit {
   packsCibleProduit   Pack[]               @relation("PackProduitCible")
 
   // Opérations stock
-  anomalies              AnomalieStock[]
-  lignesVenteDirecte     LigneVenteDirecte[]
-  lignesTransfert        LigneTransfertStock[]
-  lignesReceptionAppro   LigneReceptionAppro[]
-  lignesInventaire       LigneInventaireSite[]
-  lignesCommande         LigneCommandeInterne[]
-  lignesBonSortie        LigneBonSortie[]
-  lignesCommandeClient   LigneCommandeClient[]
-  lignesBonReception     LigneBonReception[]
-  lignesDevisProforma    LigneDevisProforma[]
-  lignesBonPreparation   LigneBonPreparation[]
-  lignesBonLivraison     LigneBonLivraison[]
-  lignesDemandeAchat     LigneDemandeAchatInterne[]
-  lignesDepotMarchandise LigneDepotMarchandise[]
+  anomalies                   AnomalieStock[]
+  lignesVenteDirecte          LigneVenteDirecte[]
+  lignesTransfert             LigneTransfertStock[]
+  lignesReceptionAppro        LigneReceptionAppro[]
+  lignesInventaire            LigneInventaireSite[]
+  lignesCommande              LigneCommandeInterne[]
+  lignesBonSortie             LigneBonSortie[]
+  lignesCommandeClient        LigneCommandeClient[]
+  lignesBonReception          LigneBonReception[]
+  lignesDevisProforma         LigneDevisProforma[]
+  lignesBonPreparation        LigneBonPreparation[]
+  lignesBonLivraison          LigneBonLivraison[]
+  lignesDemandeAchat          LigneDemandeAchatInterne[]
+  lignesDepotMarchandise      LigneDepotMarchandise[]
   lignesCommandeRevendeur     LigneCommandeRevendeur[]
   lignesBonLivraisonRevendeur LigneBonLivraisonRevendeur[]
   lignesRetourTournee         LigneRetourTournee[]
+
+  // Retours et réclamations (CDC digitalisation §5.8)
+  lignesReclamation       LigneReclamation[]
+  lignesRetourMarchandise LigneRetourMarchandise[]
+  remplacementsOrigine    RemplacementProduit[]    @relation("RemplacementOrigine")
+  remplacementsNouveaux   RemplacementProduit[]    @relation("RemplacementNouveau")
 
   // Crédits clients
   lignesCreditProduit   LigneCreditClient[] @relation("LigneCreditProduit")
@@ -2702,6 +2725,10 @@ model MouvementStock {
   produit      Produit       @relation(fields: [produitId], references: [id])
   pointDeVente PointDeVente? @relation(fields: [pointDeVenteId], references: [id])
   operateur    User?         @relation("MouvementsStock", fields: [operateurId], references: [id])
+
+  // Retours et réclamations (CDC digitalisation §5.8)
+  retourMarchandiseClient RetourMarchandiseClient?
+  remplacementProduit     RemplacementProduit?     @relation("RemplacementMouvementSortie")
 
   @@index([produitId])
   @@index([pointDeVenteId])
@@ -3749,15 +3776,15 @@ model ProfilRevendeur {
   user   User                  @relation("ProfilRevendeurUser", fields: [userId], references: [id])
   statut StatutProfilRevendeur @default(ACTIF)
 
-  raisonSociale  String
-  nomCommercial  String?
-  nif            String?
-  rccm           String?
-  adresse        String?
-  ville          String?
-  contactNom     String?
+  raisonSociale    String
+  nomCommercial    String?
+  nif              String?
+  rccm             String?
+  adresse          String?
+  ville            String?
+  contactNom       String?
   contactTelephone String?
-  contactEmail   String?
+  contactEmail     String?
 
   pointDeVenteId Int?
   pointDeVente   PointDeVente? @relation(fields: [pointDeVenteId], references: [id])
@@ -3790,9 +3817,9 @@ enum StatutCommandeRevendeur {
 /// Bon de commande revendeur (§5.6) — équivalent B2B de CommandeClient, mais
 /// entité séparée : un revendeur est un User (compte pro), pas un Client.
 model CommandeRevendeur {
-  id        Int                      @id @default(autoincrement())
-  reference String                   @unique // BCR-2026-000123
-  statut    StatutCommandeRevendeur  @default(BROUILLON)
+  id        Int                     @id @default(autoincrement())
+  reference String                  @unique // BCR-2026-000123
+  statut    StatutCommandeRevendeur @default(BROUILLON)
 
   revendeurId Int
   revendeur   User @relation("CommandeRevendeurRevendeur", fields: [revendeurId], references: [id])
@@ -3813,8 +3840,8 @@ model CommandeRevendeur {
   creePar   User @relation("CommandeRevendeurCreateur", fields: [creeParId], references: [id])
 
   bonLivraison BonLivraisonRevendeur?
-  factureId    Int?          @unique
-  facture      FactureVente? @relation("FactureCommandeRevendeur", fields: [factureId], references: [id])
+  factureId    Int?                   @unique
+  facture      FactureVente?          @relation("FactureCommandeRevendeur", fields: [factureId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3825,10 +3852,10 @@ model CommandeRevendeur {
 }
 
 model LigneCommandeRevendeur {
-  id         Int @id @default(autoincrement())
-  commandeId Int
-  produitId  Int
-  quantite   Int
+  id           Int     @id @default(autoincrement())
+  commandeId   Int
+  produitId    Int
+  quantite     Int
   prixUnitaire Decimal // prix catalogue résolu (TypePrix.GROS, repli DETAIL puis miroir)
   montantLigne Decimal
 
@@ -3851,8 +3878,8 @@ model BonLivraisonRevendeur {
 
   lignes LigneBonLivraisonRevendeur[]
 
-  livreurId Int?
-  livreur   User?    @relation("BonLivraisonRevendeurLivreur", fields: [livreurId], references: [id])
+  livreurId  Int?
+  livreur    User?    @relation("BonLivraisonRevendeurLivreur", fields: [livreurId], references: [id])
   dateDepart DateTime @default(now())
   notes      String?
 
@@ -3861,10 +3888,10 @@ model BonLivraisonRevendeur {
 }
 
 model LigneBonLivraisonRevendeur {
-  id               Int @id @default(autoincrement())
-  bonLivraisonId   Int
-  produitId        Int
-  quantite         Int
+  id             Int @id @default(autoincrement())
+  bonLivraisonId Int
+  produitId      Int
+  quantite       Int
 
   bonLivraison BonLivraisonRevendeur @relation(fields: [bonLivraisonId], references: [id], onDelete: Cascade)
   produit      Produit               @relation(fields: [produitId], references: [id])
@@ -4160,9 +4187,9 @@ enum StatutTournee {
 }
 
 model TourneeLivraison {
-  id        Int            @id @default(autoincrement())
-  reference String         @unique // TRN-2026-000123
-  statut    StatutTournee  @default(PLANIFIEE)
+  id        Int           @id @default(autoincrement())
+  reference String        @unique // TRN-2026-000123
+  statut    StatutTournee @default(PLANIFIEE)
 
   livreurId Int
   livreur   User @relation("TourneeLivreur", fields: [livreurId], references: [id])
@@ -4198,9 +4225,9 @@ enum StatutArretTournee {
 }
 
 model TourneeArret {
-  id        Int               @id @default(autoincrement())
+  id        Int                @id @default(autoincrement())
   tourneeId Int
-  tournee   TourneeLivraison  @relation(fields: [tourneeId], references: [id], onDelete: Cascade)
+  tournee   TourneeLivraison   @relation(fields: [tourneeId], references: [id], onDelete: Cascade)
   ordre     Int
   statut    StatutArretTournee @default(PLANIFIE)
 
@@ -4235,11 +4262,11 @@ model TourneeArret {
 }
 
 model LigneRetourTournee {
-  id        Int @id @default(autoincrement())
+  id        Int          @id @default(autoincrement())
   arretId   Int
   arret     TourneeArret @relation(fields: [arretId], references: [id], onDelete: Cascade)
   produitId Int
-  produit   Produit @relation(fields: [produitId], references: [id])
+  produit   Produit      @relation(fields: [produitId], references: [id])
   quantite  Int
   motif     String?
 
@@ -6689,14 +6716,14 @@ model FactureVente {
   garantie     String? // snapshot de la garantie du crédit (si facture issue d'un crédit)
 
   // Relations
-  venteDirecte  VenteDirecte?         @relation("VenteDirecteFacture", fields: [venteDirecteId], references: [id])
-  creditClient  CreditClient?         @relation("CreditClientFactures", fields: [creditClientId], references: [id])
-  receptionPack ReceptionProduitPack? @relation("ReceptionPackFactures", fields: [receptionPackId], references: [id])
-  client        Client?               @relation("FacturesVenteClient", fields: [clientId], references: [id])
-  pointDeVente  PointDeVente?         @relation("FacturesVentePDV", fields: [pointDeVenteId], references: [id])
-  emisePar      User                  @relation("FacturesVenteEmises", fields: [emiseParId], references: [id])
-  lignes        LigneFactureVente[]
-  commandeRevendeur CommandeRevendeur? @relation("FactureCommandeRevendeur")
+  venteDirecte      VenteDirecte?         @relation("VenteDirecteFacture", fields: [venteDirecteId], references: [id])
+  creditClient      CreditClient?         @relation("CreditClientFactures", fields: [creditClientId], references: [id])
+  receptionPack     ReceptionProduitPack? @relation("ReceptionPackFactures", fields: [receptionPackId], references: [id])
+  client            Client?               @relation("FacturesVenteClient", fields: [clientId], references: [id])
+  pointDeVente      PointDeVente?         @relation("FacturesVentePDV", fields: [pointDeVenteId], references: [id])
+  emisePar          User                  @relation("FacturesVenteEmises", fields: [emiseParId], references: [id])
+  lignes            LigneFactureVente[]
+  commandeRevendeur CommandeRevendeur?    @relation("FactureCommandeRevendeur")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8400,6 +8427,239 @@ model RapportIncident {
 
   @@index([statut])
   @@index([dateIncident])
+}
+
+// ============================================================
+// CDC DIGITALISATION — RETOURS ET RÉCLAMATIONS (Partie B, §5.8)
+// Circuit : ReclamationClient (formulaire de réclamation) → actions de
+// traitement (fiche de traitement) → retour marchandise (fiche de retour /
+// bon de retour selon statut) et/ou remplacement (bon de remplacement) et/ou
+// avoir client (AvoirClient existant, lié via reclamationId) → clôture
+// (champs clotureParId/clotureLe/resumeCloture = "fiche de clôture").
+// sourceReference est un texte libre (pas de FK vers vente/facture/crédit) :
+// une réclamation doit pouvoir être enregistrée même sans document source
+// retrouvé immédiatement par l'agent.
+// ============================================================
+
+enum TypeReclamation {
+  PRODUIT_DEFECTUEUX
+  LIVRAISON_NON_CONFORME
+  ERREUR_FACTURATION
+  RETARD_LIVRAISON
+  QUALITE_SERVICE
+  AUTRE
+}
+
+enum StatutReclamation {
+  ENREGISTREE
+  EN_TRAITEMENT
+  RESOLUE
+  CLOTUREE
+  REJETEE
+}
+
+enum TypeActionReclamation {
+  PRISE_EN_CHARGE
+  INVESTIGATION
+  RETOUR_ORGANISE
+  REMPLACEMENT_ORGANISE
+  AVOIR_EMIS
+  DECISION
+  REJET
+  CLOTURE
+  NOTE_INTERNE
+}
+
+enum StatutRetourMarchandise {
+  DECLARE
+  RECEPTIONNE
+  VALIDE
+  REJETE
+}
+
+enum StatutRemplacementProduit {
+  DEMANDE
+  APPROUVE
+  LIVRE
+  REJETE
+}
+
+enum TypeIncidentCommercial {
+  LIVRAISON
+  PRODUIT
+  COMPORTEMENT_CLIENT
+  COMPORTEMENT_AGENT
+  AUTRE
+}
+
+/// Formulaire de réclamation client (CDC §5.8) — point d'entrée du circuit.
+model ReclamationClient {
+  id     Int    @id @default(autoincrement())
+  numero String @unique // REC-2026-000123
+
+  clientId       Int
+  client         Client        @relation(fields: [clientId], references: [id])
+  pointDeVenteId Int?
+  pointDeVente   PointDeVente? @relation(fields: [pointDeVenteId], references: [id])
+
+  sourceReference String? // référence libre de la vente/facture/crédit/livraison d'origine
+  type            TypeReclamation
+  objet           String
+  description     String
+  statut          StatutReclamation    @default(ENREGISTREE)
+  priorite        PrioriteNotification @default(NORMAL)
+
+  creeParId  Int
+  creePar    User  @relation("ReclamationCreateur", fields: [creeParId], references: [id])
+  assigneAId Int?
+  assigneA   User? @relation("ReclamationAssignee", fields: [assigneAId], references: [id])
+
+  motifRejet    String?
+  resumeCloture String? // "Fiche de clôture de réclamation"
+  clotureParId  Int?
+  clotureLe     DateTime?
+
+  lignes        LigneReclamation[]
+  actions       ActionReclamation[]
+  retours       RetourMarchandiseClient[]
+  remplacements RemplacementProduit[]
+  incidents     IncidentCommercial[]
+  avoirs        AvoirClient[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([statut])
+  @@index([pointDeVenteId])
+}
+
+model LigneReclamation {
+  id            Int               @id @default(autoincrement())
+  reclamationId Int
+  reclamation   ReclamationClient @relation(fields: [reclamationId], references: [id], onDelete: Cascade)
+  produitId     Int
+  produit       Produit           @relation(fields: [produitId], references: [id])
+  quantite      Int
+  motif         String?
+
+  @@index([reclamationId])
+}
+
+/// "Fiche de traitement de réclamation" — journal d'actions historisé (même
+/// pattern que ActionRecouvrementCredit, §5.4).
+model ActionReclamation {
+  id            Int                   @id @default(autoincrement())
+  reclamationId Int
+  reclamation   ReclamationClient     @relation(fields: [reclamationId], references: [id], onDelete: Cascade)
+  type          TypeActionReclamation
+  description   String?
+  auteurId      Int
+  auteur        User                  @relation("ActionReclamationAuteur", fields: [auteurId], references: [id])
+  dateAction    DateTime              @default(now())
+
+  @@index([reclamationId])
+}
+
+/// "Fiche de retour marchandise" tant que non validée ; devient le "Bon de
+/// retour" une fois statut VALIDE (même modèle, variante d'impression selon
+/// le statut — comme FicheTournee.tsx pour les tournées de livraison).
+model RetourMarchandiseClient {
+  id             Int                     @id @default(autoincrement())
+  numero         String                  @unique // RET-2026-000045
+  reclamationId  Int
+  reclamation    ReclamationClient       @relation(fields: [reclamationId], references: [id])
+  pointDeVenteId Int
+  pointDeVente   PointDeVente            @relation(fields: [pointDeVenteId], references: [id])
+  statut         StatutRetourMarchandise @default(DECLARE)
+
+  magasinierId  Int?
+  magasinier    User?     @relation("RetourMarchandiseMagasinier", fields: [magasinierId], references: [id])
+  dateReception DateTime?
+  motifRejet    String?
+
+  mouvementStockId Int?            @unique
+  mouvementStock   MouvementStock? @relation(fields: [mouvementStockId], references: [id])
+
+  lignes LigneRetourMarchandise[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reclamationId])
+  @@index([statut])
+  @@index([pointDeVenteId])
+}
+
+model LigneRetourMarchandise {
+  id          Int                     @id @default(autoincrement())
+  retourId    Int
+  retour      RetourMarchandiseClient @relation(fields: [retourId], references: [id], onDelete: Cascade)
+  produitId   Int
+  produit     Produit                 @relation(fields: [produitId], references: [id])
+  quantite    Int
+  etatProduit String?
+
+  @@index([retourId])
+}
+
+/// "Bon de remplacement" — organise le remplacement d'un produit défectueux.
+model RemplacementProduit {
+  id             Int               @id @default(autoincrement())
+  numero         String            @unique // BREM-2026-000012
+  reclamationId  Int
+  reclamation    ReclamationClient @relation(fields: [reclamationId], references: [id])
+  pointDeVenteId Int
+  pointDeVente   PointDeVente      @relation(fields: [pointDeVenteId], references: [id])
+
+  produitOrigineId      Int
+  produitOrigine        Produit @relation("RemplacementOrigine", fields: [produitOrigineId], references: [id])
+  produitRemplacementId Int
+  produitRemplacement   Produit @relation("RemplacementNouveau", fields: [produitRemplacementId], references: [id])
+  quantite              Int
+
+  statut StatutRemplacementProduit @default(DEMANDE)
+
+  magasinierId  Int?
+  magasinier    User?     @relation("RemplacementMagasinier", fields: [magasinierId], references: [id])
+  dateLivraison DateTime?
+  motifRejet    String?
+
+  mouvementSortieId Int?            @unique
+  mouvementSortie   MouvementStock? @relation("RemplacementMouvementSortie", fields: [mouvementSortieId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reclamationId])
+  @@index([statut])
+  @@index([pointDeVenteId])
+}
+
+/// "Rapport d'incident" commercial (vente/livraison) — distinct de
+/// RapportIncident (SST, accidents/incidents de travail).
+model IncidentCommercial {
+  id            Int                @id @default(autoincrement())
+  numero        String             @unique // INC-2026-000031
+  reclamationId Int?
+  reclamation   ReclamationClient? @relation(fields: [reclamationId], references: [id])
+
+  dateIncident        DateTime
+  lieu                String
+  type                TypeIncidentCommercial @default(AUTRE)
+  description         String
+  personnesImpliquees String?
+  actionsCorrectives  String?
+  statut              StatutIncident         @default(OUVERT)
+
+  declareParId Int
+  declarePar   User @relation("IncidentCommercialDeclarant", fields: [declareParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statut])
+  @@index([reclamationId])
 }
 
 // ============================================================
