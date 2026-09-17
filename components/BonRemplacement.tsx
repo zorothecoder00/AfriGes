@@ -99,7 +99,8 @@ function buildHtml(r: RemplacementDoc, origin: string, mono: boolean, qrDataUrl:
 
 export default function BonRemplacement({ remplacement, onClose }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const suiviUrl = `${origin}/suivi/${remplacement.numero}`;
+  // Document interne (magasinier) — lien vers la file d'attente des remplacements (pas de page publique).
+  const suiviUrl = `${origin}/dashboard/user/magasiniers/remplacements?detail=${remplacement.id}`;
 
   const [qr, setQr] = useState("");
   useEffect(() => {

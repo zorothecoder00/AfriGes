@@ -395,6 +395,13 @@ const REGLES_PAR_DEFAUT: Record<string, (ctx: ContexteEvenement) => ComptesRegle
     const tr = compteTresorerie(ctx.modePaiement);
     return { journal: tr.journal, compteDebitNumero: "471", compteCreditNumero: tr.numero };
   },
+  // Bordereau de Remise de Fonds clôturé (CDC digitalisation §3.1/§7 — "les
+  // documents validés génèrent automatiquement les écritures correspondantes")
+  // : mouvement de trésorerie pur, espèces collectées sur le terrain déposées
+  // en banque — Dr 521 Banque (dépôt confirmé) / Cr 571 Caisse (fonds remis
+  // par le collecteur), sans lien avec un modePaiement (toujours espèces à
+  // l'origine).
+  BORDEREAU_REMISE_FONDS_CLOTURE: () => ({ journal: "BANQUE", compteDebitNumero: "521", compteCreditNumero: "571" }),
 };
 
 /**
@@ -747,6 +754,33 @@ export async function ecritureDecaissement(
     lignes: [
       { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Décaissement ${params.reference}`, pointDeVenteId: pdv },
       { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Décaissement ${params.reference}`, pointDeVenteId: pdv },
+    ],
+  });
+}
+
+/**
+ * Bordereau de Remise de Fonds clôturé (CDC digitalisation §3.1/§7) : Dr
+ * Banque / Cr Caisse — le dépôt bancaire du montant remis par le collecteur
+ * (billetage confirmé + mobile money + virement) est comptabilisé à la
+ * clôture, une fois la référence de dépôt bancaire renseignée.
+ */
+export async function ecritureBordereauRemiseFonds(
+  tx: TxClient,
+  params: { montant: number; reference: string; collecteurNom: string; userId: number; date?: Date; pointDeVenteId?: number | null },
+): Promise<number | null> {
+  if (params.montant <= 0) return null;
+  const regle = await resoudreRegleComptable(tx, "BORDEREAU_REMISE_FONDS_CLOTURE");
+  if (!regle) return null;
+  const pdv = params.pointDeVenteId ?? null;
+  return creerEcriture(tx, {
+    journal: regle.journal,
+    date: params.date ?? new Date(),
+    libelle: `Dépôt bancaire — ${params.collecteurNom} — ${params.reference}`,
+    userId: params.userId,
+    reference: `SYNC-BRF-${params.reference}`,
+    lignes: [
+      { numero: regle.compteDebitNumero, debit: params.montant, libelle: `Dépôt bancaire ${params.reference}`, pointDeVenteId: pdv },
+      { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Remise de fonds ${params.reference}`, pointDeVenteId: pdv },
     ],
   });
 }

@@ -120,7 +120,9 @@ function buildHtml(r: ReclamationDoc, origin: string, mono: boolean, qrDataUrl: 
 
 export default function FormulaireReclamation({ reclamation, onClose }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const suiviUrl = `${origin}/suivi/${reclamation.numero}`;
+  // Document interne (Service Commercial/RPV/Chef d'agence connectés) — lien vers
+  // le dossier dans le back-office, pas une page publique sans authentification.
+  const suiviUrl = `${origin}/dashboard/admin/reclamations?detail=${reclamation.id}`;
 
   const [qr, setQr] = useState("");
   useEffect(() => {

@@ -3626,6 +3626,7 @@ model BordereauRemiseFonds {
   clotureParId           Int?
   cloturePar             User?     @relation("BordereauCloture", fields: [clotureParId], references: [id])
   dateCloture            DateTime?
+  ecritureId             Int? // écriture comptable générée à la clôture (best-effort, brouillon)
 
   notes String?
 

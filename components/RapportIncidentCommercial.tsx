@@ -22,7 +22,7 @@ export interface IncidentCommercialDoc {
   statut: string;
   createdAt: string;
   declarePar: { nom: string; prenom: string } | null;
-  reclamation?: { numero: string } | null;
+  reclamation?: { id: number; numero: string } | null;
 }
 
 interface Props {
@@ -103,7 +103,10 @@ function buildHtml(inc: IncidentCommercialDoc, origin: string, mono: boolean, qr
 
 export default function RapportIncidentCommercial({ incident, onClose }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const suiviUrl = `${origin}/suivi/${incident.numero}`;
+  // Document interne — lien vers la réclamation liée si rattaché, sinon le hub réclamations.
+  const suiviUrl = incident.reclamation
+    ? `${origin}/dashboard/admin/reclamations?detail=${incident.reclamation.id}`
+    : `${origin}/dashboard/admin/reclamations`;
 
   const [qr, setQr] = useState("");
   useEffect(() => {

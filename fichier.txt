@@ -206,3 +206,78 @@ Sur /dashboard/user/logistiquesApprovisionnements/bons-commande  , je ne compren
 Sur /api/magasinier/bons-sortie/1/pdf , c'est à dire quand on veut imprimer un bon de sortie , lorsque la sortie est une perte , est ce logique de mettre quantité demandée dans le tableau ?? Si c'est logique d'accord mais ça mérite d'être soulevé . Et puis je remarque que la signature électronique est automatique ( j'ai pas signé mais ça affiche que j'ai signé )
 
 je ne comprends pas trop le formulaire de /dashboard/user/agentsTerrain/devis-proforma aussi . Après le produit je pense que c'est la quantité , mais après la quantité , il y'a quoi ? Les input sont des chiffres mais je ne sais pas ce que s'est censé être comme donnée ; et puis la condition , c'est à l'agent terrain de la mettre en input libre ??
+
+
+ Couverture documentaire : quasi-totale (~95-98%)
+
+  Partie A (6 documents prioritaires §3.1-3.6) : 6/6 EXISTS, avec QR "Instance"
+  sécurisé par hash HMAC réellement fonctionnel (lib/documentQr.ts +
+  app/q/[code]/[id]/). C'est le lot le plus abouti — signature électronique,
+  GPS, lien sans compte pour le Bon de Réception, tout y est.
+
+  Partie B (§5.2 à §5.10) : couverte dans son intégralité, avec quelques
+  équivalences fonctionnelles plutôt que des documents 1-pour-1 :
+  - §5.2 Ventes, §5.3 Achats/Fournisseurs, §5.4 Crédit, §5.5 Dépôt-vente, §5.6
+    Revendeurs, §5.7 Logistique, §5.8 Retours/réclamations, §5.9 Contrôle
+    commercial : tous vérifiés présents en base et en API.
+
+  Ce qui manque réellement — 7 points, avec la raison
+
+  #: 1
+  Manque: Reçu de paiement distinct
+  Raison: Fusionné dans la facture comptant (FactureModal) — simplification
+  pragmatique, équivalent fonctionnel
+  ────────────────────────────────────────
+  #: 2
+  Manque: Fiche d'évaluation fournisseur, Ordre/Preuve de paiement
+  Raison: Remplacés par des champs sur des modèles existants
+  (Fournisseur.noteGlobale, FicheDecaissement) — réutilisation délibérée
+  ────────────────────────────────────────
+  #: 3
+  Manque: Tableau de bord Transporteur / rôle "Livreur"
+  Raison: Jamais créé de rôle dédié dans RoleGestionnaire ; les tournées sont
+  pilotées par Logistique/Magasinier, pas par un livreur en libre-service sur
+  mobile
+  ────────────────────────────────────────
+  #: 4
+  Manque: Fonctionnement hors-ligne (§2.5)
+  Raison: Absent à 100% — c'est une web app Next.js classique, pas une PWA/appli
+
+  mobile offline-first ; choix d'architecture jamais remis en cause
+  ────────────────────────────────────────
+  #: 5
+  Manque: QR "Modèle" statique (badge agent → formulaire vierge)
+  Raison: Jamais implémenté ; l'app est en accès web/login classique, pas par
+  badge scanné
+  ────────────────────────────────────────
+  #: 6
+  Manque: Écriture comptable sur le Bordereau de Remise de Fonds
+  Raison: Vrai oubli technique (pas un choix) — le §7 l'exige explicitement, ce
+  n'est pas câblé
+  ────────────────────────────────────────
+  #: 7
+  Manque: QR fonctionnel sur les 4 derniers modules (Revendeurs, Tournées,
+  Réclamations/Retours/Remplacements/Incidents)
+  Raison: Vrai oubli d'architecture — ces modules réutilisent le pattern
+  /suivi/{reference}, mais cette page ne requête QUE CreditClient. Résultat :
+  scanner le QR d'un Bon de remplacement ou d'une Fiche de retour mène à une
+  404. Le QR est cosmétique, pas fonctionnel
+
+  Le point le plus important à retenir
+
+  Le contenu métier (les documents eux-mêmes) est quasi intégralement couvert.
+  Mais le CDC insiste beaucoup sur une infrastructure transverse commune à tous
+  les documents (§2/§4/§6/§7) — QR sécurisé partout, hors-ligne, tableaux de
+  bord par profil — et cette infrastructure n'a été pleinement construite que
+  pour la Partie A (le tout premier lot développé). Les 4 modules les plus
+  récents (§5.6 à §5.9, tous livrés dans cette session ou juste avant) ont le
+  contenu métier complet mais n'ont pas hérité de cette couche transverse.
+
+  Concrètement, deux choses sont facilement corrigibles si tu veux :
+  - #6 (écriture comptable Bordereau de Remise de Fonds) — petit oubli isolé.
+  - #7 (QR cassé sur 4 modules) — corrigible en étendant
+    /suivi/[reference]/page.tsx pour reconnaître les nouvelles références (RET-,
+    BREM-, INC-, REC-, etc.) en plus de CreditClient.
+
+  Les points #3, #4, #5 sont des choix d'architecture assumés depuis le début du
+  projet, pas des manques à combler à la marge.

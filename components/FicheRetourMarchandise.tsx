@@ -109,7 +109,8 @@ function buildHtml(r: RetourMarchandiseDoc, origin: string, mono: boolean, qrDat
 
 export default function FicheRetourMarchandise({ retour, onClose }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const suiviUrl = `${origin}/suivi/${retour.numero}`;
+  // Document interne (magasinier) — lien vers la file d'attente des retours (pas de page publique).
+  const suiviUrl = `${origin}/dashboard/user/magasiniers/retours-client?detail=${retour.id}`;
 
   const [qr, setQr] = useState("");
   useEffect(() => {

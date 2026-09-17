@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   MessageSquareWarning, Plus, X, RefreshCw, Printer, Loader2, Search,
@@ -56,6 +57,16 @@ type PrintDoc =
   | { kind: "incident"; data: IncidentCommercialDoc };
 
 export default function AdminReclamationsPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminReclamationsPageInner />
+    </Suspense>
+  );
+}
+
+function AdminReclamationsPageInner() {
+  const searchParams = useSearchParams();
+
   const [statutFiltre, setStatutFiltre] = useState("");
   const apiUrl = `/api/admin/reclamations${statutFiltre ? `?statut=${statutFiltre}` : ""}`;
   const { data, loading, refetch } = useApi<{ data: ReclamationRow[] }>(apiUrl);
@@ -64,6 +75,14 @@ export default function AdminReclamationsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [printDoc, setPrintDoc] = useState<PrintDoc | null>(null);
+
+  // Ouvre directement le dossier visé par un lien de notification ou un QR
+  // de document scanné (?detail=123), cf. lib/documentQr / composants d'impression.
+  useEffect(() => {
+    const detail = searchParams.get("detail");
+    if (detail) setDetailId(Number(detail));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Création ──────────────────────────────────────────────────────────
   const [clientQuery, setClientQuery] = useState("");

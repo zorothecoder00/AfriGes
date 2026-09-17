@@ -115,7 +115,8 @@ function buildHtml(r: ReclamationTraitementDoc, origin: string, mono: boolean, q
 
 export default function FicheTraitementReclamation({ reclamation, onClose }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const suiviUrl = `${origin}/suivi/${reclamation.numero}`;
+  // Document interne — lien vers le dossier dans le back-office (pas de page publique).
+  const suiviUrl = `${origin}/dashboard/admin/reclamations?detail=${reclamation.id}`;
 
   const [qr, setQr] = useState("");
   useEffect(() => {

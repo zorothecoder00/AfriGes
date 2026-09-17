@@ -5,6 +5,7 @@ import { getComptableSession } from "@/lib/authComptable";
 import { auditLog, notify, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 import { getSeuilVisaCGTBordereauRemise } from "@/lib/parametresDocuments";
+import { ecritureBordereauRemiseFonds } from "@/lib/comptabilite/moteur";
 import { getSession, INCLUDE } from "../route";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -133,6 +134,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
       }
       const userId = parseInt(session.user.id);
       const updated = await prisma.$transaction(async (tx) => {
+        const ecritureId = await ecritureBordereauRemiseFonds(tx, {
+          montant: montantTotal,
+          reference: bordereau.reference,
+          collecteurNom: `${bordereau.collecteur.prenom} ${bordereau.collecteur.nom}`,
+          userId,
+          pointDeVenteId: bordereau.pointDeVenteId,
+        });
         const b = await tx.bordereauRemiseFonds.update({
           where: { id: bordereauId },
           data: {
@@ -141,10 +149,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
             dateDepotBancaire: body.dateDepotBancaire ? new Date(body.dateDepotBancaire) : new Date(),
             clotureParId: userId,
             dateCloture: new Date(),
+            ecritureId,
           },
           include: INCLUDE,
         });
-        await auditLog(tx, userId, "BRF_CLOTURE", "BordereauRemiseFonds", bordereauId, undefined, getRequestMeta(req));
+        await auditLog(tx, userId, "BRF_CLOTURE", "BordereauRemiseFonds", bordereauId, { ecritureId }, getRequestMeta(req));
         return b;
       });
       return NextResponse.json({ data: updated });
