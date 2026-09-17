@@ -150,6 +150,22 @@ export default async function VerifierDocumentPage({ params, searchParams }: Pro
     redirect(`/dashboard/admin/revendeurs?detail=${profil?.id ?? ""}`);
   }
 
+  if (codeDoc === "TRN") {
+    const t = await prisma.tourneeLivraison.findUnique({ where: { id: docId }, select: { id: true, createdAt: true } });
+    if (!t || !verifierHashInstance("TRN", t.id, t.createdAt.toISOString(), h)) {
+      return <PageErreur message="Ce QR ne correspond à aucune tournée de livraison valide (document falsifié ou introuvable)." />;
+    }
+    redirect(`/dashboard/user/logistiquesApprovisionnements/tournees?tournee=${t.id}`);
+  }
+
+  if (codeDoc === "ARL") {
+    const a = await prisma.tourneeArret.findUnique({ where: { id: docId }, select: { id: true, createdAt: true, tourneeId: true } });
+    if (!a || !verifierHashInstance("ARL", a.id, a.createdAt.toISOString(), h)) {
+      return <PageErreur message="Ce QR ne correspond à aucun arrêt de tournée valide (document falsifié ou introuvable)." />;
+    }
+    redirect(`/dashboard/user/logistiquesApprovisionnements/tournees?tournee=${a.tourneeId}`);
+  }
+
   return <PageErreur message="QR code invalide." />;
 }
 

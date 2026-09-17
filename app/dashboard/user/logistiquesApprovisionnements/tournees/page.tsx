@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
@@ -8,14 +9,16 @@ import {
   Truck, X, RefreshCw, Plus, Trash2, Loader2, PlayCircle, StopCircle, Ban,
   Printer, CheckCircle2, AlertTriangle, XCircle, BarChart3,
 } from "lucide-react";
-import FicheTournee, { type VarianteTournee, type TourneeData } from "@/components/FicheTournee";
-import FicheArretLivraison, { type ArretConstatData } from "@/components/FicheArretLivraison";
 
 const inputCls = "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
 interface PDV { id: number; nom: string; code: string }
 interface Livreur { id: number; nom: string; prenom: string }
 interface BLDispo { id: number; reference: string; clientNom: string; clientTelephone: string | null; adresseLivraison: string | null }
+interface ArretTournee {
+  id: number; ordre: number; statut: string; clientNom: string; adresseLivraison: string | null;
+}
+interface TourneeData { id: number; reference: string; statut: string; dateTournee: string; livreur: { nom: string; prenom: string }; pointDeVente: { nom: string; code: string }; arrets: ArretTournee[] }
 interface TourneesResponse { data: TourneeData[]; pdvs: PDV[]; livreurs: Livreur[]; bonsLivraisonDisponibles: BLDispo[] }
 
 const STATUT_TRN: Record<string, { label: string; badge: string }> = {
@@ -42,16 +45,24 @@ export default function TourneesPage() {
 }
 
 function TourneesPageInner() {
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>("tournees");
   const [showCreate, setShowCreate] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
-  const [printDoc, setPrintDoc] = useState<{ kind: "tournee"; variante: VarianteTournee } | { kind: "arret"; arret: ArretConstatData } | null>(null);
 
   const { data, loading, refetch } = useApi<TourneesResponse>("/api/logistique/tournees");
   const tournees = data?.data ?? [];
   const pdvs = data?.pdvs ?? [];
   const livreurs = data?.livreurs ?? [];
   const bonsLivraisonDisponibles = data?.bonsLivraisonDisponibles ?? [];
+
+  // Ouvre directement la tournée visée par un lien de notification ou un QR
+  // de document scanné (?tournee=123).
+  useEffect(() => {
+    const tournee = searchParams.get("tournee");
+    if (tournee) setDetailId(Number(tournee));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const detailTournee = tournees.find((t) => t.id === detailId) ?? null;
 
@@ -114,14 +125,7 @@ function TourneesPageInner() {
       )}
 
       {detailTournee && (
-        <TourneeDetailModal tournee={detailTournee} onClose={() => setDetailId(null)} onChanged={refetch} onPrint={setPrintDoc} />
-      )}
-
-      {printDoc?.kind === "tournee" && detailTournee && (
-        <FicheTournee variante={printDoc.variante} tournee={detailTournee} onClose={() => setPrintDoc(null)} />
-      )}
-      {printDoc?.kind === "arret" && detailTournee && (
-        <FicheArretLivraison arret={printDoc.arret} tourneeReference={detailTournee.reference} onClose={() => setPrintDoc(null)} />
+        <TourneeDetailModal tournee={detailTournee} onClose={() => setDetailId(null)} onChanged={refetch} />
       )}
     </div>
   );
@@ -230,9 +234,8 @@ function NouvelleTourneeModal({ pdvs, livreurs, bonsLivraisonDisponibles, onClos
 
 // ── Détail tournée ──────────────────────────────────────────────────────────
 
-function TourneeDetailModal({ tournee, onClose, onChanged, onPrint }: {
+function TourneeDetailModal({ tournee, onClose, onChanged }: {
   tournee: TourneeData; onClose: () => void; onChanged: () => void;
-  onPrint: (doc: { kind: "tournee"; variante: VarianteTournee } | { kind: "arret"; arret: ArretConstatData }) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [constatArretId, setConstatArretId] = useState<number | null>(null);
@@ -265,9 +268,9 @@ function TourneeDetailModal({ tournee, onClose, onChanged, onPrint }: {
             {tournee.statut === "EN_COURS" && <button onClick={() => action("TERMINER")} disabled={busy} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-100 disabled:opacity-50"><StopCircle size={13} /> Terminer</button>}
             {(tournee.statut === "PLANIFIEE" || tournee.statut === "EN_COURS") && <button onClick={() => { if (confirm("Annuler cette tournée ?")) action("ANNULER"); }} disabled={busy} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-200 disabled:opacity-50"><Ban size={13} /> Annuler</button>}
             <span className="flex-1" />
-            <button onClick={() => onPrint({ kind: "tournee", variante: "MISSION" })} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg"><Printer size={12} /> Mission</button>
-            <button onClick={() => onPrint({ kind: "tournee", variante: "CHARGEMENT" })} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg"><Printer size={12} /> Chargement</button>
-            <button onClick={() => onPrint({ kind: "tournee", variante: "BORDEREAU" })} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg"><Printer size={12} /> Bordereau</button>
+            <a href={`/api/logistique/tournees/${tournee.id}/pdf?variante=MISSION`} target="_blank" rel="noreferrer" className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg"><Printer size={12} /> Mission</a>
+            <a href={`/api/logistique/tournees/${tournee.id}/pdf?variante=CHARGEMENT`} target="_blank" rel="noreferrer" className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg"><Printer size={12} /> Chargement</a>
+            <a href={`/api/logistique/tournees/${tournee.id}/pdf?variante=BORDEREAU`} target="_blank" rel="noreferrer" className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg"><Printer size={12} /> Bordereau</a>
           </div>
 
           <div>
@@ -291,7 +294,7 @@ function TourneeDetailModal({ tournee, onClose, onChanged, onPrint }: {
                         <button onClick={() => setConstatArretId(a.id)} className="text-xs text-blue-600 hover:underline">Constater</button>
                       )}
                       {a.statut !== "PLANIFIE" && (
-                        <button onClick={() => onPrint({ kind: "arret", arret: a })} className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-700"><Printer size={11} /> Imprimer</button>
+                        <a href={`/api/logistique/tournees/${tournee.id}/arrets/${a.id}/pdf`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-700"><Printer size={11} /> Imprimer</a>
                       )}
                     </div>
                     {constatArretId === a.id && (
