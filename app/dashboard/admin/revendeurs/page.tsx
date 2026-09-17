@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   Store, Plus, X, RefreshCw, Printer, PauseCircle, PlayCircle, StopCircle,
@@ -11,25 +12,22 @@ import NotificationBell from "@/components/NotificationBell";
 import AccountMenuButton from "@/components/AccountMenuButton";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import AfriSimeLogo from "@/components/AfriSimeLogo";
-import FicheRevendeur, { type ProfilRevendeurData, type VarianteRevendeur } from "@/components/FicheRevendeur";
-import BonCommandeRevendeur, { type CommandeRevendeurData } from "@/components/BonCommandeRevendeur";
-import BonLivraisonRevendeurDoc, { type BonLivraisonRevendeurData } from "@/components/BonLivraisonRevendeurDoc";
-import FactureRevendeurDoc, { type FactureRevendeurData } from "@/components/FactureRevendeurDoc";
-import ReleveAchatsRevendeur from "@/components/ReleveAchatsRevendeur";
 
 const inputCls = "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500";
 const fmt = (n: number | string) => Number(n).toLocaleString("fr-FR");
 
+export type VarianteRevendeur = "OUVERTURE" | "CARTE" | "GRILLE" | "CONVENTION" | "ATTESTATION";
+
 interface PDV { id: number; nom: string; code: string }
 interface EligibleUser { id: number; nom: string; prenom: string; email: string | null }
+interface ProfilRevendeurData {
+  id: number; raisonSociale: string; statut: string;
+  contactTelephone: string | null;
+  user: { nom: string; prenom: string; telephone: string | null };
+  pointDeVente: { id: number; nom: string; code: string } | null;
+}
+interface CommandeRevendeurData { id: number; reference: string; statut: string; totalTTC: number | string }
 interface RevendeursResponse { data: ProfilRevendeurData[]; pdvs: PDV[] }
-
-type PrintDoc =
-  | { kind: "fiche"; variante: VarianteRevendeur }
-  | { kind: "bc"; commande: CommandeRevendeurData }
-  | { kind: "bl"; bl: BonLivraisonRevendeurData; commandeRef: string }
-  | { kind: "fac"; facture: FactureRevendeurData }
-  | { kind: "releve" };
 
 const STATUT_BADGE: Record<string, string> = {
   ACTIF: "bg-emerald-100 text-emerald-700",
@@ -46,6 +44,15 @@ const STATUT_CDE_BADGE: Record<string, string> = {
 };
 
 export default function AdminRevendeursPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminRevendeursPageInner />
+    </Suspense>
+  );
+}
+
+function AdminRevendeursPageInner() {
+  const searchParams = useSearchParams();
   const { data: listData, loading: listLoading, refetch: refetchList } = useApi<RevendeursResponse>("/api/admin/revendeurs");
   const revendeurs = listData?.data ?? [];
   const pdvs = listData?.pdvs ?? [];
@@ -60,7 +67,14 @@ export default function AdminRevendeursPage() {
   const [creating, setCreating] = useState(false);
 
   const [detailId, setDetailId] = useState<number | null>(null);
-  const [printDoc, setPrintDoc] = useState<PrintDoc | null>(null);
+
+  // Ouvre directement le profil visé par un lien de notification ou un QR
+  // de document scanné (?detail=123).
+  useEffect(() => {
+    const detail = searchParams.get("detail");
+    if (detail) setDetailId(Number(detail));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function openCreate() {
     setShowCreate(true);
@@ -211,48 +225,15 @@ export default function AdminRevendeursPage() {
       )}
 
       {detailId != null && (
-        <RevendeurDetailModal id={detailId} onClose={() => { setDetailId(null); refetchList(); }} onPrint={setPrintDoc} />
+        <RevendeurDetailModal id={detailId} onClose={() => { setDetailId(null); refetchList(); }} />
       )}
-
-      {printDoc?.kind === "fiche" && detailId != null && (
-        <FicheRevendeurBridge id={detailId} variante={printDoc.variante} onClose={() => setPrintDoc(null)} />
-      )}
-      {printDoc?.kind === "bc" && <BonCommandeRevendeur commande={printDoc.commande} raisonSociale={revendeurs.find((r) => r.id === detailId)?.raisonSociale ?? ""} onClose={() => setPrintDoc(null)} />}
-      {printDoc?.kind === "bl" && <BonLivraisonRevendeurDoc bonLivraison={printDoc.bl} raisonSociale={revendeurs.find((r) => r.id === detailId)?.raisonSociale ?? ""} commandeReference={printDoc.commandeRef} onClose={() => setPrintDoc(null)} />}
-      {printDoc?.kind === "fac" && <FactureRevendeurDoc facture={printDoc.facture} onClose={() => setPrintDoc(null)} />}
-      {printDoc?.kind === "releve" && detailId != null && <ReleveBridge id={detailId} onClose={() => setPrintDoc(null)} />}
     </div>
-  );
-}
-
-// ── Pont impression (recharge les données fraîches au clic Imprimer) ──────────
-
-function FicheRevendeurBridge({ id, variante, onClose }: { id: number; variante: VarianteRevendeur; onClose: () => void }) {
-  const { data } = useApi<{ data: ProfilRevendeurData; stats: { nbFactures: number; totalFacture: number } }>(`/api/admin/revendeurs/${id}`);
-  if (!data) return null;
-  return <FicheRevendeur variante={variante} profil={data.data} stats={data.stats} onClose={onClose} />;
-}
-
-function ReleveBridge({ id, onClose }: { id: number; onClose: () => void }) {
-  const { data } = useApi<{ data: ProfilRevendeurData }>(`/api/admin/revendeurs/${id}`);
-  const { data: releveData } = useApi<{ data: FactureRevendeurData[]; stats: { nbFactures: number; totalFacture: number; totalPaye: number; soldeDu: number; premierAchat: string | null } }>(`/api/admin/revendeurs/${id}/releve`);
-  if (!data || !releveData) return null;
-  return (
-    <ReleveAchatsRevendeur
-      raisonSociale={data.data.raisonSociale}
-      factures={releveData.data}
-      stats={releveData.stats}
-      onClose={onClose}
-    />
   );
 }
 
 // ── Détail revendeur ────────────────────────────────────────────────────────
 
-function RevendeurDetailModal({ id, onClose, onPrint }: {
-  id: number; onClose: () => void;
-  onPrint: (doc: PrintDoc) => void;
-}) {
+function RevendeurDetailModal({ id, onClose }: { id: number; onClose: () => void }) {
   const { data, loading, refetch } = useApi<{ data: ProfilRevendeurData; stats: { nbFactures: number; totalFacture: number; totalPaye: number; soldeDu: number } }>(`/api/admin/revendeurs/${id}`);
   const { data: cmdData, refetch: refetchCmd } = useApi<{ data: CommandeRevendeurData[] }>(`/api/admin/revendeurs/${id}/commandes`);
   const commandes = cmdData?.data ?? [];
@@ -284,15 +265,6 @@ function RevendeurDetailModal({ id, onClose, onPrint }: {
     } finally { setBusyAction(null); }
   }
 
-  async function printCommandeDetail(commandeId: number, doc: "bc" | "bl" | "fac") {
-    const r = await fetch(`/api/admin/revendeurs/${id}/commandes/${commandeId}`);
-    const j = await r.json();
-    if (!r.ok) { toast.error(j.error); return; }
-    if (doc === "bc") onPrint({ kind: "bc", commande: j.data });
-    if (doc === "bl" && j.data.bonLivraison) onPrint({ kind: "bl", bl: j.data.bonLivraison, commandeRef: j.data.reference });
-    if (doc === "fac" && j.data.facture) onPrint({ kind: "fac", facture: j.data.facture });
-  }
-
   const profil = data?.data;
   const stats = data?.stats;
 
@@ -322,13 +294,15 @@ function RevendeurDetailModal({ id, onClose, onPrint }: {
               )}
               <span className="flex-1" />
               {(["OUVERTURE", "CARTE", "GRILLE", "CONVENTION", "ATTESTATION"] as VarianteRevendeur[]).map((v) => (
-                <button key={v} onClick={() => onPrint({ kind: "fiche", variante: v })} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg" title={v}>
+                <a key={v} href={`/api/admin/revendeurs/${id}/pdf?variante=${v}`} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg" title={v}>
                   <Printer size={12} /> {v.charAt(0) + v.slice(1).toLowerCase()}
-                </button>
+                </a>
               ))}
-              <button onClick={() => onPrint({ kind: "releve" })} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg">
+              <a href={`/api/admin/revendeurs/${id}/releve/pdf`} target="_blank" rel="noreferrer"
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg">
                 <Printer size={12} /> Relevé
-              </button>
+              </a>
             </div>
 
             {/* Stats */}
@@ -367,7 +341,7 @@ function RevendeurDetailModal({ id, onClose, onPrint }: {
                       <span className="font-bold text-emerald-700 text-sm">{fmt(c.totalTTC)} FCFA</span>
                     </div>
                     <div className="flex items-center gap-1 mt-2 flex-wrap">
-                      <button onClick={() => printCommandeDetail(c.id, "bc")} className="flex items-center gap-1 px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 rounded"><Printer size={11} /> BC</button>
+                      <a href={`/api/admin/revendeurs/${id}/commandes/${c.id}/pdf`} target="_blank" rel="noreferrer" className="flex items-center gap-1 px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 rounded"><Printer size={11} /> BC</a>
                       {c.statut === "BROUILLON" && (
                         <>
                           <button onClick={() => actionCommande(c.id, "CONFIRMER")} disabled={busyAction === c.id} className="flex items-center gap-1 px-2 py-1 text-[11px] text-emerald-600 hover:bg-emerald-50 rounded disabled:opacity-50"><CheckCircle2 size={11} /> Confirmer</button>
@@ -375,13 +349,13 @@ function RevendeurDetailModal({ id, onClose, onPrint }: {
                         </>
                       )}
                       {(c.statut === "CONFIRMEE" || c.statut === "LIVREE" || c.statut === "FACTUREE") && (
-                        <button onClick={() => printCommandeDetail(c.id, "bl")} className="flex items-center gap-1 px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 rounded"><Truck size={11} /> BL</button>
+                        <a href={`/api/admin/revendeurs/${id}/commandes/${c.id}/bon-livraison/pdf`} target="_blank" rel="noreferrer" className="flex items-center gap-1 px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-100 rounded"><Truck size={11} /> BL</a>
                       )}
                       {c.statut === "CONFIRMEE" && (
                         <button onClick={() => actionCommande(c.id, "FACTURER")} disabled={busyAction === c.id} className="flex items-center gap-1 px-2 py-1 text-[11px] text-purple-600 hover:bg-purple-50 rounded disabled:opacity-50"><FileText size={11} /> Facturer</button>
                       )}
                       {c.statut === "FACTUREE" && (
-                        <button onClick={() => printCommandeDetail(c.id, "fac")} className="flex items-center gap-1 px-2 py-1 text-[11px] text-purple-600 hover:bg-purple-50 rounded"><FileText size={11} /> Facture</button>
+                        <a href={`/api/admin/revendeurs/${id}/commandes/${c.id}/facture/pdf`} target="_blank" rel="noreferrer" className="flex items-center gap-1 px-2 py-1 text-[11px] text-purple-600 hover:bg-purple-50 rounded"><FileText size={11} /> Facture</a>
                       )}
                     </div>
                   </div>

@@ -14,11 +14,14 @@ import DashboardBackButton from "@/components/DashboardBackButton";
 import AfriSimeLogo from "@/components/AfriSimeLogo";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
-import FicheRevendeur, { type ProfilRevendeurData, type VarianteRevendeur } from "@/components/FicheRevendeur";
-import BonCommandeRevendeur, { type CommandeRevendeurData } from "@/components/BonCommandeRevendeur";
-import BonLivraisonRevendeurDoc from "@/components/BonLivraisonRevendeurDoc";
-import FactureRevendeurDoc from "@/components/FactureRevendeurDoc";
-import ReleveAchatsRevendeur from "@/components/ReleveAchatsRevendeur";
+
+interface ProfilRevendeurData {
+  raisonSociale: string; nif: string | null; rccm: string | null; adresse: string | null; ville: string | null;
+  contactNom: string | null; contactTelephone: string | null;
+  pointDeVente: { nom: string } | null;
+  user: { telephone: string | null };
+}
+interface CommandeRevendeurData { id: number; reference: string; statut: string; totalTTC: number | string; createdAt: string }
 
 /**
  * Espace Revendeur (CDC digitalisation §5.6) — réécrit intégralement : la
@@ -44,8 +47,6 @@ export default function RevendeurPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLigne[]>([]);
-  const [printVariante, setPrintVariante] = useState<VarianteRevendeur | null>(null);
-  const [printCommande, setPrintCommande] = useState<number | null>(null);
 
   const { data: profilData, loading: profilLoading, refetch: refetchProfil } = useApi<{ data: ProfilRevendeurData; stats: { nbFactures: number; totalFacture: number; totalPaye: number; soldeDu: number } }>("/api/revendeur/profil");
   const { data: produitsData, loading: produitsLoading, refetch: refetchProduits } = useApi<{ data: Produit[] }>(`/api/revendeur/produits${search ? `?search=${encodeURIComponent(search)}` : ""}`);
@@ -198,7 +199,7 @@ export default function RevendeurPage() {
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-slate-800">Ma fiche professionnelle</h3>
-                  <button onClick={() => setPrintVariante("CARTE")} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-lg"><Printer size={13} /> Imprimer ma carte</button>
+                  <a href="/api/revendeur/profil/pdf?variante=CARTE" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-lg"><Printer size={13} /> Imprimer ma carte</a>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <p><span className="text-slate-400">NIF :</span> {profil.nif || "—"}</p>
@@ -296,9 +297,19 @@ export default function RevendeurPage() {
                           <p className="text-xs text-slate-400 mt-0.5">{formatDate(c.createdAt)}</p>
                         </div>
                         <span className="font-bold text-slate-800">{formatCurrency(c.totalTTC)}</span>
-                        <button onClick={() => setPrintCommande(c.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg" title="Imprimer le bon de commande">
+                        <a href={`/api/revendeur/commandes/${c.id}/pdf`} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg" title="Imprimer le bon de commande">
                           <Printer size={16} />
-                        </button>
+                        </a>
+                        {(c.statut === "CONFIRMEE" || c.statut === "LIVREE" || c.statut === "FACTUREE") && (
+                          <a href={`/api/revendeur/commandes/${c.id}/bon-livraison/pdf`} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg" title="Imprimer le bon de livraison">
+                            <Truck size={16} />
+                          </a>
+                        )}
+                        {c.statut === "FACTUREE" && (
+                          <a href={`/api/revendeur/commandes/${c.id}/facture/pdf`} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg" title="Imprimer la facture">
+                            <FileText size={16} />
+                          </a>
+                        )}
                       </div>
                     );
                   })}
@@ -352,56 +363,12 @@ export default function RevendeurPage() {
         </main>
       </div>
 
-      {printVariante && (
-        <FicheRevendeur variante={printVariante} profil={profil} stats={stats} onClose={() => setPrintVariante(null)} />
-      )}
-      {printCommande != null && (
-        <PrintCommandeBridge id={printCommande} onClose={() => setPrintCommande(null)} />
-      )}
     </div>
   );
 }
 
 function PrintReleveButton() {
-  const { data: profilData } = useApi<{ data: ProfilRevendeurData }>("/api/revendeur/profil");
-  const { data: releveData } = useApi<{ data: { id: number; numero: string; statut: string; dateEmission: string; montantTTC: number; montantPaye: number }[]; stats: { nbFactures: number; totalFacture: number; totalPaye: number; soldeDu: number; premierAchat: string | null } }>("/api/revendeur/releve");
-  const [open, setOpen] = useState(false);
-  if (!profilData || !releveData) return null;
   return (
-    <>
-      <button onClick={() => setOpen(true)} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 shadow-sm text-sm font-medium"><Printer size={16} /> Imprimer</button>
-      {open && (
-        <ReleveAchatsRevendeur
-          raisonSociale={profilData.data.raisonSociale}
-          factures={releveData.data}
-          stats={releveData.stats}
-          onClose={() => setOpen(false)}
-        />
-      )}
-    </>
-  );
-}
-
-function PrintCommandeBridge({ id, onClose }: { id: number; onClose: () => void }) {
-  const { data } = useApi<{ data: CommandeRevendeurData & { bonLivraison?: { id: number; reference: string; dateDepart: string; notes: string | null; livreur: { nom: string; prenom: string } | null; lignes: { id: number; quantite: number; produit: { nom: string; codeProduit: string | null } }[] } | null; facture?: { id: number; numero: string; statut: string; clientNom: string; clientTelephone: string | null; montantHT: number; montantTVA: number; montantTTC: number; montantPaye: number; dateEmission: string; emiseParNom: string; lignes: { id: number; designation: string; quantite: number; prixUnitaire: number; montant: number }[] } | null } }>(`/api/revendeur/commandes/${id}`);
-  const { data: profilData } = useApi<{ data: ProfilRevendeurData }>("/api/revendeur/profil");
-  const [view, setView] = useState<"bc" | "bl" | "fac">("bc");
-  if (!data) return null;
-  const c = data.data;
-  const raisonSociale = profilData?.data.raisonSociale ?? "";
-
-  return (
-    <>
-      {view === "bc" && <BonCommandeRevendeur commande={c} raisonSociale={raisonSociale} onClose={onClose} />}
-      {view === "bl" && c.bonLivraison && <BonLivraisonRevendeurDoc bonLivraison={c.bonLivraison} raisonSociale={raisonSociale} commandeReference={c.reference} onClose={onClose} />}
-      {view === "fac" && c.facture && <FactureRevendeurDoc facture={c.facture} onClose={onClose} />}
-      {(c.bonLivraison || c.facture) && (
-        <div className="fixed bottom-6 right-6 z-[310] flex gap-2">
-          <button onClick={() => setView("bc")} className={`flex items-center gap-1.5 px-3 py-2 shadow-lg border rounded-xl text-xs font-medium ${view === "bc" ? "bg-rose-600 text-white border-rose-600" : "bg-white border-slate-200 hover:bg-slate-50"}`}><ShoppingCart size={13} /> Commande</button>
-          {c.bonLivraison && <button onClick={() => setView("bl")} className={`flex items-center gap-1.5 px-3 py-2 shadow-lg border rounded-xl text-xs font-medium ${view === "bl" ? "bg-rose-600 text-white border-rose-600" : "bg-white border-slate-200 hover:bg-slate-50"}`}><Truck size={13} /> Livraison</button>}
-          {c.facture && <button onClick={() => setView("fac")} className={`flex items-center gap-1.5 px-3 py-2 shadow-lg border rounded-xl text-xs font-medium ${view === "fac" ? "bg-rose-600 text-white border-rose-600" : "bg-white border-slate-200 hover:bg-slate-50"}`}><FileText size={13} /> Facture</button>}
-        </div>
-      )}
-    </>
+    <a href="/api/revendeur/releve/pdf" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 shadow-sm text-sm font-medium"><Printer size={16} /> Imprimer</a>
   );
 }

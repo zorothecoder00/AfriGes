@@ -115,6 +115,41 @@ export default async function VerifierDocumentPage({ params, searchParams }: Pro
     redirect(`/suivi/${c.reference}`);
   }
 
+  if (codeDoc === "REV") {
+    const p = await prisma.profilRevendeur.findUnique({ where: { id: docId }, select: { id: true, createdAt: true } });
+    if (!p || !verifierHashInstance("REV", p.id, p.createdAt.toISOString(), h)) {
+      return <PageErreur message="Ce QR ne correspond à aucun profil revendeur valide (document falsifié ou introuvable)." />;
+    }
+    redirect(`/dashboard/admin/revendeurs?detail=${p.id}`);
+  }
+
+  if (codeDoc === "BCR") {
+    const cmd = await prisma.commandeRevendeur.findUnique({ where: { id: docId }, select: { id: true, createdAt: true, revendeurId: true } });
+    if (!cmd || !verifierHashInstance("BCR", cmd.id, cmd.createdAt.toISOString(), h)) {
+      return <PageErreur message="Ce QR ne correspond à aucune commande revendeur valide (document falsifié ou introuvable)." />;
+    }
+    const profil = await prisma.profilRevendeur.findUnique({ where: { userId: cmd.revendeurId }, select: { id: true } });
+    redirect(`/dashboard/admin/revendeurs?detail=${profil?.id ?? ""}`);
+  }
+
+  if (codeDoc === "BLR") {
+    const bl = await prisma.bonLivraisonRevendeur.findUnique({ where: { id: docId }, select: { id: true, createdAt: true, commandeRevendeur: { select: { revendeurId: true } } } });
+    if (!bl || !verifierHashInstance("BLR", bl.id, bl.createdAt.toISOString(), h)) {
+      return <PageErreur message="Ce QR ne correspond à aucun bon de livraison revendeur valide (document falsifié ou introuvable)." />;
+    }
+    const profil = await prisma.profilRevendeur.findUnique({ where: { userId: bl.commandeRevendeur.revendeurId }, select: { id: true } });
+    redirect(`/dashboard/admin/revendeurs?detail=${profil?.id ?? ""}`);
+  }
+
+  if (codeDoc === "FRV") {
+    const f = await prisma.factureVente.findUnique({ where: { id: docId }, select: { id: true, createdAt: true, revendeurId: true } });
+    if (!f || !verifierHashInstance("FRV", f.id, f.createdAt.toISOString(), h) || !f.revendeurId) {
+      return <PageErreur message="Ce QR ne correspond à aucune facture revendeur valide (document falsifié ou introuvable)." />;
+    }
+    const profil = await prisma.profilRevendeur.findUnique({ where: { userId: f.revendeurId }, select: { id: true } });
+    redirect(`/dashboard/admin/revendeurs?detail=${profil?.id ?? ""}`);
+  }
+
   return <PageErreur message="QR code invalide." />;
 }
 
