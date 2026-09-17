@@ -1075,6 +1075,10 @@ export const translations = {
   nav_factures_fournisseur:     { fr: "Factures fournisseurs",        en: "Supplier invoices",        ar: "فواتير الموردين",            es: "Facturas de proveedores",         pt: "Faturas de fornecedores" },
   nav_depot_vente:              { fr: "Dépôt-vente",                  en: "Consignment",              ar: "البيع بالوديعة",             es: "Venta en consignación",           pt: "Venda em consignação" },
   nav_tournees:                 { fr: "Tournées de livraison",        en: "Delivery routes",          ar: "جولات التوصيل",              es: "Rutas de entrega",                pt: "Rotas de entrega" },
+  nav_commandes_client:         { fr: "Commandes client",             en: "Customer orders",          ar: "طلبات العملاء",              es: "Pedidos de clientes",             pt: "Pedidos de clientes" },
+  nav_devis_proforma:           { fr: "Devis / Proforma",             en: "Quotes / Proforma",        ar: "عروض الأسعار",               es: "Presupuestos / Proforma",         pt: "Orçamentos / Proforma" },
+  nav_decaissements:            { fr: "Décaissements",                en: "Disbursements",            ar: "المصروفات",                  es: "Desembolsos",                     pt: "Desembolsos" },
+  nav_bordereaux_remise:        { fr: "Bordereaux de remise",         en: "Cash remittance slips",    ar: "سندات تسليم الأموال",        es: "Boletines de remesa",             pt: "Boletins de remessa" },
 
   // ── Dashboard admin — activité & graphiques ─────────────────────────────────
   dash_remboursements:            { fr: "Remboursements",                       en: "Repayments",                  ar: "السدادات",                    es: "Reembolsos",                          pt: "Reembolsos" },

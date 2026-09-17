@@ -117,6 +117,12 @@ export default function AdminBonsSortiePage() {
                     {b.lignes.length} ligne(s) · {formatCurrency(montant)} · créé par {b.creePar.prenom} {b.creePar.nom} · {formatDateTime(b.createdAt)}
                   </p>
                   {b.commentaireEcart && <p className="text-xs text-amber-600 mt-1">Écart : {b.commentaireEcart}</p>}
+                  {b.bonLivraison && (
+                    <a href={`/api/bons-livraison/${b.bonLivraison.id}/pdf`} target="_blank" rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-primary-600 hover:underline mt-1">
+                      <Printer size={11} /> Bon de livraison {b.bonLivraison.reference}
+                    </a>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {visaRequis && !b.viseParId && b.statut === "BROUILLON" && (

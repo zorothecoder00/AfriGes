@@ -175,7 +175,7 @@ export async function GET(req: Request) {
         sousLabel: `${b.collecteur.prenom} ${b.collecteur.nom}`, statut: b.statut, date: b.createdAt.toISOString(),
         liens: [
           { label: "Imprimer", url: `/api/tresorerie/bordereaux-remise/${b.id}/pdf` },
-          { label: "Ouvrir la fiche", url: `/dashboard/user/comptables/tresorerie/bordereaux-remise?detail=${b.id}` },
+          { label: "Ouvrir la fiche", url: isAdmin ? "/dashboard/admin/bordereaux-remise" : `/dashboard/user/comptables/tresorerie/bordereaux-remise?detail=${b.id}` },
         ],
       });
     }
@@ -185,7 +185,7 @@ export async function GET(req: Request) {
         sousLabel: `${c.client.prenom} ${c.client.nom}`, statut: c.statut, date: c.createdAt.toISOString(),
         liens: [
           { label: "Imprimer", url: `/api/ventes/commandes-client/${c.id}/pdf` },
-          { label: "Ouvrir la fiche", url: `/dashboard/user/agentsTerrain/commandes-client?detail=${c.id}` },
+          { label: "Ouvrir la fiche", url: isAdmin ? "/dashboard/admin/commandes-client" : `/dashboard/user/agentsTerrain/commandes-client?detail=${c.id}` },
         ],
       });
     }
@@ -213,7 +213,9 @@ export async function GET(req: Request) {
       resultats.push({
         module: "§3.5", type: "Bon de réception (client)", id: br.id, reference: br.reference,
         sousLabel: br.clientNom, statut: br.statut, date: br.createdAt.toISOString(),
-        liens: [{ label: "Imprimer", url: `/api/bons-reception/${br.id}/pdf` }],
+        liens: isAdmin
+          ? [{ label: "Imprimer", url: `/api/bons-reception/${br.id}/pdf` }, { label: "Ouvrir la commande liée", url: "/dashboard/admin/commandes-client" }]
+          : [{ label: "Imprimer", url: `/api/bons-reception/${br.id}/pdf` }],
       });
     }
     for (const fd of decaissements) {
@@ -222,7 +224,7 @@ export async function GET(req: Request) {
         sousLabel: fd.beneficiaireNom, statut: fd.statut, date: fd.createdAt.toISOString(),
         liens: [
           { label: "Imprimer", url: `/api/decaissements/${fd.id}/pdf` },
-          { label: "Ouvrir la fiche", url: `/dashboard/user/decaissements?detail=${fd.id}` },
+          { label: "Ouvrir la fiche", url: isAdmin ? "/dashboard/admin/decaissements" : `/dashboard/user/decaissements?detail=${fd.id}` },
         ],
       });
     }
@@ -232,7 +234,7 @@ export async function GET(req: Request) {
         sousLabel: `${d.client.prenom} ${d.client.nom}`, statut: d.statut, date: d.createdAt.toISOString(),
         liens: [
           { label: "Imprimer", url: `/api/ventes/devis-proforma/${d.id}/pdf` },
-          { label: "Ouvrir la fiche", url: `/dashboard/user/agentsTerrain/devis-proforma?detail=${d.id}` },
+          { label: "Ouvrir la fiche", url: isAdmin ? "/dashboard/admin/devis-proforma" : `/dashboard/user/agentsTerrain/devis-proforma?detail=${d.id}` },
         ],
       });
     }
@@ -240,7 +242,9 @@ export async function GET(req: Request) {
       resultats.push({
         module: "§5.2", type: "Bon de livraison", id: bl.id, reference: bl.reference,
         sousLabel: bl.clientNom, statut: null, date: bl.createdAt.toISOString(),
-        liens: [{ label: "Imprimer", url: `/api/bons-livraison/${bl.id}/pdf` }],
+        liens: isAdmin
+          ? [{ label: "Imprimer", url: `/api/bons-livraison/${bl.id}/pdf` }, { label: "Ouvrir la fiche", url: "/dashboard/admin/stock/sorties" }]
+          : [{ label: "Imprimer", url: `/api/bons-livraison/${bl.id}/pdf` }],
       });
     }
     for (const cr of credits) {

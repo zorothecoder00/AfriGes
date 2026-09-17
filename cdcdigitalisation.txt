@@ -42,7 +42,8 @@ Accéder :
   - Créer : /dashboard/user/agentsTerrain/bordereaux-remise (Agent terrain)
   - Traiter/clôturer : /dashboard/user/comptables/tresorerie/bordereaux-remise
     (Comptable / Chef Comptable / Trésorier)
-  - Visa Président CGT (montant élevé) et vue globale : Admin/Super Admin
+  - Admin : page native dédiée /dashboard/admin/bordereaux-remise (création,
+    traitement, visa CGT, clôture — vue globale, pas de scope PDV)
 
 Remplir (à la création) :
   - Point de vente (pré-rempli selon votre affectation)
@@ -76,6 +77,8 @@ Accéder :
     (Agent terrain, Commercial)
   - Superviser : /dashboard/user/responsablesVenteCredit/commandes-client
     (Responsable Vente Crédit)
+  - Admin : page native dédiée /dashboard/admin/commandes-client (création,
+    visa/rejet, annulation, clôture, liens Bon de livraison/Bon de réception)
 
 Remplir :
   - Client (recherche par téléphone pour éviter les doublons)
@@ -176,7 +179,8 @@ Objectif : toute sortie de fonds (achat, avance, frais...).
 
 Accéder : /dashboard/user/decaissements (tout gestionnaire connecté peut
   en créer une — namespace neutre ; approbation/exécution par
-  hiérarchie/Comptable)
+  hiérarchie/Comptable) — Admin : page native dédiée
+  /dashboard/admin/decaissements
 
 Remplir :
   - Bénéficiaire, motif (10 caractères minimum), type de dépense (Achat
@@ -202,7 +206,8 @@ PARTIE B — CATALOGUE DOCUMENTAIRE PAR MODULE (§5.2 à §5.10)
 
 DEVIS / PROFORMA
   Accéder : /dashboard/user/agentsTerrain/devis-proforma
-    (Agent terrain, Commercial, Admin)
+    (Agent terrain, Commercial) — Admin : page native dédiée
+    /dashboard/admin/devis-proforma
   Remplir : type (Devis ou Proforma), client, date de validité (15 jours
     par défaut), conditions (texte libre saisi par l'agent — pas de
     format imposé), lignes produits (quantité, remise % éventuelle), notes
@@ -217,8 +222,9 @@ BON DE PRÉPARATION
 
 BON DE LIVRAISON
   Généré automatiquement à la validation du Bon de Sortie, visible dans
-  /dashboard/user/magasiniers. Pas de statut/workflow propre (figé une
-  fois émis). Imprimer : GET /api/bons-livraison/[id]/pdf
+  /dashboard/user/magasiniers (Admin : /dashboard/admin/stock/sorties,
+  lien direct sous le bon de sortie d'origine). Pas de statut/workflow
+  propre (figé une fois émis). Imprimer : GET /api/bons-livraison/[id]/pdf
 
 FACTURE / FACTURE À CRÉDIT / FACTURE D'AVOIR
   Générée automatiquement à chaque vente (pas de page de création
@@ -569,16 +575,29 @@ accessibles directement depuis la barre latérale Admin ("Pilotage &
 documents") — ils n'avaient auparavant aucun lien de navigation direct.
 
 PAGES ADMIN NATIVES (créer/gérer/imprimer sans passer par une page "user") :
+  - Bordereau de remise de fonds (§3.1) : /dashboard/admin/bordereaux-remise
+  - Bon de commande client (§3.2) : /dashboard/admin/commandes-client
+  - Bon de commande fournisseur (§3.3) : /dashboard/admin/bons-commande-fournisseur
   - Bons de sortie de marchandises (§3.4) : /dashboard/admin/stock/sorties
-  - Bons de commande fournisseur (§3.3) : /dashboard/admin/bons-commande-fournisseur
+  - Fiche de décaissement (§3.6) : /dashboard/admin/decaissements
+  - Devis / Proforma (§5.2) : /dashboard/admin/devis-proforma
+  - Demandes d'achat interne (§5.3) : /dashboard/admin/demandes-achat
+  - RFQ + tableau comparatif (§5.3) : /dashboard/admin/rfq
+  - Réception fournisseur (§5.3) : /dashboard/admin/approvisionnements
+    (création directe + validée, ou approbation/réception physique d'une
+    réception soumise par la logistique)
   - Factures fournisseurs (§5.3) : /dashboard/admin/factures-fournisseur
   - Dépôt-vente (§5.5) : /dashboard/admin/depot-vente
   - Tournées de livraison (§5.7) : /dashboard/admin/tournees
   - Retours/remplacements (§5.8) : actions intégrées à /dashboard/admin/reclamations
-Restent uniquement accessibles via les pages "user" existantes (déjà
-ouvertes en plein droit à l'admin par proxy.ts, hors mécanisme de lecture
-seule "viewAs") : Demande d'achat interne, RFQ et Réception fournisseur
-(§5.3) — pas encore de page admin native dédiée.
+Bon de réception (§3.5) et Bon de livraison (§5.2) restent des documents
+générés automatiquement sans workflow propre : consultables/imprimables
+depuis, respectivement, /dashboard/admin/commandes-client et
+/dashboard/admin/stock/sorties (pas de page dédiée, ce n'est pas
+nécessaire). Restent sur leur page "user" d'origine (déjà ouverte en
+plein droit à l'admin par proxy.ts, hors mécanisme de lecture seule
+"viewAs") : Fournisseurs, MRP et Tableau de bord Approvisionnement — des
+outils de support, pas des documents du catalogue CDC.
 
 
 RÉCAPITULATIF DES RÔLES ET DE LEURS DOCUMENTS PRINCIPAUX

@@ -8,6 +8,7 @@ import {
   TrendingUp, Users, MessageSquare, Layers, ShoppingCart, Package, Store, Truck,
   ClipboardCheck, BarChart2, UserCog, Network, Target, Shield, Lock, Megaphone,
   ChevronsLeft, ChevronsRight, LayoutGrid, Inbox, PackageMinus, FileSignature, Receipt, Boxes, Route,
+  FileText, Wallet, Banknote, ClipboardList,
 } from "lucide-react";
 import { useT } from "@/contexts/AppSettingsContext";
 import { useApi } from "@/hooks/useApi";
@@ -86,6 +87,10 @@ export default function AdminSidebar({
       title: t("commerce"),
       items: [
         { href: "/dashboard/admin/ventes", label: t("nav_ventes"), icon: <ShoppingCart size={19} /> },
+        { href: "/dashboard/admin/commandes-client", label: t("nav_commandes_client"), icon: <ClipboardList size={19} /> },
+        { href: "/dashboard/admin/devis-proforma", label: t("nav_devis_proforma"), icon: <FileText size={19} /> },
+        { href: "/dashboard/admin/decaissements", label: t("nav_decaissements"), icon: <Wallet size={19} /> },
+        { href: "/dashboard/admin/bordereaux-remise", label: t("nav_bordereaux_remise"), icon: <Banknote size={19} /> },
         { href: "/dashboard/admin/catalogue/produits", label: t("nav_catalogue_produits"), icon: <Layers size={19} /> },
         { href: "/dashboard/admin/stock", label: t("nav_stock"), icon: <Package size={19} /> },
         { href: "/dashboard/admin/pdv", label: t("nav_pdv"), icon: <Store size={19} /> },

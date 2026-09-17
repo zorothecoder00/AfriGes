@@ -25,6 +25,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     description: "Remise des fonds terrain (cotisations, remboursements, ventes) à la trésorerie, avec billetage contradictoire et visa CGT.",
     roles: ["Agent terrain", "Comptable/Trésorier", "Admin"],
     pageUrl: "/dashboard/user/comptables/tresorerie/bordereaux-remise",
+    pageUrlAdmin: "/dashboard/admin/bordereaux-remise",
   },
   {
     id: "bcc",
@@ -33,6 +34,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     description: "Prise de commande terrain, signature électronique client, génération automatique du Bon de sortie une fois validée.",
     roles: ["Agent terrain", "Commercial", "RVC"],
     pageUrl: "/dashboard/user/agentsTerrain/commandes-client",
+    pageUrlAdmin: "/dashboard/admin/commandes-client",
   },
   {
     id: "bcf",
@@ -59,6 +61,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     description: "Attestation client de réception, sans compte requis (lien SMS à jeton opaque). Consultable depuis la commande client liée.",
     roles: ["Agent terrain", "Client (lien SMS)"],
     pageUrl: "/dashboard/user/agentsTerrain/commandes-client",
+    pageUrlAdmin: "/dashboard/admin/commandes-client",
   },
   {
     id: "fd",
@@ -67,6 +70,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     description: "Toute sortie de fonds (achat, avance, frais). Approbation N1/N2 selon seuil, exécution par le Comptable.",
     roles: ["Tout gestionnaire (créateur)", "Comptable (exécution)"],
     pageUrl: "/dashboard/user/decaissements",
+    pageUrlAdmin: "/dashboard/admin/decaissements",
   },
 
   // ── Partie B — catalogue par module (§5.2 à §5.9) ────────────────────────
@@ -77,6 +81,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     description: "Proposition commerciale, conversion Devis → Proforma, réponse client sans compte via lien à jeton.",
     roles: ["Agent terrain", "Commercial", "Admin"],
     pageUrl: "/dashboard/user/agentsTerrain/devis-proforma",
+    pageUrlAdmin: "/dashboard/admin/devis-proforma",
   },
   {
     id: "bon-livraison",
@@ -85,6 +90,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     description: "Généré automatiquement à la validation du Bon de sortie — document de transport figé une fois émis.",
     roles: ["Magasinier", "Admin"],
     pageUrl: "/dashboard/user/magasiniers",
+    pageUrlAdmin: "/dashboard/admin/stock/sorties",
   },
   {
     id: "facture",
