@@ -99,7 +99,9 @@ Imprimer : GET /api/ventes/commandes-client/[id]/pdf
 Objectif : commande passée par AfriSime à un fournisseur.
 
 Accéder : /dashboard/user/logistiquesApprovisionnements/bons-commande
-  (Agent Logistique/Approvisionnement, Admin)
+  (Agent Logistique/Approvisionnement) — Admin : page native dédiée
+  /dashboard/admin/bons-commande-fournisseur (mêmes API, gestion complète
+  sans passer par une page "user")
 
 Remplir :
   - Fournisseur, point de vente/dépôt destinataire, date de livraison
@@ -120,7 +122,10 @@ Imprimer : GET /api/logistique/bons-commande/[id]/pdf
 ---------------------------------------
 Objectif : constate et exécute la sortie physique de stock.
 
-Accéder : /dashboard/user/magasiniers, onglet "Sorties" (Magasinier, Admin)
+Accéder : /dashboard/user/magasiniers, onglet "Sorties" (Magasinier) —
+  Admin : page native dédiée /dashboard/admin/stock/sorties (le PDV
+  concerné se choisit explicitement dans le formulaire, l'admin n'a pas
+  d'affectation propre)
 
 Remplir :
   - Point de vente/dépôt (votre affectation)
@@ -261,7 +266,8 @@ RÉCEPTION FOURNISSEUR + FICHE DE CONTRÔLE
     contrôle conformité qualité/quantité et met à jour le stock
 
 FACTURE FOURNISSEUR
-  Accéder : /dashboard/user/comptables/factures-achat (Comptable)
+  Accéder : /dashboard/user/comptables/factures-achat (Comptable) — Admin :
+  page native dédiée /dashboard/admin/factures-fournisseur
   Remplir : fournisseur (recherche), n° de facture, date, montant TTC,
     réception liée (optionnel)
   Gérer : NON_RAPPROCHEE → RAPPROCHEE (bouton "Rapprocher", éventuellement
@@ -341,7 +347,9 @@ ATTESTATION DE SOLDE / QUITTANCE FINALE
 ------------------------------------------------
 Tout le module est regroupé sur une seule page :
   /dashboard/user/logistiquesApprovisionnements/depot-vente
-  (Agent Logistique/Approvisionnement, Admin)
+  (Agent Logistique/Approvisionnement) — Admin : page native dédiée
+  /dashboard/admin/depot-vente (3 onglets : conventions, dépôts, état &
+  règlements)
 
 CONVENTION DE DÉPÔT-VENTE
   Remplir : fournisseur, taux de commission (%), date de fin éventuelle,
@@ -419,8 +427,9 @@ CONDITIONS PARTICULIÈRES ACCORDÉES
 §5.7 — DOCUMENTS DE LIVRAISON ET LOGISTIQUE (TOURNÉES)
 ------------------------------------------------------------
 Accéder : /dashboard/user/logistiquesApprovisionnements/tournees
-  (Agent Logistique/Approvisionnement, Magasinier, Admin — pas de rôle
-  "livreur" séparé : les tournées sont pilotées depuis le back-office)
+  (Agent Logistique/Approvisionnement, Magasinier — pas de rôle "livreur"
+  séparé : les tournées sont pilotées depuis le back-office) — Admin : page
+  native dédiée /dashboard/admin/tournees
 
 FICHE DE TOURNÉE / FICHE DE MISSION DU LIVREUR / FICHE DE CHARGEMENT /
 BORDEREAU DE LIVRAISON
@@ -451,9 +460,13 @@ Accéder :
   - Enregistrement et suivi : /dashboard/admin/reclamations
     (Admin, Responsable Point de Vente, Chef d'agence)
   - Traitement physique des retours : /dashboard/user/magasiniers/retours-client
-    (Magasinier)
+    (Magasinier) — Admin : mêmes actions (Réceptionner/Valider/Rejeter)
+    directement intégrées dans /dashboard/admin/reclamations, détail de la
+    réclamation
   - Traitement des remplacements : /dashboard/user/magasiniers/remplacements
-    (Magasinier)
+    (Magasinier) — Admin : mêmes actions (Approuver/Livrer/Rejeter)
+    directement intégrées dans /dashboard/admin/reclamations, détail de la
+    réclamation
 
 FORMULAIRE DE RÉCLAMATION CLIENT
   Sur /dashboard/admin/reclamations, bouton "Nouvelle réclamation" :
@@ -541,17 +554,31 @@ Ajouté pour centraliser l'accès à tous les documents ci-dessus sans avoir à
 mémoriser une page par module :
   1. Recherche globale : tapez une référence (BRF-2026-..., REC-2026-...),
      un nom ou un numéro de téléphone client — le moteur interroge en
-     parallèle les 16 familles de documents principales (§3.1 à §5.8) et
+     parallèle les 17 familles de documents principales (§3.1 à §5.8) et
      renvoie les correspondances avec un lien direct "Imprimer" (PDF) et un
      lien vers la fiche complète. API : GET
      /api/centre-commandement/recherche?q=...
   2. Annuaire par module : liste de tous les documents du CDC digitalisation
      avec leur description et un lien vers la page où les créer/gérer,
      classée par section (§3.x, §5.x) — utile pour découvrir un circuit
-     qu'on ne pratique pas au quotidien.
+     qu'on ne pratique pas au quotidien. Pour un viewer Admin, ce lien pointe
+     vers la page admin native quand elle existe (voir ci-dessous), jamais
+     vers une page "user" en écriture.
 Le contrôle commercial (§5.9) et les réclamations (§5.8) restent en outre
 accessibles directement depuis la barre latérale Admin ("Pilotage &
 documents") — ils n'avaient auparavant aucun lien de navigation direct.
+
+PAGES ADMIN NATIVES (créer/gérer/imprimer sans passer par une page "user") :
+  - Bons de sortie de marchandises (§3.4) : /dashboard/admin/stock/sorties
+  - Bons de commande fournisseur (§3.3) : /dashboard/admin/bons-commande-fournisseur
+  - Factures fournisseurs (§5.3) : /dashboard/admin/factures-fournisseur
+  - Dépôt-vente (§5.5) : /dashboard/admin/depot-vente
+  - Tournées de livraison (§5.7) : /dashboard/admin/tournees
+  - Retours/remplacements (§5.8) : actions intégrées à /dashboard/admin/reclamations
+Restent uniquement accessibles via les pages "user" existantes (déjà
+ouvertes en plein droit à l'admin par proxy.ts, hors mécanisme de lecture
+seule "viewAs") : Demande d'achat interne, RFQ et Réception fournisseur
+(§5.3) — pas encore de page admin native dédiée.
 
 
 RÉCAPITULATIF DES RÔLES ET DE LEURS DOCUMENTS PRINCIPAUX

@@ -135,7 +135,7 @@ export default function CentreCommandementPage() {
                 {items.map((item) => (
                   <Link
                     key={item.id}
-                    href={item.pageUrl}
+                    href={isAdmin ? (item.pageUrlAdmin ?? item.pageUrl) : item.pageUrl}
                     className="block bg-white rounded-xl border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm transition-all"
                   >
                     <p className="text-sm font-semibold text-slate-800">{item.titre}</p>

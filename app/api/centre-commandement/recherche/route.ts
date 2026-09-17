@@ -43,6 +43,7 @@ export async function GET(req: Request) {
       bordereaux, commandesClient, bonsCommande, bonsSortie, bonsReception,
       decaissements, devisProforma, bonsLivraison, credits, revendeurs,
       commandesRevendeur, tournees, reclamations, retours, remplacements, incidents,
+      facturesAchat,
     ] = await Promise.all([
       prisma.bordereauRemiseFonds.findMany({
         where: {
@@ -157,6 +158,15 @@ export async function GET(req: Request) {
         },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
+      // Facture fournisseur — pas de scope PDV (document comptable global), et
+      // hors du périmètre RPV/Chef d'agence : réservé à la recherche admin.
+      isAdmin
+        ? prisma.factureAchat.findMany({
+            where: { OR: [{ numero: ci }, { fournisseur: { nom: ci } }] },
+            include: { fournisseur: { select: { nom: true } } },
+            orderBy: { dateFacture: "desc" }, take: TAKE,
+          })
+        : Promise.resolve([]),
     ]);
 
     for (const b of bordereaux) {
@@ -185,7 +195,7 @@ export async function GET(req: Request) {
         sousLabel: bc.fournisseur.nom, statut: bc.statut, date: bc.createdAt.toISOString(),
         liens: [
           { label: "Imprimer", url: `/api/logistique/bons-commande/${bc.id}/pdf` },
-          { label: "Ouvrir la fiche", url: `/dashboard/user/logistiquesApprovisionnements/bons-commande?detail=${bc.id}` },
+          { label: "Ouvrir la fiche", url: isAdmin ? "/dashboard/admin/bons-commande-fournisseur" : `/dashboard/user/logistiquesApprovisionnements/bons-commande?detail=${bc.id}` },
         ],
       });
     }
@@ -195,7 +205,7 @@ export async function GET(req: Request) {
         sousLabel: bs.motif, statut: bs.statut, date: bs.createdAt.toISOString(),
         liens: [
           { label: "Imprimer", url: `/api/magasinier/bons-sortie/${bs.id}/pdf` },
-          { label: "Ouvrir la fiche", url: `/dashboard/user/magasiniers?detail=${bs.id}` },
+          { label: "Ouvrir la fiche", url: isAdmin ? "/dashboard/admin/stock/sorties" : `/dashboard/user/magasiniers?detail=${bs.id}` },
         ],
       });
     }
@@ -280,7 +290,7 @@ export async function GET(req: Request) {
         liens: [
           { label: "Fiche de mission", url: `/api/logistique/tournees/${t.id}/pdf?variante=MISSION` },
           { label: "Bordereau de livraison", url: `/api/logistique/tournees/${t.id}/pdf?variante=BORDEREAU` },
-          { label: "Ouvrir la fiche", url: `/dashboard/user/logistiquesApprovisionnements/tournees?tournee=${t.id}` },
+          { label: "Ouvrir la fiche", url: isAdmin ? "/dashboard/admin/tournees" : `/dashboard/user/logistiquesApprovisionnements/tournees?tournee=${t.id}` },
         ],
       });
     }
@@ -320,6 +330,13 @@ export async function GET(req: Request) {
         module: "§5.8", type: "Rapport d'incident", id: inc.id, reference: inc.numero,
         sousLabel: inc.lieu, statut: inc.statut, date: inc.createdAt.toISOString(),
         liens: [{ label: "Imprimer", url: `/api/admin/reclamations/incidents/${inc.id}/pdf` }],
+      });
+    }
+    for (const fa of facturesAchat) {
+      resultats.push({
+        module: "§5.3", type: "Facture fournisseur", id: fa.id, reference: fa.numero,
+        sousLabel: fa.fournisseur.nom, statut: fa.statutRapprochement, date: fa.dateFacture.toISOString(),
+        liens: [{ label: "Ouvrir la fiche", url: "/dashboard/admin/factures-fournisseur" }],
       });
     }
 

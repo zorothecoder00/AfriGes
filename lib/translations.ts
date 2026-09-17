@@ -1070,6 +1070,11 @@ export const translations = {
   nav_centre_commandement: { fr: "Centre de commandement",       en: "Command center",          ar: "مركز القيادة",               es: "Centro de mando",                 pt: "Centro de comando" },
   nav_controle_commercial: { fr: "Contrôle commercial",          en: "Commercial control",      ar: "الرقابة التجارية",           es: "Control comercial",               pt: "Controle comercial" },
   nav_reclamations:        { fr: "Réclamations & retours",       en: "Complaints & returns",    ar: "الشكاوى والمرتجعات",         es: "Reclamaciones y devoluciones",    pt: "Reclamações e devoluções" },
+  nav_bons_sortie:              { fr: "Bons de sortie",               en: "Stock outbound notes",     ar: "سندات الخروج",               es: "Notas de salida",                 pt: "Notas de saída" },
+  nav_bons_commande_fournisseur:{ fr: "Bons de commande fournisseur", en: "Purchase orders",          ar: "أوامر الشراء",               es: "Órdenes de compra",               pt: "Ordens de compra" },
+  nav_factures_fournisseur:     { fr: "Factures fournisseurs",        en: "Supplier invoices",        ar: "فواتير الموردين",            es: "Facturas de proveedores",         pt: "Faturas de fornecedores" },
+  nav_depot_vente:              { fr: "Dépôt-vente",                  en: "Consignment",              ar: "البيع بالوديعة",             es: "Venta en consignación",           pt: "Venda em consignação" },
+  nav_tournees:                 { fr: "Tournées de livraison",        en: "Delivery routes",          ar: "جولات التوصيل",              es: "Rutas de entrega",                pt: "Rotas de entrega" },
 
   // ── Dashboard admin — activité & graphiques ─────────────────────────────────
   dash_remboursements:            { fr: "Remboursements",                       en: "Repayments",                  ar: "السدادات",                    es: "Reembolsos",                          pt: "Reembolsos" },

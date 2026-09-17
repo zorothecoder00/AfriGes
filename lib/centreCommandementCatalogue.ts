@@ -12,6 +12,7 @@ export type EntreeCatalogue = {
   description: string;
   roles: string[];
   pageUrl: string;
+  pageUrlAdmin?: string; // si présent, remplace pageUrl pour un viewer Admin/Super Admin (page admin native, pas de détour par une page "user")
   rolesRestreints?: boolean; // true = visible seulement pour Admin/Super Admin dans l'UI
 };
 
@@ -40,6 +41,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     description: "Commande AfriSime → fournisseur, circuit DRAFT → APPROVED → SENT → COMPLETED, visa CGT si montant élevé.",
     roles: ["Agent Logistique/Approvisionnement", "Admin"],
     pageUrl: "/dashboard/user/logistiquesApprovisionnements/bons-commande",
+    pageUrlAdmin: "/dashboard/admin/bons-commande-fournisseur",
   },
   {
     id: "bsm",
@@ -48,6 +50,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     description: "Sortie physique de stock (livraison client, transfert, perte, casse, don...), génère le Bon de livraison associé.",
     roles: ["Magasinier", "Admin"],
     pageUrl: "/dashboard/user/magasiniers",
+    pageUrlAdmin: "/dashboard/admin/stock/sorties",
   },
   {
     id: "br",
@@ -94,10 +97,19 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
   {
     id: "achats-fournisseurs",
     module: "§5.3",
-    titre: "Demande d'achat / RFQ / Réception / Facture fournisseur",
-    description: "Circuit achats complet : demande interne, cotation comparative, réception + contrôle, facture fournisseur (rapprochement).",
-    roles: ["Agent Logistique/Approvisionnement", "Comptable"],
+    titre: "Demande d'achat / RFQ / Réception",
+    description: "Circuit achats : demande interne, cotation comparative, réception + contrôle qualité/quantité.",
+    roles: ["Agent Logistique/Approvisionnement"],
     pageUrl: "/dashboard/user/logistiquesApprovisionnements",
+  },
+  {
+    id: "facture-fournisseur",
+    module: "§5.3",
+    titre: "Facture fournisseur",
+    description: "Numéro/date/montant de la facture reçue, rapprochement avec la réception correspondante.",
+    roles: ["Comptable", "Admin"],
+    pageUrl: "/dashboard/user/comptables/factures-achat",
+    pageUrlAdmin: "/dashboard/admin/factures-fournisseur",
   },
   {
     id: "credit",
@@ -114,6 +126,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     description: "Convention fournisseur, fiche de dépôt de marchandises, état stock/ventes/invendus, demande de règlement.",
     roles: ["Agent Logistique/Approvisionnement", "Admin"],
     pageUrl: "/dashboard/user/logistiquesApprovisionnements/depot-vente",
+    pageUrlAdmin: "/dashboard/admin/depot-vente",
   },
   {
     id: "revendeurs",
@@ -130,6 +143,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     description: "Fiche de tournée (mission/chargement/bordereau), fiches d'arrêt (livré/non effectué/incident/retour).",
     roles: ["Agent Logistique/Approvisionnement", "Magasinier", "Admin"],
     pageUrl: "/dashboard/user/logistiquesApprovisionnements/tournees",
+    pageUrlAdmin: "/dashboard/admin/tournees",
   },
   {
     id: "reclamations",

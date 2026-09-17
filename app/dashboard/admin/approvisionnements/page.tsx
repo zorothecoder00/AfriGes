@@ -4,7 +4,7 @@ import React, { useState, useMemo, useRef } from "react";
 import {
   Package, CheckCircle, XCircle, Clock, RefreshCw,
   ChevronDown, ChevronUp, Truck, Search, ChevronLeft, ChevronRight, ArrowLeft, ClipboardList, TrendingUp,
-  BarChart3,
+  BarChart3, Plus, X, Loader2, PackageCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useApi, useMutation } from "@/hooks/useApi";
@@ -46,6 +46,10 @@ interface ApprosResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
+interface PDV { id: number; nom: string; code: string }
+interface FournisseurOption { id: number; nom: string; code: string }
+interface ProduitOption { id: number; nom: string; codeProduit: string | null }
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUT_LABELS: Record<Reception["statut"], string> = {
@@ -80,6 +84,14 @@ export default function AdminApprovisionnementsPage() {
   const [rejetModal, setRejetModal]   = useState<Reception | null>(null);
   const [motifRejet, setMotifRejet]   = useState("");
 
+  // Modal validation (réception physique)
+  const [validerModal, setValiderModal] = useState<Reception | null>(null);
+  const [lignesRecues, setLignesRecues] = useState<Record<number, { quantiteRecue: string; quantiteRefusee: string; quantiteEndommagee: string }>>({});
+  const [notesQualite, setNotesQualite] = useState("");
+
+  // Modal création (réception directe, créée et validée en une fois)
+  const [showCreate, setShowCreate] = useState(false);
+
   const queryParams = new URLSearchParams({ limit: "20", page: String(page) });
   if (statutFilter) queryParams.set("statut", statutFilter);
 
@@ -89,7 +101,7 @@ export default function AdminApprovisionnementsPage() {
 
   const activeIdRef = useRef<number>(0);
   const { mutate: patchReception, loading: patching } = useMutation<Reception, object>(
-    () => `/api/admin/approvisionnements/${activeIdRef.current}`,
+    () => `/api/logistique/receptions/${activeIdRef.current}`,
     "PATCH"
   );
 
@@ -125,9 +137,9 @@ export default function AdminApprovisionnementsPage() {
       .map(([ligneId, prixUnitaire]) => ({ ligneId: Number(ligneId), prixUnitaire: prixUnitaire || null }));
 
     activeIdRef.current = approModal.id;
-    const result = await patchReception({ action: "APPROUVER", lignesPrix: lp });
+    const result = await patchReception({ action: "DEMARRER", lignesPrix: lp });
     if (result) {
-      toast.success(`Commande ${approModal.reference} approuvée — le responsable appro peut procéder à la réception`);
+      toast.success(`Commande ${approModal.reference} approuvée — prête pour la réception physique`);
       setApproModal(null);
       refetch();
     }
@@ -142,6 +154,33 @@ export default function AdminApprovisionnementsPage() {
       toast.success(`Commande ${rejetModal.reference} rejetée`);
       setRejetModal(null);
       setMotifRejet("");
+      refetch();
+    }
+  }
+
+  // ─ Ouvrir modal validation (réception physique) ───────────────────────────
+  function openValiderModal(r: Reception) {
+    setValiderModal(r);
+    const init: Record<number, { quantiteRecue: string; quantiteRefusee: string; quantiteEndommagee: string }> = {};
+    r.lignes.forEach(l => { init[l.id] = { quantiteRecue: String(l.quantiteAttendue), quantiteRefusee: "0", quantiteEndommagee: "0" }; });
+    setLignesRecues(init);
+    setNotesQualite("");
+  }
+
+  // ─ Valider (réception physique + mise en stock) ───────────────────────────
+  async function handleValider() {
+    if (!validerModal) return;
+    const lr = Object.entries(lignesRecues).map(([ligneId, v]) => ({
+      ligneId: Number(ligneId),
+      quantiteRecue: Number(v.quantiteRecue || 0),
+      quantiteRefusee: Number(v.quantiteRefusee || 0),
+      quantiteEndommagee: Number(v.quantiteEndommagee || 0),
+    }));
+    activeIdRef.current = validerModal.id;
+    const result = await patchReception({ action: "VALIDER", lignesRecues: lr, notesQualite: notesQualite || undefined });
+    if (result) {
+      toast.success(`Réception ${validerModal.reference} validée — stock mis à jour`);
+      setValiderModal(null);
       refetch();
     }
   }
@@ -178,15 +217,21 @@ export default function AdminApprovisionnementsPage() {
           <Link href="/dashboard/user/logistiquesApprovisionnements/mrp" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
             <TrendingUp size={15} />MRP
           </Link>
-          <Link href="/dashboard/user/logistiquesApprovisionnements/rfq" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+          <Link href="/dashboard/admin/demandes-achat" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+            <ClipboardList size={15} />Demandes d&apos;achat
+          </Link>
+          <Link href="/dashboard/admin/rfq" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
             <Search size={15} />RFQ
           </Link>
-          <Link href="/dashboard/user/logistiquesApprovisionnements/bons-commande" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+          <Link href="/dashboard/admin/bons-commande-fournisseur" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
             <ClipboardList size={15} />Bons de commande
           </Link>
           <Link href="/dashboard/user/logistiquesApprovisionnements/dashboard" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
             <BarChart3 size={15} />Tableau de bord
           </Link>
+          <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold transition-colors">
+            <Plus size={15} />Nouvelle réception
+          </button>
           <button onClick={() => refetch()} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
             <RefreshCw size={15} />Actualiser
           </button>
@@ -341,7 +386,12 @@ export default function AdminApprovisionnementsPage() {
                             </div>
                           )}
                           {r.statut === "EN_COURS" && (
-                            <span className="text-xs text-blue-600 font-medium">En attente de réception physique</span>
+                            <button
+                              onClick={() => openValiderModal(r)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                            >
+                              <PackageCheck size={13} />Valider la réception
+                            </button>
                           )}
                           {r.statut === "VALIDE" && (
                             <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
@@ -602,6 +652,215 @@ export default function AdminApprovisionnementsPage() {
           </div>
         </div>
       )}
+
+      {/* ── Modal Validation (réception physique + mise en stock) ────────── */}
+      {validerModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <PackageCheck size={20} className="text-blue-600" />
+                Valider la réception — {validerModal.reference}
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Saisissez les quantités effectivement reçues (contrôle qualité/quantité). Le stock sera mis à jour à la validation.
+              </p>
+            </div>
+            <div className="p-6 space-y-3">
+              {validerModal.lignes.map((l) => {
+                const v = lignesRecues[l.id] ?? { quantiteRecue: "", quantiteRefusee: "0", quantiteEndommagee: "0" };
+                return (
+                  <div key={l.id} className="p-3 border border-slate-200 rounded-xl">
+                    <p className="font-medium text-slate-800 text-sm mb-2">{l.produit.nom} <span className="text-slate-400 font-normal">(attendu : {l.quantiteAttendue} {l.produit.unite ?? ""})</span></p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Qté reçue (bon état)</label>
+                        <input type="number" min={0} value={v.quantiteRecue}
+                          onChange={(e) => setLignesRecues((prev) => ({ ...prev, [l.id]: { ...v, quantiteRecue: e.target.value } }))}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Qté refusée</label>
+                        <input type="number" min={0} value={v.quantiteRefusee}
+                          onChange={(e) => setLignesRecues((prev) => ({ ...prev, [l.id]: { ...v, quantiteRefusee: e.target.value } }))}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Qté endommagée</label>
+                        <input type="number" min={0} value={v.quantiteEndommagee}
+                          onChange={(e) => setLignesRecues((prev) => ({ ...prev, [l.id]: { ...v, quantiteEndommagee: e.target.value } }))}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm" />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Notes qualité (optionnel)</label>
+                <textarea rows={2} value={notesQualite} onChange={(e) => setNotesQualite(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-100 flex gap-3 justify-end">
+              <button onClick={() => setValiderModal(null)} className="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50">
+                Annuler
+              </button>
+              <button onClick={handleValider} disabled={patching}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center gap-2">
+                <PackageCheck size={16} />
+                {patching ? "Validation…" : "Valider et mettre à jour le stock"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Création (réception directe créée + validée en une fois) ── */}
+      {showCreate && (
+        <FormCreerReception onClose={() => setShowCreate(false)} onDone={() => { setShowCreate(false); refetch(); }} />
+      )}
+    </div>
+  );
+}
+
+function FormCreerReception({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const inputCls = "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300";
+  const { data: pdvData } = useApi<{ data: PDV[] }>("/api/admin/pdv?actif=true&limit=100");
+  const pdvs = pdvData?.data ?? [];
+
+  const [type, setType] = useState<"FOURNISSEUR" | "INTERNE">("FOURNISSEUR");
+  const [pointDeVenteId, setPointDeVenteId] = useState("");
+  const [fournisseurQuery, setFournisseurQuery] = useState("");
+  const [fournisseurOptions, setFournisseurOptions] = useState<FournisseurOption[]>([]);
+  const [fournisseur, setFournisseur] = useState<FournisseurOption | null>(null);
+  const [produitQuery, setProduitQuery] = useState("");
+  const [produitOptions, setProduitOptions] = useState<ProduitOption[]>([]);
+  const [lignes, setLignes] = useState<{ produit: ProduitOption; quantite: string; prixUnitaire: string }[]>([]);
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function rechercherFournisseur(q: string) {
+    setFournisseurQuery(q);
+    if (q.trim().length < 2) { setFournisseurOptions([]); return; }
+    const r = await fetch(`/api/logistique/fournisseurs?search=${encodeURIComponent(q)}`);
+    const j = await r.json();
+    if (r.ok) setFournisseurOptions(j.data);
+  }
+
+  async function rechercherProduit(q: string) {
+    setProduitQuery(q);
+    if (q.trim().length < 2) { setProduitOptions([]); return; }
+    const r = await fetch(`/api/admin/reclamations/produits-recherche?q=${encodeURIComponent(q)}`);
+    const j = await r.json();
+    if (r.ok) setProduitOptions(j.data);
+  }
+
+  async function submit() {
+    if (!pointDeVenteId) { toast.error("Sélectionnez le point de vente"); return; }
+    if (type === "FOURNISSEUR" && !fournisseur) { toast.error("Sélectionnez un fournisseur"); return; }
+    if (lignes.length === 0) { toast.error("Ajoutez au moins une ligne"); return; }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/approvisionnements", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type, pointDeVenteId: Number(pointDeVenteId), fournisseurId: fournisseur?.id, notes: notes || undefined,
+          lignes: lignes.map((l) => ({ produitId: l.produit.id, quantite: Number(l.quantite), prixUnitaire: l.prixUnitaire || undefined })),
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) { toast.error(j.error || "Erreur"); return; }
+      toast.success(`Réception ${j.data.reference} créée et validée — stock mis à jour`);
+      onDone();
+    } catch { toast.error("Erreur réseau"); }
+    finally { setSubmitting(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <h3 className="font-bold text-slate-800">Nouvelle réception directe</h3>
+          <button onClick={onClose}><X size={18} className="text-slate-400" /></button>
+        </div>
+        <div className="px-6 py-4 space-y-3 overflow-y-auto">
+          <p className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg">
+            Cette réception est créée <strong>et validée immédiatement</strong> (statut VALIDE, stock mis à jour tout de suite) —
+            à réserver aux cas où la marchandise est déjà physiquement là. Pour un circuit d&apos;approbation en plusieurs
+            étapes, utilisez plutôt le Bon de commande fournisseur.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-slate-500 mb-1 block">Type *</label>
+              <select value={type} onChange={(e) => setType(e.target.value as "FOURNISSEUR" | "INTERNE")} className={inputCls}>
+                <option value="FOURNISSEUR">Fournisseur</option>
+                <option value="INTERNE">Interne</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 mb-1 block">Point de vente / dépôt *</label>
+              <select value={pointDeVenteId} onChange={(e) => setPointDeVenteId(e.target.value)} className={inputCls}>
+                <option value="">Choisir…</option>
+                {pdvs.map((p) => <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>)}
+              </select>
+            </div>
+          </div>
+          {type === "FOURNISSEUR" && (
+            <div>
+              <label className="text-xs font-medium text-slate-500 mb-1 block">Fournisseur *</label>
+              {fournisseur ? (
+                <div className="flex items-center justify-between px-3 py-2 border border-emerald-200 bg-emerald-50 rounded-lg text-sm">
+                  <span>{fournisseur.nom} ({fournisseur.code})</span>
+                  <button onClick={() => setFournisseur(null)}><X size={14} className="text-slate-400" /></button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input value={fournisseurQuery} onChange={(e) => rechercherFournisseur(e.target.value)} placeholder="Nom ou code…" className={`${inputCls} pl-8`} />
+                  {fournisseurOptions.length > 0 && (
+                    <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                      {fournisseurOptions.map((f) => <button key={f.id} onClick={() => { setFournisseur(f); setFournisseurOptions([]); }} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">{f.nom} ({f.code})</button>)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          <div>
+            <label className="text-xs font-medium text-slate-500 mb-1 block">Ajouter un produit</label>
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={produitQuery} onChange={(e) => rechercherProduit(e.target.value)} placeholder="Rechercher un produit…" className={`${inputCls} pl-8`} />
+              {produitOptions.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                  {produitOptions.map((p) => (
+                    <button key={p.id} onClick={() => { if (!lignes.some((l) => l.produit.id === p.id)) setLignes((prev) => [...prev, { produit: p, quantite: "1", prixUnitaire: "" }]); setProduitOptions([]); }} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">{p.nom}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          {lignes.map((l) => (
+            <div key={l.produit.id} className="flex items-center gap-2 p-2 border border-slate-100 rounded-lg">
+              <span className="text-sm flex-1">{l.produit.nom}</span>
+              <input type="number" min={1} value={l.quantite} onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, quantite: e.target.value } : x))} className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Qté" />
+              <input type="number" min={0} value={l.prixUnitaire} onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, prixUnitaire: e.target.value } : x))} className="w-28 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Prix achat" />
+              <button onClick={() => setLignes((prev) => prev.filter((x) => x.produit.id !== l.produit.id))}><X size={14} className="text-slate-400" /></button>
+            </div>
+          ))}
+          <div>
+            <label className="text-xs font-medium text-slate-500 mb-1 block">Notes</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${inputCls} resize-none`} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100 shrink-0">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 rounded-lg">Annuler</button>
+          <button onClick={submit} disabled={submitting}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+            {submitting ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Créer
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

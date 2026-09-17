@@ -5,6 +5,7 @@ import { getLogistiqueSession } from "@/lib/authLogistique";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getAuthSession } from "@/lib/auth";
 import { randomUUID } from "crypto";
+import { Prisma } from "@prisma/client";
 import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
 import { enregistrerChangementPrix } from "@/lib/prixProduit";
 import { creerLotDepuisReception } from "@/lib/lotsFefo";
@@ -79,7 +80,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const { id } = await params;
 
     const body = await req.json();
-    const { action, notesQualite, lignesRecues } = body;
+    const { action, notesQualite, lignesRecues, lignesPrix } = body;
 
     const reception = await prisma.receptionApprovisionnement.findUnique({
       where: { id: Number(id) },
@@ -103,6 +104,36 @@ export async function PATCH(req: Request, { params }: Ctx) {
         return NextResponse.json({ error: "Seule une réception BROUILLON peut être approuvée" }, { status: 400 });
       }
       const updated = await prisma.$transaction(async (tx) => {
+        // L'admin peut corriger les prix d'achat avant d'approuver.
+        // lignesPrix: [{ ligneId, prixUnitaire }]
+        if (Array.isArray(lignesPrix) && lignesPrix.length > 0) {
+          for (const lp of lignesPrix as Array<{ ligneId: number; prixUnitaire: number | string | null }>) {
+            const hasPrix = lp.prixUnitaire !== undefined && lp.prixUnitaire !== null && lp.prixUnitaire !== "";
+            if (hasPrix && Number(lp.prixUnitaire) < 0) continue;
+            await tx.ligneReceptionAppro.update({
+              where: { id: Number(lp.ligneId) },
+              data: { prixUnitaire: hasPrix ? new Prisma.Decimal(Number(lp.prixUnitaire)) : null },
+            });
+            if (hasPrix) {
+              const ligne = reception.lignes.find((l) => l.id === Number(lp.ligneId));
+              if (ligne) {
+                await enregistrerChangementPrix(tx, {
+                  produitId: ligne.produitId,
+                  nouveauPrixAchat: Number(lp.prixUnitaire),
+                  source: "APPRO",
+                  motif: `Approbation réception ${reception.reference}`,
+                  receptionApproId: Number(id),
+                  userId: parseInt(session.user.id),
+                });
+                await tx.produit.update({
+                  where: { id: ligne.produitId },
+                  data: { prixAchat: new Prisma.Decimal(Number(lp.prixUnitaire)) },
+                });
+              }
+            }
+          }
+        }
+
         const r = await tx.receptionApprovisionnement.update({
           where: { id: Number(id) },
           data: { statut: "EN_COURS", valideParId: parseInt(session.user.id) },
