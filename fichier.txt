@@ -257,3 +257,9 @@ a u niveau de dashboard/user/caissiers , tu vois au niveau des souscritpions
 
 Créer un centre de commandement admin/superadmin et peut être aussi les rôles RPV et chef d'agence pour pouvoir centraliser tous les documents qu'on est entrain de créer ( je parle des documents digitalisés de cdcdigitalisattion.txt)
 
+
+Sur /dashboard/user/logistiquesApprovisionnements/bons-commande  , je ne comprends pas trop c'est quoi site de livraison et la ligne de commande est illisible ( aucun nom de produit ne s'affiche )
+
+Sur /api/magasinier/bons-sortie/1/pdf , c'est à dire quand on veut imprimer un bon de sortie , lorsque la sortie est une perte , est ce logique de mettre quantité demandée dans le tableau ?? Si c'est logique d'accord mais ça mérite d'être soulevé . Et puis je remarque que la signature électronique est automatique ( j'ai pas signé mais ça affiche que j'ai signé )
+
+je ne comprends pas trop le formulaire de /dashboard/user/agentsTerrain/devis-proforma aussi . Après le produit je pense que c'est la quantité , mais après la quantité , il y'a quoi ? Les input sont des chiffres mais je ne sais pas ce que s'est censé être comme donnée ; et puis la condition , c'est à l'agent terrain de la mettre en input libre ??

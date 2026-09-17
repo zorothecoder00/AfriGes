@@ -4,7 +4,7 @@ import { getSessionLivraison } from "@/lib/tourneeLivraison";
 import { auditLog, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 import { PrioriteNotification } from "@prisma/client";
-import { INCLUDE } from "../../route";
+import { INCLUDE } from "../../../route";
 
 type Ctx = { params: Promise<{ id: string; arretId: string }> };
 
