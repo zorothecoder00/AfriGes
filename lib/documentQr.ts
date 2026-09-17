@@ -14,7 +14,16 @@ import QRCode from "qrcode";
 // (génération et vérification) et ne peut pas être forgé sans le secret serveur.
 const SECRET = process.env.DOCUMENT_QR_SECRET || process.env.NEXTAUTH_SECRET || "afriges-qr-dev-secret-changeme";
 
-export type CodeDocumentQr = "BCF" | "BSM" | "BRF" | "BCC" | "FD" | "BR" | "DEV" | "PRO" | "BP" | "BL";
+export type CodeDocumentQr =
+  | "BCF" | "BSM" | "BRF" | "BCC" | "FD" | "BR" | "DEV" | "PRO" | "BP" | "BL"
+  // Crédit client (§5.4)
+  | "ASF" | "ARC" | "RRC" | "AEC"
+  // Revendeurs / B2B (§5.6)
+  | "REV" | "BCR" | "BLR" | "FRV"
+  // Logistique / tournées (§5.7)
+  | "TRN" | "ARL"
+  // Retours et réclamations (§5.8)
+  | "REC" | "RET" | "BRM" | "INC";
 
 /** Empreinte de sécurité (16 caractères hex) pour une instance de document. */
 export function hashInstanceDocument(code: CodeDocumentQr, id: number, createdAtIso: string): string {

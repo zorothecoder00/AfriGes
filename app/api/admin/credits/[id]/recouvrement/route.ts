@@ -10,8 +10,8 @@ import { DELAI_MISE_EN_DEMEURE_DEFAUT, LABEL_TYPE_ACTION, rolesANotifier } from 
  * Recouvrement du crédit client classique (CDC digitalisation §5.4) — journal
  * d'actions (appel, visite, mise en demeure, accord d'échéancier, saisie de
  * garantie, note interne) rattaché à un CreditClient. Couvre "Mise en demeure"
- * et "Fiche de visite de recouvrement" (impression via FicheActionRecouvrement.tsx
- * côté client, à partir de l'action créée ici).
+ * et "Fiche de visite de recouvrement" (PDF serveur via
+ * [actionId]/pdf/route.ts + lib/ficheActionRecouvrementHtml.ts).
  */
 
 export const INCLUDE = {

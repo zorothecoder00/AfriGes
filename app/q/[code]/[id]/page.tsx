@@ -13,7 +13,13 @@ type Props = {
   searchParams: Promise<{ h?: string }>;
 };
 
-const CODES_VALIDES: CodeDocumentQr[] = ["BCF", "BSM", "BRF", "BCC", "FD", "BR", "DEV", "PRO", "BP", "BL"];
+const CODES_VALIDES: CodeDocumentQr[] = [
+  "BCF", "BSM", "BRF", "BCC", "FD", "BR", "DEV", "PRO", "BP", "BL",
+  "ASF", "ARC", "RRC", "AEC",
+  "REV", "BCR", "BLR", "FRV",
+  "TRN", "ARL",
+  "REC", "RET", "BRM", "INC",
+];
 
 export default async function VerifierDocumentPage({ params, searchParams }: Props) {
   const { code, id } = await params;
@@ -96,6 +102,17 @@ export default async function VerifierDocumentPage({ params, searchParams }: Pro
       return <PageErreur message="Ce QR ne correspond à aucun bon de livraison valide (document falsifié ou introuvable)." />;
     }
     redirect(`/api/bons-livraison/${bl.id}/pdf`);
+  }
+
+  if (codeDoc === "ASF" || codeDoc === "RRC" || codeDoc === "AEC" || codeDoc === "ARC") {
+    // Documents remis au client (quittance, reçu, avis, mise en demeure/visite) —
+    // le QR renvoie vers le suivi public du crédit (sans compte), pas vers le
+    // back-office interne.
+    const c = await prisma.creditClient.findUnique({ where: { id: docId }, select: { id: true, reference: true, createdAt: true } });
+    if (!c || !verifierHashInstance(codeDoc, c.id, c.createdAt.toISOString(), h)) {
+      return <PageErreur message="Ce QR ne correspond à aucun document de crédit valide (document falsifié ou introuvable)." />;
+    }
+    redirect(`/suivi/${c.reference}`);
   }
 
   return <PageErreur message="QR code invalide." />;

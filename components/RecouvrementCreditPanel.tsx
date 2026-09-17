@@ -8,14 +8,27 @@ import {
 } from "lucide-react";
 import { useApi, invalidateApiCache } from "@/hooks/useApi";
 import { LABEL_TYPE_ACTION } from "@/lib/recouvrementCredit";
-import FicheActionRecouvrement, { type ActionRecouvrement } from "@/components/FicheActionRecouvrement";
 
 /**
  * Panneau "Recouvrement" (CDC digitalisation §5.4, Phase 3) — journal
- * d'actions + impression Mise en demeure / Fiche de visite, partagé entre
- * les fiches crédit admin et RVC (mêmes routes, mêmes rôles autorisés via
- * getRVCSession). Un seul composant, pas de duplication par dashboard.
+ * d'actions + impression Mise en demeure / Fiche de visite (PDF serveur,
+ * lib/ficheActionRecouvrementHtml.ts), partagé entre les fiches crédit admin
+ * et RVC (mêmes routes, mêmes rôles autorisés via getRVCSession).
  */
+
+export interface ActionRecouvrement {
+  id: number;
+  type: string;
+  statut: string;
+  notes: string | null;
+  resultat: string | null;
+  delaiRegularisationJours: number | null;
+  lieuVisite: string | null;
+  personneRencontree: string | null;
+  effectuePar: { nom: string; prenom: string } | null;
+  dateAction: string;
+  dateRelance: string | null;
+}
 
 const TYPE_ICON: Record<string, typeof Phone> = {
   APPEL_TELEPHONIQUE: Phone,
@@ -35,12 +48,9 @@ const STATUT_LABEL: Record<string, string> = { EN_COURS: "En cours", RESOLU: "R�
 
 interface Props {
   creditId: number;
-  creditReference: string;
-  soldeRestant: number | string;
-  client: { codeClient: string | null; nom: string; prenom: string; telephone: string | null; adresse?: string | null };
 }
 
-export default function RecouvrementCreditPanel({ creditId, creditReference, soldeRestant, client }: Props) {
+export default function RecouvrementCreditPanel({ creditId }: Props) {
   const apiUrl = `/api/admin/credits/${creditId}/recouvrement`;
   const { data, loading, refetch } = useApi<{ data: ActionRecouvrement[] }>(apiUrl);
   const actions = data?.data ?? [];
@@ -48,7 +58,6 @@ export default function RecouvrementCreditPanel({ creditId, creditReference, sol
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [closingId, setClosingId] = useState<number | null>(null);
-  const [printAction, setPrintAction] = useState<ActionRecouvrement | null>(null);
 
   const [type, setType] = useState<string>("APPEL_TELEPHONIQUE");
   const [notes, setNotes] = useState("");
@@ -88,8 +97,10 @@ export default function RecouvrementCreditPanel({ creditId, creditReference, sol
       refetch();
       setShowForm(false);
       resetForm();
-      // Ouvre directement l'impression pour les documents formels du CDC.
-      if (type === "MISE_EN_DEMEURE" || type === "VISITE_TERRAIN") setPrintAction(json.data);
+      // Ouvre directement le PDF pour les documents formels du CDC.
+      if (type === "MISE_EN_DEMEURE" || type === "VISITE_TERRAIN") {
+        window.open(`/api/admin/credits/${creditId}/recouvrement/${json.data.id}/pdf`, "_blank");
+      }
     } catch {
       toast.error("Erreur réseau");
     } finally {
@@ -206,9 +217,9 @@ export default function RecouvrementCreditPanel({ creditId, creditReference, sol
                 )}
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <button onClick={() => setPrintAction(a)} title="Imprimer" className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg">
+                <a href={`/api/admin/credits/${creditId}/recouvrement/${a.id}/pdf`} target="_blank" rel="noreferrer" title="Imprimer" className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg">
                   <Printer size={14} />
-                </button>
+                </a>
                 {a.statut === "EN_COURS" && (
                   <>
                     <button onClick={() => cloturer(a.id, "RESOLU")} disabled={closingId === a.id} title="Marquer résolu"
@@ -226,16 +237,6 @@ export default function RecouvrementCreditPanel({ creditId, creditReference, sol
           );
         })}
       </div>
-
-      {printAction && (
-        <FicheActionRecouvrement
-          action={printAction}
-          creditReference={creditReference}
-          soldeRestant={soldeRestant}
-          client={client}
-          onClose={() => setPrintAction(null)}
-        />
-      )}
     </div>
   );
 }
