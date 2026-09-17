@@ -532,6 +532,28 @@ Tout se rafraîchit automatiquement selon les filtres choisis ; aucune
 action de validation n'est nécessaire ici, c'est un outil de lecture.
 
 
+CENTRE DE COMMANDEMENT (point d'entrée unique, hors numérotation CDC)
+=============================================================
+Accéder : /dashboard/admin/centre-commandement (Admin/Super Admin ; RPV et
+  Chef d'agence y ont aussi accès, scopé à leur(s) point(s) de vente).
+
+Ajouté pour centraliser l'accès à tous les documents ci-dessus sans avoir à
+mémoriser une page par module :
+  1. Recherche globale : tapez une référence (BRF-2026-..., REC-2026-...),
+     un nom ou un numéro de téléphone client — le moteur interroge en
+     parallèle les 16 familles de documents principales (§3.1 à §5.8) et
+     renvoie les correspondances avec un lien direct "Imprimer" (PDF) et un
+     lien vers la fiche complète. API : GET
+     /api/centre-commandement/recherche?q=...
+  2. Annuaire par module : liste de tous les documents du CDC digitalisation
+     avec leur description et un lien vers la page où les créer/gérer,
+     classée par section (§3.x, §5.x) — utile pour découvrir un circuit
+     qu'on ne pratique pas au quotidien.
+Le contrôle commercial (§5.9) et les réclamations (§5.8) restent en outre
+accessibles directement depuis la barre latérale Admin ("Pilotage &
+documents") — ils n'avaient auparavant aucun lien de navigation direct.
+
+
 RÉCAPITULATIF DES RÔLES ET DE LEURS DOCUMENTS PRINCIPAUX
 =============================================================
   Agent terrain         : Bordereau de remise, Commande client, Devis/Proforma

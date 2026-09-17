@@ -1066,6 +1066,10 @@ export const translations = {
   nav_section_marketing:   { fr: "Marketing",                    en: "Marketing",               ar: "التسويق",                    es: "Marketing",                       pt: "Marketing" },
   nav_marketing:           { fr: "Tableau de bord Marketing",    en: "Marketing dashboard",     ar: "لوحة التسويق",               es: "Panel de marketing",              pt: "Painel de marketing" },
   nav_droits_acces:        { fr: "Droits d'accès",               en: "Access rights",           ar: "حقوق الوصول",                es: "Derechos de acceso",              pt: "Direitos de acesso" },
+  nav_section_pilotage:    { fr: "Pilotage & documents",         en: "Steering & documents",    ar: "القيادة والمستندات",         es: "Pilotaje y documentos",           pt: "Pilotagem e documentos" },
+  nav_centre_commandement: { fr: "Centre de commandement",       en: "Command center",          ar: "مركز القيادة",               es: "Centro de mando",                 pt: "Centro de comando" },
+  nav_controle_commercial: { fr: "Contrôle commercial",          en: "Commercial control",      ar: "الرقابة التجارية",           es: "Control comercial",               pt: "Controle comercial" },
+  nav_reclamations:        { fr: "Réclamations & retours",       en: "Complaints & returns",    ar: "الشكاوى والمرتجعات",         es: "Reclamaciones y devoluciones",    pt: "Reclamações e devoluções" },
 
   // ── Dashboard admin — activité & graphiques ─────────────────────────────────
   dash_remboursements:            { fr: "Remboursements",                       en: "Repayments",                  ar: "السدادات",                    es: "Reembolsos",                          pt: "Reembolsos" },

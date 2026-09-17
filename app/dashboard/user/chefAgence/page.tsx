@@ -6,7 +6,7 @@ import {
   UserCheck, ShoppingBag, FileText, RefreshCw, Download,
   AlertTriangle, CheckCircle, XCircle, Clock, Search,
   ArrowRight, BarChart3, ArrowLeftRight, Plus, X, Menu,
-  ChevronDown, ChevronUp, Eye, MapPin, Send,
+  ChevronDown, ChevronUp, Eye, MapPin, Send, LayoutGrid,
 } from "lucide-react";
 import Link from "next/link";
 import AfriSimeLogo from "@/components/AfriSimeLogo";
@@ -624,6 +624,11 @@ export default function ChefAgenceDashboard() {
                     </Link>
                   </>
                 )}
+                <Link href="/dashboard/admin/centre-commandement"
+                  className="px-3 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-xl text-sm font-semibold hover:bg-indigo-50 transition-all shadow-sm flex items-center gap-2">
+                  <LayoutGrid className="w-4 h-4" />
+                  Centre de commandement
+                </Link>
                 <MessagesLink />
                 <CongesNavButton />
                 <NotificationBell href="/dashboard/user/notifications" />

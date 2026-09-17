@@ -7,7 +7,7 @@ import { useSession } from "next-auth/react";
 import {
   TrendingUp, Users, MessageSquare, Layers, ShoppingCart, Package, Store, Truck,
   ClipboardCheck, BarChart2, UserCog, Network, Target, Shield, Lock, Megaphone,
-  ChevronsLeft, ChevronsRight,
+  ChevronsLeft, ChevronsRight, LayoutGrid, Inbox,
 } from "lucide-react";
 import { useT } from "@/contexts/AppSettingsContext";
 import { useApi } from "@/hooks/useApi";
@@ -116,6 +116,14 @@ export default function AdminSidebar({
       title: t("nav_section_marketing"),
       items: [
         { href: "/dashboard/admin/marketing", label: t("nav_marketing"), icon: <Megaphone size={18} /> },
+      ],
+    },
+    {
+      title: t("nav_section_pilotage"),
+      items: [
+        { href: "/dashboard/admin/centre-commandement", label: t("nav_centre_commandement"), icon: <LayoutGrid size={18} /> },
+        { href: "/dashboard/admin/controle-commercial", label: t("nav_controle_commercial"), icon: <BarChart2 size={18} /> },
+        { href: "/dashboard/admin/reclamations", label: t("nav_reclamations"), icon: <Inbox size={18} /> },
       ],
     },
     {

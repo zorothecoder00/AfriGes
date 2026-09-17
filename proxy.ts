@@ -69,6 +69,20 @@ const sharedAdminPaths: { prefix: string; roles: string[] }[] = [
     prefix: "/dashboard/admin/marketing",
     roles: ["DIRECTEUR_GENERAL", "CHEF_AGENCE", "RESPONSABLE_POINT_DE_VENTE"],
   },
+  // Centre de commandement (annuaire + recherche documentaire CDC digitalisation)
+  // et Réclamations (§5.8, "Service Commercial" agence) — Admin/Super Admin ont
+  // déjà accès de plein droit via /dashboard/admin ; ces deux pages doivent
+  // aussi rester navigables pour le RPV/Chef d'agence qui les utilisent au
+  // quotidien (getReclamationSession/getCentreCommandementSession les acceptent
+  // déjà côté API, il ne manquait que la navigation).
+  {
+    prefix: "/dashboard/admin/centre-commandement",
+    roles: ["RESPONSABLE_POINT_DE_VENTE", "CHEF_AGENCE"],
+  },
+  {
+    prefix: "/dashboard/admin/reclamations",
+    roles: ["RESPONSABLE_POINT_DE_VENTE", "CHEF_AGENCE"],
+  },
 ]
 
 // Sous-arbres de /dashboard/user ouverts en accès complet (pas juste lecture viewAs)

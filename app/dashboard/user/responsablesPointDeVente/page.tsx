@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import {
   Package, Users, ShoppingCart, TrendingUp, AlertTriangle, Archive,
   Search, Eye, RefreshCw, Plus, BarChart3, Clock,
@@ -9,7 +10,7 @@ import {
   Lock, Filter, Pencil, Trash2, CalendarDays, Boxes,
   MapPin, FileText, Info, Download, Printer,
   UserPlus, Star, Activity, ShoppingBag, Wrench, UserCircle, CreditCard, Receipt,
-  Inbox, Send, Menu,
+  Inbox, Send, Menu, LayoutGrid,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import AccountMenuButton from "@/components/AccountMenuButton";
@@ -1917,6 +1918,10 @@ export default function ResponsablePDVPage() {
                 <button onClick={refetchAll} className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg" title="Actualiser">
                   <RefreshCw size={18} />
                 </button>
+                <Link href="/dashboard/admin/centre-commandement"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-xl text-sm font-medium hover:bg-indigo-50 transition-colors">
+                  <LayoutGrid size={15} />Centre de commandement
+                </Link>
                 {activeTab === "stock" && stockSub === "inventaire" && (
                   <>
                     <button onClick={() => openAnomalie()} className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 rounded-xl text-sm font-medium transition-colors">
