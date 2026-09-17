@@ -4,13 +4,18 @@ import { Suspense, useState } from "react";
 import { toast } from "sonner";
 import { PackageX, RefreshCw, Printer, CheckCircle2, XCircle, Loader2, Truck } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
-import FicheRetourMarchandise, { type RetourMarchandiseDoc } from "@/components/FicheRetourMarchandise";
 
 /**
  * "Fiche de retour marchandise" / "Bon de retour" (CDC digitalisation §5.8) —
  * file d'attente du magasinier pour réceptionner puis valider les retours
  * déclarés par le Service Commercial.
  */
+
+interface RetourMarchandiseRow {
+  id: number; numero: string; statut: string;
+  reclamation: { id: number; numero: string; client: { nom: string; prenom: string } };
+  lignes: { produit: { nom: string }; quantite: number; etatProduit: string | null }[];
+}
 
 const STATUT_BADGE: Record<string, string> = {
   DECLARE: "bg-blue-100 text-blue-700",
@@ -29,11 +34,10 @@ export default function RetoursClientPage() {
 }
 
 function RetoursClientPageInner() {
-  const { data, loading, refetch } = useApi<{ data: RetourMarchandiseDoc[] }>("/api/magasinier/retours-client");
+  const { data, loading, refetch } = useApi<{ data: RetourMarchandiseRow[] }>("/api/magasinier/retours-client");
   const retours = data?.data ?? [];
 
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [printRetour, setPrintRetour] = useState<RetourMarchandiseDoc | null>(null);
   const [rejetId, setRejetId] = useState<number | null>(null);
   const [motifRejet, setMotifRejet] = useState("");
 
@@ -85,7 +89,7 @@ function RetoursClientPageInner() {
                   </ul>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <button onClick={() => setPrintRetour(r)} title="Imprimer" className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"><Printer size={15} /></button>
+                  <a href={`/api/admin/reclamations/${r.reclamation.id}/retours/${r.id}/pdf`} target="_blank" rel="noreferrer" title="Imprimer" className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"><Printer size={15} /></a>
                   {r.statut === "DECLARE" && (
                     <button onClick={() => agir(r.id, "RECEPTIONNER")} disabled={busyId === r.id}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-medium disabled:opacity-50">
@@ -113,8 +117,6 @@ function RetoursClientPageInner() {
           )}
         </div>
       </div>
-
-      {printRetour && <FicheRetourMarchandise retour={printRetour} onClose={() => setPrintRetour(null)} />}
 
       {rejetId !== null && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">

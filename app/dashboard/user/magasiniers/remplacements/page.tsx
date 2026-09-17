@@ -4,13 +4,18 @@ import { Suspense, useState } from "react";
 import { toast } from "sonner";
 import { Repeat, RefreshCw, Printer, CheckCircle2, XCircle, Loader2, Truck } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
-import BonRemplacement, { type RemplacementDoc } from "@/components/BonRemplacement";
 
 /**
  * "Bon de remplacement" (CDC digitalisation §5.8) — file d'attente du
  * magasinier pour approuver puis livrer les remplacements de produits
  * défectueux demandés par le Service Commercial.
  */
+
+interface RemplacementRow {
+  id: number; numero: string; statut: string; quantite: number;
+  produitOrigine: { nom: string }; produitRemplacement: { nom: string };
+  reclamation: { id: number; numero: string; client: { nom: string; prenom: string } };
+}
 
 const STATUT_BADGE: Record<string, string> = {
   DEMANDE: "bg-blue-100 text-blue-700",
@@ -29,11 +34,10 @@ export default function RemplacementsPage() {
 }
 
 function RemplacementsPageInner() {
-  const { data, loading, refetch } = useApi<{ data: RemplacementDoc[] }>("/api/magasinier/remplacements");
+  const { data, loading, refetch } = useApi<{ data: RemplacementRow[] }>("/api/magasinier/remplacements");
   const remplacements = data?.data ?? [];
 
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [printDoc, setPrintDoc] = useState<RemplacementDoc | null>(null);
   const [rejetId, setRejetId] = useState<number | null>(null);
   const [motifRejet, setMotifRejet] = useState("");
 
@@ -81,7 +85,7 @@ function RemplacementsPageInner() {
                   <p className="text-xs text-slate-600 mt-1.5">{r.quantite} × {r.produitOrigine.nom} → {r.produitRemplacement.nom}</p>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <button onClick={() => setPrintDoc(r)} title="Imprimer" className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"><Printer size={15} /></button>
+                  <a href={`/api/admin/reclamations/${r.reclamation.id}/remplacements/${r.id}/pdf`} target="_blank" rel="noreferrer" title="Imprimer" className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"><Printer size={15} /></a>
                   {r.statut === "DEMANDE" && (
                     <button onClick={() => agir(r.id, "APPROUVER")} disabled={busyId === r.id}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-medium disabled:opacity-50">
@@ -109,8 +113,6 @@ function RemplacementsPageInner() {
           )}
         </div>
       </div>
-
-      {printDoc && <BonRemplacement remplacement={printDoc} onClose={() => setPrintDoc(null)} />}
 
       {rejetId !== null && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">

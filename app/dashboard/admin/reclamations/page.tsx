@@ -13,11 +13,6 @@ import AccountMenuButton from "@/components/AccountMenuButton";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import AfriSimeLogo from "@/components/AfriSimeLogo";
 import { LABEL_TYPE_RECLAMATION, LABEL_TYPE_ACTION_RECLAMATION } from "@/lib/reclamationClient";
-import FormulaireReclamation, { type ReclamationDoc } from "@/components/FormulaireReclamation";
-import FicheRetourMarchandise, { type RetourMarchandiseDoc } from "@/components/FicheRetourMarchandise";
-import BonRemplacement, { type RemplacementDoc } from "@/components/BonRemplacement";
-import RapportIncidentCommercial, { type IncidentCommercialDoc } from "@/components/RapportIncidentCommercial";
-import FicheTraitementReclamation, { type ReclamationTraitementDoc } from "@/components/FicheTraitementReclamation";
 
 /** Retours et réclamations client (CDC digitalisation §5.8). */
 
@@ -26,11 +21,27 @@ const inputCls = "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm fo
 interface ClientOption { id: number; nom: string; prenom: string; telephone: string | null; codeClient: string | null }
 interface ProduitOption { id: number; nom: string; codeProduit: string | null }
 
-interface ReclamationRow extends ReclamationDoc {
+interface RetourRow { id: number; numero: string; statut: string }
+interface RemplacementRow { id: number; numero: string; produitOrigine: { nom: string }; produitRemplacement: { nom: string } }
+interface IncidentRow { id: number; numero: string; lieu: string }
+
+interface ReclamationRow {
+  id: number;
+  numero: string;
+  type: string;
+  objet: string;
+  description: string;
+  statut: string;
+  sourceReference: string | null;
+  createdAt: string;
+  client: { id: number; nom: string; prenom: string; telephone: string | null; codeClient?: string | null };
+  pointDeVente: { nom: string; code: string } | null;
+  creePar: { nom: string; prenom: string } | null;
+  lignes: { produit: { nom: string; codeProduit?: string | null }; quantite: number; motif: string | null }[];
   actions: { id: number; type: string; description: string | null; dateAction: string; auteur: { nom: string; prenom: string } }[];
-  retours: RetourMarchandiseDoc[];
-  remplacements: RemplacementDoc[];
-  incidents: IncidentCommercialDoc[];
+  retours: RetourRow[];
+  remplacements: RemplacementRow[];
+  incidents: IncidentRow[];
   avoirs: { id: number; reference: string; montant: string | number; motif: string; dateEmission: string }[];
   assigneA: { id: number; nom: string; prenom: string } | null;
   motifRejet: string | null;
@@ -48,13 +59,6 @@ const STATUT_BADGE: Record<string, string> = {
 const STATUT_LABEL: Record<string, string> = {
   ENREGISTREE: "Enregistrée", EN_TRAITEMENT: "En traitement", RESOLUE: "Résolue", CLOTUREE: "Clôturée", REJETEE: "Rejetée",
 };
-
-type PrintDoc =
-  | { kind: "formulaire"; data: ReclamationDoc }
-  | { kind: "traitement"; data: ReclamationTraitementDoc }
-  | { kind: "retour"; data: RetourMarchandiseDoc }
-  | { kind: "remplacement"; data: RemplacementDoc }
-  | { kind: "incident"; data: IncidentCommercialDoc };
 
 export default function AdminReclamationsPage() {
   return (
@@ -74,7 +78,6 @@ function AdminReclamationsPageInner() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
-  const [printDoc, setPrintDoc] = useState<PrintDoc | null>(null);
 
   // Ouvre directement le dossier visé par un lien de notification ou un QR
   // de document scanné (?detail=123), cf. lib/documentQr / composants d'impression.
@@ -263,23 +266,16 @@ function AdminReclamationsPageInner() {
           id={detailId}
           onClose={() => setDetailId(null)}
           onChanged={refetch}
-          onPrint={setPrintDoc}
         />
       )}
-
-      {printDoc?.kind === "formulaire" && <FormulaireReclamation reclamation={printDoc.data} onClose={() => setPrintDoc(null)} />}
-      {printDoc?.kind === "traitement" && <FicheTraitementReclamation reclamation={printDoc.data} onClose={() => setPrintDoc(null)} />}
-      {printDoc?.kind === "retour" && <FicheRetourMarchandise retour={printDoc.data} onClose={() => setPrintDoc(null)} />}
-      {printDoc?.kind === "remplacement" && <BonRemplacement remplacement={printDoc.data} onClose={() => setPrintDoc(null)} />}
-      {printDoc?.kind === "incident" && <RapportIncidentCommercial incident={printDoc.data} onClose={() => setPrintDoc(null)} />}
     </div>
   );
 }
 
 // ── Détail d'une réclamation ────────────────────────────────────────────
 
-function DetailReclamation({ id, onClose, onChanged, onPrint }: {
-  id: number; onClose: () => void; onChanged: () => void; onPrint: (doc: PrintDoc) => void;
+function DetailReclamation({ id, onClose, onChanged }: {
+  id: number; onClose: () => void; onChanged: () => void;
 }) {
   const apiUrl = `/api/admin/reclamations/${id}`;
   const { data, loading, refetch } = useApi<{ data: ReclamationRow }>(apiUrl);
@@ -348,7 +344,7 @@ function DetailReclamation({ id, onClose, onChanged, onPrint }: {
           </div>
           <div className="flex items-center gap-2">
             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUT_BADGE[r.statut]}`}>{STATUT_LABEL[r.statut]}</span>
-            <button onClick={() => onPrint({ kind: "formulaire", data: r })} title="Imprimer le formulaire" className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"><Printer size={16} /></button>
+            <a href={`/api/admin/reclamations/${r.id}/pdf`} target="_blank" rel="noreferrer" title="Imprimer le formulaire" className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"><Printer size={16} /></a>
             <button onClick={onClose}><X size={18} className="text-slate-400" /></button>
           </div>
         </div>
@@ -392,9 +388,9 @@ function DetailReclamation({ id, onClose, onChanged, onPrint }: {
           <div>
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Traitement</h4>
-              <button onClick={() => onPrint({ kind: "traitement", data: r })} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700">
+              <a href={`/api/admin/reclamations/${id}/traitement/pdf`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700">
                 <Printer size={12} /> {r.statut === "CLOTUREE" ? "Fiche de clôture" : "Fiche de traitement"}
-              </button>
+              </a>
             </div>
             {r.statut !== "CLOTUREE" && r.statut !== "REJETEE" && (
               <div className="flex gap-2 mb-3">
@@ -419,15 +415,18 @@ function DetailReclamation({ id, onClose, onChanged, onPrint }: {
           </div>
 
           {r.retours.length > 0 && (
-            <ListeSection title="Retours marchandise" items={r.retours} onPrint={(d) => onPrint({ kind: "retour", data: d })}
+            <ListeSection title="Retours marchandise" items={r.retours}
+              hrefFor={(d) => `/api/admin/reclamations/${id}/retours/${d.id}/pdf`}
               renderLabel={(d) => `${d.numero} — ${STATUT_LABEL_RETOUR[d.statut] ?? d.statut}`} />
           )}
           {r.remplacements.length > 0 && (
-            <ListeSection title="Remplacements" items={r.remplacements} onPrint={(d) => onPrint({ kind: "remplacement", data: d })}
+            <ListeSection title="Remplacements" items={r.remplacements}
+              hrefFor={(d) => `/api/admin/reclamations/${id}/remplacements/${d.id}/pdf`}
               renderLabel={(d) => `${d.numero} — ${d.produitOrigine.nom} → ${d.produitRemplacement.nom}`} />
           )}
           {r.incidents.length > 0 && (
-            <ListeSection title="Incidents" items={r.incidents} onPrint={(d) => onPrint({ kind: "incident", data: d })}
+            <ListeSection title="Incidents" items={r.incidents}
+              hrefFor={(d) => `/api/admin/reclamations/incidents/${d.id}/pdf`}
               renderLabel={(d) => `${d.numero} — ${d.lieu}`} />
           )}
           {r.avoirs.length > 0 && (
@@ -493,8 +492,8 @@ function DetailReclamation({ id, onClose, onChanged, onPrint }: {
 
 const STATUT_LABEL_RETOUR: Record<string, string> = { DECLARE: "Déclaré", RECEPTIONNE: "Réceptionné", VALIDE: "Bon de retour validé", REJETE: "Rejeté" };
 
-function ListeSection<T extends { id: number }>({ title, items, onPrint, renderLabel }: {
-  title: string; items: T[]; onPrint: (item: T) => void; renderLabel: (item: T) => string;
+function ListeSection<T extends { id: number }>({ title, items, hrefFor, renderLabel }: {
+  title: string; items: T[]; hrefFor: (item: T) => string; renderLabel: (item: T) => string;
 }) {
   return (
     <div>
@@ -503,7 +502,7 @@ function ListeSection<T extends { id: number }>({ title, items, onPrint, renderL
         {items.map((it) => (
           <div key={it.id} className="text-xs p-2 border border-slate-100 rounded-lg flex justify-between items-center">
             <span>{renderLabel(it)}</span>
-            <button onClick={() => onPrint(it)} className="p-1 text-slate-400 hover:bg-slate-100 rounded-lg"><Printer size={13} /></button>
+            <a href={hrefFor(it)} target="_blank" rel="noreferrer" className="p-1 text-slate-400 hover:bg-slate-100 rounded-lg"><Printer size={13} /></a>
           </div>
         ))}
       </div>

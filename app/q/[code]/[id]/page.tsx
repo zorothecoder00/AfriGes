@@ -166,6 +166,38 @@ export default async function VerifierDocumentPage({ params, searchParams }: Pro
     redirect(`/dashboard/user/logistiquesApprovisionnements/tournees?tournee=${a.tourneeId}`);
   }
 
+  if (codeDoc === "REC") {
+    const r = await prisma.reclamationClient.findUnique({ where: { id: docId }, select: { id: true, createdAt: true } });
+    if (!r || !verifierHashInstance("REC", r.id, r.createdAt.toISOString(), h)) {
+      return <PageErreur message="Ce QR ne correspond à aucune réclamation valide (document falsifié ou introuvable)." />;
+    }
+    redirect(`/dashboard/admin/reclamations?detail=${r.id}`);
+  }
+
+  if (codeDoc === "RET") {
+    const ret = await prisma.retourMarchandiseClient.findUnique({ where: { id: docId }, select: { id: true, createdAt: true } });
+    if (!ret || !verifierHashInstance("RET", ret.id, ret.createdAt.toISOString(), h)) {
+      return <PageErreur message="Ce QR ne correspond à aucun retour marchandise valide (document falsifié ou introuvable)." />;
+    }
+    redirect(`/dashboard/user/magasiniers/retours-client?detail=${ret.id}`);
+  }
+
+  if (codeDoc === "BRM") {
+    const rp = await prisma.remplacementProduit.findUnique({ where: { id: docId }, select: { id: true, createdAt: true } });
+    if (!rp || !verifierHashInstance("BRM", rp.id, rp.createdAt.toISOString(), h)) {
+      return <PageErreur message="Ce QR ne correspond à aucun bon de remplacement valide (document falsifié ou introuvable)." />;
+    }
+    redirect(`/dashboard/user/magasiniers/remplacements?detail=${rp.id}`);
+  }
+
+  if (codeDoc === "INC") {
+    const inc = await prisma.incidentCommercial.findUnique({ where: { id: docId }, select: { id: true, createdAt: true, reclamationId: true } });
+    if (!inc || !verifierHashInstance("INC", inc.id, inc.createdAt.toISOString(), h)) {
+      return <PageErreur message="Ce QR ne correspond à aucun rapport d'incident valide (document falsifié ou introuvable)." />;
+    }
+    redirect(inc.reclamationId ? `/dashboard/admin/reclamations?detail=${inc.reclamationId}` : `/dashboard/admin/reclamations`);
+  }
+
   return <PageErreur message="QR code invalide." />;
 }
 
