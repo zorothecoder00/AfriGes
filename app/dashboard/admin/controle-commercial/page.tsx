@@ -46,10 +46,15 @@ export default function ControleCommercialPage() {
   const params = new URLSearchParams({ vue: tab, periode, date });
   if (pointDeVenteId) params.set("pointDeVenteId", pointDeVenteId);
 
-  const { data, loading, refetch } = useApi<{ data: unknown; plage: { debut: string; fin: string }; pdvs: PDV[] }>(
+  const { data, loading, refetch } = useApi<{ data: unknown; plage: { debut: string; fin: string }; pdvs: PDV[]; vue: Vue }>(
     `/api/admin/controle-commercial?${params.toString()}`
   );
   const pdvs = data?.pdvs ?? [];
+  // Le payload en cache peut encore correspondre à l'onglet précédent le temps
+  // qu'un changement d'onglet déclenche le refetch (useApi ne vide pas `data`
+  // à chaque changement d'URL) — sans ce garde-fou, VueVentes/VueAgents/etc.
+  // reçoivent la forme de données d'un autre onglet et plantent sur un .map.
+  const dataPret = !!data && data.vue === tab;
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-4">
@@ -98,13 +103,13 @@ export default function ControleCommercialPage() {
         })}
       </div>
 
-      {loading && !data && (
+      {!dataPret && (
         <div className="flex items-center justify-center py-20 text-slate-400 dark:text-slate-500">
           <RefreshCw size={20} className="animate-spin mr-2" /> Chargement…
         </div>
       )}
 
-      {data && (
+      {dataPret && data && (
         <>
           {tab === "dashboard" && <VueDashboard d={data.data as DashboardData} />}
           {tab === "ventes" && <VueVentes d={data.data as VentesData} />}

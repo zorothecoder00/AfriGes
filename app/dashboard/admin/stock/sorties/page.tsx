@@ -1,0 +1,297 @@
+"use client";
+
+import { useState } from "react";
+import { Plus, Printer, X, Loader2, CheckCircle2, Ban, Stamp, Search } from "lucide-react";
+import { toast } from "sonner";
+import { useApi } from "@/hooks/useApi";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import { formatCurrency, formatDateTime } from "@/lib/format";
+
+/** Bon de sortie de marchandises (CDC digitalisation §3.4) — page admin native. */
+
+const inputCls = "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300";
+
+interface PDV { id: number; nom: string; code: string }
+interface ProduitOption { id: number; nom: string; codeProduit: string | null }
+interface LigneBonSortie { id: number; quantite: number; quantiteDemandee: number | null; prixUnit: string | null; produit: { id: number; nom: string; reference: string | null; prixUnitaire: string } }
+interface BonSortie {
+  id: number; reference: string; typeSortie: string; statut: "BROUILLON" | "VALIDE" | "ANNULE";
+  motif: string; notes: string | null; commentaireEcart: string | null; montantTotal: string | null;
+  viseParId: number | null; dateVisa: string | null;
+  pointDeVente: PDV; creePar: { id: number; nom: string; prenom: string };
+  validePar: { id: number; nom: string; prenom: string } | null;
+  visePar: { id: number; nom: string; prenom: string } | null;
+  lignes: LigneBonSortie[];
+  bonLivraison: { id: number; reference: string } | null;
+  createdAt: string;
+}
+interface BonsSortieResponse { data: BonSortie[]; meta: { total: number; page: number; limit: number; totalPages: number }; seuilVisaBonSortie: number; pdvs?: PDV[] }
+
+const TYPE_LABEL: Record<string, string> = {
+  PERTE: "Perte", CASSE: "Casse", DON: "Don", CONSOMMATION_INTERNE: "Consommation interne", LIVRAISON_CLIENT: "Livraison client",
+};
+const STATUT_BADGE: Record<string, string> = {
+  BROUILLON: "bg-amber-100 text-amber-700", VALIDE: "bg-emerald-100 text-emerald-700", ANNULE: "bg-red-100 text-red-600",
+};
+const STATUT_LABEL: Record<string, string> = { BROUILLON: "En attente", VALIDE: "Validé", ANNULE: "Annulé" };
+
+export default function AdminBonsSortiePage() {
+  const [pointDeVenteId, setPointDeVenteId] = useState("");
+  const [statut, setStatut] = useState("");
+  const [typeSortie, setTypeSortie] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+
+  const params = new URLSearchParams();
+  if (pointDeVenteId) params.set("pointDeVenteId", pointDeVenteId);
+  if (statut) params.set("statut", statut);
+  if (typeSortie) params.set("typeSortie", typeSortie);
+  params.set("limit", "50");
+
+  const { data, loading, refetch } = useApi<BonsSortieResponse>(`/api/magasinier/bons-sortie?${params}`);
+  const bons = data?.data ?? [];
+  const pdvs = data?.pdvs ?? [];
+  const seuil = data?.seuilVisaBonSortie ?? Infinity;
+
+  async function actionBon(id: number, body: Record<string, unknown>) {
+    try {
+      const res = await fetch(`/api/magasinier/bons-sortie/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      const j = await res.json();
+      if (!res.ok) { toast.error(j.error || "Erreur"); return; }
+      toast.success("Bon de sortie mis à jour");
+      refetch();
+    } catch { toast.error("Erreur réseau"); }
+  }
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Bons de sortie de marchandises</h1>
+          <p className="text-sm text-slate-500 mt-1">CDC digitalisation §3.4 — sorties de stock (livraison, perte, casse, don, consommation interne)</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" title="Rafraîchir" />
+          <Button size="sm" icon={<Plus size={15} />} onClick={() => setShowCreate(true)}>Nouveau bon de sortie</Button>
+        </div>
+      </div>
+
+      <Card>
+        <div className="flex items-center gap-3 flex-wrap">
+          <select value={pointDeVenteId} onChange={(e) => setPointDeVenteId(e.target.value)} className={`${inputCls} w-auto`}>
+            <option value="">Toutes les agences</option>
+            {pdvs.map((p) => <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>)}
+          </select>
+          <select value={statut} onChange={(e) => setStatut(e.target.value)} className={`${inputCls} w-auto`}>
+            <option value="">Tous les statuts</option>
+            {Object.entries(STATUT_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+          <select value={typeSortie} onChange={(e) => setTypeSortie(e.target.value)} className={`${inputCls} w-auto`}>
+            <option value="">Tous les types</option>
+            {Object.entries(TYPE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+        </div>
+      </Card>
+
+      <div className="space-y-3">
+        {loading && bons.length === 0 && <p className="text-sm text-slate-400 text-center py-10">Chargement…</p>}
+        {!loading && bons.length === 0 && <p className="text-sm text-slate-400 text-center py-10">Aucun bon de sortie sur ce filtre.</p>}
+        {bons.map((b) => {
+          const montant = Number(b.montantTotal ?? 0);
+          const visaRequis = montant > seuil;
+          const peutValider = b.statut === "BROUILLON" && (!visaRequis || b.viseParId);
+          return (
+            <Card key={b.id}>
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono font-bold text-slate-800 text-sm">{b.reference}</span>
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUT_BADGE[b.statut]}`}>{STATUT_LABEL[b.statut]}</span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{TYPE_LABEL[b.typeSortie] ?? b.typeSortie}</span>
+                    {visaRequis && !b.viseParId && <span className="text-[11px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Visa requis</span>}
+                  </div>
+                  <p className="text-sm text-slate-600 mt-1">{b.pointDeVente.nom} ({b.pointDeVente.code}) — {b.motif}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {b.lignes.length} ligne(s) · {formatCurrency(montant)} · créé par {b.creePar.prenom} {b.creePar.nom} · {formatDateTime(b.createdAt)}
+                  </p>
+                  {b.commentaireEcart && <p className="text-xs text-amber-600 mt-1">Écart : {b.commentaireEcart}</p>}
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {visaRequis && !b.viseParId && b.statut === "BROUILLON" && (
+                    <button onClick={() => actionBon(b.id, { action: "VISER" })}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-orange-100 text-orange-700 rounded-lg text-xs font-medium hover:bg-orange-200">
+                      <Stamp size={13} /> Viser
+                    </button>
+                  )}
+                  {peutValider && (
+                    <button onClick={() => actionBon(b.id, { statut: "VALIDE" })}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-200">
+                      <CheckCircle2 size={13} /> Valider
+                    </button>
+                  )}
+                  {b.statut === "BROUILLON" && (
+                    <button onClick={() => actionBon(b.id, { statut: "ANNULE" })}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100">
+                      <Ban size={13} /> Annuler
+                    </button>
+                  )}
+                  <a href={`/api/magasinier/bons-sortie/${b.id}/pdf`} target="_blank" rel="noreferrer"
+                    className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg" title="Imprimer"><Printer size={15} /></a>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {showCreate && (
+        <FormBonSortie pdvs={pdvs} onClose={() => setShowCreate(false)} onDone={() => { setShowCreate(false); refetch(); }} />
+      )}
+    </div>
+  );
+}
+
+function useProduitSearch() {
+  const [query, setQuery] = useState("");
+  const [options, setOptions] = useState<ProduitOption[]>([]);
+  async function search(q: string) {
+    setQuery(q);
+    if (q.trim().length < 2) { setOptions([]); return; }
+    const r = await fetch(`/api/admin/reclamations/produits-recherche?q=${encodeURIComponent(q)}`);
+    const j = await r.json();
+    if (r.ok) setOptions(j.data);
+  }
+  return { query, options, search, setOptions };
+}
+
+function FormBonSortie({ pdvs, onClose, onDone }: { pdvs: PDV[]; onClose: () => void; onDone: () => void }) {
+  const [pointDeVenteId, setPointDeVenteId] = useState("");
+  const [typeSortie, setTypeSortie] = useState("PERTE");
+  const [motif, setMotif] = useState("");
+  const [notes, setNotes] = useState("");
+  const [commentaireEcart, setCommentaireEcart] = useState("");
+  const [lignes, setLignes] = useState<{ produit: ProduitOption; quantite: string; quantiteDemandee: string }[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const produitSearch = useProduitSearch();
+
+  const aUnEcart = lignes.some((l) => l.quantiteDemandee && Number(l.quantiteDemandee) > Number(l.quantite));
+
+  function ajouterLigne(p: ProduitOption) {
+    if (lignes.some((l) => l.produit.id === p.id)) return;
+    setLignes((prev) => [...prev, { produit: p, quantite: "1", quantiteDemandee: "" }]);
+    produitSearch.setOptions([]);
+  }
+  function retirerLigne(produitId: number) {
+    setLignes((prev) => prev.filter((l) => l.produit.id !== produitId));
+  }
+
+  async function submit() {
+    if (!pointDeVenteId) { toast.error("Sélectionnez le point de vente"); return; }
+    if (!motif.trim()) { toast.error("Le motif est obligatoire"); return; }
+    if (lignes.length === 0) { toast.error("Ajoutez au moins une ligne"); return; }
+    if (aUnEcart && !commentaireEcart.trim()) { toast.error("Un commentaire d'écart est obligatoire (quantité sortie < demandée)"); return; }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/magasinier/bons-sortie", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pointDeVenteId: Number(pointDeVenteId), typeSortie, motif, notes: notes || undefined,
+          commentaireEcart: aUnEcart ? commentaireEcart : undefined,
+          lignes: lignes.map((l) => ({
+            produitId: l.produit.id, quantite: Number(l.quantite),
+            quantiteDemandee: l.quantiteDemandee ? Number(l.quantiteDemandee) : undefined,
+          })),
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) { toast.error(j.error || "Erreur"); return; }
+      toast.success(`Bon de sortie ${j.data.reference} créé`);
+      onDone();
+    } catch { toast.error("Erreur réseau"); }
+    finally { setSubmitting(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <h3 className="font-bold text-slate-800">Nouveau bon de sortie</h3>
+          <button onClick={onClose}><X size={18} className="text-slate-400" /></button>
+        </div>
+        <div className="px-6 py-4 space-y-3 overflow-y-auto">
+          <div>
+            <label className="text-xs font-medium text-slate-500 mb-1 block">Point de vente *</label>
+            <select value={pointDeVenteId} onChange={(e) => setPointDeVenteId(e.target.value)} className={inputCls}>
+              <option value="">Choisir…</option>
+              {pdvs.map((p) => <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-500 mb-1 block">Type de sortie *</label>
+            <select value={typeSortie} onChange={(e) => setTypeSortie(e.target.value)} className={inputCls}>
+              {Object.entries(TYPE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-500 mb-1 block">Motif *</label>
+            <input value={motif} onChange={(e) => setMotif(e.target.value)} className={inputCls} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-500 mb-1 block">Notes (optionnel)</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${inputCls} resize-none`} />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-slate-500 mb-1 block">Ajouter un produit</label>
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={produitSearch.query} onChange={(e) => produitSearch.search(e.target.value)} placeholder="Rechercher un produit…" className={`${inputCls} pl-8`} />
+              {produitSearch.options.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                  {produitSearch.options.map((p) => (
+                    <button key={p.id} onClick={() => ajouterLigne(p)} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">
+                      {p.nom} {p.codeProduit ? `(${p.codeProduit})` : ""}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {lignes.length > 0 && (
+            <div className="space-y-2">
+              {lignes.map((l) => (
+                <div key={l.produit.id} className="flex items-center gap-2 p-2 border border-slate-100 rounded-lg">
+                  <span className="text-sm flex-1">{l.produit.nom}</span>
+                  <input type="number" min={1} value={l.quantite}
+                    onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, quantite: e.target.value } : x))}
+                    className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Qté sortie" />
+                  <input type="number" min={0} value={l.quantiteDemandee}
+                    onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, quantiteDemandee: e.target.value } : x))}
+                    className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Qté demandée" title="Si différente de la quantité sortie" />
+                  <button onClick={() => retirerLigne(l.produit.id)}><X size={14} className="text-slate-400" /></button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {aUnEcart && (
+            <div>
+              <label className="text-xs font-medium text-amber-600 mb-1 block">Commentaire d&apos;écart * (quantité sortie &lt; demandée)</label>
+              <textarea value={commentaireEcart} onChange={(e) => setCommentaireEcart(e.target.value)} rows={2} className={`${inputCls} resize-none`} />
+            </div>
+          )}
+        </div>
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100 shrink-0">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 rounded-lg">Annuler</button>
+          <button onClick={submit} disabled={submitting}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+            {submitting ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Créer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

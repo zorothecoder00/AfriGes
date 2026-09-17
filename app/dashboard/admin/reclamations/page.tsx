@@ -22,7 +22,7 @@ interface ClientOption { id: number; nom: string; prenom: string; telephone: str
 interface ProduitOption { id: number; nom: string; codeProduit: string | null }
 
 interface RetourRow { id: number; numero: string; statut: string }
-interface RemplacementRow { id: number; numero: string; produitOrigine: { nom: string }; produitRemplacement: { nom: string } }
+interface RemplacementRow { id: number; numero: string; statut: string; produitOrigine: { nom: string }; produitRemplacement: { nom: string } }
 interface IncidentRow { id: number; numero: string; lieu: string }
 
 interface ReclamationRow {
@@ -294,7 +294,48 @@ function DetailReclamation({ id, onClose, onChanged }: {
   const [showAvoir, setShowAvoir] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  // ── Traitement physique des retours/remplacements (§5.8) — normalement
+  // réservé au Magasinier (/dashboard/user/magasiniers/...) ; exposé ici pour
+  // que l'admin puisse gérer l'intégralité du document sans naviguer vers une
+  // page "user" (qui lui est de toute façon fermée par le middleware).
+  const [busyRetourId, setBusyRetourId] = useState<number | null>(null);
+  const [rejetRetourId, setRejetRetourId] = useState<number | null>(null);
+  const [motifRejetRetour, setMotifRejetRetour] = useState("");
+  const [busyRemplacementId, setBusyRemplacementId] = useState<number | null>(null);
+  const [rejetRemplacementId, setRejetRemplacementId] = useState<number | null>(null);
+  const [motifRejetRemplacement, setMotifRejetRemplacement] = useState("");
+
   function refresh() { refetch(); onChanged(); }
+
+  async function actionRetour(retourId: number, body: Record<string, unknown>) {
+    setBusyRetourId(retourId);
+    try {
+      const res = await fetch(`/api/magasinier/retours-client/${retourId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      const j = await res.json();
+      if (!res.ok) { toast.error(j.error || "Erreur"); return false; }
+      toast.success("Retour mis à jour");
+      refresh();
+      return true;
+    } catch { toast.error("Erreur réseau"); return false; }
+    finally { setBusyRetourId(null); }
+  }
+
+  async function actionRemplacement(remplacementId: number, body: Record<string, unknown>) {
+    setBusyRemplacementId(remplacementId);
+    try {
+      const res = await fetch(`/api/magasinier/remplacements/${remplacementId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      const j = await res.json();
+      if (!res.ok) { toast.error(j.error || "Erreur"); return false; }
+      toast.success("Remplacement mis à jour");
+      refresh();
+      return true;
+    } catch { toast.error("Erreur réseau"); return false; }
+    finally { setBusyRemplacementId(null); }
+  }
 
   async function patch(body: Record<string, unknown>) {
     setBusy(true);
@@ -415,14 +456,58 @@ function DetailReclamation({ id, onClose, onChanged }: {
           </div>
 
           {r.retours.length > 0 && (
-            <ListeSection title="Retours marchandise" items={r.retours}
-              hrefFor={(d) => `/api/admin/reclamations/${id}/retours/${d.id}/pdf`}
-              renderLabel={(d) => `${d.numero} — ${STATUT_LABEL_RETOUR[d.statut] ?? d.statut}`} />
+            <div>
+              <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-2">Retours marchandise</h4>
+              <div className="space-y-1.5">
+                {r.retours.map((d) => (
+                  <div key={d.id} className="text-xs p-2 border border-slate-100 rounded-lg flex items-center justify-between gap-2 flex-wrap">
+                    <span>{d.numero} — {STATUT_LABEL_RETOUR[d.statut] ?? d.statut}</span>
+                    <div className="flex items-center gap-1.5">
+                      {d.statut === "DECLARE" && (
+                        <button onClick={() => actionRetour(d.id, { action: "RECEPTIONNER" })} disabled={busyRetourId === d.id}
+                          className="px-2 py-1 bg-amber-100 text-amber-700 rounded-md font-medium hover:bg-amber-200 disabled:opacity-50">Réceptionner</button>
+                      )}
+                      {d.statut === "RECEPTIONNE" && (
+                        <button onClick={() => actionRetour(d.id, { action: "VALIDER" })} disabled={busyRetourId === d.id}
+                          className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md font-medium hover:bg-emerald-200 disabled:opacity-50">Valider (Bon de retour)</button>
+                      )}
+                      {(d.statut === "DECLARE" || d.statut === "RECEPTIONNE") && (
+                        <button onClick={() => setRejetRetourId(d.id)} disabled={busyRetourId === d.id}
+                          className="px-2 py-1 bg-red-50 text-red-600 rounded-md font-medium hover:bg-red-100 disabled:opacity-50">Rejeter</button>
+                      )}
+                      <a href={`/api/admin/reclamations/${id}/retours/${d.id}/pdf`} target="_blank" rel="noreferrer" className="p-1 text-slate-400 hover:bg-slate-100 rounded-lg"><Printer size={13} /></a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
           {r.remplacements.length > 0 && (
-            <ListeSection title="Remplacements" items={r.remplacements}
-              hrefFor={(d) => `/api/admin/reclamations/${id}/remplacements/${d.id}/pdf`}
-              renderLabel={(d) => `${d.numero} — ${d.produitOrigine.nom} → ${d.produitRemplacement.nom}`} />
+            <div>
+              <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-2">Remplacements</h4>
+              <div className="space-y-1.5">
+                {r.remplacements.map((d) => (
+                  <div key={d.id} className="text-xs p-2 border border-slate-100 rounded-lg flex items-center justify-between gap-2 flex-wrap">
+                    <span>{d.numero} — {d.produitOrigine.nom} → {d.produitRemplacement.nom} ({STATUT_LABEL_REMPLACEMENT[d.statut] ?? d.statut})</span>
+                    <div className="flex items-center gap-1.5">
+                      {d.statut === "DEMANDE" && (
+                        <button onClick={() => actionRemplacement(d.id, { action: "APPROUVER" })} disabled={busyRemplacementId === d.id}
+                          className="px-2 py-1 bg-amber-100 text-amber-700 rounded-md font-medium hover:bg-amber-200 disabled:opacity-50">Approuver</button>
+                      )}
+                      {d.statut === "APPROUVE" && (
+                        <button onClick={() => actionRemplacement(d.id, { action: "LIVRER" })} disabled={busyRemplacementId === d.id}
+                          className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md font-medium hover:bg-emerald-200 disabled:opacity-50">Livrer</button>
+                      )}
+                      {(d.statut === "DEMANDE" || d.statut === "APPROUVE") && (
+                        <button onClick={() => setRejetRemplacementId(d.id)} disabled={busyRemplacementId === d.id}
+                          className="px-2 py-1 bg-red-50 text-red-600 rounded-md font-medium hover:bg-red-100 disabled:opacity-50">Rejeter</button>
+                      )}
+                      <a href={`/api/admin/reclamations/${id}/remplacements/${d.id}/pdf`} target="_blank" rel="noreferrer" className="p-1 text-slate-400 hover:bg-slate-100 rounded-lg"><Printer size={13} /></a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
           {r.incidents.length > 0 && (
             <ListeSection title="Incidents" items={r.incidents}
@@ -474,6 +559,22 @@ function DetailReclamation({ id, onClose, onChanged }: {
         </MiniModal>
       )}
 
+      {rejetRetourId !== null && (
+        <MiniModal title="Rejeter le retour marchandise" onClose={() => { setRejetRetourId(null); setMotifRejetRetour(""); }}
+          onConfirm={async () => { if (await actionRetour(rejetRetourId, { action: "REJETER", motifRejet: motifRejetRetour })) { setRejetRetourId(null); setMotifRejetRetour(""); } }}
+          confirmLabel="Rejeter" confirmClass="bg-red-600 hover:bg-red-700">
+          <textarea value={motifRejetRetour} onChange={(e) => setMotifRejetRetour(e.target.value)} rows={3} className={`${inputCls} resize-none`} placeholder="Motif du rejet *" />
+        </MiniModal>
+      )}
+
+      {rejetRemplacementId !== null && (
+        <MiniModal title="Rejeter le remplacement" onClose={() => { setRejetRemplacementId(null); setMotifRejetRemplacement(""); }}
+          onConfirm={async () => { if (await actionRemplacement(rejetRemplacementId, { action: "REJETER", motifRejet: motifRejetRemplacement })) { setRejetRemplacementId(null); setMotifRejetRemplacement(""); } }}
+          confirmLabel="Rejeter" confirmClass="bg-red-600 hover:bg-red-700">
+          <textarea value={motifRejetRemplacement} onChange={(e) => setMotifRejetRemplacement(e.target.value)} rows={3} className={`${inputCls} resize-none`} placeholder="Motif du rejet *" />
+        </MiniModal>
+      )}
+
       {showRetour && (
         <FormRetour reclamationId={id} onClose={() => setShowRetour(false)} onDone={() => { setShowRetour(false); refresh(); }} />
       )}
@@ -491,6 +592,7 @@ function DetailReclamation({ id, onClose, onChanged }: {
 }
 
 const STATUT_LABEL_RETOUR: Record<string, string> = { DECLARE: "Déclaré", RECEPTIONNE: "Réceptionné", VALIDE: "Bon de retour validé", REJETE: "Rejeté" };
+const STATUT_LABEL_REMPLACEMENT: Record<string, string> = { DEMANDE: "Demandé", APPROUVE: "Approuvé", LIVRE: "Livré", REJETE: "Rejeté" };
 
 function ListeSection<T extends { id: number }>({ title, items, hrefFor, renderLabel }: {
   title: string; items: T[]; hrefFor: (item: T) => string; renderLabel: (item: T) => string;

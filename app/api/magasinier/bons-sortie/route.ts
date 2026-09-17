@@ -19,27 +19,34 @@ export async function GET(req: NextRequest) {
 
     const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
     const viewAs  = isAdmin ? resolveViewAs(req) : null;
-    const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
+    const { searchParams } = new URL(req.url);
 
-    // Résoudre le PDV du magasinier (ou du gestionnaire ciblé en viewAs)
-    const aff = await prisma.gestionnaireAffectation.findFirst({
-      where: { userId: effectiveUserId, actif: true },
-      select: { pointDeVenteId: true },
-    });
-    const pdvId = aff?.pointDeVenteId;
-    if (!pdvId) {
-      return NextResponse.json({ error: "Aucun point de vente associé à ce magasinier" }, { status: 400 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+    if (isAdmin && !viewAs) {
+      // Admin natif (Centre de commandement / page admin dédiée) : pas de PDV
+      // propre à résoudre — filtre optionnel, sinon vue consolidée toutes agences.
+      const pdvParam = searchParams.get("pointDeVenteId");
+      if (pdvParam) where.pointDeVenteId = Number(pdvParam);
+    } else {
+      const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
+      const aff = await prisma.gestionnaireAffectation.findFirst({
+        where: { userId: effectiveUserId, actif: true },
+        select: { pointDeVenteId: true },
+      });
+      const pdvId = aff?.pointDeVenteId;
+      if (!pdvId) {
+        return NextResponse.json({ error: "Aucun point de vente associé à ce magasinier" }, { status: 400 });
+      }
+      where.pointDeVenteId = pdvId;
     }
 
-    const { searchParams } = new URL(req.url);
     const page       = Math.max(1, Number(searchParams.get("page")  || 1));
     const limit      = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 20)));
     const skip       = (page - 1) * limit;
     const statut     = searchParams.get("statut")    || "";
     const typeSortie = searchParams.get("typeSortie") || "";
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = { pointDeVenteId: pdvId };
     if (statut)     where.statut     = statut;
     if (typeSortie) where.typeSortie = typeSortie;
 
@@ -65,11 +72,15 @@ export async function GET(req: NextRequest) {
     ]);
 
     const seuilVisaBonSortie = await getSeuilVisaBonSortie();
+    const pdvs = isAdmin
+      ? await prisma.pointDeVente.findMany({ where: { actif: true }, select: { id: true, nom: true, code: true }, orderBy: { nom: "asc" } })
+      : undefined;
 
     return NextResponse.json({
       data: bons,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
       seuilVisaBonSortie,
+      pdvs,
     });
   } catch (error) {
     console.error("GET /magasinier/bons-sortie:", error);
@@ -88,20 +99,26 @@ export async function POST(req: Request) {
     const session = await getMagasinierSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    // Résoudre le PDV du magasinier
-    const aff = await prisma.gestionnaireAffectation.findFirst({
-      where: { userId: parseInt(session.user.id), actif: true },
-      select: { pointDeVenteId: true },
-    });
-    const pdvId = aff?.pointDeVenteId;
-    if (!pdvId) {
-      return NextResponse.json({ error: "Aucun point de vente associé à ce magasinier" }, { status: 400 });
-    }
-
     const body = await req.json();
     const { typeSortie, motif, notes, lignes, commentaireEcart } = body;
-    // Forcer le PDV du magasinier — ignorer tout pointDeVenteId du body
-    const pointDeVenteId = pdvId;
+
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    let pointDeVenteId: number;
+    if (isAdmin && body.pointDeVenteId) {
+      // Admin natif (Centre de commandement / page admin dédiée) : pas de PDV
+      // propre à résoudre — le PDV concerné est choisi explicitement dans le formulaire.
+      pointDeVenteId = Number(body.pointDeVenteId);
+    } else {
+      // Résoudre le PDV du magasinier — ignorer tout pointDeVenteId du body
+      const aff = await prisma.gestionnaireAffectation.findFirst({
+        where: { userId: parseInt(session.user.id), actif: true },
+        select: { pointDeVenteId: true },
+      });
+      if (!aff?.pointDeVenteId) {
+        return NextResponse.json({ error: "Aucun point de vente associé à ce magasinier" }, { status: 400 });
+      }
+      pointDeVenteId = aff.pointDeVenteId;
+    }
 
     if (!typeSortie || !motif || !lignes?.length) {
       return NextResponse.json(

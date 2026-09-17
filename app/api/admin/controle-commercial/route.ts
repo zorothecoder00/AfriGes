@@ -47,7 +47,7 @@ export async function GET(req: Request) {
       case "dashboard": default: data = await tableauBordCommercial(f); break;
     }
 
-    return NextResponse.json({ data, plage: { debut, fin }, pdvs });
+    return NextResponse.json({ data, plage: { debut, fin }, pdvs, vue });
   } catch (error) {
     console.error("GET /admin/controle-commercial:", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
