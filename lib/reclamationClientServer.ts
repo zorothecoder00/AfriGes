@@ -12,7 +12,7 @@ import { prisma } from "@/lib/prisma";
  * accès : null = pas de restriction (admin), [] = aucun PDV rattaché.
  */
 export async function resolvePdvIdsAutorises(session: {
-  user: { id: string; role: string; gestionnaireRole?: string | null };
+  user: { id: string; role: string | null; gestionnaireRole?: string | null };
 }): Promise<number[] | null> {
   const { role, gestionnaireRole: gRole } = session.user;
   if (role === "ADMIN" || role === "SUPER_ADMIN") return null;
