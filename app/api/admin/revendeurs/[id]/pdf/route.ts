@@ -5,7 +5,7 @@ import { htmlToPdf, pdfResponse } from "@/lib/pdf";
 import { genFicheRevendeurHtml, type VarianteRevendeur } from "@/lib/ficheRevendeurHtml";
 import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
 import { statsAchatsRevendeur } from "@/lib/revendeur";
-import { INCLUDE } from "../route";
+import { INCLUDE } from "../../route";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;

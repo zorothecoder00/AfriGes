@@ -4,7 +4,7 @@ import { getSessionLivraison } from "@/lib/tourneeLivraison";
 import { htmlToPdf, pdfResponse } from "@/lib/pdf";
 import { genFicheTourneeHtml, type VarianteTournee } from "@/lib/ficheTourneeHtml";
 import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
-import { INCLUDE } from "../route";
+import { INCLUDE } from "../../route";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
