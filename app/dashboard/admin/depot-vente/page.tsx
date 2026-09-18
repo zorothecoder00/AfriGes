@@ -405,7 +405,7 @@ function OngletEtat() {
                 {r.statut === "BROUILLON" && (
                   <button onClick={() => soumettreReglement(r.id)} className="flex items-center gap-1 px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium"><Send size={12} /> Soumettre</button>
                 )}
-                {r.statut === "SOUMIS" && <Wallet size={14} className="text-slate-400" title="En attente de paiement — voir Décaissements" />}
+                {r.statut === "SOUMIS" && <span title="En attente de paiement — voir Décaissements"><Wallet size={14} className="text-slate-400" /></span>}
               </div>
             </div>
           ))}
