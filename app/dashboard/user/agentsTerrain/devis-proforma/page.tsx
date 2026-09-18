@@ -206,13 +206,28 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
 
           <div className="grid grid-cols-2 gap-3">
             <div><label className="text-xs text-slate-500">Validité jusqu&apos;au</label><input type="date" value={dateValidite} onChange={(e) => setDateValidite(e.target.value)} className={inputCls} /></div>
-            <div><label className="text-xs text-slate-500">Conditions</label><input value={conditions} onChange={(e) => setConditions(e.target.value)} className={inputCls} /></div>
+            <div>
+              <label className="text-xs text-slate-500">Conditions de vente (optionnel)</label>
+              <input list="conditions-suggestions" value={conditions} onChange={(e) => setConditions(e.target.value)} placeholder="Ex. : Paiement à la livraison" className={inputCls} />
+              <datalist id="conditions-suggestions">
+                <option value="Paiement comptant à la commande" />
+                <option value="Paiement à la livraison" />
+                <option value="50% à la commande, solde à la livraison" />
+                <option value="Livraison sous 7 jours après paiement" />
+              </datalist>
+            </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs text-slate-500">Produits</label>
               <button onClick={addLigne} className="text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> Ajouter</button>
+            </div>
+            <div className="flex gap-2 text-[11px] text-slate-400 px-1 mb-1">
+              <span className="flex-1">Produit (prix appliqué automatiquement)</span>
+              <span className="w-20">Quantité</span>
+              <span className="w-24">Remise (%)</span>
+              {lignes.length > 1 && <span className="w-9" />}
             </div>
             <div className="space-y-2">
               {lignes.map((l, i) => (
@@ -235,7 +250,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
                     )}
                   </div>
                   <input type="number" min="1" value={l.quantite} onChange={(e) => updateLigne(i, { quantite: e.target.value })} placeholder="Qté" className="w-20 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
-                  <input type="number" min="0" max="100" value={l.remisePourcent} onChange={(e) => updateLigne(i, { remisePourcent: e.target.value })} placeholder="Remise %" className="w-24 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                  <input type="number" min="0" max="100" value={l.remisePourcent} onChange={(e) => updateLigne(i, { remisePourcent: e.target.value })} placeholder="0" className="w-24 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
                   {lignes.length > 1 && <button onClick={() => removeLigne(i)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>}
                 </div>
               ))}

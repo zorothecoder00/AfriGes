@@ -63,12 +63,14 @@ export interface BonSortieHtmlData {
 }
 
 export function genBonSortieHtml(d: BonSortieHtmlData): string {
+  // Pertes/casses/vols… : pas de "demande" préalable → colonne masquée si aucune ligne n'en a une.
+  const aDemande = d.lignes.some((l) => l.quantiteDemandee != null);
   const lignesHtml = d.lignes.map((l) => {
     const ecart = l.quantiteDemandee != null && l.quantiteDemandee !== l.quantite;
     return `
     <tr>
       <td style="padding:8px; border-bottom:1px solid #eee;">${esc(l.produitNom)}</td>
-      <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;">${l.quantiteDemandee ?? l.quantite}</td>
+      ${aDemande ? `<td style="padding:8px; border-bottom:1px solid #eee; text-align:center;">${l.quantiteDemandee ?? "—"}</td>` : ""}
       <td style="padding:8px; border-bottom:1px solid #eee; text-align:center; ${ecart ? "color:#b45309; font-weight:bold;" : ""}">${l.quantite}</td>
       <td style="padding:8px; border-bottom:1px solid #eee; text-align:right;">${l.prixUnit != null ? fmtMontant(l.quantite * l.prixUnit) : "—"}</td>
     </tr>`;
@@ -100,7 +102,7 @@ export function genBonSortieHtml(d: BonSortieHtmlData): string {
     <thead>
       <tr style="background:#0f172a; color:#fff;">
         <th style="padding:8px; text-align:left;">Produit</th>
-        <th style="padding:8px; text-align:center;">Qté demandée</th>
+        ${aDemande ? `<th style="padding:8px; text-align:center;">Qté demandée</th>` : ""}
         <th style="padding:8px; text-align:center;">Qté sortie</th>
         <th style="padding:8px; text-align:right;">Total</th>
       </tr>
@@ -129,9 +131,9 @@ export function genBonSortieHtml(d: BonSortieHtmlData): string {
       <p style="font-size:12px; margin-top:6px;">${esc(d.creePar.prenom)} ${esc(d.creePar.nom)}</p>
     </div>
     <div style="text-align:right;">
-      <p style="margin:0; font-weight:bold; text-transform:uppercase;">Attestation magasinier</p>
+      <p style="margin:0; font-weight:bold; text-transform:uppercase;">Validation magasinier</p>
       ${d.validePar
-        ? `<p style="font-size:12px; color:#059669; margin-top:6px;">Signé électroniquement par ${esc(d.validePar.prenom)} ${esc(d.validePar.nom)}<br/>le ${formatDateFr(d.dateValidation)}</p>`
+        ? `<p style="font-size:12px; color:#059669; margin-top:6px;">Validé électroniquement par ${esc(d.validePar.prenom)} ${esc(d.validePar.nom)}<br/>le ${formatDateFr(d.dateValidation)}</p>`
         : `<div style="margin-top:40px; border-top:1px solid #aaa; width:200px; margin-left:auto;"></div>`}
     </div>
   </div>

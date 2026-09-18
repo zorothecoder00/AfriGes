@@ -45,6 +45,7 @@ const LIVRAISON_ETAPES: { key: string; label: string }[] = [
   { key: "LIVREE", label: "Livrée" }, { key: "RECEPTIONNEE", label: "Réceptionnée" },
 ];
 
+const inputBase = "px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500";
 const inputCls = "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500";
 
 export default function BonsCommandePage() {
@@ -228,7 +229,7 @@ function CreateModal({ onClose, onCreated, prefill }: {
                 {fournisseurs.map((f) => <option key={f.id} value={f.id}>{f.nom}</option>)}
               </select>
             </Field>
-            <Field label="Site de livraison *">
+            <Field label="Site de livraison * (lieu qui réceptionne la marchandise ; son stock sera augmenté)">
               <select value={pointDeVenteId} onChange={(e) => setPointDeVenteId(e.target.value)} className={`${inputCls} bg-white`}>
                 <option value="">— Sélectionner —</option>
                 {pdvs.map((p) => <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>)}
@@ -239,13 +240,13 @@ function CreateModal({ onClose, onCreated, prefill }: {
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="block text-xs font-medium text-slate-600">Lignes de commande *</span>
+              <span className="block text-xs font-medium text-slate-600">Lignes de commande * <span className="font-normal text-slate-400">(produit · quantité · prix unitaire d&apos;achat)</span></span>
               <button onClick={addLigne} className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium"><Plus className="w-3.5 h-3.5" /> Ajouter une ligne</button>
             </div>
             <div className="space-y-2">
               {lignes.map((l, idx) => (
                 <div key={idx} className="flex items-center gap-2">
-                  <div className="relative flex-1">
+                  <div className="relative flex-1 min-w-0">
                     {l.produitId ? (
                       <div className="flex items-center justify-between px-3 py-2 border border-emerald-200 bg-emerald-50 rounded-lg text-sm">
                         <span className="truncate">{l.produitNom}</span>
@@ -266,8 +267,8 @@ function CreateModal({ onClose, onCreated, prefill }: {
                       </>
                     )}
                   </div>
-                  <input type="number" min="1" placeholder="Qté" value={l.quantite} onChange={(e) => updateLigne(idx, { quantite: e.target.value })} className={`${inputCls} w-20`} />
-                  <input type="number" min="0" placeholder="P.U." value={l.prixUnitaire} onChange={(e) => updateLigne(idx, { prixUnitaire: e.target.value })} className={`${inputCls} w-28`} />
+                  <input type="number" min="1" placeholder="Qté" value={l.quantite} onChange={(e) => updateLigne(idx, { quantite: e.target.value })} className={`${inputBase} w-20 flex-shrink-0`} />
+                  <input type="number" min="0" placeholder="P.U." value={l.prixUnitaire} onChange={(e) => updateLigne(idx, { prixUnitaire: e.target.value })} className={`${inputBase} w-28 flex-shrink-0`} />
                   {lignes.length > 1 && (
                     <button onClick={() => removeLigne(idx)} className="text-slate-300 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>
                   )}
