@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getRVCSession } from "@/lib/authRVC";
 import { auditLog, notify, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 import { tariferLigne } from "@/lib/venteTarification";
 import { resoudreTvaVente, decomposerTTC } from "@/lib/comptabilite/tva";
 import { getSeuilRemiseCommandeClient } from "@/lib/parametresDocuments";
-import { getCreateSession, getViewSession, INCLUDE } from "../route";
+import { getCreateSession, getViewSession, getValideurScope, peutValider, INCLUDE } from "../route";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -20,7 +19,7 @@ export async function GET(_req: Request, { params }: Ctx) {
     const commande = await prisma.commandeClient.findUnique({ where: { id: Number(id) }, include: INCLUDE });
     if (!commande) return NextResponse.json({ error: "Commande introuvable" }, { status: 404 });
 
-    const isRVCOuAdmin = !!(await getRVCSession());
+    const isRVCOuAdmin = peutValider(await getValideurScope(), commande.pointDeVenteId);
     if (!isRVCOuAdmin && commande.agentId !== parseInt(session.user.id)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
@@ -105,8 +104,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const body = await req.json();
 
     if (body.action === "VISER") {
-      const session = await getRVCSession();
-      if (!session) return NextResponse.json({ error: "Réservé au Responsable Vente Crédit" }, { status: 403 });
+      const scope = await getValideurScope();
+      if (!scope || !peutValider(scope, commande.pointDeVenteId)) return NextResponse.json({ error: "Réservé à l'Admin, au Responsable Vente Crédit ou au RPV du point de vente" }, { status: 403 });
+      const session = scope.session;
       if (commande.statut !== "EN_VALIDATION") {
         return NextResponse.json({ error: `Impossible depuis le statut ${commande.statut}` }, { status: 422 });
       }
@@ -114,6 +114,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const updated = await prisma.$transaction(async (tx) => {
         await tx.commandeClient.update({ where: { id: commandeId }, data: { visaResponsableParId: userId, dateVisaResponsable: new Date() } });
         await genererBonSortiePourCommande(tx, commande, commande.lignes, userId);
+        await notify(tx, [commande.agentId], {
+          titre: `Commande ${commande.reference} validée`,
+          message: "Votre commande est validée : le bon de sortie est généré et transmis au magasinier. Vous pouvez le télécharger depuis la fiche de la commande.",
+          priorite: PrioriteNotification.NORMAL,
+          actionUrl: `/dashboard/user/agentsTerrain/commandes-client?detail=${commandeId}`,
+        });
         await auditLog(tx, userId, "BCC_VISE", "CommandeClient", commandeId, undefined, getRequestMeta(req));
         return tx.commandeClient.findUnique({ where: { id: commandeId }, include: INCLUDE });
       });
@@ -121,8 +127,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
     }
 
     if (body.action === "REJETER") {
-      const session = await getRVCSession();
-      if (!session) return NextResponse.json({ error: "Réservé au Responsable Vente Crédit" }, { status: 403 });
+      const scope = await getValideurScope();
+      if (!scope || !peutValider(scope, commande.pointDeVenteId)) return NextResponse.json({ error: "Réservé à l'Admin, au Responsable Vente Crédit ou au RPV du point de vente" }, { status: 403 });
+      const session = scope.session;
       if (commande.statut !== "EN_VALIDATION") {
         return NextResponse.json({ error: `Impossible depuis le statut ${commande.statut}` }, { status: 422 });
       }
@@ -146,7 +153,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (body.action === "ANNULER") {
       const session = await getCreateSession();
       const isOwnerOrAdmin = session && (session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN" || parseInt(session.user.id) === commande.agentId);
-      const rvc = await getRVCSession();
+      const scopeAnnul = await getValideurScope();
+      const rvc = peutValider(scopeAnnul, commande.pointDeVenteId) ? scopeAnnul!.session : null;
       if (!isOwnerOrAdmin && !rvc) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
       if (!["SOUMISE", "EN_VALIDATION"].includes(commande.statut)) {
         return NextResponse.json({ error: "La commande a déjà été prise en charge par le magasinier : un avenant est requis" }, { status: 422 });
@@ -231,6 +239,14 @@ export async function PATCH(req: Request, { params }: Ctx) {
           include: INCLUDE,
         });
         await auditLog(tx, userId, "BCC_MODIFIEE", "CommandeClient", commandeId, undefined, getRequestMeta(req));
+        if (userId !== commande.agentId) {
+          await notify(tx, [commande.agentId], {
+            titre: `Commande ${commande.reference} ajustée`,
+            message: `Votre commande a été ajustée par l'administration (nouveau total : ${totalTTC.toLocaleString("fr-FR")} FCFA).`,
+            priorite: PrioriteNotification.NORMAL,
+            actionUrl: `/dashboard/user/agentsTerrain/commandes-client?detail=${commandeId}`,
+          });
+        }
         return c;
       });
       return NextResponse.json({ data: updated });

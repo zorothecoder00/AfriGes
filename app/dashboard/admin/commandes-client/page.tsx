@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import RetourLien from "@/components/RetourLien";
-import { Plus, X, Loader2, Search, Stamp, XCircle, Ban, CheckCircle2, Printer } from "lucide-react";
+import { Plus, X, Loader2, Search, Stamp, XCircle, Ban, CheckCircle2, Printer, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { formatCurrency, formatDateTime } from "@/lib/format";
+import { useFocusDetail } from "@/hooks/useFocusDetail";
 
 /** Bon de commande client (CDC digitalisation §3.2) — page admin native. */
 
@@ -24,13 +25,13 @@ interface Commande {
   bonSortie: { id: number; reference: string; statut: string } | null;
   bonLivraison: { id: number; reference: string } | null;
   bonReception: { id: number; reference: string; statut: string } | null;
-  lignes: { id: number; quantite: number; produit: ProduitOption }[];
+  lignes: { id: number; quantite: number; remisePourcent: number | string | null; produit: ProduitOption }[];
   createdAt: string;
 }
 interface CommandesResponse { data: Commande[]; stats: Record<string, number> }
 
 const STATUT_LABEL: Record<string, string> = {
-  SOUMISE: "Soumise", EN_VALIDATION: "En attente de visa", VALIDEE: "Validée", EN_PREPARATION: "En préparation",
+  SOUMISE: "Soumise", EN_VALIDATION: "À valider", VALIDEE: "Validée", EN_PREPARATION: "En préparation",
   LIVREE: "Livrée", CLOTUREE: "Clôturée", REJETEE: "Rejetée", ANNULEE: "Annulée",
 };
 const STATUT_BADGE: Record<string, string> = {
@@ -40,15 +41,21 @@ const STATUT_BADGE: Record<string, string> = {
 };
 
 export default function AdminCommandesClientPage() {
+  return <Suspense fallback={null}><CommandesClientContenu /></Suspense>;
+}
+
+function CommandesClientContenu() {
   const [statut, setStatut] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [rejetCommande, setRejetCommande] = useState<Commande | null>(null);
   const [motifRejet, setMotifRejet] = useState("");
+  const [ajusterCommande, setAjusterCommande] = useState<Commande | null>(null);
 
   const params = new URLSearchParams();
   if (statut) params.set("statut", statut);
   const { data, loading, refetch } = useApi<CommandesResponse>(`/api/ventes/commandes-client?${params}`);
   const commandes = data?.data ?? [];
+  const focusId = useFocusDetail(!loading);
 
   async function action(id: number, body: Record<string, unknown>, successMsg: string) {
     try {
@@ -94,7 +101,8 @@ export default function AdminCommandesClientPage() {
         {loading && commandes.length === 0 && <p className="text-sm text-slate-400 text-center py-10">Chargement…</p>}
         {!loading && commandes.length === 0 && <p className="text-sm text-slate-400 text-center py-10">Aucune commande sur ce filtre.</p>}
         {commandes.map((c) => (
-          <Card key={c.id}>
+          <div key={c.id} id={`doc-${c.id}`} className={focusId === c.id ? "rounded-2xl ring-2 ring-primary-400" : ""}>
+          <Card>
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -107,6 +115,9 @@ export default function AdminCommandesClientPage() {
                   {c.lignes.length} ligne(s) · {formatCurrency(Number(c.totalTTC))} · agent {c.agent.prenom} {c.agent.nom} · {formatDateTime(c.createdAt)}
                 </p>
                 <div className="flex items-center gap-3 mt-1">
+                  {c.bonSortie && (
+                    <a href={`/api/ventes/commandes-client/${c.id}/facture/pdf`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary-600 hover:underline"><Printer size={11} /> Facture</a>
+                  )}
                   {c.bonLivraison && (
                     <a href={`/api/bons-livraison/${c.bonLivraison.id}/pdf`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary-600 hover:underline"><Printer size={11} /> Bon de livraison</a>
                   )}
@@ -119,7 +130,8 @@ export default function AdminCommandesClientPage() {
               <div className="flex items-center gap-1.5 flex-wrap">
                 {c.statut === "EN_VALIDATION" && (
                   <>
-                    <button onClick={() => action(c.id, { action: "VISER" }, "Commande visée — bon de sortie généré")} className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-200"><Stamp size={13} /> Viser</button>
+                    <button onClick={() => action(c.id, { action: "VISER" }, "Commande validée — bon de sortie généré, agent notifié")} className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-200"><Stamp size={13} /> Valider</button>
+                    <button onClick={() => setAjusterCommande(c)} className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100"><SlidersHorizontal size={13} /> Ajuster</button>
                     <button onClick={() => { setRejetCommande(c); setMotifRejet(""); }} className="flex items-center gap-1 px-2.5 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100"><XCircle size={13} /> Rejeter</button>
                   </>
                 )}
@@ -133,10 +145,12 @@ export default function AdminCommandesClientPage() {
               </div>
             </div>
           </Card>
+          </div>
         ))}
       </div>
 
       {showCreate && <FormCommande onClose={() => setShowCreate(false)} onDone={() => { setShowCreate(false); refetch(); }} />}
+      {ajusterCommande && <FormAjuster commande={ajusterCommande} onClose={() => setAjusterCommande(null)} onDone={() => { setAjusterCommande(null); refetch(); }} />}
       {rejetCommande && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[210] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
@@ -152,6 +166,55 @@ export default function AdminCommandesClientPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Ajustement par l'admin avant validation : quantités et remises par ligne ; l'agent est notifié. */
+function FormAjuster({ commande, onClose, onDone }: { commande: Commande; onClose: () => void; onDone: () => void }) {
+  const [lignes, setLignes] = useState(commande.lignes.map((l) => ({ produitId: l.produit.id, nom: l.produit.nom, quantite: String(l.quantite), remisePourcent: String(Number(l.remisePourcent) || 0) })));
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit() {
+    if (lignes.some((l) => !(Number(l.quantite) > 0))) { toast.error("Quantité invalide"); return; }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/ventes/commandes-client/${commande.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lignes: lignes.map((l) => ({ produitId: l.produitId, quantite: Number(l.quantite), remisePourcent: Number(l.remisePourcent) || 0 })) }),
+      });
+      const j = await res.json();
+      if (!res.ok) { toast.error(j.error || "Erreur"); return; }
+      toast.success("Commande ajustée — agent notifié");
+      onDone();
+    } catch { toast.error("Erreur réseau"); }
+    finally { setSubmitting(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[210] p-4">
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+          <h4 className="font-bold text-slate-800 text-sm">Ajuster {commande.reference}</h4>
+          <button onClick={onClose}><X size={16} className="text-slate-400" /></button>
+        </div>
+        <div className="p-5 space-y-2 overflow-y-auto">
+          <p className="text-xs text-slate-500">Modifiez les quantités et remises ; les prix sont recalculés par le serveur. La commande reste à valider ensuite.</p>
+          {lignes.map((l) => (
+            <div key={l.produitId} className="flex items-center gap-2">
+              <span className="text-sm flex-1 truncate">{l.nom}</span>
+              <input type="number" min={1} value={l.quantite} onChange={(e) => setLignes((prev) => prev.map((x) => x.produitId === l.produitId ? { ...x, quantite: e.target.value } : x))} className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" title="Quantité" />
+              <input type="number" min={0} max={100} value={l.remisePourcent} onChange={(e) => setLignes((prev) => prev.map((x) => x.produitId === l.produitId ? { ...x, remisePourcent: e.target.value } : x))} className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" title="Remise %" />
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-100">
+          <button onClick={onClose} className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 rounded-lg">Annuler</button>
+          <button onClick={submit} disabled={submitting} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-medium disabled:opacity-50">
+            {submitting ? <Loader2 size={13} className="animate-spin" /> : "Enregistrer"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

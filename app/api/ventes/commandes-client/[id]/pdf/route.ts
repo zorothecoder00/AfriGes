@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getRVCSession } from "@/lib/authRVC";
 import { htmlToPdf, pdfResponse } from "@/lib/pdf";
 import { genCommandeClientHtml } from "@/lib/commandeClientHtml";
 import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
-import { getViewSession } from "../../route";
+import { getViewSession, getValideurScope, peutValider } from "../../route";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -29,7 +28,7 @@ export async function GET(req: Request, { params }: Ctx) {
     });
     if (!commande) return NextResponse.json({ error: "Commande introuvable" }, { status: 404 });
 
-    const isRVCOuAdmin = !!(await getRVCSession());
+    const isRVCOuAdmin = peutValider(await getValideurScope(), commande.pointDeVenteId);
     if (!isRVCOuAdmin && commande.agentId !== parseInt(session.user.id)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }

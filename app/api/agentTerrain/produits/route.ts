@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
+import { getMagasinierSession } from "@/lib/authMagasinier";
 import { resoudrePrixBatch } from "@/lib/tarificationBatch";
 import { projeterProduit, type ProduitSource } from "@/lib/vuesCatalogue";
 import { vueEffective } from "@/lib/vuesCatalogueServer";
@@ -14,7 +15,7 @@ import { libelleRemise } from "@/lib/promotions";
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getAgentTerrainSession();
+    const session = (await getAgentTerrainSession()) ?? (await getMagasinierSession());
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const { searchParams } = new URL(req.url);

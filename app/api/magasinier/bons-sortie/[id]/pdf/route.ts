@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getRPVSession } from "@/lib/authRPV";
+import { getAuthSession } from "@/lib/auth";
 import { htmlToPdf, pdfResponse } from "@/lib/pdf";
 import { genBonSortieHtml } from "@/lib/bonSortieHtml";
 import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
@@ -18,10 +19,16 @@ type Ctx = { params: Promise<{ id: string }> };
  */
 export async function GET(req: Request, { params }: Ctx) {
   try {
-    const session = (await getMagasinierSession()) ?? (await getRPVSession());
+    const { id } = await params;
+    let session = (await getMagasinierSession()) ?? (await getRPVSession());
+    if (!session) {
+      // L'agent qui a passé la commande client peut télécharger le bon de sortie généré.
+      const s = await getAuthSession();
+      const commande = s ? await prisma.commandeClient.findFirst({ where: { bonSortieId: Number(id), agentId: parseInt(s.user.id) }, select: { id: true } }) : null;
+      if (commande) session = s;
+    }
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const { id } = await params;
     const bon = await prisma.bonSortie.findUnique({
       where: { id: Number(id) },
       include: {

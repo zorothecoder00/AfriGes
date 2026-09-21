@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import NouvelleCommandeClient from "@/components/agent-documents/NouvelleCommandeClient";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
@@ -61,6 +62,7 @@ function CommandesClientPageInner() {
 
   const params = new URLSearchParams();
   if (statutFilter) params.set("statut", statutFilter);
+  const gRole = useSession().data?.user?.gestionnaireRole;
   const { data, loading, refetch } = useApi<{ data: Commande[]; stats: Record<string, number> }>(`/api/ventes/commandes-client?${params}`);
   const commandes = data?.data ?? [];
   const stats = data?.stats ?? {};
@@ -70,7 +72,7 @@ function CommandesClientPageInner() {
       <div className="p-6 space-y-6 max-w-4xl mx-auto">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <Link href="/dashboard/user/agentsTerrain" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 mb-1"><ArrowLeft className="w-3 h-3" /> Retour</Link>
+            <Link href={gRole === "MAGAZINIER" ? "/dashboard/user/magasiniers" : "/dashboard/user/agentsTerrain"} className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 mb-1"><ArrowLeft className="w-3 h-3" /> Retour</Link>
             <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               <ShoppingCart className="w-6 h-6 text-emerald-600" /> Bons de commande client
             </h1>
@@ -171,7 +173,12 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
               <p className="text-right text-sm font-bold text-slate-800">Total TTC : {Number(c.totalTTC).toLocaleString("fr-FR")} FCFA</p>
               {c.visaResponsablePar && <p className="text-sm text-amber-700">Visa RVC : {c.visaResponsablePar.prenom} {c.visaResponsablePar.nom}</p>}
               {c.motifRejet && <p className="text-sm text-red-600">Motif de rejet : {c.motifRejet}</p>}
-              {c.bonSortie && <p className="text-sm text-slate-600">Bon de sortie : {c.bonSortie.reference} ({c.bonSortie.statut})</p>}
+              {c.bonSortie && (
+                <p className="text-sm text-slate-600">Bon de sortie : {c.bonSortie.reference} ({c.bonSortie.statut}){" "}
+                  <a href={`/api/magasinier/bons-sortie/${c.bonSortie.id}/pdf`} target="_blank" rel="noreferrer" className="text-xs text-slate-400 hover:text-slate-600 underline">télécharger</a>
+                  {" · "}<a href={`/api/ventes/commandes-client/${c.id}/facture/pdf`} target="_blank" rel="noreferrer" className="text-xs text-slate-400 hover:text-slate-600 underline">facture</a>
+                </p>
+              )}
               {c.bonPreparation && (
                 <p className="text-sm text-slate-600">
                   Bon de préparation : {c.bonPreparation.reference} ({c.bonPreparation.statut === "PRETE" ? "Prête" : "En cours"})

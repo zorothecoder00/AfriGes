@@ -2,13 +2,14 @@
 
 import SortieCaissePicker from "@/components/SortieCaissePicker";
 import type { OperationCaisseDispo } from "@/components/FicheDecaissementModal";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import RetourLien from "@/components/RetourLien";
 import { Plus, Printer, X, Loader2, CheckCircle2, Ban, Send, Stamp, PenLine, Search, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import { useFocusDetail } from "@/hooks/useFocusDetail";
 import { formatCurrency, formatDate } from "@/lib/format";
 
 /** Bon de commande fournisseur (CDC digitalisation §3.3) — page admin native. */
@@ -42,6 +43,10 @@ const STATUT_BADGE: Record<string, string> = {
 };
 
 export default function AdminBonsCommandeFournisseurPage() {
+  return <Suspense fallback={null}><BonsCommandeContenu /></Suspense>;
+}
+
+function BonsCommandeContenu() {
   const [statut, setStatut] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [paiementBon, setPaiementBon] = useState<BonCommandeRow | null>(null);
@@ -50,6 +55,7 @@ export default function AdminBonsCommandeFournisseurPage() {
   if (statut) params.set("statut", statut);
   const { data, loading, refetch } = useApi<BonsResponse>(`/api/logistique/bons-commande?${params}`);
   const bons = data?.data ?? [];
+  const focusId = useFocusDetail(!loading);
   const seuil = data?.seuilVisaCGT ?? Infinity;
 
   async function action(id: number, body: Record<string, unknown>, successMsg = "Bon de commande mis à jour") {
@@ -105,7 +111,8 @@ export default function AdminBonsCommandeFournisseurPage() {
           const soldeDu = montant - Number(b.montantPaye);
           const visaRequis = montant > seuil;
           return (
-            <Card key={b.id}>
+            <div key={b.id} id={`doc-${b.id}`} className={focusId === b.id ? "rounded-2xl ring-2 ring-primary-400" : ""}>
+            <Card>
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -166,6 +173,7 @@ export default function AdminBonsCommandeFournisseurPage() {
                 </div>
               </div>
             </Card>
+            </div>
           );
         })}
       </div>

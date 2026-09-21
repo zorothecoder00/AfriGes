@@ -45,6 +45,10 @@ const gestionnaireDashboardMap: Record<string, string> = {
 // fine reste appliquée en aval par lib/authComptable.ts::getComptableLectureSession
 // (lecture seule — jamais getComptableSession, réservé à la saisie/validation).
 const sharedUserPaths: { prefix: string; roles: string[] }[] = [
+  // Bon de commande client : le magasinier en crée (même circuit de validation que l'agent) ;
+  // le RPV valide/ajuste/rejette celles de son point de vente. Autorisation fine côté API.
+  { prefix: "/dashboard/user/agentsTerrain/commandes-client", roles: ["MAGAZINIER"] },
+  { prefix: "/dashboard/user/responsablesVenteCredit/commandes-client", roles: ["RESPONSABLE_POINT_DE_VENTE"] },
   {
     prefix: "/dashboard/user/comptables",
     roles: ["AUDITEUR_INTERNE", "ACTIONNAIRE", "RESPONSABLE_ACHATS"],

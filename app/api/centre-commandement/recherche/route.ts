@@ -54,7 +54,7 @@ export async function GET(req: Request) {
       bordereaux, commandesClient, bonsCommande, bonsSortie, bonsReception,
       decaissements, devisProforma, bonsLivraison, credits, revendeurs,
       commandesRevendeur, tournees, reclamations, retours, remplacements, incidents,
-      facturesAchat,
+      facturesAchat, commandesInternes,
     ] = await Promise.all([
       !peut(["AGENT_TERRAIN", "COMPTABLE", "CHEF_COMPTABLE"]) ? Promise.resolve([]) : prisma.bordereauRemiseFonds.findMany({
         where: {
@@ -64,7 +64,7 @@ export async function GET(req: Request) {
         include: { collecteur: { select: { nom: true, prenom: true } } },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      !peut(["AGENT_TERRAIN", "COMMERCIAL", "RESPONSABLE_VENTE_CREDIT"]) ? Promise.resolve([]) : prisma.commandeClient.findMany({
+      !peut(["AGENT_TERRAIN", "COMMERCIAL", "MAGAZINIER", "RESPONSABLE_VENTE_CREDIT", "RESPONSABLE_POINT_DE_VENTE"]) ? Promise.resolve([]) : prisma.commandeClient.findMany({
         where: {
           ...(pdvFiltre && { pointDeVenteId: pdvFiltre }),
           OR: [{ reference: ci }, { client: { OR: [{ nom: ci }, { prenom: ci }, { telephone: ci }] } }],
@@ -178,6 +178,14 @@ export async function GET(req: Request) {
             orderBy: { dateFacture: "desc" }, take: TAKE,
           })
         : Promise.resolve([]),
+      !peut(["MAGAZINIER", "RESPONSABLE_POINT_DE_VENTE", "CHEF_AGENCE", "AGENT_LOGISTIQUE_APPROVISIONNEMENT"]) ? Promise.resolve([]) : prisma.commandeInterne.findMany({
+        where: {
+          ...(pdvFiltre && { pointDeVenteId: pdvFiltre }),
+          OR: [{ reference: ci }, { demandeur: { OR: [{ nom: ci }, { prenom: ci }] } }, { pointDeVente: { nom: ci } }],
+        },
+        include: { demandeur: { select: { nom: true, prenom: true } }, pointDeVente: { select: { nom: true } } },
+        orderBy: { createdAt: "desc" }, take: TAKE,
+      }),
     ]);
 
     for (const b of bordereaux) {
@@ -190,13 +198,22 @@ export async function GET(req: Request) {
         ],
       });
     }
+    for (const ci2 of commandesInternes) {
+      resultats.push({
+        module: "§5.3", type: "Bon de commande interne", id: ci2.id, reference: ci2.reference,
+        sousLabel: `${ci2.pointDeVente.nom} — ${ci2.demandeur.prenom} ${ci2.demandeur.nom}`, statut: ci2.statut, date: ci2.createdAt.toISOString(),
+        liens: [
+          { label: "Ouvrir la fiche", url: isAdmin ? `/dashboard/admin/commandes-internes?detail=${ci2.id}` : "/dashboard/user/logistiquesApprovisionnements/commandes-internes" },
+        ],
+      });
+    }
     for (const c of commandesClient) {
       resultats.push({
         module: "§3.2", type: "Bon de commande client", id: c.id, reference: c.reference,
         sousLabel: `${c.client.prenom} ${c.client.nom}`, statut: c.statut, date: c.createdAt.toISOString(),
         liens: [
           { label: "Imprimer", url: `/api/ventes/commandes-client/${c.id}/pdf` },
-          { label: "Ouvrir la fiche", url: isAdmin ? "/dashboard/admin/commandes-client" : `/dashboard/user/responsablesVenteCredit/commandes-client?detail=${c.id}` },
+          { label: "Ouvrir la fiche", url: isAdmin ? `/dashboard/admin/commandes-client?detail=${c.id}` : `/dashboard/user/responsablesVenteCredit/commandes-client?detail=${c.id}` },
         ],
       });
     }
@@ -206,7 +223,7 @@ export async function GET(req: Request) {
         sousLabel: bc.fournisseur.nom, statut: bc.statut, date: bc.createdAt.toISOString(),
         liens: [
           { label: "Imprimer", url: `/api/logistique/bons-commande/${bc.id}/pdf` },
-          { label: "Ouvrir la fiche", url: isAdmin ? "/dashboard/admin/bons-commande-fournisseur" : `/dashboard/user/logistiquesApprovisionnements/bons-commande?detail=${bc.id}` },
+          { label: "Ouvrir la fiche", url: isAdmin ? `/dashboard/admin/bons-commande-fournisseur?detail=${bc.id}` : `/dashboard/user/logistiquesApprovisionnements/bons-commande?detail=${bc.id}` },
         ],
       });
     }

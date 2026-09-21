@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma, PrioriteNotification, MemberStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
+import { getMagasinierSession } from "@/lib/authMagasinier";
 import { resolveViewAs } from "@/lib/viewAs";
 import { auditLog } from "@/lib/notifications";
 import { genererCodeClient } from "@/lib/codeClient";
@@ -12,7 +13,7 @@ import { genererCodeClient } from "@/lib/codeClient";
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getAgentTerrainSession();
+    const session = (await getAgentTerrainSession()) ?? (await getMagasinierSession());
     if (!session) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }

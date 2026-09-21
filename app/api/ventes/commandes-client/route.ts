@@ -3,7 +3,7 @@ import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { getRVCSession } from "@/lib/authRVC";
-import { auditLog, notifyRoles } from "@/lib/notifications";
+import { auditLog, notify, notifyAdmins, notifyGestionnaires, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 import { tariferLigne } from "@/lib/venteTarification";
 import { resoudreTvaVente, decomposerTTC } from "@/lib/comptabilite/tva";
@@ -20,17 +20,40 @@ export async function getCreateSession() {
   if (!session) return null;
   const role = session.user.role;
   const gRole = session.user.gestionnaireRole;
-  if (role === "ADMIN" || role === "SUPER_ADMIN" || gRole === "AGENT_TERRAIN" || gRole === "COMMERCIAL") {
+  if (role === "ADMIN" || role === "SUPER_ADMIN" || gRole === "AGENT_TERRAIN" || gRole === "COMMERCIAL" || gRole === "MAGAZINIER") {
     return session;
   }
   return null;
 }
 
-/** N'importe quel acteur autorisé à consulter (créateur, RVC, admin) — filtrage fin dans le handler. */
+/**
+ * Valideurs du circuit (valider / ajuster / rejeter) : Admin et Responsable Vente Crédit sur toutes
+ * les commandes ; Responsable de Point de Vente sur les commandes de son point de vente uniquement.
+ * pdvIds === null : aucune restriction.
+ */
+export async function getValideurScope(): Promise<{ session: NonNullable<Awaited<ReturnType<typeof getAuthSession>>>; pdvIds: number[] | null } | null> {
+  const rvc = await getRVCSession();
+  if (rvc) return { session: rvc, pdvIds: null };
+  const s = await getAuthSession();
+  if (s?.user.gestionnaireRole !== "RESPONSABLE_POINT_DE_VENTE") return null;
+  const userId = parseInt(s.user.id);
+  const [affs, pdvs] = await Promise.all([
+    prisma.gestionnaireAffectation.findMany({ where: { userId, actif: true }, select: { pointDeVenteId: true } }),
+    prisma.pointDeVente.findMany({ where: { rpvId: userId, actif: true }, select: { id: true } }),
+  ]);
+  return { session: s, pdvIds: [...new Set([...affs.map((a) => a.pointDeVenteId), ...pdvs.map((p) => p.id)])] };
+}
+
+/** Le valideur peut-il agir sur une commande de ce point de vente ? */
+export function peutValider(scope: Awaited<ReturnType<typeof getValideurScope>>, pointDeVenteId: number): boolean {
+  return !!scope && (scope.pdvIds === null || scope.pdvIds.includes(pointDeVenteId));
+}
+
+/** N'importe quel acteur autorisé à consulter (créateur, valideur) — filtrage fin dans le handler. */
 export async function getViewSession() {
   const create = await getCreateSession();
   if (create) return create;
-  return getRVCSession();
+  return (await getValideurScope())?.session ?? null;
 }
 
 export const INCLUDE = {
@@ -55,7 +78,8 @@ export async function GET(req: Request) {
     const session = await getViewSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const isRVCOuAdmin = !!(await getRVCSession());
+    const scope = await getValideurScope();
+    const isRVCOuAdmin = !!scope;
 
     const { searchParams } = new URL(req.url);
     const statut = searchParams.get("statut");
@@ -66,13 +90,14 @@ export async function GET(req: Request) {
     if (statut) where.statut = statut;
     if (!isRVCOuAdmin) {
       where.agentId = parseInt(session.user.id);
-    } else if (agentIdParam) {
-      where.agentId = Number(agentIdParam);
+    } else {
+      if (agentIdParam) where.agentId = Number(agentIdParam);
+      if (scope!.pdvIds) where.pointDeVenteId = { in: scope!.pdvIds };
     }
 
     const [commandes, statsRaw] = await Promise.all([
       prisma.commandeClient.findMany({ where, orderBy: { createdAt: "desc" }, include: INCLUDE }),
-      prisma.commandeClient.groupBy({ by: ["statut"], where: isRVCOuAdmin ? {} : { agentId: parseInt(session.user.id) }, _count: { id: true } }),
+      prisma.commandeClient.groupBy({ by: ["statut"], where: !isRVCOuAdmin ? { agentId: parseInt(session.user.id) } : scope!.pdvIds ? { pointDeVenteId: { in: scope!.pdvIds } } : {}, _count: { id: true } }),
     ]);
 
     return NextResponse.json({
@@ -168,7 +193,13 @@ export async function POST(req: Request) {
           const tva = await resoudreTvaVente(tx);
           const { montantHT: totalHT, montantTVA: totalTVA } = tva ? decomposerTTC(totalTTC, tva.taux) : { montantHT: totalTTC, montantTVA: 0 };
 
-          const visaRequis = totalRemise > seuilRemise || modeReglement === "CREDIT";
+          // Circuit : toute commande passée par un agent/commercial est soumise à la validation de
+          // l'Admin (valider, ajuster ou rejeter) avant génération du bon de sortie. Une commande
+          // créée par l'Admin est validée d'office. Remise au-delà du seuil ou vente à crédit =
+          // dossier signalé prioritaire.
+          const estAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+          const visaRequis = !estAdmin;
+          const dossierSensible = totalRemise > seuilRemise || modeReglement === "CREDIT";
 
           const c = await tx.commandeClient.create({
             data: {
@@ -182,6 +213,7 @@ export async function POST(req: Request) {
               dateLivraisonSouhaitee: body.dateLivraisonSouhaitee ? new Date(body.dateLivraisonSouhaitee) : null,
               lieuLivraison: body.lieuLivraison || null,
               totalHT, totalRemise, totalTVA, totalTTC,
+              ...(estAdmin ? { visaResponsableParId: userId, dateVisaResponsable: new Date() } : {}),
               signatureClientNom, dateSignatureClient: new Date(),
               notes: body.notes || null,
               lignes: {
@@ -197,12 +229,18 @@ export async function POST(req: Request) {
           await auditLog(tx, userId, "BCC_CREE", "CommandeClient", c.id, { visaRequis }, getRequestMeta(req));
 
           if (visaRequis) {
-            await notifyRoles(tx, ["RESPONSABLE_VENTE_CREDIT"], {
-              titre: `Commande client en attente de visa (${reference})`,
-              message: `${session.user.prenom} ${session.user.nom} a soumis une commande de ${totalTTC.toLocaleString("fr-FR")} FCFA pour ${client.telephone} (${modeReglement === "CREDIT" ? "vente à crédit" : `remise ${totalRemise.toLocaleString("fr-FR")} FCFA`}) — visa requis.`,
-              priorite: PrioriteNotification.HAUTE,
-              actionUrl: `/dashboard/user/responsablesVenteCredit/commandes-client?detail=${c.id}`,
-            });
+            const payload = {
+              titre: `Commande client à valider (${reference})`,
+              message: `${session.user.prenom} ${session.user.nom} a soumis une commande de ${totalTTC.toLocaleString("fr-FR")} FCFA pour ${client.telephone}${dossierSensible ? ` (${modeReglement === "CREDIT" ? "vente à crédit" : `remise ${totalRemise.toLocaleString("fr-FR")} FCFA`})` : ""} — validation requise (valider, ajuster ou rejeter).`,
+              priorite: dossierSensible ? PrioriteNotification.HAUTE : PrioriteNotification.NORMAL,
+            };
+            await notifyAdmins(tx, { ...payload, actionUrl: `/dashboard/admin/commandes-client?detail=${c.id}` });
+            await notifyGestionnaires(tx, ["RESPONSABLE_VENTE_CREDIT"], { ...payload, actionUrl: `/dashboard/user/responsablesVenteCredit/commandes-client?detail=${c.id}` });
+            // RPV du point de vente concerné : co-valideur du circuit.
+            const pdvCible = await tx.pointDeVente.findUnique({ where: { id: pointDeVenteId! }, select: { rpvId: true } });
+            if (pdvCible?.rpvId && pdvCible.rpvId !== userId) {
+              await notify(tx, [pdvCible.rpvId], { ...payload, actionUrl: `/dashboard/user/responsablesVenteCredit/commandes-client?detail=${c.id}` });
+            }
             return c;
           }
 
