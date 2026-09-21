@@ -39,15 +39,6 @@ export default function CentreCommandementPage() {
     () => CATALOGUE_DOCUMENTS.filter((c) => !c.rolesRestreints || isAdmin),
     [isAdmin]
   );
-  const parModule = useMemo(() => {
-    const map = new Map<string, typeof catalogueVisible>();
-    for (const c of catalogueVisible) {
-      const list = map.get(c.module) || [];
-      list.push(c);
-      map.set(c.module, list);
-    }
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [catalogueVisible]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -127,24 +118,17 @@ export default function CentreCommandementPage() {
           <FileText size={16} />
           Annuaire par module
         </h2>
-        <div className="space-y-5">
-          {parModule.map(([module, items]) => (
-            <div key={module}>
-              <h3 className="text-xs font-bold text-indigo-600 mb-2">{module}</h3>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {items.map((item) => (
-                  <Link
-                    key={item.id}
-                    href={isAdmin ? (item.pageUrlAdmin ?? item.pageUrl) : item.pageUrl}
-                    className="block bg-white rounded-xl border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm transition-all"
-                  >
-                    <p className="text-sm font-semibold text-slate-800">{item.titre}</p>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">{item.description}</p>
-                    <p className="text-[11px] text-slate-400 mt-2">{item.roles.join(" · ")}</p>
-                  </Link>
-                ))}
-              </div>
-            </div>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {catalogueVisible.map((item) => (
+            <Link
+              key={item.id}
+              href={isAdmin ? (item.pageUrlAdmin ?? item.pageUrl) : item.pageUrl}
+              className="block bg-white rounded-xl border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm transition-all"
+            >
+              <p className="text-sm font-semibold text-slate-800">{item.titre}</p>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">{item.description}</p>
+              <p className="text-[11px] text-slate-400 mt-2">{item.roles.join(" · ")}</p>
+            </Link>
           ))}
         </div>
       </div>
