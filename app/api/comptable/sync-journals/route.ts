@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
 import { resolveViewAs } from "@/lib/viewAs";
-import { creerEcriture } from "@/lib/comptabilite/moteur";
+import { creerEcriture, ecritureOperationCaisse } from "@/lib/comptabilite/moteur";
 import { creerEcritureAchatDepuisMouvement } from "@/lib/ecritureAchatServer";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
@@ -13,6 +13,8 @@ import { getRequestMeta } from "@/lib/requestMeta";
  * Génère automatiquement des EcritureComptable en double entrée SYSCOHADA
  * depuis les modules opérationnels existants :
  *   - OperationCaisse  → Journal CAISSE
+ *   - OperationCaissePDV (dépenses de la petite caisse RPV) → Journal CAISSE (rattrapage : les nouvelles
+ *     dépenses sont comptabilisées à la saisie, référence SYNC-OPP-<id>)
  *   - VersementPack    → Journal VENTES
  *   - MouvementStock   → Journal ACHATS
  *
@@ -34,6 +36,21 @@ const N = {
   AVANCES:      "471",   // Débiteurs divers
   ACHATS_AUTRES:"605",   // Autres achats
 };
+
+/**
+ * Opérations de caisse (ENCAISSEMENT) générées par un autre flux : vente comptant, vente terrain
+ * confirmée, remboursement de crédit confirmé, versement de pack confirmé. Chacun de ces flux crée
+ * DÉJÀ sa propre écriture (vente Dr 571/Cr 701, remboursement SYNC-RBT-…, versement SYNC-VRS-…) : les
+ * synchroniser ici en « Dr 571 / Cr 411 » doublerait l'encaissement en comptabilité. Repérées par le
+ * motif / la référence qu'ils posent (les références ENC-… sont communes avec les saisies manuelles).
+ * Seules les opérations saisies à la main (caissier) sont comptabilisées à la saisie ou ici.
+ */
+const MOTIFS_OPERATIONS_MIROIR = ["Vente directe ", "Vente terrain confirmée — ", "Remboursement crédit confirmé — ", "Versement pack confirmé — "];
+const OPERATION_MIROIR = {
+  type: "ENCAISSEMENT" as const,
+  OR: [...MOTIFS_OPERATIONS_MIROIR.map((m) => ({ motif: { startsWith: m } })), { reference: { endsWith: "-CAISSE" } }],
+};
+const HORS_OPERATIONS_MIROIR = { NOT: OPERATION_MIROIR };
 
 type ComptesMap = Record<string, number>; // numéro → id
 
@@ -71,7 +88,7 @@ async function syncCaisse(
   const pdvFilter = pdvId !== null ? { session: { pointDeVenteId: pdvId } } : {};
 
   const ops = await prisma.operationCaisse.findMany({
-    where: { createdAt: { gte: dateMin, lte: dateMax }, ...pdvFilter },
+    where: { createdAt: { gte: dateMin, lte: dateMax }, ...pdvFilter, ...HORS_OPERATIONS_MIROIR },
     orderBy: { createdAt: "asc" },
   });
 
@@ -117,6 +134,43 @@ async function syncCaisse(
       });
       id ? created++ : skipped++;
     }
+  }
+
+  return { created, skipped };
+}
+
+/**
+ * Rattrapage des dépenses de petite caisse (OperationCaissePDV DECAISSEMENT) saisies avant la
+ * génération automatique de leur écriture. Même écriture que celle créée à la saisie
+ * (moteur : ecritureOperationCaisse, référence SYNC-OPP-<id>) — idempotent. Les encaissements de la
+ * petite caisse proviennent des ventes, qui ont déjà leur écriture : ils ne sont pas repris ici.
+ */
+async function syncCaissePDV(
+  userId: number,
+  dateMin: Date,
+  dateMax: Date,
+  pdvId: number | null
+): Promise<{ created: number; skipped: number }> {
+  let created = 0; let skipped = 0;
+
+  const ops = await prisma.operationCaissePDV.findMany({
+    where: {
+      type: "DECAISSEMENT",
+      createdAt: { gte: dateMin, lte: dateMax },
+      ...(pdvId !== null ? { caissePDV: { pointDeVenteId: pdvId } } : {}),
+    },
+    include: { caissePDV: { select: { pointDeVenteId: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  for (const op of ops) {
+    if (await referenceExiste(`SYNC-OPP-${op.id}`)) { skipped++; continue; }
+    const id = await ecritureOperationCaisse(prisma, {
+      source: "CAISSE_PDV", operationId: op.id, type: "DECAISSEMENT", categorie: op.categorie,
+      montant: Number(op.montant), motif: op.motif, modePaiement: op.mode, userId, date: op.createdAt,
+      pointDeVenteId: op.caissePDV.pointDeVenteId,
+    });
+    if (id) created++; else skipped++;
   }
 
   return { created, skipped };
@@ -361,6 +415,7 @@ export async function POST(req: NextRequest) {
 
     if (action === "caisse" || action === "all") {
       resultats.caisse = await syncCaisse(userId, debut, fin, pdvId);
+      resultats.caisse_pdv = await syncCaissePDV(userId, debut, fin, pdvId);
     }
     if (action === "ventes" || action === "all") {
       resultats.ventes          = await syncVentes(userId, debut, fin, pdvId);
@@ -423,8 +478,11 @@ export async function GET(req: NextRequest) {
     });
     const syncRefs = new Set(dejaImportees.map((e) => e.reference));
 
-    const [nbCaisse, nbVentes, nbVentesDir, nbAchats, nbRIARemb] = await Promise.all([
-      prisma.operationCaisse.count({ where: { createdAt: { gte: debut, lte: fin }, ...pdvCaisseFilter } }),
+    const [nbCaisseGrande, nbCaissePdv, nbVentes, nbVentesDir, nbAchats, nbRIARemb] = await Promise.all([
+      prisma.operationCaisse.count({ where: { createdAt: { gte: debut, lte: fin }, ...pdvCaisseFilter, ...HORS_OPERATIONS_MIROIR } }),
+      prisma.operationCaissePDV.count({
+        where: { type: "DECAISSEMENT", createdAt: { gte: debut, lte: fin }, ...(pdvId !== null ? { caissePDV: { pointDeVenteId: pdvId } } : {}) },
+      }),
       prisma.versementPack.count({ where: { datePaiement: { gte: debut, lte: fin }, statut: "PAYE", ...pdvVersFilter } }),
       prisma.venteDirecte.count({ where: { statut: { notIn: ["BROUILLON", "ANNULEE"] }, modePaiement: { not: "CREDIT" }, createdAt: { gte: debut, lte: fin }, ...pdvVenteDirFilter } }),
       prisma.mouvementStock.count({
@@ -433,14 +491,32 @@ export async function GET(req: NextRequest) {
       prisma.remboursementRIA.count({ where: { createdAt: { gte: debut, lte: fin } } }),
     ]);
 
-    // Calculer les non encore importés
-    const caisseSyncees    = [...syncRefs].filter((r) => r.startsWith("SYNC-OPC-")).length;
+    // Calculer les non encore importés (grande caisse + dépenses de petite caisse comptées ensemble)
+    const nbCaisse         = nbCaisseGrande + nbCaissePdv;
+    const caisseSyncees    = [...syncRefs].filter((r) => r.startsWith("SYNC-OPC-") || r.startsWith("SYNC-OPP-")).length;
     const ventesSyncees    = [...syncRefs].filter((r) => r.startsWith("SYNC-VRS-")).length;
     const ventesDirSyncees = [...syncRefs].filter((r) => r.startsWith("SYNC-VD-")).length;
     const achatsSyncees    = [...syncRefs].filter((r) => r.startsWith("SYNC-MST-")).length;
     const riaRembSyncees   = [...syncRefs].filter((r) => r.startsWith("SYNC-RIA-REMB-")).length;
 
+    // Diagnostic : écritures SYNC-OPC-… déjà générées pour des opérations de caisse « miroir » (doublons
+    // avec l'écriture du flux d'origine). Écritures à contrôler puis annuler par le comptable.
+    const opsMiroir = await prisma.operationCaisse.findMany({
+      where: { ...OPERATION_MIROIR, ...pdvCaisseFilter },
+      select: { id: true },
+      take: 5000,
+    });
+    const refsMiroir = opsMiroir.map((o) => `SYNC-OPC-${o.id}`).filter((r) => syncRefs.has(r));
+    const doublonsCaisse = refsMiroir.length
+      ? await prisma.ecritureComptable.findMany({
+          where: { reference: { in: refsMiroir.slice(0, 200) } },
+          select: { id: true, reference: true, statut: true, date: true, libelle: true },
+          orderBy: { date: "desc" },
+        })
+      : [];
+
     return NextResponse.json({
+      doublonsCaisse: { total: refsMiroir.length, ecritures: doublonsCaisse },
       apercu: {
         caisse:             { total: nbCaisse,    dejaSyncees: caisseSyncees,    aSyncer: Math.max(0, nbCaisse    - caisseSyncees) },
         ventes:             { total: nbVentes,    dejaSyncees: ventesSyncees,    aSyncer: Math.max(0, nbVentes    - ventesSyncees) },
