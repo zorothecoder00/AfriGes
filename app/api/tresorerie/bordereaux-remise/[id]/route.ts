@@ -25,7 +25,12 @@ export async function GET(_req: Request, { params }: Ctx) {
     }
 
     const seuilVisaCGT = await getSeuilVisaCGTBordereauRemise();
-    return NextResponse.json({ data: bordereau, seuilVisaCGT });
+    const pieces = await prisma.pieceJustificative.findMany({
+      where: { sourceType: "BORDEREAU_REMISE", sourceId: bordereau.id },
+      select: { id: true, nom: true, url: true, nature: true, type: true, taille: true },
+      orderBy: { createdAt: "asc" },
+    });
+    return NextResponse.json({ data: { ...bordereau, pieces }, seuilVisaCGT });
   } catch (error) {
     console.error("GET /tresorerie/bordereaux-remise/[id]:", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

@@ -82,7 +82,7 @@ export default function AdminDecaissementsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Fiches de décaissement</h1>
-          <p className="text-sm text-slate-500 mt-1">Justificatif d&apos;une sortie de caisse, contrôle N1/N2</p>
+          <p className="text-sm text-slate-500 mt-1">Demandes de sortie de fonds : approbation N1/N2, puis exécution par le caissier</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" title="Rafraîchir" />
@@ -169,7 +169,7 @@ export default function AdminDecaissementsPage() {
                   <p className="text-xs mt-0.5 text-slate-500">
                     {f.operationCaisse || f.operationCaissePDV
                       ? <>Sortie de caisse : <span className="font-mono">{(f.operationCaisse ?? f.operationCaissePDV)!.reference}</span></>
-                      : <span className="text-slate-400">Hors caisse (fiche antérieure à la règle « sortie de caisse d&apos;abord »)</span>}
+                      : <span className="text-slate-400">{f.statut === "PAYEE" ? "Décaissement exécuté (hors caisse espèces)" : "Sortie de caisse : à effectuer à l'exécution"}</span>}
                   </p>
                   {f.motifRejet && <p className="text-xs text-red-600 mt-1">Motif de rejet : {f.motifRejet}</p>}
                 </div>

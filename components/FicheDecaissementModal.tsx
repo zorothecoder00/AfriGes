@@ -7,10 +7,11 @@ import { formatCurrency } from "@/lib/format";
 import SortieCaissePicker from "@/components/SortieCaissePicker";
 
 /**
- * Création d'une fiche de décaissement à partir d'une sortie de caisse (CDC §3.6).
- * La fiche vient APRÈS la sortie de caisse : montant, motif et mode de paiement en sont repris.
- * - `operationInitiale` fourni → la sortie est déjà choisie (bouton « Créer la fiche » d'une ligne) ;
- * - sinon → sélection dans la liste des sorties de caisse sans fiche.
+ * Création d'une fiche de décaissement (CDC §3.6).
+ * - Cas nominal : DEMANDE de sortie de fonds (objet, type, montant) suivie du circuit d'approbation ;
+ *   le Caissier/Comptable exécute ensuite le décaissement.
+ * - Variante : justificatif d'une sortie de caisse déjà effectuée (montant, motif et mode repris) ;
+ *   `operationInitiale` fourni → sortie déjà choisie (bouton « Créer la fiche » d'une ligne).
  * Une fois la fiche créée, l'écran de succès propose PDF et impression immédiats.
  */
 
@@ -49,10 +50,14 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
   onDone: (fiche: { id: number; reference: string }) => void;
 }) {
   const [operation, setOperation] = useState<OperationCaisseDispo | null>(operationInitiale ?? null);
+  const [modeJustificatif, setModeJustificatif] = useState(!!operationInitiale);
+  const [montantDemande, setMontantDemande] = useState("");
+  const [motif, setMotif] = useState("");
+  const [modePaiement, setModePaiement] = useState("ESPECES");
 
   // Bénéficiaire désigné à la sortie de caisse → repris automatiquement et non modifiable ici
   // (le serveur fait foi). Sinon saisie manuelle.
-  const membre = operation?.beneficiaire ?? null;
+  const membre = (modeJustificatif ? operation?.beneficiaire : null) ?? null;
   const [beneficiaireNomSaisi, setBeneficiaireNom] = useState("");
   const [beneficiaireContactSaisi, setBeneficiaireContact] = useState("");
   const beneficiaireNom = membre ? `${membre.prenom} ${membre.nom}` : beneficiaireNomSaisi;
@@ -78,7 +83,11 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
   }
 
   async function submit() {
-    if (!operation) { toast.error("Sélectionnez la sortie de caisse à justifier"); return; }
+    if (modeJustificatif && !operation) { toast.error("Sélectionnez la sortie de caisse à justifier"); return; }
+    if (!modeJustificatif) {
+      if (!(Number(montantDemande) > 0)) { toast.error("Montant demandé obligatoire"); return; }
+      if (motif.trim().length < 10) { toast.error("Motif : 10 caractères minimum"); return; }
+    }
     if (!beneficiaireNom.trim()) { toast.error("Bénéficiaire obligatoire"); return; }
     const pieces = piecesJustificatives.split(",").map((s) => s.trim()).filter(Boolean);
     if (requiertPieces && pieces.length === 0) { toast.error("Au moins une pièce justificative est requise pour ce type de dépense"); return; }
@@ -87,7 +96,10 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
       const res = await fetch("/api/decaissements", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...(operation.source === "CAISSE" ? { operationCaisseId: operation.id } : { operationCaissePDVId: operation.id }),
+          ...(modeJustificatif && operation
+            ? (operation.source === "CAISSE" ? { operationCaisseId: operation.id } : { operationCaissePDVId: operation.id })
+            : { montantDemande: Number(montantDemande), modePaiement }),
+          motif: motif.trim() || undefined,
           beneficiaireNom, beneficiaireContact: beneficiaireContact || undefined, typeDepense,
           fournisseurId: fournisseur?.id, piecesJustificatives: pieces,
         }),
@@ -120,7 +132,7 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
             <div className="px-6 py-8 text-center space-y-3">
               <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
               <p className="font-mono font-bold text-slate-800">{creee.reference}</p>
-              <p className="text-sm text-slate-500">La fiche est enregistrée et soumise au contrôle. Vous pouvez l&apos;imprimer maintenant.</p>
+              <p className="text-sm text-slate-500">{modeJustificatif ? "La fiche est enregistrée et soumise au contrôle." : "La demande est enregistrée : elle suit le circuit d'approbation avant le décaissement."} Vous pouvez l&apos;imprimer maintenant.</p>
               <div className="flex items-center justify-center pt-2">
                 <a href={pdfUrl} target="_blank" rel="noreferrer"
                   className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
@@ -135,29 +147,59 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
         ) : (
           <>
             <div className="px-6 py-4 space-y-3 overflow-y-auto">
-              <div>
-                <label className="text-xs font-medium text-slate-500 mb-1 block">Sortie de caisse à justifier *</label>
-                {operationInitiale ? (
-                  <div className="px-3 py-2 rounded-lg border border-primary-200 bg-primary-50 text-xs">
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="font-mono font-semibold text-slate-700">{operationInitiale.reference}</span>
-                      <span className="font-semibold text-slate-800">{formatCurrency(operationInitiale.montant)}</span>
-                    </span>
-                    <span className="block text-slate-500 mt-0.5">
-                      {operationInitiale.categorie ? `${CATEGORIE_LABEL[operationInitiale.categorie] ?? operationInitiale.categorie} · ` : ""}{operationInitiale.motif}
-                    </span>
+              {!operationInitiale && (
+                <div className="flex gap-2 text-xs">
+                  {[{ v: false, l: "Nouvelle demande" }, { v: true, l: "Justifier une sortie déjà faite" }].map((o) => (
+                    <button key={String(o.v)} type="button" onClick={() => setModeJustificatif(o.v)}
+                      className={`flex-1 px-3 py-2 rounded-lg border font-medium ${modeJustificatif === o.v ? "bg-primary-600 text-white border-primary-600" : "bg-white text-slate-600 border-slate-200"}`}>{o.l}</button>
+                  ))}
+                </div>
+              )}
+              {modeJustificatif ? (
+                <div>
+                  <label className="text-xs font-medium text-slate-500 mb-1 block">Sortie de caisse à justifier *</label>
+                  {operationInitiale ? (
+                    <div className="px-3 py-2 rounded-lg border border-primary-200 bg-primary-50 text-xs">
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="font-mono font-semibold text-slate-700">{operationInitiale.reference}</span>
+                        <span className="font-semibold text-slate-800">{formatCurrency(operationInitiale.montant)}</span>
+                      </span>
+                      <span className="block text-slate-500 mt-0.5">
+                        {operationInitiale.categorie ? `${CATEGORIE_LABEL[operationInitiale.categorie] ?? operationInitiale.categorie} · ` : ""}{operationInitiale.motif}
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-[11px] text-slate-400 mb-1.5">La fiche vient après la sortie de caisse : le montant, le motif et le mode de paiement en sont repris.</p>
+                      <SortieCaissePicker
+                        value={operation}
+                        onChange={(o) => { setOperation(o); if (o.categorie) setTypeDepense(TYPE_SUGGERE[o.categorie] ?? "AUTRES"); }}
+                        vide="Aucune sortie de caisse sans fiche. Enregistrez d'abord la sortie dans la caisse (salaire, carburant, fournisseur…), puis revenez créer la fiche."
+                      />
+                    </>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-slate-500 mb-1 block">Montant demandé (FCFA) *</label>
+                      <input type="number" min="0" value={montantDemande} onChange={(e) => setMontantDemande(e.target.value)} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-slate-500 mb-1 block">Mode de paiement souhaité</label>
+                      <select value={modePaiement} onChange={(e) => setModePaiement(e.target.value)} className={inputCls}>
+                        <option value="ESPECES">Espèces</option><option value="MOBILE_MONEY">Mobile Money</option>
+                        <option value="CHEQUE">Chèque</option><option value="VIREMENT">Virement</option>
+                      </select>
+                    </div>
                   </div>
-                ) : (
-                  <>
-                    <p className="text-[11px] text-slate-400 mb-1.5">La fiche vient après la sortie de caisse : le montant, le motif et le mode de paiement en sont repris.</p>
-                    <SortieCaissePicker
-                      value={operation}
-                      onChange={(o) => { setOperation(o); if (o.categorie) setTypeDepense(TYPE_SUGGERE[o.categorie] ?? "AUTRES"); }}
-                      vide="Aucune sortie de caisse sans fiche. Enregistrez d'abord la sortie dans la caisse (salaire, carburant, fournisseur…), puis revenez créer la fiche."
-                    />
-                  </>
-                )}
-              </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 mb-1 block">Motif / description détaillée * <span className="text-slate-400 font-normal">(10 caractères minimum)</span></label>
+                    <textarea value={motif} onChange={(e) => setMotif(e.target.value)} rows={2} className={inputCls} />
+                  </div>
+                </>
+              )}
               <div>
                 <label className="text-xs font-medium text-slate-500 mb-1 block">
                   Bénéficiaire * {membre && <span className="text-emerald-600 font-normal">(membre désigné à la sortie de caisse)</span>}
@@ -207,7 +249,7 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100 shrink-0">
               <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 rounded-lg">Annuler</button>
-              <button onClick={submit} disabled={submitting || !operation}
+              <button onClick={submit} disabled={submitting || (modeJustificatif && !operation)}
                 className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
                 {submitting ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Créer la fiche
               </button>

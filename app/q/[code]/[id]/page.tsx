@@ -4,7 +4,9 @@
 // le matcher de proxy.ts — l'authentification/rôle est appliquée par la redirection
 // elle-même (vers /dashboard/... ou /api/... qui, eux, sont protégés).
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { getAuthSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifierHashInstance, type CodeDocumentQr } from "@/lib/documentQr";
 
@@ -29,6 +31,20 @@ export default async function VerifierDocumentPage({ params, searchParams }: Pro
   if (!CODES_VALIDES.includes(code as CodeDocumentQr) || !Number.isInteger(docId) || !h) {
     return <PageErreur message="QR code invalide." />;
   }
+
+  // Toute lecture de QR est journalisée (qui, quand, où) — CDC §4.6. Non bloquant.
+  const session = await getAuthSession().catch(() => null);
+  const hd = await headers();
+  await prisma.auditLog.create({
+    data: {
+      userId: session ? Number(session.user.id) : null,
+      action: "QR_INSTANCE_LU",
+      entite: code,
+      entiteId: docId,
+      ip: hd.get("x-forwarded-for")?.split(",")[0]?.trim() ?? hd.get("x-real-ip") ?? null,
+      userAgent: hd.get("user-agent"),
+    },
+  }).catch(() => {});
 
   const codeDoc = code as CodeDocumentQr;
 

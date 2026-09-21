@@ -56,6 +56,7 @@ function DecaissementsPageInner() {
 
   useEffect(() => {
     const detail = searchParams.get("detail");
+    if (searchParams.get("nouveau")) setShowCreate(true);
     if (detail) setDetailId(Number(detail));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

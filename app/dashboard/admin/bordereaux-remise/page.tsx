@@ -8,6 +8,7 @@ import { useApi } from "@/hooks/useApi";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { formatCurrency, formatDateTime } from "@/lib/format";
+import { PiecesUploader, PiecesListe, type PieceBordereauUploadee } from "@/components/agent-documents/PiecesBordereau";
 
 /** Bordereau de remise de fonds (CDC digitalisation §3.1) — page admin native. */
 
@@ -21,6 +22,7 @@ interface Bordereau {
   fraisLivraison: string; montantVirement: string; totalEspecesAttendu: string; totalBilletageCalcule: string;
   ecartSoumission: string; ecartTresorier: string | null; visaCGTParId: number | null;
   pointDeVente: PDV; collecteur: { nom: string; prenom: string }; createdAt: string;
+  pieces?: { id: number; nom: string; url: string; nature: string }[];
 }
 interface BordereauxResponse { data: Bordereau[]; stats: Record<string, number> }
 
@@ -92,6 +94,7 @@ export default function AdminBordereauxRemisePage() {
                   {Number(b.ecartSoumission) !== 0 && ` · écart ${formatCurrency(Number(b.ecartSoumission))}`}
                   · {formatDateTime(b.createdAt)}
                 </p>
+                <div className="mt-2"><PiecesListe pieces={b.pieces} /></div>
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {["SOUMIS", "ECART_SIGNALE"].includes(b.statut) && (
@@ -220,6 +223,7 @@ function FormBordereau({ onClose, onDone }: { onClose: () => void; onDone: () =>
   const [motifEcartSoumission, setMotifEcartSoumission] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [pieces, setPieces] = useState<PieceBordereauUploadee[]>([]);
 
   const totalEspecesAttendu = [cotisationsEspeces, remboursements, ventes, venteCarnet, fraisLivraison].reduce((s, v) => s + (Number(v) || 0), 0);
   const totalBilletageCalcule = DENOMINATIONS.reduce((s, d) => s + d * (Number(billetage[d]) || 0), 0);
@@ -229,13 +233,14 @@ function FormBordereau({ onClose, onDone }: { onClose: () => void; onDone: () =>
     if (!pointDeVenteId) { toast.error("Sélectionnez le point de vente"); return; }
     if (Number(cotisationsMobileMoney) > 0 && !mobileMoneyReference.trim()) { toast.error("Référence Mobile Money obligatoire"); return; }
     if (Number(montantVirement) > 0 && !virementReference.trim()) { toast.error("Référence de virement obligatoire"); return; }
+    if (Number(montantVirement) > 0 && !pieces.some((p) => p.nature === "RELEVE_BANCAIRE")) { toast.error("Avis de virement obligatoire en pièce jointe"); return; }
     if (Math.abs(ecart) > 0.01 && !motifEcartSoumission.trim()) { toast.error(`Écart de ${ecart.toLocaleString("fr-FR")} FCFA : motif obligatoire`); return; }
     setSubmitting(true);
     try {
       const res = await fetch("/api/tresorerie/bordereaux-remise", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pointDeVenteId: Number(pointDeVenteId),
+          pointDeVenteId: Number(pointDeVenteId), pieces,
           cotisationsEspeces: Number(cotisationsEspeces), cotisationsMobileMoney: Number(cotisationsMobileMoney), mobileMoneyReference: mobileMoneyReference || undefined,
           remboursements: Number(remboursements), ventes: Number(ventes), venteCarnet: Number(venteCarnet), fraisLivraison: Number(fraisLivraison),
           montantVirement: Number(montantVirement), virementReference: virementReference || undefined,
@@ -275,10 +280,12 @@ function FormBordereau({ onClose, onDone }: { onClose: () => void; onDone: () =>
             <div><label className="text-xs text-slate-500 mb-1 block">Cotisations Mobile Money</label><input type="number" min={0} value={cotisationsMobileMoney} onChange={(e) => setCotisationsMobileMoney(e.target.value)} className={inputCls} /></div>
             <div><label className="text-xs text-slate-500 mb-1 block">Réf. transaction Mobile Money</label><input value={mobileMoneyReference} onChange={(e) => setMobileMoneyReference(e.target.value)} className={inputCls} /></div>
           </div>
+          {Number(cotisationsMobileMoney) > 0 && <PiecesUploader nature="RECU" label="Justificatif Mobile Money" pieces={pieces} onChange={setPieces} />}
           <div className="grid grid-cols-2 gap-3">
             <div><label className="text-xs text-slate-500 mb-1 block">Montant viré/déposé (hors billetage)</label><input type="number" min={0} value={montantVirement} onChange={(e) => setMontantVirement(e.target.value)} className={inputCls} /></div>
             <div><label className="text-xs text-slate-500 mb-1 block">Référence virement/dépôt</label><input value={virementReference} onChange={(e) => setVirementReference(e.target.value)} className={inputCls} /></div>
           </div>
+          {Number(montantVirement) > 0 && <PiecesUploader nature="RELEVE_BANCAIRE" label="Avis de virement" obligatoire pieces={pieces} onChange={setPieces} />}
 
           <p className="text-xs font-semibold text-slate-500 uppercase pt-2">Billetage (nombre de billets/pièces par dénomination)</p>
           <div className="grid grid-cols-5 gap-2">
@@ -297,6 +304,7 @@ function FormBordereau({ onClose, onDone }: { onClose: () => void; onDone: () =>
           {Math.abs(ecart) > 0.01 && (
             <textarea value={motifEcartSoumission} onChange={(e) => setMotifEcartSoumission(e.target.value)} rows={2} className={`${inputCls} resize-none`} placeholder="Motif de l'écart *" />
           )}
+          <PiecesUploader nature="PIECE_CAISSE" label="Fiches journalières de collecte scannées" pieces={pieces} onChange={setPieces} />
           <div>
             <label className="text-xs font-medium text-slate-500 mb-1 block">Notes</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${inputCls} resize-none`} />

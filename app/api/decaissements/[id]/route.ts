@@ -10,6 +10,11 @@ import { getSeuilApprobationN2Decaissement } from "@/lib/parametresDocuments";
 import { ecritureDecaissement, ecripturePaiementFournisseur, assurerEcritureOperationCaisse } from "@/lib/comptabilite/moteur";
 import { INCLUDE } from "../route";
 
+/** Catégorie de sortie de caisse correspondant au type de dépense de la fiche. */
+const CATEGORIE_CAISSE: Record<string, "SALAIRE" | "AVANCE" | "FOURNISSEUR" | "CARBURANT" | "AUTRE"> = {
+  SALAIRE: "SALAIRE", CARBURANT: "CARBURANT", AVANCE_CAISSE: "AVANCE", PAIEMENT_FOURNISSEUR: "FOURNISSEUR", ACHAT_MARCHANDISES: "FOURNISSEUR",
+};
+
 type Ctx = { params: Promise<{ id: string }> };
 
 type FicheEffets = {
@@ -261,12 +266,45 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const userId = parseInt(session.user.id);
       const montant = fiche.montantApprouve != null ? Number(fiche.montantApprouve) : Number(fiche.montantDemande);
 
+      // Décaissement en espèces : la sortie de fonds passe par la grande caisse de l'exécutant
+      // (sortie de caisse créée ici, rattachée à la fiche) — la caisse est ainsi débitée et
+      // l'écriture comptable est celle de la sortie (pas de double comptage). Hors espèces
+      // (mobile money, chèque, virement) ou sans session de caisse ouverte : écriture directe.
+      const estAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+      const sessionCaisse = modePaiement === "ESPECES"
+        ? await prisma.sessionCaisse.findFirst({
+            where: { statut: "OUVERTE", ...(estAdmin ? {} : { caissierId: userId }) },
+            orderBy: { createdAt: "desc" },
+          })
+        : null;
+      if (modePaiement === "ESPECES" && !sessionCaisse && (await getCaissierSession())) {
+        return NextResponse.json({ error: "Aucune session de caisse ouverte : ouvrez d'abord la caisse pour décaisser en espèces." }, { status: 409 });
+      }
+
       const updated = await prisma.$transaction(async (tx) => {
-        const ecritureId = await appliquerEffetsPaiement(tx, fiche, montant, modePaiement, userId);
+        let ficheEffets: FicheEffets = fiche;
+        if (sessionCaisse) {
+          const d = new Date();
+          const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+          const op = await tx.operationCaisse.create({
+            data: {
+              sessionId: sessionCaisse.id, type: "DECAISSEMENT", origine: "SAISIE_MANUELLE",
+              categorie: CATEGORIE_CAISSE[fiche.typeDepense] ?? "AUTRE",
+              montant: new Prisma.Decimal(montant),
+              motif: `${fiche.reference} — ${fiche.motif}`.slice(0, 250),
+              reference: `DEC-${ymd}-${Math.floor(1000 + Math.random() * 9000)}`,
+              operateurNom: session.user.name ?? `${session.user.prenom} ${session.user.nom}`,
+              operateurId: userId,
+            },
+          });
+          ficheEffets = { ...fiche, operationCaisseId: op.id };
+        }
+        const ecritureId = await appliquerEffetsPaiement(tx, ficheEffets, montant, modePaiement, userId);
 
         const f = await tx.ficheDecaissement.update({
           where: { id: ficheId },
           data: {
+            operationCaisseId: ficheEffets.operationCaisseId,
             statut: "PAYEE", executeParId: userId, dateExecution: new Date(),
             modePaiement, referencePaiement,
             beneficiaireConfirmationNom, beneficiaireConfirmationPiece: body.beneficiaireConfirmationPiece || null,

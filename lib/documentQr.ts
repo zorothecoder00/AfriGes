@@ -58,3 +58,19 @@ export function qrInstanceUrl(req: Request, code: CodeDocumentQr, id: number, cr
 export async function genererQrDataUrl(texte: string): Promise<string> {
   return QRCode.toDataURL(texte, { margin: 1, width: 180, errorCorrectionLevel: "M" });
 }
+
+/**
+ * QR « Modèle » (CDC §4.2) : un QR statique par type de document, identique pour tous les agents.
+ * Il ne porte aucune donnée : il ouvre le formulaire vierge dans l'app, après authentification.
+ */
+export const QR_MODELES = [
+  { code: "BRF", libelle: "Bordereau de remise de fonds", cible: "/dashboard/user/agentsTerrain/bordereaux-remise?nouveau=1" },
+  { code: "BCC", libelle: "Bon de commande client", cible: "/dashboard/user/agentsTerrain/commandes-client?nouveau=1" },
+  { code: "DEV", libelle: "Devis", cible: "/dashboard/user/agentsTerrain/devis-proforma?nouveau=DEVIS" },
+  { code: "PRO", libelle: "Facture proforma", cible: "/dashboard/user/agentsTerrain/devis-proforma?nouveau=PROFORMA" },
+  { code: "FD", libelle: "Fiche de décaissement", cible: "/dashboard/user/decaissements?nouveau=1" },
+] as const;
+
+export function qrModeleUrl(req: Request, code: string): string {
+  return `${baseUrlPourDocument(req)}/m/${code}`;
+}

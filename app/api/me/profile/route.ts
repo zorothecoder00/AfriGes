@@ -31,7 +31,7 @@ export async function GET() {
       id: true, nom: true, prenom: true, email: true, photo: true,
       telephone: true, adresse: true, role: true, dateAdhesion: true,
       passwordHash: true,
-      gestionnaire: { select: { role: true } },
+      gestionnaire: { select: { role: true, zone: true } },
     },
   });
   if (!user) return NextResponse.json({ error: "Compte introuvable" }, { status: 404 });
@@ -47,6 +47,7 @@ export async function GET() {
       adresse: user.adresse,   
       role: user.role,
       gestionnaireRole: user.gestionnaire?.role ?? null,
+      zone: user.gestionnaire?.zone ?? null,
       dateAdhesion: user.dateAdhesion,
       hasPassword: !!user.passwordHash,
     },

@@ -80,6 +80,25 @@ export const ourFileRouter = {
         uploaderUserId:  metadata.uploaderUserId,
       };
     }),
+  // Endpoint pièces du Bordereau de Remise de Fonds (avis de virement, justificatif Mobile Money,
+  // fiches journalières de collecte scannées — CDC §3.1) — agent terrain (collecteur), admin, comptable.
+  pieceBordereauRemise: f({
+    pdf:   { maxFileSize: "16MB", maxFileCount: 6 },
+    image: { maxFileSize: "8MB",  maxFileCount: 6 },
+  })
+    .middleware(async () => {
+      const session = await getAuthSession();
+      if (!session) throw new Error("Non autorisé");
+      const { role, gestionnaireRole } = session.user;
+      if (role !== "ADMIN" && role !== "SUPER_ADMIN" && gestionnaireRole !== "AGENT_TERRAIN" && gestionnaireRole !== "COMPTABLE") {
+        throw new Error("Accès réservé au collecteur, au comptable ou à l'administrateur");
+      }
+      return { uploaderUserId: Number(session.user.id) };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      return { url: file.url, key: file.key, name: file.name, size: file.size, type: file.type, uploaderUserId: metadata.uploaderUserId };
+    }),
+
   // Endpoint bibliothèque de contenu Marketing (photos, vidéos, affiches,
   // flyers… CDC Marketing §29) — réservé au marketing.
   contenuMarketingMedia: f({

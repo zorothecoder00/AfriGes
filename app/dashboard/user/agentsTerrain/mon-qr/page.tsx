@@ -10,6 +10,7 @@ export default function MonQrPage() {
   const [url, setUrl] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [regen, setRegen] = useState(false);
+  const [modeles, setModeles] = useState<{ code: string; libelle: string; qr: string }[]>([]);
 
   // Chargement initial : uniquement des setState asynchrones (dans les callbacks).
   useEffect(() => {
@@ -22,6 +23,9 @@ export default function MonQrPage() {
       })
       .catch((e) => { if (actif) toast.error(e instanceof Error ? e.message : "Erreur"); })
       .finally(() => { if (actif) setLoading(false); });
+    fetch("/api/agentTerrain/qr-modeles")
+      .then(async (r) => { const j = await r.json(); if (r.ok && actif) setModeles(j.data); })
+      .catch(() => { /* section facultative */ });
     return () => { actif = false; };
   }, []);
 
@@ -50,7 +54,7 @@ export default function MonQrPage() {
             <QrCode className="w-6 h-6 text-indigo-600" /> Mon QR de tournée
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Scannez ce code pour voir vos <strong>objectifs du jour</strong> et vos <strong>clients à visiter</strong>, sans vous connecter.
+            Scannez ce code pour voir vos <strong>objectifs du jour</strong> et vos <strong>clients à visiter</strong>, et encaisser, sans vous connecter.
           </p>
         </div>
 
@@ -80,6 +84,25 @@ export default function MonQrPage() {
             {regen ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Régénérer
           </button>
         </div>
+
+        {modeles.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <h2 className="font-semibold text-slate-800 text-sm">QR des documents</h2>
+            <p className="text-xs text-slate-500 mt-1 mb-4">
+              Chaque QR ouvre directement le formulaire vierge du document, pré-rempli avec votre identité et votre zone.
+              La connexion à AfriGes est requise : le QR seul ne donne accès à aucune donnée.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              {modeles.map((m) => (
+                <div key={m.code} className="flex flex-col items-center text-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={m.qr} alt={m.libelle} className="w-32 h-32" />
+                  <span className="text-xs font-medium text-slate-700 mt-1">{m.libelle}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="no-print flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-700">
           <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />

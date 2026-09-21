@@ -110,6 +110,13 @@ export default function LoginPage() {
         const sessionData = await sessionRes.json()
 
         const role = sessionData?.user?.role
+
+        // Reprise après connexion (ex. QR « Modèle » /m/BRF) : chemin relatif interne uniquement
+        const cb = searchParams?.get('callbackUrl')
+        if (cb && cb.startsWith('/') && !cb.startsWith('//') && role) {
+          router.push(cb)
+          return
+        }
         if(role === 'SUPER_ADMIN'){  
           router.push('/dashboard/admin') 
         }else if(role === 'ADMIN'){

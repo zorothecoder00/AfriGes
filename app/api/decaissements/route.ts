@@ -5,7 +5,7 @@ import { getAuthSession } from "@/lib/auth";
 import { getComptableSession } from "@/lib/authComptable";
 import { auditLog, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
-import { chargerSortieCaisse } from "@/lib/ficheDecaissementServer";
+import { chargerSortieCaisse, type SortieCaisse } from "@/lib/ficheDecaissementServer";
 
 /**
  * Fiche de Décaissement (CDC digitalisation §3.6) — sortie de fonds avec
@@ -72,12 +72,12 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/decaissements
- * La fiche vient APRÈS la sortie de caisse : elle doit référencer une sortie existante
- * (grande caisse OU petite caisse RPV, type DECAISSEMENT) qui n'a pas déjà de fiche.
- * Le montant, le mode de paiement, la date et l'opérateur sont repris de la sortie de caisse
- * (non modifiables) ; la fiche sert ensuite de justificatif soumis au contrôle N1/N2.
- * Body : { operationCaisseId | operationCaissePDVId, beneficiaireNom, beneficiaireContact?,
- *   fournisseurId?, motif?, typeDepense, bonCommandeFournisseurId?, piecesJustificatives?: string[] }
+ * Demande de décaissement (CDC §3.6, cas nominal) : montantDemande + motif (≥ 10 car.) + type ;
+ * le décaissement n'est exécuté qu'après tous les visas requis.
+ * Variante « justificatif » : operationCaisseId | operationCaissePDVId référence une sortie de caisse
+ * déjà effectuée (montant/mode/opérateur repris, non modifiables) → contrôle N1/N2 a posteriori.
+ * Body : { montantDemande?, modePaiement?, operationCaisseId?, operationCaissePDVId?, beneficiaireNom,
+ *   beneficiaireContact?, fournisseurId?, motif, typeDepense, bonCommandeFournisseurId?, piecesJustificatives?: string[] }
  */
 export async function POST(req: Request) {
   try {
@@ -90,27 +90,49 @@ export async function POST(req: Request) {
     const beneficiaireNomSaisi = String(body.beneficiaireNom || "").trim();
     const typeDepense = body.typeDepense;
 
-    // ── Sortie de caisse obligatoire : pas de fiche sans mouvement de caisse ──
+    // Deux façons de créer une fiche (CDC §3.6) :
+    //  - DEMANDE (cas nominal) : aucune sortie de caisse. Le demandeur saisit objet, type et montant ;
+    //    la fiche suit le circuit approbation N1 → N2 (seuil) → exécution par le Caissier/Comptable,
+    //    qui effectue la sortie de fonds (et la sortie de caisse en espèces) à ce moment-là.
+    //  - JUSTIFICATIF d'une sortie déjà faite : la fiche référence la sortie de caisse (montant,
+    //    mode et opérateur repris de la sortie, non modifiables) ; contrôle N1/N2 a posteriori.
     const operationCaisseId = body.operationCaisseId ? Number(body.operationCaisseId) : null;
     const operationCaissePDVId = body.operationCaissePDVId ? Number(body.operationCaissePDVId) : null;
-    const voitTout = !!(await getComptableSession());
-    const resultat = await chargerSortieCaisse(
-      { operationCaisseId, operationCaissePDVId },
-      { userId, restreindreOperateur: !voitTout },
-    );
-    if (!resultat.ok) return NextResponse.json({ error: resultat.error }, { status: resultat.status });
-    const op = resultat.sortie;
-    const pdvOperation = op.pointDeVenteId;
+    const liee = operationCaisseId != null || operationCaissePDVId != null;
 
-    // Montant / motif / mode : imposés par la sortie de caisse (la fiche ne peut pas s'en écarter).
-    const montantDemande = Number(op.montant);
+    let op = null as unknown as SortieCaisse; // défini uniquement si `liee`
+    if (liee) {
+      const voitTout = !!(await getComptableSession());
+      const resultat = await chargerSortieCaisse(
+        { operationCaisseId, operationCaissePDVId },
+        { userId, restreindreOperateur: !voitTout },
+      );
+      if (!resultat.ok) return NextResponse.json({ error: resultat.error }, { status: resultat.status });
+      op = resultat.sortie;
+    }
+    const pdvOperation = liee ? op.pointDeVenteId : null;
+
+    // Montant / motif : imposés par la sortie de caisse si liée, sinon saisis (motif ≥ 10 caractères).
+    const montantDemande = liee ? Number(op.montant) : Number(body.montantDemande);
+    if (!liee && (!Number.isFinite(montantDemande) || montantDemande <= 0)) {
+      return NextResponse.json({ error: "Montant demandé obligatoire (supérieur à 0)" }, { status: 400 });
+    }
     const motifSaisi = String(body.motif || "").trim();
-    if (motifSaisi && motifSaisi.length < 10) return NextResponse.json({ error: "Motif : 10 caractères minimum" }, { status: 400 });
+    if (!liee && motifSaisi.length < 10) return NextResponse.json({ error: "Motif : 10 caractères minimum" }, { status: 400 });
+    if (liee && motifSaisi && motifSaisi.length < 10) return NextResponse.json({ error: "Motif : 10 caractères minimum" }, { status: 400 });
     const motif = motifSaisi || op.motif;
+
+    let modeSouhaite: "ESPECES" | "MOBILE_MONEY" | "CHEQUE" | "VIREMENT" | null = null;
+    if (!liee && body.modePaiement) {
+      if (!["ESPECES", "MOBILE_MONEY", "CHEQUE", "VIREMENT"].includes(body.modePaiement)) {
+        return NextResponse.json({ error: "Mode de paiement invalide" }, { status: 400 });
+      }
+      modeSouhaite = body.modePaiement;
+    }
 
     // Bénéficiaire : si la sortie de caisse désigne un membre, son nom et son téléphone sont
     // repris automatiquement (la saisie du formulaire est ignorée) ; sinon saisie manuelle.
-    const membre = op.beneficiaire;
+    const membre = liee ? op.beneficiaire : null;
     const beneficiaireNom = membre ? `${membre.prenom} ${membre.nom}`.trim() : beneficiaireNomSaisi;
     const beneficiaireContact = membre ? membre.telephone : (body.beneficiaireContact || null);
     if (!beneficiaireNom) return NextResponse.json({ error: "Bénéficiaire obligatoire" }, { status: 400 });
@@ -150,10 +172,9 @@ export async function POST(req: Request) {
               motif,
               typeDepense,
               montantDemande,
-              modePaiement: op.mode ?? null,
-              referencePaiement: op.reference,
-              executeParId: op.operateurId,
-              dateExecution: op.createdAt,
+              ...(liee
+                ? { modePaiement: op.mode ?? null, referencePaiement: op.reference, executeParId: op.operateurId, dateExecution: op.createdAt }
+                : { modePaiement: modeSouhaite }),
               operationCaisseId,
               operationCaissePDVId,
               bonCommandeFournisseurId,
@@ -163,8 +184,10 @@ export async function POST(req: Request) {
           });
           await auditLog(tx, userId, "FD_CREEE", "FicheDecaissement", f.id, undefined, getRequestMeta(req));
           await notifyRoles(tx, ["COMPTABLE", "CHEF_COMPTABLE"], {
-            titre: `Fiche de décaissement à contrôler (${reference})`,
-            message: `${session.user.prenom} ${session.user.nom} a justifié la sortie de caisse ${op.reference} (${montantDemande.toLocaleString("fr-FR")} FCFA pour "${beneficiaireNom}", ${typeDepense}) — contrôle à effectuer.`,
+            titre: liee ? `Fiche de décaissement à contrôler (${reference})` : `Demande de décaissement à approuver (${reference})`,
+            message: liee
+              ? `${session.user.prenom} ${session.user.nom} a justifié la sortie de caisse ${op.reference} (${montantDemande.toLocaleString("fr-FR")} FCFA pour "${beneficiaireNom}", ${typeDepense}) — contrôle à effectuer.`
+              : `${session.user.prenom} ${session.user.nom} demande ${montantDemande.toLocaleString("fr-FR")} FCFA pour "${beneficiaireNom}" (${typeDepense}) — approbation N1 requise.`,
             priorite: PrioriteNotification.NORMAL,
             actionUrl: `/dashboard/user/decaissements?detail=${f.id}`,
           });

@@ -115,7 +115,9 @@ export async function proxy(request: NextRequest) {
   // Redirection vers /login si l'utilisateur n'est pas connecté
   if (!token) {
     if (pathname.startsWith("/dashboard/admin") || pathname.startsWith("/dashboard/user")) {
-      return NextResponse.redirect(new URL("/auth/login", request.url))
+      const loginUrl = new URL("/auth/login", request.url)
+      loginUrl.searchParams.set("callbackUrl", pathname + request.nextUrl.search)
+      return NextResponse.redirect(loginUrl)
     }
   }
 

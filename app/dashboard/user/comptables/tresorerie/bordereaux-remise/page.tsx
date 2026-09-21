@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import { PiecesListe } from "@/components/agent-documents/PiecesBordereau";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
@@ -18,6 +19,7 @@ interface Bordereau {
   cotisationsMobileMoney: number | string; montantVirement: number | string;
   tresorier: PersonRef | null; montantConfirmeTresorier: number | string | null; ecartTresorier: number | string | null; motifEcartTresorier: string | null;
   visaCGTPar: PersonRef | null;
+  pieces?: { id: number; nom: string; url: string; nature: string }[];
   depotBancaireReference: string | null;
   createdAt: string;
 }
@@ -168,6 +170,7 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
               <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${(STATUT_CFG[b.statut] ?? STATUT_CFG.SOUMIS).badge}`}>{(STATUT_CFG[b.statut] ?? STATUT_CFG.SOUMIS).label}</span>
               <p className="text-sm text-slate-600">Total espèces attendu (déclaré) : <b>{Number(b.totalEspecesAttendu).toLocaleString("fr-FR")} FCFA</b></p>
               <p className="text-sm text-slate-600">Total billetage : <b>{Number(b.totalBilletageCalcule).toLocaleString("fr-FR")} FCFA</b></p>
+              <PiecesListe pieces={b.pieces} />
               {Math.abs(Number(b.ecartSoumission)) > 0.01 && (
                 <p className="text-sm text-amber-600 flex items-center gap-1"><AlertTriangle className="w-4 h-4" /> Écart déclaré par le collecteur : {Number(b.ecartSoumission).toLocaleString("fr-FR")} FCFA — {b.motifEcartSoumission}</p>
               )}

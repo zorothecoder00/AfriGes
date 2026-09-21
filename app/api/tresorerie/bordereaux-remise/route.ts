@@ -62,8 +62,16 @@ export async function GET(req: Request) {
       prisma.bordereauRemiseFonds.groupBy({ by: ["statut"], where: isTresorierOuAdmin ? {} : { collecteurId: parseInt(session.user.id) }, _count: { id: true } }),
     ]);
 
+    // Pièces jointes (polymorphes) rattachées en une seule requête.
+    const piecesBrutes = bordereaux.length === 0 ? [] : await prisma.pieceJustificative.findMany({
+      where: { sourceType: "BORDEREAU_REMISE", sourceId: { in: bordereaux.map((b) => b.id) } },
+      select: { id: true, nom: true, url: true, nature: true, sourceId: true },
+      orderBy: { createdAt: "asc" },
+    });
+    const data = bordereaux.map((b) => ({ ...b, pieces: piecesBrutes.filter((p) => p.sourceId === b.id) }));
+
     return NextResponse.json({
-      data: bordereaux,
+      data,
       stats: Object.fromEntries(statsRaw.map((s) => [s.statut, s._count.id])),
     });
   } catch (error) {
@@ -77,7 +85,7 @@ interface LigneBilletageInput { denomination: number; nombre: number }
 /**
  * POST /api/tresorerie/bordereaux-remise
  * Créé par le collecteur (agent terrain). Body :
- * { pointDeVenteId?, cotisationsEspeces?, cotisationsMobileMoney?, mobileMoneyReference?,
+ * { pieces?: [{nom, url, key, type, taille, nature}], pointDeVenteId?, cotisationsEspeces?, cotisationsMobileMoney?, mobileMoneyReference?,
  *   remboursements?, ventes?, venteCarnet?, fraisLivraison?, montantVirement?, virementReference?,
  *   lignesBilletage: [{denomination, nombre}], motifEcartSoumission?, notes? }
  */
@@ -90,6 +98,12 @@ export async function POST(req: Request) {
     const userId = parseInt(session.user.id);
 
     let pointDeVenteId = body.pointDeVenteId ? Number(body.pointDeVenteId) : null;
+    const estAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    if (pointDeVenteId && !estAdmin) {
+      // Le point de dépôt doit appartenir aux affectations du collecteur (référentiel).
+      const autorise = await prisma.gestionnaireAffectation.findFirst({ where: { userId, actif: true, pointDeVenteId }, select: { id: true } });
+      if (!autorise) return NextResponse.json({ error: "Point de dépôt non autorisé pour ce collecteur" }, { status: 403 });
+    }
     if (!pointDeVenteId) {
       const aff = await prisma.gestionnaireAffectation.findFirst({ where: { userId, actif: true }, select: { pointDeVenteId: true } });
       pointDeVenteId = aff?.pointDeVenteId ?? null;
@@ -111,6 +125,15 @@ export async function POST(req: Request) {
     }
     if (montantVirement > 0 && !String(body.virementReference || "").trim()) {
       return NextResponse.json({ error: "Référence de virement/dépôt obligatoire" }, { status: 400 });
+    }
+
+    // Pièces jointes (déjà téléversées) : avis de virement obligatoire si un virement est déclaré.
+    const NATURES_PIECES = ["RECU", "RELEVE_BANCAIRE", "PIECE_CAISSE", "AUTRE"];
+    const pieces = (Array.isArray(body.pieces) ? body.pieces : []).filter(
+      (p: { url?: string; key?: string; nom?: string; nature?: string }) => p && p.url && p.key && p.nom && NATURES_PIECES.includes(p.nature ?? ""),
+    ) as { url: string; key: string; nom: string; type?: string; taille?: number; nature: string }[];
+    if (montantVirement > 0 && !pieces.some((p) => p.nature === "RELEVE_BANCAIRE")) {
+      return NextResponse.json({ error: "Avis de virement obligatoire en pièce jointe" }, { status: 400 });
     }
 
     const lignesBilletage = (body.lignesBilletage ?? []) as LigneBilletageInput[];
@@ -154,6 +177,17 @@ export async function POST(req: Request) {
             },
             include: INCLUDE,
           });
+          if (pieces.length > 0) {
+            const archiverJusquau = new Date();
+            archiverJusquau.setFullYear(archiverJusquau.getFullYear() + 10);
+            await tx.pieceJustificative.createMany({
+              data: pieces.map((p) => ({
+                nom: p.nom, url: p.url, uploadthingKey: p.key, type: p.type || "application/octet-stream",
+                taille: Number(p.taille) || 0, nature: p.nature as "RECU" | "RELEVE_BANCAIRE" | "PIECE_CAISSE" | "AUTRE",
+                sourceType: "BORDEREAU_REMISE", sourceId: b.id, uploadePar: userId, archiverJusquau,
+              })),
+            });
+          }
           await auditLog(tx, userId, "BRF_CREE", "BordereauRemiseFonds", b.id, undefined, getRequestMeta(req));
           await notifyRoles(tx, ["COMPTABLE", "CHEF_COMPTABLE"], {
             titre: `Bordereau de remise de fonds soumis (${reference})`,
