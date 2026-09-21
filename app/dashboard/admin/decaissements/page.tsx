@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import RetourLien from "@/components/RetourLien";
-import { Plus, X, Loader2, Stamp, XCircle, Wallet, Printer, FileText, AlertTriangle } from "lucide-react";
+import Link from "next/link";
+import { BarChart3, Plus, X, Loader2, Stamp, XCircle, Wallet, Printer, FileText, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 import Button from "@/components/ui/Button";
@@ -86,6 +87,7 @@ export default function AdminDecaissementsPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" title="Rafraîchir" />
+          <Link href="/dashboard/admin/decaissements/tableau-de-bord?retour=/dashboard/admin/decaissements" className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50"><BarChart3 size={15} /> Tableau de bord</Link>
           <Button size="sm" icon={<Plus size={15} />} onClick={() => setShowCreate(true)}>Nouvelle fiche</Button>
         </div>
       </div>
