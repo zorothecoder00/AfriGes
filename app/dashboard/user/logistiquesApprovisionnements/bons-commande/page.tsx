@@ -1,5 +1,7 @@
 "use client";
 
+import SortieCaissePicker from "@/components/SortieCaissePicker";
+import type { OperationCaisseDispo } from "@/components/FicheDecaissementModal";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApi } from "@/hooks/useApi";
@@ -297,24 +299,28 @@ function CreateModal({ onClose, onCreated, prefill }: {
 function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => void; onUpdated: () => void }) {
   const { data, loading, refetch } = useApi<{ data: BonCommande; seuilVisaCGT: number }>(`/api/logistique/bons-commande/${id}`);
   const [busy, setBusy] = useState(false);
-  const [montantPaiement, setMontantPaiement] = useState("");
+  const [sortiePaiement, setSortiePaiement] = useState<OperationCaisseDispo | null>(null);
   const b = data?.data;
   const seuilVisaCGT = data?.seuilVisaCGT ?? Infinity;
   const visaCGTRequis = !!b && Number(b.montantTotal) > seuilVisaCGT;
 
   const enregistrerPaiement = async () => {
-    const montant = Number(montantPaiement);
-    if (!montant || montant <= 0) { toast.error("Montant invalide"); return; }
+    if (!sortiePaiement) { toast.error("Sélectionnez la sortie de caisse du paiement"); return; }
+    const soldeDu = b ? Number(b.montantTotal) - Number(b.montantPaye) : 0;
+    if (sortiePaiement.montant > soldeDu + 0.01) { toast.error(`Le montant de la sortie dépasse le solde dû (${soldeDu.toLocaleString("fr-FR")})`); return; }
     setBusy(true);
     try {
       const r = await fetch(`/api/logistique/bons-commande/${id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "ENREGISTRER_PAIEMENT", montant }),
+        body: JSON.stringify({
+          action: "ENREGISTRER_PAIEMENT",
+          ...(sortiePaiement.source === "CAISSE" ? { operationCaisseId: sortiePaiement.id } : { operationCaissePDVId: sortiePaiement.id }),
+        }),
       });
       const j = await r.json().catch(() => ({}));
       if (r.ok) {
-        toast.success(`Demande de paiement soumise (fiche ${j.data?.reference ?? ""}) — en attente d'approbation comptable`);
-        setMontantPaiement(""); refetch(); onUpdated();
+        toast.success(`Fiche de décaissement ${j.data?.reference ?? ""} créée — en attente de contrôle comptable`);
+        setSortiePaiement(null); refetch(); onUpdated();
       } else toast.error(j.error ?? "Erreur");
     } finally { setBusy(false); }
   };
@@ -430,17 +436,16 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
                     )}
                   </div>
                   {Number(b.montantTotal) - Number(b.montantPaye) > 0.01 && (
-                    <div className="flex items-center gap-2">
-                      <input type="number" min="0" placeholder="Montant à soumettre" value={montantPaiement}
-                        onChange={(e) => setMontantPaiement(e.target.value)}
-                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                      <button onClick={enregistrerPaiement} disabled={busy}
-                        className="px-3 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap">
-                        Soumettre le paiement
+                    <div className="space-y-2">
+                      <SortieCaissePicker value={sortiePaiement} onChange={setSortiePaiement} categorie="FOURNISSEUR"
+                        vide="Aucune sortie de caisse « Fournisseur » sans fiche. Faites d'abord enregistrer le paiement en caisse." />
+                      <button onClick={enregistrerPaiement} disabled={busy || !sortiePaiement}
+                        className="w-full px-3 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap">
+                        Rattacher la sortie de caisse et créer la fiche
                       </button>
                     </div>
                   )}
-                  <p className="text-xs text-slate-400 mt-1.5">Génère une fiche de décaissement (visa comptable) — le solde payé ci-dessus se met à jour une fois le paiement exécuté.</p>
+                  <p className="text-xs text-slate-400 mt-1.5">Le paiement est fait en caisse d&apos;abord (sortie « Fournisseur ») ; la fiche de décaissement créée est contrôlée par la comptabilité et le solde payé ci-dessus se met à jour à son approbation.</p>
                 </div>
               )}
 

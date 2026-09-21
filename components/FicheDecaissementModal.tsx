@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { X, Loader2, Plus, Search, Printer, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { useApi } from "@/hooks/useApi";
-import { formatCurrency, formatDateTime } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
+import SortieCaissePicker from "@/components/SortieCaissePicker";
 
 /**
  * Création d'une fiche de décaissement à partir d'une sortie de caisse (CDC §3.6).
@@ -49,11 +49,6 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
   onDone: (fiche: { id: number; reference: string }) => void;
 }) {
   const [operation, setOperation] = useState<OperationCaisseDispo | null>(operationInitiale ?? null);
-  const { data: opsData, loading: opsLoading } = useApi<{ data: OperationCaisseDispo[] }>(
-    // Sélecteur : toutes les sorties sans fiche (pas de limite de date), jusqu'à 100 les plus récentes
-    operationInitiale ? null : "/api/decaissements/operations-disponibles?jours=0&limit=100"
-  );
-  const operations = opsData?.data ?? [];
 
   // Bénéficiaire désigné à la sortie de caisse → repris automatiquement et non modifiable ici
   // (le serveur fait foi). Sinon saisie manuelle.
@@ -155,33 +150,11 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
                 ) : (
                   <>
                     <p className="text-[11px] text-slate-400 mb-1.5">La fiche vient après la sortie de caisse : le montant, le motif et le mode de paiement en sont repris.</p>
-                    {opsLoading && <p className="text-xs text-slate-400 py-2">Chargement des sorties de caisse…</p>}
-                    {!opsLoading && operations.length === 0 && (
-                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                        Aucune sortie de caisse sans fiche. Enregistrez d&apos;abord la sortie dans la caisse (salaire, carburant, fournisseur…), puis revenez créer la fiche.
-                      </p>
-                    )}
-                    <div className="space-y-1.5 max-h-56 overflow-y-auto">
-                      {operations.map((o) => {
-                        const actif = operation?.source === o.source && operation.id === o.id;
-                        return (
-                          <button key={`${o.source}-${o.id}`} type="button"
-                            onClick={() => { setOperation(o); if (o.categorie) setTypeDepense(TYPE_SUGGERE[o.categorie] ?? "AUTRES"); }}
-                            className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors ${actif ? "border-primary-400 bg-primary-50" : "border-slate-200 hover:bg-slate-50"}`}>
-                            <span className="flex items-center justify-between gap-2">
-                              <span className="font-mono font-semibold text-slate-700">{o.reference}</span>
-                              <span className="font-semibold text-slate-800">{formatCurrency(o.montant)}</span>
-                            </span>
-                            <span className="block text-slate-500 mt-0.5">
-                              {o.categorie ? `${CATEGORIE_LABEL[o.categorie] ?? o.categorie} · ` : ""}{o.motif}
-                            </span>
-                            <span className="block text-slate-400 mt-0.5">
-                              {o.source === "CAISSE_PDV" ? "Petite caisse" : "Grande caisse"}{o.pointDeVente ? ` · ${o.pointDeVente.nom}` : ""} · {o.operateurNom} · {formatDateTime(o.date)}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <SortieCaissePicker
+                      value={operation}
+                      onChange={(o) => { setOperation(o); if (o.categorie) setTypeDepense(TYPE_SUGGERE[o.categorie] ?? "AUTRES"); }}
+                      vide="Aucune sortie de caisse sans fiche. Enregistrez d'abord la sortie dans la caisse (salaire, carburant, fournisseur…), puis revenez créer la fiche."
+                    />
                   </>
                 )}
               </div>

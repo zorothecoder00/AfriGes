@@ -7,7 +7,7 @@ import { getCaissierSession } from "@/lib/authCaissier";
 import { auditLog, notify, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 import { getSeuilApprobationN2Decaissement } from "@/lib/parametresDocuments";
-import { ecritureDecaissement, ecripturePaiementFournisseur } from "@/lib/comptabilite/moteur";
+import { ecritureDecaissement, ecripturePaiementFournisseur, assurerEcritureOperationCaisse } from "@/lib/comptabilite/moteur";
 import { INCLUDE } from "../route";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -16,19 +16,26 @@ type FicheEffets = {
   id: number; reference: string; typeDepense: string; beneficiaireNom: string; pointDeVenteId: number | null;
   fournisseurId: number | null; fournisseur: { nom: string } | null;
   bonCommandeFournisseurId: number | null; reglementDepotVenteId: number | null;
+  operationCaisseId: number | null; operationCaissePDVId: number | null;
 };
 
 /**
  * Effets comptables/métier d'un décaissement effectif : écriture comptable, montant payé du
  * Bon de Commande fournisseur, règlement dépôt-vente. Appelé à l'exécution (anciennes fiches)
  * ou à l'approbation finale (fiches rattachées à une sortie de caisse : l'argent est déjà sorti).
+ * Fiche liée à une sortie de caisse : l'écriture de trésorerie est celle de la sortie elle-même
+ * (créée avec elle) — on la retrouve/complète sans en créer une seconde (pas de double comptage).
  */
 async function appliquerEffetsPaiement(
   tx: Prisma.TransactionClient, fiche: FicheEffets, montant: number,
   modePaiement: "ESPECES" | "MOBILE_MONEY" | "CHEQUE" | "VIREMENT", userId: number,
 ): Promise<number | null> {
   let ecritureId: number | null = null;
-  if (fiche.typeDepense === "PAIEMENT_FOURNISSEUR" && fiche.fournisseurId) {
+  if (fiche.operationCaisseId != null || fiche.operationCaissePDVId != null) {
+    ecritureId = await assurerEcritureOperationCaisse(
+      tx, { operationCaisseId: fiche.operationCaisseId, operationCaissePDVId: fiche.operationCaissePDVId }, userId,
+    );
+  } else if (fiche.typeDepense === "PAIEMENT_FOURNISSEUR" && fiche.fournisseurId) {
     ecritureId = await ecripturePaiementFournisseur(tx, {
       montant, reference: fiche.reference, fournisseurNom: fiche.fournisseur?.nom ?? fiche.beneficiaireNom,
       fournisseurId: fiche.fournisseurId, modePaiement, userId, pointDeVenteId: fiche.pointDeVenteId,

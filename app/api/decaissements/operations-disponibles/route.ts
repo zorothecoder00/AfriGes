@@ -10,6 +10,9 @@ import { getComptableSession } from "@/lib/authComptable";
  * l'opération à justifier. Comptable/Chef Comptable/Admin : toutes ; sinon : celles
  * dont l'utilisateur est l'opérateur.
  * - jours : ne garde que les sorties des N derniers jours (0 = sans limite de date) ; défaut 30.
+ * - categorie : filtre sur la catégorie de la sortie (ex. FOURNISSEUR pour les flux de paiement fournisseur) ;
+ *   avec FOURNISSEUR, les profils approvisionnement voient les sorties de tous les opérateurs
+ *   (ils rattachent la sortie faite par le caissier au bon de commande / règlement).
  * - page/limit : pagination sur l'ensemble grande caisse + petite caisse, plus récentes d'abord.
  */
 export async function GET(req: Request) {
@@ -23,10 +26,16 @@ export async function GET(req: Request) {
     const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? 10) || 10));
 
     const userId = parseInt(session.user.id);
-    const voitTout = !!(await getComptableSession());
+    const categorie = searchParams.get("categorie");
+    if (categorie && !["SALAIRE", "AVANCE", "FOURNISSEUR", "CARBURANT", "AUTRE"].includes(categorie)) {
+      return NextResponse.json({ error: "Catégorie invalide" }, { status: 400 });
+    }
+    const roleAppro = ["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "RESPONSABLE_ACHATS"].includes(session.user.gestionnaireRole ?? "");
+    const voitTout = !!(await getComptableSession()) || (categorie === "FOURNISSEUR" && roleAppro);
     const filtreOperateur = voitTout ? {} : { operateurId: userId };
     const filtreDate = jours > 0 ? { createdAt: { gte: new Date(Date.now() - jours * 86_400_000) } } : {};
-    const where = { type: "DECAISSEMENT" as const, ficheDecaissement: null, ...filtreOperateur, ...filtreDate };
+    const filtreCategorie = categorie ? { categorie: categorie as "SALAIRE" | "AVANCE" | "FOURNISSEUR" | "CARBURANT" | "AUTRE" } : {};
+    const where = { type: "DECAISSEMENT" as const, ficheDecaissement: null, ...filtreOperateur, ...filtreDate, ...filtreCategorie };
 
     // Pagination sur deux sources : on prend les (page × limit) plus récentes de chacune,
     // on fusionne, puis on découpe la page demandée.

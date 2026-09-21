@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";   
 import { randomUUID } from "crypto";
 import { notifyRoles, auditLog } from "@/lib/notifications";
+import { ecritureOperationCaisse } from "@/lib/comptabilite/moteur";
        
 /**
  * GET /api/rpv/caisse-pdv
@@ -191,6 +192,16 @@ export async function PATCH(req: Request) {
           operateurId:  userId,
         },
       });
+
+      // Écriture comptable (BROUILLON) des dépenses de petite caisse : Dr charge (selon catégorie) /
+      // Cr 571. Les encaissements de la petite caisse viennent des ventes, qui ont déjà leur
+      // écriture : on ne les comptabilise pas ici (pas de double comptage).
+      if (type === "DECAISSEMENT") {
+        await ecritureOperationCaisse(tx, {
+          source: "CAISSE_PDV", operationId: op.id, type: "DECAISSEMENT", categorie: categorie || null,
+          montant: Number(montant), motif, modePaiement: mode || null, userId, pointDeVenteId: caisse.pointDeVenteId,
+        });
+      }
 
       // Mettre à jour le solde de la caisse
       const delta = type === "ENCAISSEMENT" ? Number(montant) : -Number(montant);

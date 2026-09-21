@@ -1,5 +1,7 @@
 "use client";
 
+import SortieCaissePicker from "@/components/SortieCaissePicker";
+import type { OperationCaisseDispo } from "@/components/FicheDecaissementModal";
 import { useState } from "react";
 import RetourLien from "@/components/RetourLien";
 import { Plus, Printer, X, Loader2, CheckCircle2, Ban, Send, Stamp, PenLine, Search, Wallet } from "lucide-react";
@@ -333,20 +335,21 @@ function FormBonCommande({ onClose, onDone }: { onClose: () => void; onDone: () 
 
 function FormPaiement({ bon, onClose, onDone }: { bon: BonCommandeRow; onClose: () => void; onDone: () => void }) {
   const soldeDu = Number(bon.montantTotal) - Number(bon.montantPaye);
-  const [montant, setMontant] = useState(String(soldeDu));
+  const [sortie, setSortie] = useState<OperationCaisseDispo | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function submit() {
-    if (!montant || Number(montant) <= 0) { toast.error("Montant invalide"); return; }
+    if (!sortie) { toast.error("Sélectionnez la sortie de caisse du paiement"); return; }
+    if (sortie.montant > soldeDu + 0.01) { toast.error(`Le montant de la sortie dépasse le solde dû (${formatCurrency(soldeDu)})`); return; }
     setSubmitting(true);
     try {
       const res = await fetch(`/api/logistique/bons-commande/${bon.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "ENREGISTRER_PAIEMENT", montant: Number(montant) }),
+        body: JSON.stringify({ action: "ENREGISTRER_PAIEMENT", ...(sortie.source === "CAISSE" ? { operationCaisseId: sortie.id } : { operationCaissePDVId: sortie.id }) }),
       });
       const j = await res.json();
       if (!res.ok) { toast.error(j.error || "Erreur"); return; }
-      toast.success(`Fiche de décaissement ${j.data.reference} soumise — le paiement s'exécute depuis le module Décaissements`);
+      toast.success(`Fiche de décaissement ${j.data.reference} créée — soumise au contrôle N1/N2`);
       onDone();
     } catch { toast.error("Erreur réseau"); }
     finally { setSubmitting(false); }
@@ -360,12 +363,12 @@ function FormPaiement({ bon, onClose, onDone }: { bon: BonCommandeRow; onClose: 
           <button onClick={onClose}><X size={16} className="text-slate-400" /></button>
         </div>
         <div className="p-5 space-y-3">
-          <p className="text-xs text-slate-500">Solde dû : {formatCurrency(soldeDu)}. Une fiche de décaissement sera soumise au circuit d&apos;approbation (N1/N2) avant exécution réelle du paiement.</p>
-          <input type="number" min={1} max={soldeDu} value={montant} onChange={(e) => setMontant(e.target.value)} className={inputCls} placeholder="Montant *" />
+          <p className="text-xs text-slate-500">Solde dû : {formatCurrency(soldeDu)}. Le paiement est d&apos;abord effectué en caisse (sortie « Fournisseur ») ; rattachez ici cette sortie : une fiche de décaissement est créée et soumise au contrôle N1/N2.</p>
+          <SortieCaissePicker value={sortie} onChange={setSortie} categorie="FOURNISSEUR" vide="Aucune sortie de caisse « Fournisseur » sans fiche. Faites d'abord enregistrer le paiement en caisse." />
         </div>
         <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-100">
           <button onClick={onClose} className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 rounded-lg">Annuler</button>
-          <button onClick={submit} disabled={submitting} className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium disabled:opacity-50">
+          <button onClick={submit} disabled={submitting || !sortie} className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium disabled:opacity-50">
             {submitting ? <Loader2 size={13} className="animate-spin" /> : <Wallet size={13} />} Soumettre
           </button>
         </div>

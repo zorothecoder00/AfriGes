@@ -1,5 +1,7 @@
 "use client";
 
+import SortieCaissePicker from "@/components/SortieCaissePicker";
+import type { OperationCaisseDispo } from "@/components/FicheDecaissementModal";
 import { useState } from "react";
 import RetourLien from "@/components/RetourLien";
 import { Plus, X, Loader2, Search, PauseCircle, PlayCircle, CheckCircle2, Send, FileSignature, Boxes, Wallet } from "lucide-react";
@@ -356,14 +358,29 @@ function OngletEtat() {
     } catch { toast.error("Erreur réseau"); }
   }
 
-  async function soumettreReglement(id: number) {
+  // Règlement à rattacher à une sortie de caisse (la fiche vient après la sortie de caisse)
+  const [reglementCible, setReglementCible] = useState<(typeof reglements)[number] | null>(null);
+  const [sortieReglement, setSortieReglement] = useState<OperationCaisseDispo | null>(null);
+  const [envoi, setEnvoi] = useState(false);
+
+  async function soumettreReglement() {
+    if (!reglementCible || !sortieReglement) return;
+    setEnvoi(true);
     try {
-      const res = await fetch(`/api/logistique/depot-vente/reglements/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "SOUMETTRE" }) });
+      const res = await fetch(`/api/logistique/depot-vente/reglements/${reglementCible.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "SOUMETTRE",
+          ...(sortieReglement.source === "CAISSE" ? { operationCaisseId: sortieReglement.id } : { operationCaissePDVId: sortieReglement.id }),
+        }),
+      });
       const j = await res.json();
       if (!res.ok) { toast.error(j.error || "Erreur"); return; }
-      toast.success(`Fiche de décaissement ${j.data.reference} soumise`);
+      toast.success(`Fiche de décaissement ${j.data.reference} créée — soumise au contrôle`);
+      setReglementCible(null); setSortieReglement(null);
       refetchRegl();
     } catch { toast.error("Erreur réseau"); }
+    finally { setEnvoi(false); }
   }
 
   return (
@@ -405,7 +422,7 @@ function OngletEtat() {
               <div className="flex items-center gap-2">
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{r.statut}</span>
                 {r.statut === "BROUILLON" && (
-                  <button onClick={() => soumettreReglement(r.id)} className="flex items-center gap-1 px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium"><Send size={12} /> Soumettre</button>
+                  <button onClick={() => { setReglementCible(r); setSortieReglement(null); }} className="flex items-center gap-1 px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium"><Send size={12} /> Rattacher la sortie</button>
                 )}
                 {r.statut === "SOUMIS" && <span title="En attente de paiement — voir Décaissements"><Wallet size={14} className="text-slate-400" /></span>}
               </div>
@@ -413,6 +430,31 @@ function OngletEtat() {
           ))}
         </div>
       </div>
+
+      {reglementCible && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[210] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+              <h4 className="font-bold text-slate-800 text-sm">Règlement {reglementCible.reference}</h4>
+              <button onClick={() => setReglementCible(null)}><X size={16} className="text-slate-400" /></button>
+            </div>
+            <div className="p-5 space-y-3">
+              <p className="text-xs text-slate-500">
+                Montant dû : <b>{formatCurrency(Number(reglementCible.montantDu))}</b>. Le règlement est d&apos;abord effectué en caisse (sortie « Fournisseur ») ;
+                rattachez ici la sortie du même montant : une fiche de décaissement est créée et soumise au contrôle N1/N2.
+              </p>
+              <SortieCaissePicker value={sortieReglement} onChange={setSortieReglement} categorie="FOURNISSEUR"
+                montantAttendu={Number(reglementCible.montantDu)}
+                vide="Aucune sortie de caisse « Fournisseur » sans fiche. Faites d&apos;abord enregistrer le règlement en caisse." />
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-100">
+              <button onClick={() => setReglementCible(null)} className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 rounded-lg">Annuler</button>
+              <button onClick={soumettreReglement} disabled={envoi || !sortieReglement}
+                className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium disabled:opacity-50">Créer la fiche</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

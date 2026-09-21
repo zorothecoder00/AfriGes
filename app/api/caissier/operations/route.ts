@@ -3,6 +3,7 @@ import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession } from "@/lib/authCaissier";
 import { notifyAdmins, auditLog } from "@/lib/notifications";
+import { ecritureOperationCaisse } from "@/lib/comptabilite/moteur";
 
 function genRef(prefix: string): string {
   const d   = new Date();
@@ -168,6 +169,15 @@ export async function POST(req: Request) {
           operateurNom,
           operateurId,
         },
+      });
+
+      // Écriture comptable (BROUILLON) de l'opération, dans la même transaction : encaissement
+      // Dr Trésorerie / Cr 411 ; décaissement Dr charge (selon catégorie) / Cr Trésorerie.
+      // Best-effort : sans compte/exercice ouvert, l'opération de caisse n'est jamais bloquée.
+      await ecritureOperationCaisse(tx, {
+        source: "CAISSE", operationId: op.id, type, categorie: type === "DECAISSEMENT" ? categorie : null,
+        montant, motif: motif.trim(), modePaiement: type === "ENCAISSEMENT" ? mode : null,
+        userId: operateurId, pointDeVenteId: sessionActive.pointDeVenteId,
       });
 
       await auditLog(tx, operateurId, `${type}_CAISSE`, "OperationCaisse", op.id);

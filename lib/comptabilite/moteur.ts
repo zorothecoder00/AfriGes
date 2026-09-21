@@ -405,6 +405,34 @@ const REGLES_PAR_DEFAUT: Record<string, (ctx: ContexteEvenement) => ComptesRegle
     const tr = compteTresorerie(ctx.modePaiement);
     return { journal: tr.journal, compteDebitNumero: "605", compteCreditNumero: tr.numero };
   },
+  // Opérations de caisse manuelles (grande caisse / petite caisse RPV). Mêmes comptes que
+  // app/api/comptable/sync-journals (syncCaisse), avec le compte de trésorerie résolu selon le mode
+  // (571 Caisse / 521 Banque). Encaissement divers : Dr Trésorerie / Cr 411 Clients (à régulariser
+  // par le comptable si l'origine est autre — écriture BROUILLON, surchargeable par RegleComptable).
+  CAISSE_ENCAISSEMENT: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: tr.numero, compteCreditNumero: "411" };
+  },
+  CAISSE_DECAISSEMENT_SALAIRE: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "661", compteCreditNumero: tr.numero };
+  },
+  CAISSE_DECAISSEMENT_AVANCE: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "471", compteCreditNumero: tr.numero };
+  },
+  CAISSE_DECAISSEMENT_FOURNISSEUR: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "401", compteCreditNumero: tr.numero };
+  },
+  CAISSE_DECAISSEMENT_CARBURANT: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "605", compteCreditNumero: tr.numero };
+  },
+  CAISSE_DECAISSEMENT_AUTRE: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "605", compteCreditNumero: tr.numero };
+  },
   // Bordereau de Remise de Fonds clôturé (CDC digitalisation §3.1/§7 — "les
   // documents validés génèrent automatiquement les écritures correspondantes")
   // : mouvement de trésorerie pur, espèces collectées sur le terrain déposées
@@ -766,6 +794,78 @@ export async function ecritureDecaissement(
       { numero: regle.compteCreditNumero, credit: params.montant, libelle: `Décaissement ${params.reference}`, pointDeVenteId: pdv },
     ],
   });
+}
+
+/**
+ * Opération de caisse manuelle (encaissement / décaissement) : écriture BROUILLON créée avec
+ * l'opération, dans la même transaction. Référence `SYNC-OPC-<id>` (grande caisse) ou
+ * `SYNC-OPP-<id>` (petite caisse RPV) — la même que l'outil manuel sync-journals pour la grande
+ * caisse, donc idempotent : jamais de doublon, même si les deux se croisent.
+ * Ne s'applique PAS aux opérations de caisse générées par un autre flux (ventes, remboursements
+ * de crédit, versements de pack) : celles-ci ont déjà leur propre écriture.
+ */
+export async function ecritureOperationCaisse(
+  tx: TxClient,
+  params: {
+    source: "CAISSE" | "CAISSE_PDV";
+    operationId: number;
+    type: "ENCAISSEMENT" | "DECAISSEMENT";
+    categorie?: string | null;
+    montant: number;
+    motif: string;
+    modePaiement?: string | null;
+    userId: number;
+    date?: Date;
+    pointDeVenteId?: number | null;
+  },
+): Promise<number | null> {
+  if (params.montant <= 0) return null;
+  const evenement = params.type === "ENCAISSEMENT" ? "CAISSE_ENCAISSEMENT" : `CAISSE_DECAISSEMENT_${params.categorie ?? "AUTRE"}`;
+  const regle = await resoudreRegleComptable(tx, evenement, { modePaiement: params.modePaiement, pointDeVenteId: params.pointDeVenteId ?? null });
+  if (!regle) return null;
+  const pdv = params.pointDeVenteId ?? null;
+  const prefixe = params.type === "ENCAISSEMENT" ? "Encaissement caisse" : "Décaissement caisse";
+  return creerEcriture(tx, {
+    journal: regle.journal,
+    date: params.date ?? new Date(),
+    libelle: `${prefixe} — ${params.motif}`,
+    userId: params.userId,
+    reference: `SYNC-${params.source === "CAISSE" ? "OPC" : "OPP"}-${params.operationId}`,
+    lignes: [
+      { numero: regle.compteDebitNumero, debit: params.montant, libelle: params.motif, pointDeVenteId: pdv },
+      { numero: regle.compteCreditNumero, credit: params.montant, libelle: params.motif, pointDeVenteId: pdv },
+    ],
+  });
+}
+
+/**
+ * Garantit l'écriture comptable d'une opération de caisse déjà enregistrée (idempotent) : renvoie
+ * celle qui existe, ou la crée pour une opération antérieure à la génération automatique. Utilisé à
+ * l'approbation d'une fiche de décaissement liée à une sortie de caisse : la sortie porte déjà
+ * l'écriture de trésorerie, la fiche ne doit pas en créer une seconde.
+ */
+export async function assurerEcritureOperationCaisse(
+  tx: TxClient,
+  ref: { operationCaisseId?: number | null; operationCaissePDVId?: number | null },
+  userId: number,
+): Promise<number | null> {
+  if (ref.operationCaisseId != null) {
+    const op = await tx.operationCaisse.findUnique({ where: { id: ref.operationCaisseId }, include: { session: { select: { pointDeVenteId: true } } } });
+    if (!op) return null;
+    return ecritureOperationCaisse(tx, {
+      source: "CAISSE", operationId: op.id, type: op.type, categorie: op.categorie, montant: Number(op.montant),
+      motif: op.motif, modePaiement: op.mode, userId, date: op.createdAt, pointDeVenteId: op.session.pointDeVenteId,
+    });
+  }
+  if (ref.operationCaissePDVId != null) {
+    const op = await tx.operationCaissePDV.findUnique({ where: { id: ref.operationCaissePDVId }, include: { caissePDV: { select: { pointDeVenteId: true } } } });
+    if (!op) return null;
+    return ecritureOperationCaisse(tx, {
+      source: "CAISSE_PDV", operationId: op.id, type: op.type, categorie: op.categorie, montant: Number(op.montant),
+      motif: op.motif, modePaiement: op.mode, userId, date: op.createdAt, pointDeVenteId: op.caissePDV.pointDeVenteId,
+    });
+  }
+  return null;
 }
 
 /**

@@ -1,5 +1,7 @@
 "use client";
 
+import SortieCaissePicker from "@/components/SortieCaissePicker";
+import type { OperationCaisseDispo } from "@/components/FicheDecaissementModal";
 import { Suspense, useState } from "react";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
@@ -784,15 +786,22 @@ function ReglementDetail({ id, onClose, onUpdated }: { id: number; onClose: () =
   const { data, loading, refetch } = useApi<{ data: Reglement }>(`/api/logistique/depot-vente/reglements/${id}`);
   const r = data?.data;
   const [busy, setBusy] = useState(false);
+  // La fiche vient après la sortie de caisse : on rattache la sortie « Fournisseur » déjà faite
+  const [sortie, setSortie] = useState<OperationCaisseDispo | null>(null);
 
   const soumettre = async () => {
+    if (!sortie) { toast.error("Sélectionnez la sortie de caisse du règlement"); return; }
     setBusy(true);
     try {
       const res = await fetch(`/api/logistique/depot-vente/reglements/${id}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "SOUMETTRE" }),
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "SOUMETTRE",
+          ...(sortie.source === "CAISSE" ? { operationCaisseId: sortie.id } : { operationCaissePDVId: sortie.id }),
+        }),
       });
       const j = await res.json().catch(() => ({}));
-      if (res.ok) { toast.success(`Fiche de décaissement ${j.data?.reference ?? ""} soumise`); refetch(); onUpdated(); }
+      if (res.ok) { toast.success(`Fiche de décaissement ${j.data?.reference ?? ""} créée — soumise au contrôle`); setSortie(null); refetch(); onUpdated(); }
       else toast.error(j.error ?? "Erreur");
     } finally { setBusy(false); }
   };
@@ -806,12 +815,6 @@ function ReglementDetail({ id, onClose, onUpdated }: { id: number; onClose: () =
             {r && <p className="text-xs text-slate-400">{r.convention.fournisseur.nom} · {STATUT_RDV[r.statut]?.label}</p>}
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            {r?.statut === "BROUILLON" && (
-              <button onClick={soumettre} disabled={busy}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-                {busy ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} Soumettre au paiement
-              </button>
-            )}
             <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
           </div>
         </div>
@@ -834,6 +837,20 @@ function ReglementDetail({ id, onClose, onUpdated }: { id: number; onClose: () =
                   <p className="font-bold text-emerald-700">{fmt(Number(r.montantDu))}</p>
                 </div>
               </div>
+              {r.statut === "BROUILLON" && (
+                <div className="border border-emerald-200 bg-emerald-50/40 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-semibold text-slate-600 uppercase">Règlement en caisse</p>
+                  <p className="text-xs text-slate-500">
+                    Le règlement est d&apos;abord effectué en caisse (sortie « Fournisseur » de {fmt(Number(r.montantDu))} FCFA) ; rattachez cette sortie pour créer la fiche de décaissement soumise au contrôle.
+                  </p>
+                  <SortieCaissePicker value={sortie} onChange={setSortie} categorie="FOURNISSEUR" montantAttendu={Number(r.montantDu)}
+                    vide="Aucune sortie de caisse « Fournisseur » sans fiche. Faites d&apos;abord enregistrer le règlement en caisse." />
+                  <button onClick={soumettre} disabled={busy || !sortie}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+                    {busy ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} Rattacher la sortie et créer la fiche
+                  </button>
+                </div>
+              )}
               {r.decaissements.length > 0 && (
                 <div className="text-sm">
                   <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Fiche de décaissement</p>

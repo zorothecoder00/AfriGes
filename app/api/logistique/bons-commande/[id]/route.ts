@@ -5,6 +5,7 @@ import { auditLog, notifyRoles } from "@/lib/notifications";
 import { getSession } from "../../fournisseurs/route";
 import { getRequestMeta } from "@/lib/requestMeta";
 import { getSeuilVisaCGTBonCommande } from "@/lib/parametresDocuments";
+import { chargerSortieCaisse } from "@/lib/ficheDecaissementServer";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -64,13 +65,20 @@ export async function PATCH(req: Request, { params }: Ctx) {
       };
 
       if (body.action === "ENREGISTRER_PAIEMENT") {
-        // CDC §14 — le paiement fournisseur ne s'exécute plus directement ici : il
-        // passait auparavant en caisse sans aucun visa (contournait le circuit N1/N2
-        // de la Fiche de Décaissement, qui existe pourtant déjà pour ce même type de
-        // dépense — PAIEMENT_FOURNISSEUR). On soumet désormais une Fiche de
-        // Décaissement liée à ce bon ; montantPaye n'est incrémenté qu'à l'exécution
-        // réelle de cette fiche (app/api/decaissements/[id]/route.ts, action EXECUTER).
-        const montant = Number(body.montant);
+        // CDC §14 — la fiche de décaissement vient APRÈS la sortie de caisse : on rattache ici la
+        // sortie de caisse (catégorie FOURNISSEUR) déjà enregistrée par le caissier ; son montant
+        // est repris. La fiche liée est ensuite contrôlée N1/N2 ; montantPaye du bon n'est incrémenté
+        // qu'à l'approbation finale (app/api/decaissements/[id]/route.ts, appliquerEffetsPaiement).
+        const resultatSortie = await chargerSortieCaisse(
+          {
+            operationCaisseId: body.operationCaisseId ? Number(body.operationCaisseId) : null,
+            operationCaissePDVId: body.operationCaissePDVId ? Number(body.operationCaissePDVId) : null,
+          },
+          { userId, restreindreOperateur: false, categorieRequise: "FOURNISSEUR" },
+        );
+        if (!resultatSortie.ok) return NextResponse.json({ error: resultatSortie.error }, { status: resultatSortie.status });
+        const sortie = resultatSortie.sortie;
+        const montant = sortie.montant;
         if (!montant || montant <= 0) return NextResponse.json({ error: "Montant invalide" }, { status: 400 });
         const soldeDu = Number(bon.montantTotal) - Number(bon.montantPaye);
         if (montant > soldeDu) {
@@ -110,6 +118,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
                   motif: `Paiement bon de commande ${bon.reference}`,
                   typeDepense: "PAIEMENT_FOURNISSEUR",
                   montantDemande: montant,
+                  modePaiement: sortie.mode,
+                  referencePaiement: sortie.reference,
+                  executeParId: sortie.operateurId,
+                  dateExecution: sortie.createdAt,
+                  operationCaisseId: sortie.operationCaisseId,
+                  operationCaissePDVId: sortie.operationCaissePDVId,
                   bonCommandeFournisseurId: bonId,
                   piecesJustificatives: [`Bon de commande ${bon.reference}`],
                 },
@@ -117,8 +131,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
               await auditLog(tx, userId, "FD_CREEE", "FicheDecaissement", f.id, { bonCommandeFournisseurId: bonId }, getRequestMeta(req));
               await auditLog(tx, userId, "PO_PAIEMENT_SOUMIS", "BonCommande", bonId, { montant, ficheDecaissementId: f.id }, getRequestMeta(req));
               await notifyRoles(tx, ["COMPTABLE", "CHEF_COMPTABLE"], {
-                titre: `Fiche de décaissement soumise (${reference})`,
-                message: `${session.user.prenom} ${session.user.nom} demande le paiement de ${montant.toLocaleString("fr-FR")} FCFA pour "${f.beneficiaireNom}" (bon de commande ${bon.reference}).`,
+                titre: `Fiche de décaissement à contrôler (${reference})`,
+                message: `${session.user.prenom} ${session.user.nom} a rattaché la sortie de caisse ${sortie.reference} (${montant.toLocaleString("fr-FR")} FCFA pour "${f.beneficiaireNom}") au bon de commande ${bon.reference} — contrôle à effectuer.`,
                 priorite: PrioriteNotification.NORMAL,
                 actionUrl: `/dashboard/user/decaissements?detail=${f.id}`,
               });
@@ -126,7 +140,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
             });
             return NextResponse.json({ data: fiche }, { status: 201 });
           } catch (e) {
-            if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
+            if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+              // Conflit sur le lien vers la sortie de caisse (déjà rattachée entre-temps) ≠ collision de référence.
+              if (String(e.meta?.target ?? "").includes("operationCaisse")) {
+                return NextResponse.json({ error: "Cette sortie de caisse vient déjà d'être rattachée à une fiche de décaissement" }, { status: 409 });
+              }
+              continue;
+            }
             throw e;
           }
         }

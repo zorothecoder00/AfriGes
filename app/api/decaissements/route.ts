@@ -5,6 +5,7 @@ import { getAuthSession } from "@/lib/auth";
 import { getComptableSession } from "@/lib/authComptable";
 import { auditLog, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
+import { chargerSortieCaisse } from "@/lib/ficheDecaissementServer";
 
 /**
  * Fiche de Décaissement (CDC digitalisation §3.6) — sortie de fonds avec
@@ -92,37 +93,14 @@ export async function POST(req: Request) {
     // ── Sortie de caisse obligatoire : pas de fiche sans mouvement de caisse ──
     const operationCaisseId = body.operationCaisseId ? Number(body.operationCaisseId) : null;
     const operationCaissePDVId = body.operationCaissePDVId ? Number(body.operationCaissePDVId) : null;
-    if ((operationCaisseId == null) === (operationCaissePDVId == null)) {
-      return NextResponse.json(
-        { error: "Une fiche de décaissement doit être rattachée à une sortie de caisse existante (grande caisse ou petite caisse). Enregistrez d'abord la sortie de caisse." },
-        { status: 400 }
-      );
-    }
     const voitTout = !!(await getComptableSession());
-    const op = operationCaisseId != null
-      ? await prisma.operationCaisse.findUnique({
-          where: { id: operationCaisseId },
-          include: {
-            ficheDecaissement: { select: { reference: true } }, session: { select: { pointDeVenteId: true } },
-            beneficiaire: { select: { nom: true, prenom: true, telephone: true } },
-          },
-        })
-      : await prisma.operationCaissePDV.findUnique({
-          where: { id: operationCaissePDVId! },
-          include: {
-            ficheDecaissement: { select: { reference: true } }, caissePDV: { select: { pointDeVenteId: true } },
-            beneficiaire: { select: { nom: true, prenom: true, telephone: true } },
-          },
-        });
-    if (!op) return NextResponse.json({ error: "Sortie de caisse introuvable" }, { status: 404 });
-    if (op.type !== "DECAISSEMENT") return NextResponse.json({ error: "Cette opération de caisse n'est pas une sortie (décaissement)" }, { status: 422 });
-    if (op.ficheDecaissement) {
-      return NextResponse.json({ error: `Cette sortie de caisse a déjà une fiche de décaissement (${op.ficheDecaissement.reference})` }, { status: 409 });
-    }
-    if (!voitTout && op.operateurId !== userId) {
-      return NextResponse.json({ error: "Vous ne pouvez justifier que vos propres sorties de caisse" }, { status: 403 });
-    }
-    const pdvOperation = "session" in op ? op.session.pointDeVenteId : op.caissePDV.pointDeVenteId;
+    const resultat = await chargerSortieCaisse(
+      { operationCaisseId, operationCaissePDVId },
+      { userId, restreindreOperateur: !voitTout },
+    );
+    if (!resultat.ok) return NextResponse.json({ error: resultat.error }, { status: resultat.status });
+    const op = resultat.sortie;
+    const pdvOperation = op.pointDeVenteId;
 
     // Montant / motif / mode : imposés par la sortie de caisse (la fiche ne peut pas s'en écarter).
     const montantDemande = Number(op.montant);
