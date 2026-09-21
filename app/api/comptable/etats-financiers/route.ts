@@ -264,7 +264,9 @@ export async function GET(req: NextRequest) {
             salaires:           decMap["SALAIRE"]     ?? 0,
             avances:            decMap["AVANCE"]      ?? 0,
             fournisseurs:       decMap["FOURNISSEUR"] ?? 0,
-            autresCaisse:       decMap["AUTRE"]       ?? 0,
+            // Carburant regroupé dans « autres » pour que le détail somme au total caisse.
+            autresCaisse:       (decMap["AUTRE"] ?? 0) + (decMap["CARBURANT"] ?? 0),
+            dontCarburant:      decMap["CARBURANT"]   ?? 0,
             totalCaisse:        chCaisse,
             total: totalCharges,
           },

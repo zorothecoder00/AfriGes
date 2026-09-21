@@ -13,7 +13,7 @@ import { getRequestMeta } from "@/lib/requestMeta";
  */
 
 const TYPES_AVEC_PIECES = ["ACHAT_MARCHANDISES", "PAIEMENT_FOURNISSEUR"];
-const TYPES_DEPENSE = ["ACHAT_MARCHANDISES", "FOURNITURES", "PAIEMENT_FOURNISSEUR", "AVANCE_CAISSE", "FRAIS_FONCTIONNEMENT", "TRANSPORT", "AUTRES"];
+const TYPES_DEPENSE = ["ACHAT_MARCHANDISES", "FOURNITURES", "PAIEMENT_FOURNISSEUR", "AVANCE_CAISSE", "FRAIS_FONCTIONNEMENT", "TRANSPORT", "AUTRES", "SALAIRE", "CARBURANT"];
 
 export const INCLUDE = {
   pointDeVente: { select: { id: true, nom: true, code: true } },
@@ -23,6 +23,8 @@ export const INCLUDE = {
   approbateurN1: { select: { id: true, nom: true, prenom: true } },
   approbateurN2: { select: { id: true, nom: true, prenom: true } },
   executePar: { select: { id: true, nom: true, prenom: true } },
+  operationCaisse: { select: { id: true, reference: true, montant: true, categorie: true, createdAt: true } },
+  operationCaissePDV: { select: { id: true, reference: true, montant: true, categorie: true, createdAt: true } },
 };
 
 /**
@@ -69,8 +71,12 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/decaissements
- * Body : { beneficiaireNom, beneficiaireContact?, fournisseurId?, motif, typeDepense,
- *   montantDemande, bonCommandeFournisseurId?, piecesJustificatives?: string[] }
+ * La fiche vient APRÈS la sortie de caisse : elle doit référencer une sortie existante
+ * (grande caisse OU petite caisse RPV, type DECAISSEMENT) qui n'a pas déjà de fiche.
+ * Le montant, le mode de paiement, la date et l'opérateur sont repris de la sortie de caisse
+ * (non modifiables) ; la fiche sert ensuite de justificatif soumis au contrôle N1/N2.
+ * Body : { operationCaisseId | operationCaissePDVId, beneficiaireNom, beneficiaireContact?,
+ *   fournisseurId?, motif?, typeDepense, bonCommandeFournisseurId?, piecesJustificatives?: string[] }
  */
 export async function POST(req: Request) {
   try {
@@ -81,14 +87,45 @@ export async function POST(req: Request) {
     const userId = parseInt(session.user.id);
 
     const beneficiaireNom = String(body.beneficiaireNom || "").trim();
-    const motif = String(body.motif || "").trim();
     const typeDepense = body.typeDepense;
-    const montantDemande = Number(body.montantDemande);
+
+    // ── Sortie de caisse obligatoire : pas de fiche sans mouvement de caisse ──
+    const operationCaisseId = body.operationCaisseId ? Number(body.operationCaisseId) : null;
+    const operationCaissePDVId = body.operationCaissePDVId ? Number(body.operationCaissePDVId) : null;
+    if ((operationCaisseId == null) === (operationCaissePDVId == null)) {
+      return NextResponse.json(
+        { error: "Une fiche de décaissement doit être rattachée à une sortie de caisse existante (grande caisse ou petite caisse). Enregistrez d'abord la sortie de caisse." },
+        { status: 400 }
+      );
+    }
+    const voitTout = !!(await getComptableSession());
+    const op = operationCaisseId != null
+      ? await prisma.operationCaisse.findUnique({
+          where: { id: operationCaisseId },
+          include: { ficheDecaissement: { select: { reference: true } }, session: { select: { pointDeVenteId: true } } },
+        })
+      : await prisma.operationCaissePDV.findUnique({
+          where: { id: operationCaissePDVId! },
+          include: { ficheDecaissement: { select: { reference: true } }, caissePDV: { select: { pointDeVenteId: true } } },
+        });
+    if (!op) return NextResponse.json({ error: "Sortie de caisse introuvable" }, { status: 404 });
+    if (op.type !== "DECAISSEMENT") return NextResponse.json({ error: "Cette opération de caisse n'est pas une sortie (décaissement)" }, { status: 422 });
+    if (op.ficheDecaissement) {
+      return NextResponse.json({ error: `Cette sortie de caisse a déjà une fiche de décaissement (${op.ficheDecaissement.reference})` }, { status: 409 });
+    }
+    if (!voitTout && op.operateurId !== userId) {
+      return NextResponse.json({ error: "Vous ne pouvez justifier que vos propres sorties de caisse" }, { status: 403 });
+    }
+    const pdvOperation = "session" in op ? op.session.pointDeVenteId : op.caissePDV.pointDeVenteId;
+
+    // Montant / motif / mode : imposés par la sortie de caisse (la fiche ne peut pas s'en écarter).
+    const montantDemande = Number(op.montant);
+    const motifSaisi = String(body.motif || "").trim();
+    if (motifSaisi && motifSaisi.length < 10) return NextResponse.json({ error: "Motif : 10 caractères minimum" }, { status: 400 });
+    const motif = motifSaisi || op.motif;
 
     if (!beneficiaireNom) return NextResponse.json({ error: "Bénéficiaire obligatoire" }, { status: 400 });
-    if (motif.length < 10) return NextResponse.json({ error: "Motif obligatoire (10 caractères minimum)" }, { status: 400 });
     if (!TYPES_DEPENSE.includes(typeDepense)) return NextResponse.json({ error: `Type de dépense invalide. Valeurs acceptées : ${TYPES_DEPENSE.join(", ")}` }, { status: 400 });
-    if (!Number.isFinite(montantDemande) || montantDemande <= 0) return NextResponse.json({ error: "Montant demandé invalide" }, { status: 400 });
 
     const piecesJustificatives = Array.isArray(body.piecesJustificatives) ? body.piecesJustificatives.map(String) : [];
     if (TYPES_AVEC_PIECES.includes(typeDepense) && piecesJustificatives.length === 0) {
@@ -104,7 +141,7 @@ export async function POST(req: Request) {
     const fournisseurId = body.fournisseurId ? Number(body.fournisseurId) : null;
 
     const aff = await prisma.gestionnaireAffectation.findFirst({ where: { userId, actif: true }, select: { pointDeVenteId: true } });
-    const pointDeVenteId = aff?.pointDeVenteId ?? null;
+    const pointDeVenteId = pdvOperation ?? aff?.pointDeVenteId ?? null;
 
     for (let attempt = 0; attempt < 6; attempt++) {
       const count = await prisma.ficheDecaissement.count();
@@ -124,6 +161,12 @@ export async function POST(req: Request) {
               motif,
               typeDepense,
               montantDemande,
+              modePaiement: op.mode ?? null,
+              referencePaiement: op.reference,
+              executeParId: op.operateurId,
+              dateExecution: op.createdAt,
+              operationCaisseId,
+              operationCaissePDVId,
               bonCommandeFournisseurId,
               piecesJustificatives,
             },
@@ -131,8 +174,8 @@ export async function POST(req: Request) {
           });
           await auditLog(tx, userId, "FD_CREEE", "FicheDecaissement", f.id, undefined, getRequestMeta(req));
           await notifyRoles(tx, ["COMPTABLE", "CHEF_COMPTABLE"], {
-            titre: `Fiche de décaissement soumise (${reference})`,
-            message: `${session.user.prenom} ${session.user.nom} demande un décaissement de ${montantDemande.toLocaleString("fr-FR")} FCFA pour "${beneficiaireNom}" (${typeDepense}).`,
+            titre: `Fiche de décaissement à contrôler (${reference})`,
+            message: `${session.user.prenom} ${session.user.nom} a justifié la sortie de caisse ${op.reference} (${montantDemande.toLocaleString("fr-FR")} FCFA pour "${beneficiaireNom}", ${typeDepense}) — contrôle à effectuer.`,
             priorite: PrioriteNotification.NORMAL,
             actionUrl: `/dashboard/user/decaissements?detail=${f.id}`,
           });
@@ -140,7 +183,13 @@ export async function POST(req: Request) {
         });
         return NextResponse.json({ data: fiche }, { status: 201 });
       } catch (e) {
-        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          // Conflit sur le lien vers la sortie de caisse (deux fiches simultanées) ≠ collision de référence.
+          if (String(e.meta?.target ?? "").includes("operationCaisse")) {
+            return NextResponse.json({ error: "Cette sortie de caisse vient déjà d'être rattachée à une fiche de décaissement" }, { status: 409 });
+          }
+          continue;
+        }
         throw e;
       }
     }

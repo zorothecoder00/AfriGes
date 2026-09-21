@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PrioriteNotification } from "@prisma/client";
+import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { getComptableSession } from "@/lib/authComptable";
@@ -11,6 +11,49 @@ import { ecritureDecaissement, ecripturePaiementFournisseur } from "@/lib/compta
 import { INCLUDE } from "../route";
 
 type Ctx = { params: Promise<{ id: string }> };
+
+type FicheEffets = {
+  id: number; reference: string; typeDepense: string; beneficiaireNom: string; pointDeVenteId: number | null;
+  fournisseurId: number | null; fournisseur: { nom: string } | null;
+  bonCommandeFournisseurId: number | null; reglementDepotVenteId: number | null;
+};
+
+/**
+ * Effets comptables/métier d'un décaissement effectif : écriture comptable, montant payé du
+ * Bon de Commande fournisseur, règlement dépôt-vente. Appelé à l'exécution (anciennes fiches)
+ * ou à l'approbation finale (fiches rattachées à une sortie de caisse : l'argent est déjà sorti).
+ */
+async function appliquerEffetsPaiement(
+  tx: Prisma.TransactionClient, fiche: FicheEffets, montant: number,
+  modePaiement: "ESPECES" | "MOBILE_MONEY" | "CHEQUE" | "VIREMENT", userId: number,
+): Promise<number | null> {
+  let ecritureId: number | null = null;
+  if (fiche.typeDepense === "PAIEMENT_FOURNISSEUR" && fiche.fournisseurId) {
+    ecritureId = await ecripturePaiementFournisseur(tx, {
+      montant, reference: fiche.reference, fournisseurNom: fiche.fournisseur?.nom ?? fiche.beneficiaireNom,
+      fournisseurId: fiche.fournisseurId, modePaiement, userId, pointDeVenteId: fiche.pointDeVenteId,
+    });
+  } else {
+    const typeAccepte = ["ACHAT_MARCHANDISES", "FOURNITURES", "AVANCE_CAISSE", "FRAIS_FONCTIONNEMENT", "TRANSPORT", "AUTRES", "SALAIRE", "CARBURANT"].includes(fiche.typeDepense)
+      ? (fiche.typeDepense as "ACHAT_MARCHANDISES" | "FOURNITURES" | "AVANCE_CAISSE" | "FRAIS_FONCTIONNEMENT" | "TRANSPORT" | "AUTRES" | "SALAIRE" | "CARBURANT")
+      : "AUTRES";
+    ecritureId = await ecritureDecaissement(tx, {
+      montant, reference: fiche.reference, typeDepense: typeAccepte, beneficiaireNom: fiche.beneficiaireNom,
+      modePaiement, userId, pointDeVenteId: fiche.pointDeVenteId,
+    });
+  }
+
+  // Le Bon de Commande fournisseur lié (si présent) n'est mis à jour qu'à l'exécution effective,
+  // pour que montantPaye ne reflète que des paiements réellement décaissés (CDC Approvisionnement §7/§14).
+  if (fiche.bonCommandeFournisseurId) {
+    await tx.bonCommande.update({ where: { id: fiche.bonCommandeFournisseurId }, data: { montantPaye: { increment: montant } } });
+  }
+  // Règlement dépôt-vente lié (§5.5) : passe REGLE seulement ici — même logique.
+  if (fiche.reglementDepotVenteId) {
+    await tx.reglementDepotVente.update({ where: { id: fiche.reglementDepotVenteId }, data: { statut: "REGLE" } });
+  }
+  return ecritureId;
+}
 
 export async function GET(_req: Request, { params }: Ctx) {
   try {
@@ -50,6 +93,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
     const body = await req.json();
     const seuilN2 = await getSeuilApprobationN2Decaissement();
+    // Fiche rattachée à une sortie de caisse : l'argent est déjà sorti, l'approbation est un
+    // contrôle a posteriori (pas d'étape « Exécuter »).
+    const lieeACaisse = fiche.operationCaisseId != null || fiche.operationCaissePDVId != null;
+    const modeCaisse = (fiche.modePaiement ?? "ESPECES") as "ESPECES" | "MOBILE_MONEY" | "CHEQUE" | "VIREMENT";
 
     if (body.action === "APPROUVER_N1") {
       const session = await getComptableSession();
@@ -81,6 +128,15 @@ export async function PATCH(req: Request, { params }: Ctx) {
             titre: `Décaissement en attente d'approbation N2 (${fiche.reference})`,
             message: `${montantApprouve.toLocaleString("fr-FR")} FCFA pour "${fiche.beneficiaireNom}" dépasse le seuil de ${seuilN2.toLocaleString("fr-FR")} FCFA — approbation Direction requise.`,
             priorite: PrioriteNotification.HAUTE,
+            actionUrl: `/dashboard/user/decaissements?detail=${ficheId}`,
+          });
+        } else if (lieeACaisse) {
+          const ecritureId = await appliquerEffetsPaiement(tx, fiche, montantApprouve, modeCaisse, userId);
+          await tx.ficheDecaissement.update({ where: { id: ficheId }, data: { ecritureId } });
+          await notify(tx, [fiche.demandeurId], {
+            titre: `Fiche ${fiche.reference} approuvée`,
+            message: `Sortie de caisse validée pour ${montantApprouve.toLocaleString("fr-FR")} FCFA.`,
+            priorite: PrioriteNotification.NORMAL,
             actionUrl: `/dashboard/user/decaissements?detail=${ficheId}`,
           });
         } else {
@@ -127,6 +183,17 @@ export async function PATCH(req: Request, { params }: Ctx) {
           include: INCLUDE,
         });
         await auditLog(tx, userId, "FD_APPROUVEE_N2", "FicheDecaissement", ficheId, undefined, getRequestMeta(req));
+        if (lieeACaisse) {
+          const ecritureId = await appliquerEffetsPaiement(tx, fiche, montantApprouve, modeCaisse, userId);
+          await tx.ficheDecaissement.update({ where: { id: ficheId }, data: { ecritureId } });
+          await notify(tx, [fiche.demandeurId], {
+            titre: `Fiche ${fiche.reference} approuvée`,
+            message: `Sortie de caisse validée par la Direction pour ${montantApprouve.toLocaleString("fr-FR")} FCFA.`,
+            priorite: PrioriteNotification.NORMAL,
+            actionUrl: `/dashboard/user/decaissements?detail=${ficheId}`,
+          });
+          return f;
+        }
         await notify(tx, [fiche.demandeurId], {
           titre: `Fiche ${fiche.reference} approuvée`,
           message: `Approuvée par la Direction pour ${montantApprouve.toLocaleString("fr-FR")} FCFA — en attente de paiement.`,
@@ -171,6 +238,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (body.action === "EXECUTER") {
       const session = (await getCaissierSession()) ?? (await getComptableSession());
       if (!session) return NextResponse.json({ error: "Réservé au Caissier/Comptable" }, { status: 403 });
+      if (lieeACaisse) {
+        return NextResponse.json({ error: "Cette fiche est rattachée à une sortie de caisse déjà effectuée : il n'y a pas d'exécution à faire" }, { status: 422 });
+      }
       if (fiche.statut !== "APPROUVEE") return NextResponse.json({ error: "La fiche doit être approuvée avant exécution" }, { status: 422 });
       const modePaiement = body.modePaiement;
       if (!["ESPECES", "MOBILE_MONEY", "CHEQUE", "VIREMENT"].includes(modePaiement)) {
@@ -185,21 +255,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const montant = fiche.montantApprouve != null ? Number(fiche.montantApprouve) : Number(fiche.montantDemande);
 
       const updated = await prisma.$transaction(async (tx) => {
-        let ecritureId: number | null = null;
-        if (fiche.typeDepense === "PAIEMENT_FOURNISSEUR" && fiche.fournisseurId) {
-          ecritureId = await ecripturePaiementFournisseur(tx, {
-            montant, reference: fiche.reference, fournisseurNom: fiche.fournisseur?.nom ?? fiche.beneficiaireNom,
-            fournisseurId: fiche.fournisseurId, modePaiement, userId, pointDeVenteId: fiche.pointDeVenteId,
-          });
-        } else {
-          const typeAccepte = ["ACHAT_MARCHANDISES", "FOURNITURES", "AVANCE_CAISSE", "FRAIS_FONCTIONNEMENT", "TRANSPORT", "AUTRES"].includes(fiche.typeDepense)
-            ? (fiche.typeDepense as "ACHAT_MARCHANDISES" | "FOURNITURES" | "AVANCE_CAISSE" | "FRAIS_FONCTIONNEMENT" | "TRANSPORT" | "AUTRES")
-            : "AUTRES";
-          ecritureId = await ecritureDecaissement(tx, {
-            montant, reference: fiche.reference, typeDepense: typeAccepte, beneficiaireNom: fiche.beneficiaireNom,
-            modePaiement, userId, pointDeVenteId: fiche.pointDeVenteId,
-          });
-        }
+        const ecritureId = await appliquerEffetsPaiement(tx, fiche, montant, modePaiement, userId);
 
         const f = await tx.ficheDecaissement.update({
           where: { id: ficheId },
@@ -212,27 +268,6 @@ export async function PATCH(req: Request, { params }: Ctx) {
           },
           include: INCLUDE,
         });
-
-        // Le Bon de Commande fournisseur lié (si présent) n'est mis à jour qu'ici,
-        // à l'exécution effective — pas à la soumission ni à l'approbation, pour
-        // que montantPaye ne reflète que des paiements réellement décaissés
-        // (CDC Approvisionnement §7/§14 — cf. app/api/logistique/bons-commande/[id]/route.ts,
-        // action ENREGISTRER_PAIEMENT, qui ne fait plus que soumettre cette fiche).
-        if (fiche.bonCommandeFournisseurId) {
-          await tx.bonCommande.update({
-            where: { id: fiche.bonCommandeFournisseurId },
-            data: { montantPaye: { increment: montant } },
-          });
-        }
-
-        // Règlement dépôt-vente lié (§5.5) : passe REGLE seulement ici, à
-        // l'exécution effective — même logique que le Bon de Commande ci-dessus.
-        if (fiche.reglementDepotVenteId) {
-          await tx.reglementDepotVente.update({
-            where: { id: fiche.reglementDepotVenteId },
-            data: { statut: "REGLE" },
-          });
-        }
 
         await auditLog(tx, userId, "FD_PAYEE", "FicheDecaissement", ficheId, { montant, ecritureId }, getRequestMeta(req));
         await notify(tx, [fiche.demandeurId], {

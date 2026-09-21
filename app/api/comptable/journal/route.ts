@@ -167,8 +167,8 @@ export async function GET(req: NextRequest) {
       catFilter === "SALAIRE"     ? ["SALAIRE"] :
       catFilter === "AVANCE"      ? ["AVANCE"] :
       catFilter === "FOURNISSEUR" ? ["FOURNISSEUR"] :
-      catFilter === "CAISSE_AUTRE" ? ["AUTRE"] :
-      ["SALAIRE", "AVANCE", "FOURNISSEUR", "AUTRE"];
+      catFilter === "CAISSE_AUTRE" ? ["AUTRE", "CARBURANT"] :
+      ["SALAIRE", "AVANCE", "FOURNISSEUR", "AUTRE", "CARBURANT"];
 
     const [versements, appros, opsEnc, opsDec, ventesDir, rembCredits] = await Promise.all([
 
@@ -242,7 +242,7 @@ export async function GET(req: NextRequest) {
               createdAt: { gte: dateDebut, lte: dateFin },
               ...pdvCaisseFilter,
               ...(catFilter !== "" && CAISSE_CATS.has(catFilter) && catFilter !== "CAISSE_ENCAISSEMENT"
-                ? { categorie: { in: caisseCatFilter as ("SALAIRE" | "AVANCE" | "FOURNISSEUR" | "AUTRE")[] } }
+                ? { categorie: { in: caisseCatFilter as ("SALAIRE" | "AVANCE" | "FOURNISSEUR" | "AUTRE" | "CARBURANT")[] } }
                 : {}),
             },
             select: {
@@ -363,7 +363,7 @@ export async function GET(req: NextRequest) {
         date:      op.createdAt,
         type:      "DECAISSEMENT",
         categorie: cat,
-        libelle:   `${cat === "SALAIRE" ? "Salaire" : cat === "AVANCE" ? "Avance" : cat === "FOURNISSEUR" ? "Fournisseur" : "Décaissement"} — ${op.motif} — ${op.operateurNom}`,
+        libelle:   `${cat === "SALAIRE" ? "Salaire" : cat === "AVANCE" ? "Avance" : cat === "FOURNISSEUR" ? "Fournisseur" : op.categorie === "CARBURANT" ? "Carburant" : "Décaissement"} —${op.motif} — ${op.operateurNom}`,
         montant:   Number(op.montant),
         reference: op.reference,
       });

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Printer, X, Loader2, CheckCircle2, Ban, Stamp, Search } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Plus, Printer, X, Loader2, CheckCircle2, Ban, Stamp, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 import Button from "@/components/ui/Button";
@@ -67,12 +68,19 @@ export default function AdminBonsSortiePage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-4">
+      <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
+        <ArrowLeft className="w-4 h-4" /> Retour au tableau de bord
+      </Link>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Bons de sortie de marchandises</h1>
           <p className="text-sm text-slate-500 mt-1">CDC digitalisation §3.4 — sorties de stock (livraison, perte, casse, don, consommation interne)</p>
+          <p className="text-xs text-slate-400 mt-0.5">Cette liste ne contient que les bons émis : les ventes directes, livraisons packs et crédit n&apos;en génèrent pas.</p>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/dashboard/admin/stock/journal-sorties?from=sorties" className="text-xs font-medium text-primary-600 hover:underline whitespace-nowrap">
+            Voir toutes les sorties de stock →
+          </Link>
           <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" title="Rafraîchir" />
           <Button size="sm" icon={<Plus size={15} />} onClick={() => setShowCreate(true)}>Nouveau bon de sortie</Button>
         </div>

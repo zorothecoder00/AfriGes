@@ -104,6 +104,7 @@ async function syncCaisse(
         op.categorie === "SALAIRE"     ? "Salaires" :
         op.categorie === "AVANCE"      ? "Avance au personnel" :
         op.categorie === "FOURNISSEUR" ? "Paiement fournisseur" :
+        op.categorie === "CARBURANT"   ? "Carburant" :
         "Décaissement caisse";
 
       const id = await creerEcriture(prisma, {

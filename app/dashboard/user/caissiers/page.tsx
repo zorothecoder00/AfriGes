@@ -15,6 +15,7 @@ import NotificationBell from "@/components/NotificationBell";
 import AccountMenuButton from "@/components/AccountMenuButton";
 import CongesNavButton from "@/components/CongesNavButton";
 import FactureModal from "@/components/FactureModal";
+import FicheDecaissementModal from "@/components/FicheDecaissementModal";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
@@ -87,9 +88,10 @@ interface OperationCaisse {
   id: number; sessionId: number;
   type: "ENCAISSEMENT" | "DECAISSEMENT";
   mode: "ESPECES" | "VIREMENT" | "CHEQUE" | null;
-  categorie: "SALAIRE" | "AVANCE" | "FOURNISSEUR" | "AUTRE" | null;
+  categorie: "SALAIRE" | "AVANCE" | "FOURNISSEUR" | "CARBURANT" | "AUTRE" | null;
   montant: number; motif: string; reference: string;
   operateurNom: string; createdAt: string;
+  ficheDecaissement?: { id: number; reference: string; statut: string } | null;
 }
 
 interface HistoEncItem {
@@ -447,7 +449,7 @@ function modePaiementLabel(mode: string | null) {
 }
 
 function categorieLabel(cat: string | null) {
-  const m: Record<string, string> = { SALAIRE: "Salaire", AVANCE: "Avance", FOURNISSEUR: "Fournisseur", AUTRE: "Autre" };
+  const m: Record<string, string> = { SALAIRE: "Salaire", AVANCE: "Avance", FOURNISSEUR: "Fournisseur", CARBURANT: "Carburant", AUTRE: "Autre" };
   return cat ? (m[cat] ?? cat) : "—";
 }
 
@@ -894,7 +896,9 @@ export default function CaissierPage() {
   const [opMotif,   setOpMotif]   = useState("");
 
   // ── Décaissement
-  const [decCategorie, setDecCategorie] = useState<"SALAIRE" | "AVANCE" | "FOURNISSEUR" | "AUTRE">("AUTRE");
+  const [decCategorie, setDecCategorie] = useState<"SALAIRE" | "AVANCE" | "FOURNISSEUR" | "CARBURANT" | "AUTRE">("AUTRE");
+  // Sortie de caisse pour laquelle on crée la fiche de décaissement (modal partagé)
+  const [ficheOp, setFicheOp] = useState<OperationCaisse | null>(null);
   const [decMontant,   setDecMontant]   = useState("");
   const [decMotif,     setDecMotif]     = useState("");
 
@@ -1688,6 +1692,16 @@ export default function CaissierPage() {
       {factureVenteId     && <FactureModal venteDirecteId={factureVenteId}       onClose={() => setFactureVenteId(null)} />}
       {factureReceptionId && <FactureModal receptionPackId={factureReceptionId} onClose={() => setFactureReceptionId(null)} />}
       {factureCreditId    && <FactureModal creditClientId={factureCreditId}      onClose={() => setFactureCreditId(null)} />}
+      {ficheOp && (
+        <FicheDecaissementModal
+          operationInitiale={{
+            source: "CAISSE", id: ficheOp.id, reference: ficheOp.reference, montant: ficheOp.montant, motif: ficheOp.motif,
+            categorie: ficheOp.categorie, mode: ficheOp.mode, date: ficheOp.createdAt, operateurNom: ficheOp.operateurNom, pointDeVente: null,
+          }}
+          onClose={() => setFicheOp(null)}
+          onDone={() => { setFicheOp(null); refetchOperations(); }}
+        />
+      )}
       {showNouvelleSouscription && (
         <ModalNouvelleSouscriptionPack
           packs={packsRes?.packs ?? []}
@@ -2799,7 +2813,7 @@ export default function CaissierPage() {
               </h3>
               {/* Toggle catégorie */}
               <div className="flex flex-wrap gap-2 mb-5">
-                {(["SALAIRE", "AVANCE", "FOURNISSEUR", "AUTRE"] as const).map((c) => (
+                {(["SALAIRE", "AVANCE", "FOURNISSEUR", "CARBURANT", "AUTRE"] as const).map((c) => (
                   <button
                     key={c}
                     onClick={() => setDecCategorie(c)}
@@ -2857,7 +2871,7 @@ export default function CaissierPage() {
             </div>
 
             {/* Tableau par catégorie */}
-            {(["SALAIRE", "AVANCE", "FOURNISSEUR", "AUTRE"] as const).map((cat) => {
+            {(["SALAIRE", "AVANCE", "FOURNISSEUR", "CARBURANT", "AUTRE"] as const).map((cat) => {
               const catOps = operations.filter(o => o.type === "DECAISSEMENT" && o.categorie === cat);
               if (catOps.length === 0) return null;
               const total = catOps.reduce((s, o) => s + o.montant, 0);
@@ -2871,7 +2885,7 @@ export default function CaissierPage() {
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50 border-b border-slate-200">
                         <tr>
-                          {["Référence", "Montant", "Motif", "Heure", ""].map((h) => (
+                          {["Référence", "Montant", "Motif", "Heure", "Fiche de décaissement", ""].map((h) => (
                             <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase">{h}</th>
                           ))}
                         </tr>
@@ -2883,6 +2897,20 @@ export default function CaissierPage() {
                             <td className="px-5 py-3 font-bold text-red-600">{formatCurrency(op.montant)}</td>
                             <td className="px-5 py-3 text-slate-600">{op.motif}</td>
                             <td className="px-5 py-3 text-slate-400 text-xs">{formatDateTime(op.createdAt)}</td>
+                            <td className="px-5 py-3">
+                              {op.ficheDecaissement ? (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono text-xs text-emerald-700">{op.ficheDecaissement.reference}</span>
+                                  <a href={`/api/decaissements/${op.ficheDecaissement.id}/pdf`} target="_blank" rel="noreferrer"
+                                    className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg" title="Ouvrir la fiche en PDF / Imprimer"><Printer size={13} /></a>
+                                </div>
+                              ) : (
+                                <button onClick={() => setFicheOp(op)}
+                                  className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-medium transition-colors">
+                                  <FileText size={12} /> Créer la fiche
+                                </button>
+                              )}
+                            </td>
                             <td className="px-5 py-3">
                               <button
                                 onClick={() => handleVoirRecuOp(op.id)}

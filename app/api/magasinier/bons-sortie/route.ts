@@ -7,6 +7,9 @@ import { notifyRoles, auditLog } from "@/lib/notifications";
 import { resolveViewAs } from "@/lib/viewAs";
 import { getSeuilVisaBonSortie } from "@/lib/parametresDocuments";
 
+/** Fenêtre pendant laquelle un bon strictement identique est considéré comme un doublon. */
+const FENETRE_DOUBLON_MS = 10 * 60 * 1000;
+
 /**
  * GET /api/magasinier/bons-sortie
  * Liste des bons de sortie du PDV du magasinier connecté.
@@ -157,6 +160,30 @@ export async function POST(req: Request) {
       );
     }
 
+    // Garde-fou anti-doublon : même PDV + même type + même motif + mêmes produits/quantités
+    // qu'un bon non annulé créé récemment, quel que soit son auteur (admin, magasinier, RPV…)
+    // → double clic, ou deux personnes qui saisissent la même sortie. Sans ce contrôle, le
+    // stock serait décrémenté deux fois.
+    const signature = (ls: { produitId: number; quantite: number }[]) =>
+      ls.map((l) => `${Number(l.produitId)}x${Number(l.quantite)}`).sort().join("|");
+    const recents = await prisma.bonSortie.findMany({
+      where: {
+        pointDeVenteId: Number(pointDeVenteId),
+        typeSortie: typeSortie as TypeSortieStock,
+        motif: String(motif).trim(),
+        statut: { not: "ANNULE" },
+        createdAt: { gte: new Date(Date.now() - FENETRE_DOUBLON_MS) },
+      },
+      select: { reference: true, lignes: { select: { produitId: true, quantite: true } } },
+    });
+    const doublon = recents.find((b) => signature(b.lignes) === signature(lignesInput));
+    if (doublon) {
+      return NextResponse.json(
+        { error: `Un bon de sortie identique (${doublon.reference}) vient d'être créé pour ce point de vente. Si cette sortie est bien distincte, modifiez le motif ou les quantités.` },
+        { status: 409 }
+      );
+    }
+
     // Vérifier stocks avant transaction
     for (const l of lignesInput) {
       const stock = await prisma.stockSite.findUnique({
@@ -196,7 +223,7 @@ export async function POST(req: Request) {
           typeSortie:    typeSortie as TypeSortieStock,
           statut:        "BROUILLON",
           pointDeVenteId:Number(pointDeVenteId),
-          motif,
+          motif:         String(motif).trim(),
           notes:         notes || null,
           commentaireEcart: aUnEcart ? commentaireEcart : null,
           montantTotal,

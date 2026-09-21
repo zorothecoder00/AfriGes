@@ -164,6 +164,9 @@ export async function PATCH(req: Request) {
     if (!type || !montant || !motif) {
       return NextResponse.json({ error: "type, montant, motif sont obligatoires" }, { status: 400 });
     }
+    if (categorie && !["SALAIRE", "AVANCE", "FOURNISSEUR", "CARBURANT", "AUTRE"].includes(categorie)) {
+      return NextResponse.json({ error: "Catégorie invalide (SALAIRE, AVANCE, FOURNISSEUR, CARBURANT, AUTRE)" }, { status: 400 });
+    }
 
     const operation = await prisma.$transaction(async (tx) => {
       const op = await tx.operationCaissePDV.create({

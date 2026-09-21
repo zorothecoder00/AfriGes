@@ -1060,11 +1060,11 @@ function ResponsablePDVPageInner() {
                 <select value={depenseCategorie} onChange={(e) => setDepenseCategorie(e.target.value)}
                   className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-slate-50">
                   <option value="">— Optionnel —</option>
-                  <option value="FOURNITURES">Fournitures</option>
-                  <option value="TRANSPORT">Transport / Livraison</option>
-                  <option value="MAINTENANCE">Maintenance</option>
-                  <option value="SALAIRES">Avance salaire</option>
-                  <option value="DIVERS">Divers</option>
+                  <option value="SALAIRE">Salaire</option>
+                  <option value="AVANCE">Avance</option>
+                  <option value="FOURNISSEUR">Fournisseur</option>
+                  <option value="CARBURANT">Carburant</option>
+                  <option value="AUTRE">Autre</option>
                 </select>
               </div>
               <div className="flex gap-3 pt-1">

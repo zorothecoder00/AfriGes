@@ -107,6 +107,7 @@ export async function GET(req: Request) {
         SALAIRE:     "Salaire",
         AVANCE:      "Avance sur salaire",
         FOURNISSEUR: "Paiement fournisseur",
+        CARBURANT:   "Carburant",
         AUTRE:       "Autre dépense",
       };
 

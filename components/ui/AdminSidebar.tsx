@@ -97,6 +97,7 @@ export default function AdminSidebar({
         { href: "/dashboard/admin/approvisionnements", label: t("nav_approvisionnements"), icon: <Truck size={19} /> },
         { href: "/dashboard/admin/stock/ajustements", label: t("nav_ajustements_stock"), icon: <ClipboardCheck size={19} /> },
         { href: "/dashboard/admin/stock/sorties", label: t("nav_bons_sortie"), icon: <PackageMinus size={19} /> },
+        { href: "/dashboard/admin/stock/journal-sorties", label: t("nav_journal_sorties_stock"), icon: <ClipboardList size={19} /> },
         { href: "/dashboard/admin/bons-commande-fournisseur", label: t("nav_bons_commande_fournisseur"), icon: <FileSignature size={19} /> },
         { href: "/dashboard/admin/factures-fournisseur", label: t("nav_factures_fournisseur"), icon: <Receipt size={19} /> },
         { href: "/dashboard/admin/depot-vente", label: t("nav_depot_vente"), icon: <Boxes size={19} /> },

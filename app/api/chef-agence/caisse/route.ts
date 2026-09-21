@@ -134,7 +134,9 @@ export async function GET(req: NextRequest) {
           salaires:    decaisMap["SALAIRE"]     ?? 0,
           avances:     decaisMap["AVANCE"]      ?? 0,
           fournisseurs: decaisMap["FOURNISSEUR"] ?? 0,
-          autres:      decaisMap["AUTRE"]       ?? 0,
+          // Carburant regroupé dans « autres » pour que le détail somme au total.
+          autres:      (decaisMap["AUTRE"] ?? 0) + (decaisMap["CARBURANT"] ?? 0),
+          dontCarburant: decaisMap["CARBURANT"] ?? 0,
           total:       totalDecaissements,
         },
         sessionsActives: sessionsActives.map((s) => ({

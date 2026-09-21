@@ -1071,6 +1071,7 @@ export const translations = {
   nav_controle_commercial: { fr: "Contrôle commercial",          en: "Commercial control",      ar: "الرقابة التجارية",           es: "Control comercial",               pt: "Controle comercial" },
   nav_reclamations:        { fr: "Réclamations & retours",       en: "Complaints & returns",    ar: "الشكاوى والمرتجعات",         es: "Reclamaciones y devoluciones",    pt: "Reclamações e devoluções" },
   nav_bons_sortie:              { fr: "Bons de sortie",               en: "Stock outbound notes",     ar: "سندات الخروج",               es: "Notas de salida",                 pt: "Notas de saída" },
+  nav_journal_sorties_stock:    { fr: "Journal des sorties",          en: "Stock outflow log",        ar: "سجل الخروج",                 es: "Registro de salidas",             pt: "Registro de saídas" },
   nav_bons_commande_fournisseur:{ fr: "Bons de commande fournisseur", en: "Purchase orders",          ar: "أوامر الشراء",               es: "Órdenes de compra",               pt: "Ordens de compra" },
   nav_factures_fournisseur:     { fr: "Factures fournisseurs",        en: "Supplier invoices",        ar: "فواتير الموردين",            es: "Facturas de proveedores",         pt: "Faturas de fornecedores" },
   nav_depot_vente:              { fr: "Dépôt-vente",                  en: "Consignment",              ar: "البيع بالوديعة",             es: "Venta en consignación",           pt: "Venda em consignação" },

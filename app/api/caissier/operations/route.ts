@@ -58,6 +58,8 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "desc" },
         skip:    (page - 1) * limit,
         take:    limit,
+        // Fiche de décaissement rattachée (le caissier crée puis imprime la fiche après sa sortie)
+        include: { ficheDecaissement: { select: { id: true, reference: true, statut: true } } },
       }),
       prisma.operationCaisse.count({ where }),
       prisma.operationCaisse.aggregate({
@@ -119,7 +121,7 @@ export async function POST(req: Request) {
     if (type === "ENCAISSEMENT" && !["ESPECES", "VIREMENT", "CHEQUE"].includes(mode)) {
       return NextResponse.json({ message: "Mode de paiement invalide" }, { status: 400 });
     }
-    if (type === "DECAISSEMENT" && !["SALAIRE", "AVANCE", "FOURNISSEUR", "AUTRE"].includes(categorie)) {
+    if (type === "DECAISSEMENT" && !["SALAIRE", "AVANCE", "FOURNISSEUR", "CARBURANT", "AUTRE"].includes(categorie)) {
       return NextResponse.json({ message: "Catégorie invalide" }, { status: 400 });
     }
 

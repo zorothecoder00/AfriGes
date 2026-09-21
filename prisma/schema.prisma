@@ -258,6 +258,7 @@ enum CategorieDecaissement {
   AVANCE
   FOURNISSEUR
   AUTRE
+  CARBURANT
 }
 
 // ============================================================
@@ -3908,6 +3909,8 @@ enum TypeDepenseDecaissement {
   FRAIS_FONCTIONNEMENT
   TRANSPORT
   AUTRES
+  SALAIRE
+  CARBURANT
 }
 
 enum ModePaiementDecaissement {
@@ -3956,6 +3959,15 @@ model FicheDecaissement {
 
   reglementDepotVenteId Int?
   reglementDepotVente   ReglementDepotVente? @relation(fields: [reglementDepotVenteId], references: [id])
+
+  // Sortie de caisse justifiée par cette fiche : la fiche vient APRÈS la sortie de caisse
+  // (grande caisse OU petite caisse RPV), jamais l'inverse. @unique = une seule fiche par
+  // sortie. Null uniquement pour les anciennes fiches (créées avant cette règle) et les
+  // fiches générées par les flux fournisseur/dépôt-vente.
+  operationCaisseId    Int?              @unique
+  operationCaisse      OperationCaisse?  @relation(fields: [operationCaisseId], references: [id])
+  operationCaissePDVId Int?              @unique
+  operationCaissePDV   OperationCaissePDV? @relation(fields: [operationCaissePDVId], references: [id])
 
   piecesJustificatives String[] @default([]) // types de pièces déclarées (facture, BC, BL, contrat…)
 
@@ -4487,6 +4499,8 @@ model OperationCaissePDV {
 
   caissePDV CaissePDV @relation(fields: [caissePDVId], references: [id])
   operateur User      @relation("OperationsCaissePDV", fields: [operateurId], references: [id])
+
+  ficheDecaissement FicheDecaissement?
 }
 
 model OperationCaisse {
@@ -4505,6 +4519,8 @@ model OperationCaisse {
 
   session   SessionCaisse @relation(fields: [sessionId], references: [id])
   operateur User          @relation("OperationsCaisse", fields: [operateurId], references: [id])
+
+  ficheDecaissement FicheDecaissement?
 }
 
 model TransfertCaisse {

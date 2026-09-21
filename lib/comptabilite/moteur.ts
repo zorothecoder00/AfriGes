@@ -395,6 +395,16 @@ const REGLES_PAR_DEFAUT: Record<string, (ctx: ContexteEvenement) => ComptesRegle
     const tr = compteTresorerie(ctx.modePaiement);
     return { journal: tr.journal, compteDebitNumero: "471", compteCreditNumero: tr.numero };
   },
+  // Salaire payé hors paie (ex. sortie de caisse) : 661 Rémunérations directes, comme sync-journals.
+  DECAISSEMENT_SALAIRE: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "661", compteCreditNumero: tr.numero };
+  },
+  // Carburant : 605 Autres achats (fournitures non stockables), comme les fournitures.
+  DECAISSEMENT_CARBURANT: (ctx) => {
+    const tr = compteTresorerie(ctx.modePaiement);
+    return { journal: tr.journal, compteDebitNumero: "605", compteCreditNumero: tr.numero };
+  },
   // Bordereau de Remise de Fonds clôturé (CDC digitalisation §3.1/§7 — "les
   // documents validés génèrent automatiquement les écritures correspondantes")
   // : mouvement de trésorerie pur, espèces collectées sur le terrain déposées
@@ -733,7 +743,7 @@ export async function ecritureDecaissement(
   params: {
     montant: number;
     reference: string;
-    typeDepense: "ACHAT_MARCHANDISES" | "FOURNITURES" | "AVANCE_CAISSE" | "FRAIS_FONCTIONNEMENT" | "TRANSPORT" | "AUTRES";
+    typeDepense: "ACHAT_MARCHANDISES" | "FOURNITURES" | "AVANCE_CAISSE" | "FRAIS_FONCTIONNEMENT" | "TRANSPORT" | "AUTRES" | "SALAIRE" | "CARBURANT";
     beneficiaireNom: string;
     modePaiement?: string | null;
     userId: number;

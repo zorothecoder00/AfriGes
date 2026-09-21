@@ -179,9 +179,11 @@ export async function GET(req: NextRequest) {
     const salaires    = getD("SALAIRE");
     const avances     = getD("AVANCE");
     const fournisseurs = getD("FOURNISSEUR");
+    // Carburant regroupé dans « autres » pour que le détail par catégorie somme au total.
     const autresCaisse = {
-      montant: (opcDecMap["AUTRE"]?.montant ?? 0),
-      count:   (opcDecMap["AUTRE"]?.count   ?? 0),
+      montant: (opcDecMap["AUTRE"]?.montant ?? 0) + (opcDecMap["CARBURANT"]?.montant ?? 0),
+      count:   (opcDecMap["AUTRE"]?.count   ?? 0) + (opcDecMap["CARBURANT"]?.count   ?? 0),
+      dontCarburant: opcDecMap["CARBURANT"]?.montant ?? 0,
     };
     const totalCaisseDec = opcDecParCat.reduce((s, r) => s + Number(r.total), 0);
 
