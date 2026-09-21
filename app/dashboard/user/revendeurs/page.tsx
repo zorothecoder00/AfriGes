@@ -132,12 +132,16 @@ export default function RevendeurPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-rose-50/30 to-pink-50/20 font-['DM_Sans',sans-serif] lg:flex">
       {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-rose-800 to-rose-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto lg:flex-shrink-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-rose-800 to-rose-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:z-auto lg:flex-shrink-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        {/* Logo centré — la sidebar occupe toute la hauteur de l'écran et porte le logo */}
+        <div className="flex-shrink-0 flex justify-center border-b border-white/10 px-3 py-3">
+          <div className="rounded-xl bg-white p-1 shadow-sm">
+            <AfriSimeLogo className="h-11 w-auto" />
+          </div>
+        </div>
         <div className="h-16 flex items-center justify-between gap-3 px-5 border-b border-white/10 flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
-              <AfriSimeLogo className="w-full h-full object-contain" />
-            </div>
+
             <DashboardBackButton />
             <h1 className="text-base font-bold truncate flex items-center gap-2"><Store size={18} className="text-white/80" /> Espace Revendeur</h1>
           </div>

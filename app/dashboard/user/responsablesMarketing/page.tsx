@@ -124,11 +124,15 @@ export default function ResponsableMarketingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-fuchsia-800 to-fuchsia-900 text-white transform transition-transform lg:translate-x-0 lg:static ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="p-5 border-b border-white/10">
-          <div className="w-9 h-9 rounded-lg bg-white p-1 flex items-center justify-center overflow-hidden shadow-sm">
-            <AfriSimeLogo className="w-full h-full object-contain" />
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-fuchsia-800 to-fuchsia-900 text-white transform transition-transform lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        {/* Logo centré — la sidebar occupe toute la hauteur de l'écran et porte le logo */}
+        <div className="flex-shrink-0 flex justify-center border-b border-white/10 px-3 py-3">
+          <div className="rounded-xl bg-white p-1 shadow-sm">
+            <AfriSimeLogo className="h-11 w-auto" />
           </div>
+        </div>
+        <div className="p-5 border-b border-white/10">
+
           <p className="text-fuchsia-200 text-xs mt-2 font-medium">Espace Marketing</p>
         </div>
         <nav className="p-3 space-y-1">

@@ -40,15 +40,19 @@ export default function GouvernancePortailLayout({ children }: { children: React
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-emerald-800 to-emerald-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto lg:flex-shrink-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-emerald-800 to-emerald-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:z-auto lg:flex-shrink-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
+        {/* Logo centré — la sidebar occupe toute la hauteur de l'écran et porte le logo */}
+        <div className="flex-shrink-0 flex justify-center border-b border-white/10 px-3 py-3">
+          <div className="rounded-xl bg-white p-1 shadow-sm">
+            <AfriSimeLogo className="h-11 w-auto" />
+          </div>
+        </div>
         <div className="h-16 flex items-center justify-between gap-2 px-5 border-b border-white/10 flex-shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-md bg-white p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
-              <AfriSimeLogo className="w-full h-full object-contain" />
-            </div>
+
             <Link href="/dashboard/user" className="flex items-center gap-1.5 text-xs text-emerald-100/80 hover:text-white transition-colors min-w-0">
               <Home className="w-3.5 h-3.5 flex-shrink-0" /> <span className="truncate">Accueil</span>
             </Link>
