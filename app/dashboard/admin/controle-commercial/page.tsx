@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import RetourLien from "@/components/RetourLien";
 import {
-  ArrowLeft,
   TrendingUp, ShoppingCart, Users, Package, Store, CreditCard, Wallet,
   AlertTriangle, PhoneCall, PackageX, MessageSquareWarning, RefreshCw, BarChart3, Gauge,
 } from "lucide-react";
@@ -63,9 +62,7 @@ export default function ControleCommercialPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-4">
-      <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
-        <ArrowLeft className="w-4 h-4" /> Retour au tableau de bord
-      </Link>
+      <RetourLien />
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Contrôle commercial & reporting</h1>

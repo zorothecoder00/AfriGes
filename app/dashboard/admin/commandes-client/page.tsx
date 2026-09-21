@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import RetourLien from "@/components/RetourLien";
 import { Plus, X, Loader2, Search, Stamp, XCircle, Ban, CheckCircle2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
@@ -68,6 +69,7 @@ export default function AdminCommandesClientPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-4">
+      <RetourLien />
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Bons de commande client</h1>

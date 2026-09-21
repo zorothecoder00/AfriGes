@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus, Printer, X, Loader2, CheckCircle2, Ban, Stamp, Search } from "lucide-react";
+import RetourLien from "@/components/RetourLien";
+import { Plus, Printer, X, Loader2, CheckCircle2, Ban, Stamp, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 import Button from "@/components/ui/Button";
@@ -68,9 +69,7 @@ export default function AdminBonsSortiePage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-4">
-      <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
-        <ArrowLeft className="w-4 h-4" /> Retour au tableau de bord
-      </Link>
+      <RetourLien />
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Bons de sortie de marchandises</h1>

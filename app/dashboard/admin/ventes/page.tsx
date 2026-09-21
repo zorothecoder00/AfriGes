@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import RetourLien from "@/components/RetourLien";
 import {
   Plus, Search, Download, ShoppingCart, TrendingUp, DollarSign,
   Users, Calendar, CheckCircle, XCircle, ChevronRight, AlertCircle,
-  Layers, Truck, ArrowLeft, Package, Store, Trash2, CreditCard, Receipt,
+  Layers, Truck, Package, Store, Trash2, CreditCard, Receipt,
 } from 'lucide-react';
 import Link from 'next/link';
 import FactureModal from '@/components/FactureModal';
@@ -614,9 +615,7 @@ export default function VentesPage() {
         {/* ─── Header ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors">
-              <ArrowLeft className="w-5 h-5 text-slate-600" />
-            </Link>
+            <RetourLien iconOnly className="p-2 hover:bg-white rounded-lg transition-colors" />
             <div>
               <h1 className="text-4xl font-bold text-slate-800 mb-2">{t('ventes_title')}</h1>
               <p className="text-slate-500">

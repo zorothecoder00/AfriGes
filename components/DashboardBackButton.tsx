@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { lireRetour } from "@/components/RetourLien";
 
 interface Props {
   /** Sur les pages principales en viewAs, quitte le mode lecture. Mettre à false sur les sous-pages. */
@@ -14,8 +15,12 @@ export default function DashboardBackButton({ exitViewAsOnBack = true }: Props) 
   const { viewAs, exitViewAs } = useViewAs();
 
   const handleBack = () => {
+    // Arrivée depuis le Centre de commandement (?retour=…) : retour explicite à cette page.
+    const retour = lireRetour();
     if (viewAs && exitViewAsOnBack) {
       exitViewAs();
+    } else if (retour) {
+      router.push(retour);
     } else {
       router.back();
     }

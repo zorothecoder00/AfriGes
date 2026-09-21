@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import RetourLien from "@/components/RetourLien";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
-import { ArrowLeft, ShoppingCart, RefreshCw, X, FileText, CheckCircle, XCircle } from "lucide-react";
+import { ShoppingCart, RefreshCw, X, FileText, CheckCircle, XCircle } from "lucide-react";
 
 interface PersonRef { id: number; nom: string; prenom: string }
 interface Ligne { id: number; produitId: number; quantite: number; prixUnitaire: number | string; remiseMontant: number | string; totalLigne: number | string; produit: { id: number; nom: string } }
@@ -61,7 +61,7 @@ function RVCCommandesClientPageInner() {
     <div className="min-h-screen bg-slate-50">
       <div className="p-6 space-y-6 max-w-4xl mx-auto">
         <div>
-          <Link href="/dashboard/user/responsablesVenteCredit" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 mb-1"><ArrowLeft className="w-3 h-3" /> Retour</Link>
+          <RetourLien defaultHref="/dashboard/user/responsablesVenteCredit" defaultLabel="Retour" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 mb-1" />
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <ShoppingCart className="w-6 h-6 text-emerald-600" /> Commandes client — visa remise/crédit
           </h1>

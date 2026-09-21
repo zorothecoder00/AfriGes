@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useMemo, useRef } from "react";
+import RetourLien from "@/components/RetourLien";
 import {
   Package, CheckCircle, XCircle, Clock, RefreshCw,
-  ChevronDown, ChevronUp, Truck, Search, ChevronLeft, ChevronRight, ArrowLeft, ClipboardList, TrendingUp,
+  ChevronDown, ChevronUp, Truck, Search, ChevronLeft, ChevronRight, ClipboardList, TrendingUp,
   BarChart3, Plus, X, Loader2, PackageCheck,
 } from "lucide-react";
 import Link from "next/link";
@@ -197,9 +198,7 @@ export default function AdminApprovisionnementsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-2 transition-colors">
-            <ArrowLeft size={15} />Tableau de bord
-          </Link>
+          <RetourLien className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-2 transition-colors" />
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2.5">
             <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-brand-100 shrink-0">
               <Truck className="w-5 h-5 text-brand-700" />

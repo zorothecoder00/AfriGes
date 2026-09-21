@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import RetourLien from "@/components/RetourLien";
 import { toast } from "sonner";
 import { FileText, Plus, X, RefreshCw, CheckCircle2, Loader2, Search } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
@@ -102,6 +103,7 @@ export default function AdminFacturesAchatPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-4">
+      <RetourLien />
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50 flex items-center gap-2">

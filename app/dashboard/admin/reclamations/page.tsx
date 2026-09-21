@@ -1,11 +1,11 @@
 "use client";
 
 import { Suspense, useEffect, useState, type ReactNode } from "react";
-import Link from "next/link";
+import RetourLien from "@/components/RetourLien";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Plus, X, RefreshCw, Printer, Loader2, Search,
+  Plus, X, RefreshCw, Printer, Loader2, Search,
   PackageX, Repeat, AlertTriangle, ReceiptText, CheckCircle2, Ban, UserCheck,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
@@ -132,9 +132,7 @@ function AdminReclamationsPageInner() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-rose-50/20 to-white font-['DM_Sans',sans-serif]">
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
-          <ArrowLeft className="w-4 h-4" /> Retour au tableau de bord
-        </Link>
+        <RetourLien />
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Réclamations clients</h2>

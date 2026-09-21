@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { Search, FileText, Printer, ExternalLink, LayoutGrid, Loader2, ArrowLeft } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
+import { avecRetour } from "@/components/RetourLien";
 import { formatDateTime } from "@/lib/format";
 import { CATALOGUE_DOCUMENTS } from "@/lib/centreCommandementCatalogue";
 
@@ -33,6 +35,9 @@ type Resultat = {
  */
 export default function CentreCommandement() {
   const { data: session } = useSession();
+  // Chaque rôle a sa propre route de centre de commandement : on la transmet aux pages de
+  // destination (`?retour=`) pour que leur lien de retour revienne ici.
+  const pathname = usePathname();
   const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN";
   const gestionnaireRole = session?.user?.gestionnaireRole ?? null;
 
@@ -126,7 +131,7 @@ export default function CentreCommandement() {
                     {r.liens.map((lien) => (
                       <a
                         key={lien.url}
-                        href={lien.url}
+                        href={lien.url.startsWith("/api/") ? lien.url : avecRetour(lien.url, pathname)}
                         target={lien.url.startsWith("/api/") ? "_blank" : undefined}
                         rel={lien.url.startsWith("/api/") ? "noreferrer" : undefined}
                         className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-medium transition-colors"
@@ -156,7 +161,7 @@ export default function CentreCommandement() {
           {catalogueVisible.map((item) => (
             <Link
               key={item.id}
-              href={resoudreUrl(item)}
+              href={avecRetour(resoudreUrl(item), pathname)}
               className="block bg-white rounded-xl border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm transition-all"
             >
               <p className="text-sm font-semibold text-slate-800">{item.titre}</p>

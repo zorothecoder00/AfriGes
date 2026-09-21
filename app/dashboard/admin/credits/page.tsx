@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import RetourLien from "@/components/RetourLien";
 import {
   Search, RefreshCw, CreditCard, AlertCircle, CheckCircle2, XCircle,
   Wallet, ChevronLeft, ChevronRight, X, TrendingDown, Loader2,
@@ -934,6 +935,8 @@ export default function CreditsPage() {
       <ClienteleTabBar>
 
       <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
+
+        <RetourLien />
 
         {/* ── En-tête ────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
