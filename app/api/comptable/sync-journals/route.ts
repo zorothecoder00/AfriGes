@@ -38,19 +38,14 @@ const N = {
 };
 
 /**
- * Opérations de caisse (ENCAISSEMENT) générées par un autre flux : vente comptant, vente terrain
- * confirmée, remboursement de crédit confirmé, versement de pack confirmé. Chacun de ces flux crée
- * DÉJÀ sa propre écriture (vente Dr 571/Cr 701, remboursement SYNC-RBT-…, versement SYNC-VRS-…) : les
- * synchroniser ici en « Dr 571 / Cr 411 » doublerait l'encaissement en comptabilité. Repérées par le
- * motif / la référence qu'ils posent (les références ENC-… sont communes avec les saisies manuelles).
- * Seules les opérations saisies à la main (caissier) sont comptabilisées à la saisie ou ici.
+ * Opérations de caisse générées par un autre flux (origine ≠ SAISIE_MANUELLE : vente comptant, vente
+ * terrain confirmée, remboursement de crédit, versement de pack). Chacun de ces flux crée DÉJÀ sa
+ * propre écriture (vente Dr 571/Cr 701, remboursement SYNC-RBT-…, versement SYNC-VRS-…) : les
+ * synchroniser ici en « Dr 571 / Cr 411 » doublerait l'encaissement en comptabilité. Seules les
+ * saisies manuelles (caissier, RPV) sont comptabilisées à la saisie ou par cet outil.
  */
-const MOTIFS_OPERATIONS_MIROIR = ["Vente directe ", "Vente terrain confirmée — ", "Remboursement crédit confirmé — ", "Versement pack confirmé — "];
-const OPERATION_MIROIR = {
-  type: "ENCAISSEMENT" as const,
-  OR: [...MOTIFS_OPERATIONS_MIROIR.map((m) => ({ motif: { startsWith: m } })), { reference: { endsWith: "-CAISSE" } }],
-};
-const HORS_OPERATIONS_MIROIR = { NOT: OPERATION_MIROIR };
+const OPERATION_MIROIR = { origine: { not: "SAISIE_MANUELLE" as const } };
+const HORS_OPERATIONS_MIROIR = { origine: "SAISIE_MANUELLE" as const };
 
 type ComptesMap = Record<string, number>; // numéro → id
 

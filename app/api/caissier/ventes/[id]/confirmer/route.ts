@@ -138,6 +138,7 @@ export async function POST(req: Request, { params }: Ctx) {
           data: {
             sessionId:    sessionActive.id,
             type:         "ENCAISSEMENT",
+            origine:      "VENTE_TERRAIN",
             mode:         "ESPECES",
             montant:      new Prisma.Decimal(montantNum),
             motif:        `Vente terrain confirmée — ${vente.reference} (${vendeurNom})`,

@@ -214,6 +214,7 @@ export async function POST(req: Request, { params }: Ctx) {
             data: {
               sessionId:    sessionActive.id,
               type:         "ENCAISSEMENT",
+              origine:      "REMBOURSEMENT_CREDIT",
               mode:         "ESPECES",
               montant:      new Prisma.Decimal(montantNum),
               motif:        `Remboursement crédit confirmé — ${credit.reference} (${collecteurNom})`,

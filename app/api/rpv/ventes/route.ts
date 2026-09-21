@@ -252,6 +252,7 @@ export async function POST(req: Request) {
           data: {
             caissePDVId:  caissePDV.id,
             type:         "ENCAISSEMENT",
+            origine:      "VENTE_DIRECTE",
             montant:      montantTotal,
             motif:        `Vente directe ${ref}`,
             reference:    `${ref}-CAISSE`,

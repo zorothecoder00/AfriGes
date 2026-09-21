@@ -253,6 +253,17 @@ enum TypeOperationCaisse {
   DECAISSEMENT
 }
 
+// Origine d'une opération de caisse : SAISIE_MANUELLE = saisie par le caissier / le RPV (seule
+// comptabilisée à la saisie par lib/comptabilite/moteur ecritureOperationCaisse) ; les autres sont
+// des encaissements générés par un flux qui crée DÉJÀ sa propre écriture (pas de double comptage).
+enum OrigineOperationCaisse {
+  SAISIE_MANUELLE
+  VENTE_DIRECTE
+  VENTE_TERRAIN
+  REMBOURSEMENT_CREDIT
+  VERSEMENT_PACK
+}
+
 enum CategorieDecaissement {
   SALAIRE
   AVANCE
@@ -4492,6 +4503,7 @@ model OperationCaissePDV {
   type         TypeOperationCaisse
   mode         ModePaiement?
   categorie    CategorieDecaissement?
+  origine      OrigineOperationCaisse @default(SAISIE_MANUELLE)
   montant      Decimal
   motif        String
   reference    String                 @unique
@@ -4516,6 +4528,7 @@ model OperationCaisse {
   type         TypeOperationCaisse
   mode         ModePaiement?
   categorie    CategorieDecaissement?
+  origine      OrigineOperationCaisse @default(SAISIE_MANUELLE)
   montant      Decimal
   motif        String
   reference    String                 @unique

@@ -160,6 +160,7 @@ export async function POST(req: Request) {
         data: {
           sessionId:    sessionActive.id,
           type,
+          origine:      "SAISIE_MANUELLE",
           mode:         type === "ENCAISSEMENT" ? mode : null,
           categorie:    type === "DECAISSEMENT" ? categorie : null,
           beneficiaireId,

@@ -112,6 +112,7 @@ async function creerOperationCaisseSiActive(
     data: {
       sessionId: sessionActive.id,
       type: "ENCAISSEMENT",
+      origine: "VERSEMENT_PACK",
       mode: "ESPECES",
       montant: new Prisma.Decimal(montantEffectif),
       motif,

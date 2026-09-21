@@ -182,6 +182,7 @@ export async function PATCH(req: Request) {
         data: {
           caissePDVId:  caisse.id,
           type,
+          origine:      "SAISIE_MANUELLE",
           montant:      Number(montant),
           motif,
           mode:         mode      || null,

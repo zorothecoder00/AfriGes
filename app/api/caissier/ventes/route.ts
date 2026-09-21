@@ -295,6 +295,7 @@ export async function POST(req: Request) {
           data: {
             sessionId:    sessionCaisse.id,
             type:         "ENCAISSEMENT",
+            origine:      "VENTE_DIRECTE",
             montant:      resteAPayer,
             motif:        ccMontant > 0 ? `Vente directe ${ref} (dont ${ccMontant.toLocaleString("fr-FR")} via CC)` : `Vente directe ${ref}`,
             reference:    `${ref}-CAISSE`,
