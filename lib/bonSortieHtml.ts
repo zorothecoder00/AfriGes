@@ -52,6 +52,9 @@ export interface BonSortieHtmlData {
   reference: string; statut: string; typeSortie: string; motif: string; notes: string | null;
   commentaireEcart: string | null;
   pointDeVente: { nom: string; code: string };
+  /** Client destinataire (livraison client : via la commande / le bon de livraison) */
+  client?: { nom: string; telephone: string | null } | null;
+  commandeReference?: string | null;
   lignes: BonSortieLigneHtml[];
   montantTotal: number | null;
   creePar: { nom: string; prenom: string };
@@ -95,6 +98,7 @@ export function genBonSortieHtml(d: BonSortieHtmlData): string {
   <div style="padding:14px 18px; background:#f8fafc; border-radius:8px; margin-bottom:20px;">
     <p style="font-size:11px; color:#64748b; text-transform:uppercase; margin:0 0 6px;">Point de vente / Dépôt</p>
     <p style="margin:0; font-weight:bold;">${esc(d.pointDeVente.nom)} (${esc(d.pointDeVente.code)})</p>
+    ${d.client ? `<p style="margin:8px 0 0; font-size:12px;"><strong>Client :</strong> ${esc(d.client.nom)}${d.client.telephone ? ` · ${esc(d.client.telephone)}` : ""}${d.commandeReference ? ` <span style="color:#64748b;">(commande ${esc(d.commandeReference)})</span>` : ""}</p>` : ""}
     <p style="margin:6px 0 0; font-size:12px;"><strong>Motif :</strong> ${esc(d.motif)}</p>
   </div>
 

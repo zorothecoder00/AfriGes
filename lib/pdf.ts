@@ -44,10 +44,18 @@ async function launchBrowser(): Promise<Browser> {
 }
 
 export interface PdfOptions {
-  format?:    "A4" | "Letter";
+  format?:    "A4" | "A5" | "Letter";
   landscape?: boolean;
+  /** Facteur d'échelle du rendu (0.1–2) : < 1 pour faire tenir des gabarits conçus pour A4 portrait. */
+  scale?:     number;
   margin?:    { top?: string; right?: string; bottom?: string; left?: string };
 }
+
+/** Petits documents (bons, fiches, bordereaux) : A5 à l'horizontal, marges réduites. */
+export const PDF_A5_PAYSAGE: PdfOptions = {
+  format: "A5", landscape: true, scale: 0.82,
+  margin: { top: "8mm", right: "8mm", bottom: "9mm", left: "8mm" },
+};
 
 /**
  * Rend un document HTML complet en PDF (Buffer) via Chromium headless.
@@ -64,6 +72,7 @@ export async function htmlToPdf(html: string, opts: PdfOptions = {}): Promise<Bu
     const pdf = await page.pdf({
       format:          opts.format ?? "A4",
       landscape:       opts.landscape ?? false,
+      scale:           opts.scale ?? 1,
       printBackground: true,
       margin:          opts.margin ?? { top: "12mm", right: "12mm", bottom: "14mm", left: "12mm" },
       timeout:         15_000,

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
-import { Search, FileText, Printer, ExternalLink, LayoutGrid, Loader2, ArrowLeft } from "lucide-react";
+import { Search, FileText, Printer, ExternalLink, LayoutGrid, Loader2, ArrowLeft, History } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { avecRetour } from "@/components/RetourLien";
 import { formatDateTime } from "@/lib/format";
@@ -90,6 +90,9 @@ export default function CentreCommandement() {
           Point d&apos;entrée unique vers tous les documents de gestion : recherchez une référence ou un client,
           ou naviguez par module.
         </p>
+        <Link href={`${pathname.replace(/\/$/, "")}/historique`} className="inline-flex items-center gap-1.5 mt-2 text-sm font-medium text-indigo-600 hover:underline">
+          <History size={15} /> Historique des documents
+        </Link>
       </div>
 
       {/* Recherche globale */}

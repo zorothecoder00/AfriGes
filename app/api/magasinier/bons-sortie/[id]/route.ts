@@ -35,7 +35,8 @@ export async function GET(_req: Request, { params }: Ctx) {
         validePar: { select: { id: true, nom: true, prenom: true } },
         visePar:   { select: { id: true, nom: true, prenom: true } },
         bonPreparation: { include: { lignes: { include: { produit: { select: { id: true, nom: true } } } }, preparateur: { select: { id: true, nom: true, prenom: true } } } },
-        bonLivraison: { select: { id: true, reference: true } },
+        bonLivraison: { select: { id: true, reference: true, clientNom: true } },
+        commandeClient: { select: { id: true, reference: true, client: { select: { nom: true, prenom: true, telephone: true } } } },
       },
     });
 

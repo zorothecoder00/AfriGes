@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getRPVSession } from "@/lib/authRPV";
 import { getAuthSession } from "@/lib/auth";
-import { htmlToPdf, pdfResponse } from "@/lib/pdf";
+import { htmlToPdf, pdfResponse, PDF_A5_PAYSAGE } from "@/lib/pdf";
 import { genBonSortieHtml } from "@/lib/bonSortieHtml";
 import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
 
@@ -25,7 +25,7 @@ export async function GET(req: Request, { params }: Ctx) {
       // L'agent qui a passé la commande client peut télécharger le bon de sortie généré.
       const s = await getAuthSession();
       const commande = s ? await prisma.commandeClient.findFirst({ where: { bonSortieId: Number(id), agentId: parseInt(s.user.id) }, select: { id: true } }) : null;
-      if (commande) session = s;
+      if (commande && s) session = s;
     }
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
@@ -37,6 +37,8 @@ export async function GET(req: Request, { params }: Ctx) {
         validePar: { select: { nom: true, prenom: true } },
         visePar: { select: { nom: true, prenom: true } },
         lignes: { include: { produit: { select: { nom: true } } } },
+        commandeClient: { select: { reference: true, client: { select: { nom: true, prenom: true, telephone: true } } } },
+        bonLivraison: { select: { clientNom: true, clientTelephone: true } },
       },
     });
     if (!bon) return NextResponse.json({ error: "Bon de sortie introuvable" }, { status: 404 });
@@ -48,6 +50,10 @@ export async function GET(req: Request, { params }: Ctx) {
       reference: bon.reference, statut: bon.statut, typeSortie: bon.typeSortie, motif: bon.motif, notes: bon.notes,
       commentaireEcart: bon.commentaireEcart,
       pointDeVente: bon.pointDeVente,
+      client: bon.commandeClient
+        ? { nom: `${bon.commandeClient.client.prenom} ${bon.commandeClient.client.nom}`, telephone: bon.commandeClient.client.telephone }
+        : bon.bonLivraison ? { nom: bon.bonLivraison.clientNom, telephone: bon.bonLivraison.clientTelephone } : null,
+      commandeReference: bon.commandeClient?.reference ?? null,
       lignes: bon.lignes.map((l) => ({
         produitNom: l.produit.nom, quantiteDemandee: l.quantiteDemandee, quantite: l.quantite,
         prixUnit: l.prixUnit != null ? Number(l.prixUnit) : null,
@@ -57,7 +63,7 @@ export async function GET(req: Request, { params }: Ctx) {
       visePar: bon.visePar, dateVisa: bon.dateVisa,
       qrDataUrl,
     });
-    const pdf = await htmlToPdf(html);
+    const pdf = await htmlToPdf(html, PDF_A5_PAYSAGE);
     return pdfResponse(pdf, `${bon.reference}.pdf`);
   } catch (error) {
     console.error("GET /magasinier/bons-sortie/[id]/pdf:", error);

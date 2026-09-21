@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { htmlToPdf, pdfResponse } from "@/lib/pdf";
+import { htmlToPdf, pdfResponse, PDF_A5_PAYSAGE } from "@/lib/pdf";
 import { genCommandeClientHtml } from "@/lib/commandeClientHtml";
 import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
 import { getViewSession, getValideurScope, peutValider } from "../../route";
@@ -47,7 +47,7 @@ export async function GET(req: Request, { params }: Ctx) {
       visaResponsablePar: commande.visaResponsablePar, dateVisaResponsable: commande.dateVisaResponsable,
       qrDataUrl,
     });
-    const pdf = await htmlToPdf(html);
+    const pdf = await htmlToPdf(html, PDF_A5_PAYSAGE);
     return pdfResponse(pdf, `${commande.reference}.pdf`);
   } catch (error) {
     console.error("GET /ventes/commandes-client/[id]/pdf:", error);

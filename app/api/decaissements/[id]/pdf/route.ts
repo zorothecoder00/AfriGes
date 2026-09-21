@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { getComptableSession } from "@/lib/authComptable";
-import { htmlToPdf, pdfResponse } from "@/lib/pdf";
+import { htmlToPdf, pdfResponse, PDF_A5_PAYSAGE } from "@/lib/pdf";
 import { genDecaissementHtml } from "@/lib/decaissementHtml";
 import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
 
@@ -50,7 +50,7 @@ export async function GET(req: Request, { params }: Ctx) {
       beneficiaireConfirmationNom: fiche.beneficiaireConfirmationNom, dateConfirmationBeneficiaire: fiche.dateConfirmationBeneficiaire,
       qrDataUrl,
     });
-    const pdf = await htmlToPdf(html);
+    const pdf = await htmlToPdf(html, PDF_A5_PAYSAGE);
     return pdfResponse(pdf, `${fiche.reference}.pdf`);
   } catch (error) {
     console.error("GET /decaissements/[id]/pdf:", error);

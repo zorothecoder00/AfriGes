@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getRVCSession } from "@/lib/authRVC";
-import { htmlToPdf, pdfResponse } from "@/lib/pdf";
+import { htmlToPdf, pdfResponse, PDF_A5_PAYSAGE } from "@/lib/pdf";
 import { genBonLivraisonHtml } from "@/lib/bonLivraisonHtml";
 import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
 
@@ -46,7 +46,7 @@ export async function GET(req: Request, { params }: Ctx) {
       livreur: bl.livreur, moyenTransport: bl.moyenTransport, dateDepart: bl.dateDepart,
       qrDataUrl,
     });
-    const pdf = await htmlToPdf(html);
+    const pdf = await htmlToPdf(html, PDF_A5_PAYSAGE);
     return pdfResponse(pdf, `${bl.reference}.pdf`);
   } catch (error) {
     console.error("GET /bons-livraison/[id]/pdf:", error);

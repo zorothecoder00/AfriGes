@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getReclamationSession } from "@/lib/authReclamation";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { resolvePdvIdsAutorises } from "@/lib/reclamationClientServer";
-import { htmlToPdf, pdfResponse } from "@/lib/pdf";
+import { htmlToPdf, pdfResponse, PDF_A5_PAYSAGE } from "@/lib/pdf";
 import { genBonRemplacementHtml } from "@/lib/bonRemplacementHtml";
 import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
 
@@ -53,7 +53,7 @@ export async function GET(req: Request, { params }: Ctx) {
       reclamation: remplacement.reclamation, magasinier: remplacement.magasinier,
       qrDataUrl,
     });
-    const pdf = await htmlToPdf(html);
+    const pdf = await htmlToPdf(html, PDF_A5_PAYSAGE);
     return pdfResponse(pdf, `remplacement-${remplacement.numero}.pdf`);
   } catch (error) {
     console.error("GET /admin/reclamations/[id]/remplacements/[remplacementId]/pdf:", error);

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getRVCSession } from "@/lib/authRVC";
-import { htmlToPdf, pdfResponse } from "@/lib/pdf";
+import { htmlToPdf, pdfResponse, PDF_A5_PAYSAGE } from "@/lib/pdf";
 import { genBonReceptionHtml } from "@/lib/bonReceptionHtml";
 import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
 
@@ -49,7 +49,7 @@ export async function GET(req: Request, { params }: Ctx) {
       latitudeLivraison: br.latitudeLivraison, longitudeLivraison: br.longitudeLivraison,
       qrDataUrl,
     });
-    const pdf = await htmlToPdf(html);
+    const pdf = await htmlToPdf(html, PDF_A5_PAYSAGE);
     return pdfResponse(pdf, `${br.reference}.pdf`);
   } catch (error) {
     console.error("GET /bons-reception/[id]/pdf:", error);

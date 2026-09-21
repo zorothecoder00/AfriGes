@@ -12,7 +12,7 @@ export const SOCIETE = {
   // Coordonnées
   adresse:   "Adidogomé (Lomé) - Togo",
   telephone: "+228 98 40 45 45 / 93 24 57 64",
-  email:     "afrisimea@afrisime.com",
+  email:     "administration@afrisime.com",
   siteWeb:   "www.afrisime.com",
   activites: [
     "Commerce Général | Vente en Gros | Vente au Détail",
