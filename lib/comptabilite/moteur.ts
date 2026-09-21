@@ -196,7 +196,7 @@ export async function creerEcriture(tx: TxClient, opts: CreerEcritureOpts): Prom
       statut: opts.statut ?? "BROUILLON",
       userId: opts.userId ?? null,
       notes: opts.derogationJustification
-        ? `[Dérogation période fermée — CDC §29] ${opts.derogationJustification}${opts.notes ? ` — ${opts.notes}` : ""}`
+        ? `[Dérogation période fermée] ${opts.derogationJustification}${opts.notes ? ` — ${opts.notes}` : ""}`
         : (opts.notes ?? null),
       societeId: opts.societeId ?? null,
       devise: opts.devise ?? "XOF",

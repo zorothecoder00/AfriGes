@@ -136,7 +136,7 @@ function AdminReclamationsPageInner() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Réclamations clients</h2>
-            <p className="text-sm text-slate-500">CDC digitalisation §5.8 — réclamations, retours, remplacements, incidents</p>
+            <p className="text-sm text-slate-500">Réclamations, retours, remplacements, incidents</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <select value={statutFiltre} onChange={(e) => setStatutFiltre(e.target.value)} className="w-44 shrink-0 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rose-500">

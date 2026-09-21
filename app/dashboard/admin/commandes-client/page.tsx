@@ -73,7 +73,7 @@ export default function AdminCommandesClientPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Bons de commande client</h1>
-          <p className="text-sm text-slate-500 mt-1">CDC digitalisation §3.2 — prise de commande terrain</p>
+          <p className="text-sm text-slate-500 mt-1">Prise de commande terrain</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" title="Rafraîchir" />

@@ -1310,7 +1310,7 @@ export default function MagasinierPage() {
                     </div>
                     <div className="p-5 space-y-4">
                       <p className="text-sm text-slate-600 bg-blue-50 border border-blue-200 rounded-xl p-3">
-                        Contrôlez ce qui a été réellement reçu (CDC §10) : quantité conforme, refusée, endommagée et état qualité. Le stock sera mis à jour en conséquence.
+                        Contrôlez ce qui a été réellement reçu : quantité conforme, refusée, endommagée et état qualité. Le stock sera mis à jour en conséquence.
                       </p>
                       <div className="border border-slate-200 rounded-xl overflow-x-auto max-h-72">
                         <table className="w-full text-sm">
@@ -1972,7 +1972,7 @@ export default function MagasinierPage() {
                   </div>
                   <div className="p-5 space-y-4">
                     <p className="text-sm text-slate-600 bg-red-50 border border-red-200 rounded-xl p-3">
-                      Transmis au Responsable Approvisionnement Central pour suivi fournisseur (CDC §8).
+                      Transmis au Responsable Approvisionnement Central pour suivi fournisseur.
                     </p>
                     <label className="block">
                       <span className="block text-xs font-medium text-slate-600 mb-1">Motif *</span>

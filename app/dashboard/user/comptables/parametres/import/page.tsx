@@ -73,7 +73,7 @@ export default function ImportComptablePage() {
         <p className="text-xs text-slate-500 mb-4">
           Colonnes attendues : Date, Journal, Compte, Libelle, Debit, Credit, Reference, Tiers, Analytique — les lignes partageant la même
           Référence forment une seule écriture. Un aperçu de validation est obligatoire avant tout import réel ; l&apos;import est bloqué tant
-          qu&apos;il reste un groupe en erreur, sauf dérogation explicite (CDC §47).
+          qu&apos;il reste un groupe en erreur, sauf dérogation explicite.
         </p>
         <div className="flex items-center gap-3 flex-wrap mb-4">
           <input type="file" accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

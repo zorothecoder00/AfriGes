@@ -395,10 +395,10 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
                 </label>
               ))}
             </div>
-            <p className="text-xs text-gray-400">Consentement du client à recevoir des communications marketing par canal (CDC §74) — décoché = le client n&apos;est jamais sollicité sur ce canal.</p>
+            <p className="text-xs text-gray-400">Consentement du client à recevoir des communications marketing par canal — décoché = le client n&apos;est jamais sollicité sur ce canal.</p>
 
             <div className="pt-2 border-t border-gray-100">
-              <p className="text-xs font-medium text-gray-600 mb-2">Centre de préférences — catégories de contenu (CDC §75)</p>
+              <p className="text-xs font-medium text-gray-600 mb-2">Centre de préférences — catégories de contenu</p>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 {([
                   ['prefPromotions', 'Promotions'],

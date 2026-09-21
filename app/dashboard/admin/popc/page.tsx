@@ -328,7 +328,7 @@ export default function POPCPage() {
               <RefreshCw className="w-4 h-4 text-indigo-500" /> Hypothèses de planification
             </h2>
             <p className="text-xs text-gray-400 mb-4">
-              Répartition du revenu-cible entre les sources. Non fixée par le cahier des charges — à calibrer.
+              Répartition du revenu-cible entre les sources. À calibrer selon votre activité.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {HYPOTHESES.map((c) => (

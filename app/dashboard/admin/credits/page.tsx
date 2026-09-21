@@ -16,7 +16,7 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { dureeJoursPourFormule, remunerationFormule } from '@/lib/formuleCredit';
 import { toast } from 'sonner';
 import { exportToXlsx } from '@/lib/exportXlsx';
-import { printToPdf } from '@/lib/exportPdf';
+import { printToPdf, tableHtml, kpisHtml } from '@/lib/exportPdf';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 import { useTagModal } from '@/contexts/TagModalContext';
 import FactureModal from '@/components/FactureModal';
@@ -201,17 +201,6 @@ interface CreditImpaye {
 interface CreditsImpayesResponse {
   data: CreditImpaye[];
   meta: { nbCredits: number; nbEcheancesImpayees: number; totalImpaye: number };
-}
-
-function tableHtml(headers: string[], rows: (string | number)[][]): string {
-  const th  = headers.map((h) => `<th>${h}</th>`).join('');
-  const trs = rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('');
-  return `<table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`;
-}
-function kpisHtml(items: { label: string; value: string }[]): string {
-  return `<div class="kpis">${items.map((i) =>
-    `<div class="kpi"><div class="kpi-label">${i.label}</div><div class="kpi-value">${i.value}</div></div>`
-  ).join('')}</div>`;
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -2154,7 +2143,7 @@ export default function CreditsPage() {
                         Rémunération ({creditParams.formule === 'TRENTAINE' ? '31ème' : '16ème'})
                       </label>
                       <div className="w-full px-3 py-2 border border-emerald-100 rounded-lg text-sm bg-emerald-50 text-emerald-700 font-medium"
-                        title="1 mise supplémentaire — calculée automatiquement selon la formule (CDC)">
+                        title="1 mise supplémentaire — calculée automatiquement selon la formule">
                         {formatCurrency(creditInteret)}
                       </div>
                     </div>

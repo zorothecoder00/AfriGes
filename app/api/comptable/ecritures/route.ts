@@ -216,7 +216,7 @@ export async function POST(req: Request) {
           libelle,
           journal,
           notes:   derogationJustification?.trim()
-            ? `[Dérogation période fermée — CDC §29] ${derogationJustification.trim()}${notes ? ` — ${notes}` : ""}`
+            ? `[Dérogation période fermée] ${derogationJustification.trim()}${notes ? ` — ${notes}` : ""}`
             : (notes || null),
           statut:  "BROUILLON" as import("@prisma/client").StatutEcriture,
           userId,

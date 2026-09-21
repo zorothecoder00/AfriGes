@@ -10,7 +10,7 @@ import { useT } from '@/contexts/AppSettingsContext';
 import { formatCurrency } from '@/lib/format';
 import { exportToXlsx, exportRowsToXlsx } from '@/lib/exportXlsx';
 import { exportToXls } from '@/lib/exportXls';
-import { printToPdf } from '@/lib/exportPdf';
+import { printToPdf, tableHtml, kpisHtml } from '@/lib/exportPdf';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -87,18 +87,6 @@ const GRAVITE_CLS: Record<string, string> = {
 };
 
 const fc = (v: number) => v.toLocaleString('fr-FR');
-
-function tableHtml(headers: string[], rows: (string | number)[][]): string {
-  const th  = headers.map((h) => `<th>${h}</th>`).join('');
-  const trs = rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('');
-  return `<table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`;
-}
-
-function kpisHtml(items: { label: string; value: string }[]): string {
-  return `<div class="kpis">${items.map((i) =>
-    `<div class="kpi"><div class="kpi-label">${i.label}</div><div class="kpi-value">${i.value}</div></div>`
-  ).join('')}</div>`;
-}
 
 type TabId = 'recouvrement' | 'creances' | 'agents' | 'clients' | 'retards';
 

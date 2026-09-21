@@ -126,7 +126,7 @@ function AdminRevendeursPageInner() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Comptes revendeurs</h2>
-            <p className="text-sm text-slate-500">CDC digitalisation §5.6 — ventes en gros / B2B</p>
+            <p className="text-sm text-slate-500">Ventes en gros / B2B</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => refetchList()} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50">

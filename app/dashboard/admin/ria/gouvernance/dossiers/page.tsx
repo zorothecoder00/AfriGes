@@ -136,7 +136,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
           {routage ? (
             <div className="rounded-lg border border-violet-100 bg-violet-50/50 p-3">
               <div className="flex items-center gap-1.5 text-xs font-medium text-violet-700 mb-2">
-                <Lock className="w-3.5 h-3.5" /> Circuit imposé par le cahier des charges
+                <Lock className="w-3.5 h-3.5" /> Circuit imposé
               </div>
               <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <span className="px-2 py-1 rounded-lg bg-white border border-slate-200">{COMM_LABELS[routage.emettrice]}</span>

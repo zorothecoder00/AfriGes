@@ -150,7 +150,7 @@ export default function AnalytiquePage() {
             </button>
           </div>
           <p className="text-xs text-slate-500 mb-4">
-            Axes Activité, Projet et Département (CDC §24) — les axes Point de vente et Produit réutilisent directement vos PDV et votre catalogue.
+            Axes Activité, Projet et Département — les axes Point de vente et Produit réutilisent directement vos PDV et votre catalogue.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <select value={newSection.axe} onChange={(e) => setNewSection(p => ({ ...p, axe: e.target.value }))}

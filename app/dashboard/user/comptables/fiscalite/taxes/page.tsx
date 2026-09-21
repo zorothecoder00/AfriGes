@@ -71,7 +71,7 @@ export default function FiscaliteTaxesPage() {
             <Percent className="text-violet-600" size={22} /> Fiscalité — Taxes
           </h2>
           <p className="text-slate-500 text-sm mt-0.5">
-            Aucun taux fiscal n&apos;est codé en dur — tout est paramétré ici et évolue avec la réglementation togolaise (CDC §21).
+            Aucun taux fiscal n&apos;est codé en dur — tout est paramétré ici et évolue avec la réglementation togolaise.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

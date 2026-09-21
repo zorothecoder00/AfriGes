@@ -66,7 +66,7 @@ export default function AdminTourneesPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Tournées de livraison</h1>
-          <p className="text-sm text-slate-500 mt-1">CDC digitalisation §5.7 — planification et suivi des tournées</p>
+          <p className="text-sm text-slate-500 mt-1">Planification et suivi des tournées</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" title="Rafraîchir" />

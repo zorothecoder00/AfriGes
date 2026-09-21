@@ -63,7 +63,7 @@ function RetoursClientPageInner() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><PackageX className="text-blue-600" size={22} /> Retours marchandise</h1>
-            <p className="text-sm text-slate-500">CDC digitalisation §5.8 — réceptionner puis valider les retours clients</p>
+            <p className="text-sm text-slate-500">Réceptionner puis valider les retours clients</p>
           </div>
           <button onClick={() => refetch()} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50">
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />

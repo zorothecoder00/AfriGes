@@ -452,7 +452,7 @@ function NouveauCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuc
                         Rémunération ({formule === "TRENTAINE" ? "31ème" : "16ème"})
                       </label>
                       <div className="w-full px-3 py-2 border border-emerald-100 rounded-xl text-sm bg-emerald-50 text-emerald-700 font-medium"
-                        title="1 mise supplémentaire — calculée automatiquement selon la formule (CDC)">
+                        title="1 mise supplémentaire — calculée automatiquement selon la formule">
                         {formatCurrency(remuneration)}
                       </div>
                     </div>

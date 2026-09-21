@@ -87,8 +87,8 @@ export default function CentreCommandement() {
           Centre de commandement
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Point d&apos;entrée unique vers tous les documents créés dans le cadre de la digitalisation
-          (CDC §3.1 à §5.9) : recherchez une référence ou un client, ou naviguez par module.
+          Point d&apos;entrée unique vers tous les documents de gestion : recherchez une référence ou un client,
+          ou naviguez par module.
         </p>
       </div>
 
@@ -115,7 +115,6 @@ export default function CentreCommandement() {
                 <li key={`${r.module}-${r.type}-${r.id}`} className="py-3 flex items-start justify-between gap-4 flex-wrap">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600">{r.module}</span>
                       <span className="text-sm font-semibold text-slate-800">{r.type}</span>
                       {r.statut && (
                         <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{r.statut}</span>

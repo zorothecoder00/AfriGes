@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json(
         {
-          error: `Un dossier « ${type} » doit obligatoirement être émis par ${commissionLabel(routageFixe.emettrice)} vers ${commissionLabel(routageFixe.receptrice)} (cahier des charges).`,
+          error: `Un dossier « ${type} » doit obligatoirement être émis par ${commissionLabel(routageFixe.emettrice)} vers ${commissionLabel(routageFixe.receptrice)} (circuit imposé).`,
         },
         { status: 400 }
       );

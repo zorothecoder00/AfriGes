@@ -155,7 +155,7 @@ export default function ConfigurationInitialePage() {
 
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
         <p className="text-xs text-slate-500 mb-4">
-          Assistant de première installation (CDC §60) — pour AfriSime : Togo, XOF, SYSCOHADA révisé, société commerciale.
+          Assistant de première installation — pour AfriSime : Togo, XOF, SYSCOHADA révisé, société commerciale.
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           <div>
@@ -175,7 +175,7 @@ export default function ConfigurationInitialePage() {
             <input value={configForm.typeEntite} onChange={(e) => setConfigForm(p => ({ ...p, typeEntite: e.target.value }))} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
         </div>
-        <h4 className="text-sm font-semibold text-slate-700 mb-1 mt-2">Comptes par défaut (CDC §53)</h4>
+        <h4 className="text-sm font-semibold text-slate-700 mb-1 mt-2">Comptes par défaut</h4>
         <p className="text-xs text-slate-500 mb-3">
           Dernier niveau de la cascade Produit &gt; Catégorie &gt; Famille &gt; Configuration générale — utilisés quand aucun niveau plus précis n&apos;est paramétré.
         </p>
@@ -245,7 +245,7 @@ export default function ConfigurationInitialePage() {
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
         <h4 className="font-semibold text-slate-800 mb-1">Référentiels comptables</h4>
         <p className="text-xs text-slate-500 mb-4">
-          Historique versionné (CDC §77) : référentiel, version, pays et date d&apos;application. Le versioning des règles et taxes existe déjà à leur niveau (dates de validité) — ce catalogue trace quel référentiel global fait foi, depuis quand.
+          Historique versionné : référentiel, version, pays et date d&apos;application. Le versioning des règles et taxes existe déjà à leur niveau (dates de validité) — ce catalogue trace quel référentiel global fait foi, depuis quand.
         </p>
         <div className="space-y-2 mb-4">
           {(referentielsData?.data ?? []).map((r) => {
@@ -284,7 +284,7 @@ export default function ConfigurationInitialePage() {
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
         <h4 className="font-semibold text-slate-800 mb-1">Sociétés</h4>
         <p className="text-xs text-slate-500 mb-4">
-          Architecture prévue pour plusieurs sociétés (CDC §50). AfriSime SARL est aujourd&apos;hui l&apos;unique société active.
+          Architecture prévue pour plusieurs sociétés. AfriSime SARL est aujourd&apos;hui l&apos;unique société active.
         </p>
         <div className="space-y-2 mb-4">
           {(societesData?.data ?? []).map((s) => (
@@ -317,7 +317,7 @@ export default function ConfigurationInitialePage() {
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
         <h4 className="font-semibold text-slate-800 mb-1">Devises</h4>
         <p className="text-xs text-slate-500 mb-4">
-          Taux paramétrables (CDC §49) — jamais codés en dur. Les montants des écritures restent en devise fonctionnelle (XOF) ; le taux ci-dessous n&apos;est que la référence de conversion.
+          Taux paramétrables — jamais codés en dur. Les montants des écritures restent en devise fonctionnelle (XOF) ; le taux ci-dessous n&apos;est que la référence de conversion.
         </p>
         <div className="space-y-2 mb-4">
           {(devisesData?.data ?? []).map((d) => (

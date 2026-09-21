@@ -823,7 +823,7 @@ export default function CompteCourantDetailPage() {
                 <p className="text-[11px] text-red-600">Le solde doit être nul avant clôture (actuel : {formatCurrency(N(c.solde))}).</p>
               )}
               {newStatut && newStatut !== "ACTIF" && (
-                <p className="text-[11px] text-amber-600">Ce statut bloquera dépôts, paiements et retraits sur le compte (CDC §10).</p>
+                <p className="text-[11px] text-amber-600">Ce statut bloquera dépôts, paiements et retraits sur le compte.</p>
               )}
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100">

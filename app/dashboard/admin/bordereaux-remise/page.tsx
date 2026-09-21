@@ -57,7 +57,7 @@ export default function AdminBordereauxRemisePage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Bordereaux de remise de fonds</h1>
-          <p className="text-sm text-slate-500 mt-1">CDC digitalisation §3.1 — remise des fonds terrain à la trésorerie</p>
+          <p className="text-sm text-slate-500 mt-1">Remise des fonds terrain à la trésorerie</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" title="Rafraîchir" />

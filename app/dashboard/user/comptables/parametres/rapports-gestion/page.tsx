@@ -44,7 +44,7 @@ export default function RapportsGestionPage() {
       </div>
 
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex items-center justify-between gap-4 flex-wrap">
-        <p className="text-xs text-slate-500 mt-0.5">CA et marge par point de vente/produit/famille/client, rotation de stock, DSO clients (CDC §71-72).</p>
+        <p className="text-xs text-slate-500 mt-0.5">CA et marge par point de vente/produit/famille/client, rotation de stock, DSO clients.</p>
         <div className="flex items-center gap-2">
           <input type="date" value={rapportsDateDebut} onChange={(e) => setRapportsDateDebut(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           <span className="text-slate-400 text-sm">→</span>
@@ -156,7 +156,7 @@ export default function RapportsGestionPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
               <h4 className="font-semibold text-slate-800 mb-1">Charges par département</h4>
-              <p className="text-xs text-slate-400 mb-3 italic">Basé sur les sections analytiques axe Département (CDC §24) imputées sur les écritures.</p>
+              <p className="text-xs text-slate-400 mb-3 italic">Basé sur les sections analytiques axe Département imputées sur les écritures.</p>
               <table className="w-full text-xs">
                 <thead className="border-b border-slate-100"><tr>
                   <th className="text-left py-1.5 text-slate-500">Département</th>
@@ -176,7 +176,7 @@ export default function RapportsGestionPage() {
 
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
               <h4 className="font-semibold text-slate-800 mb-1">Dépenses par projet</h4>
-              <p className="text-xs text-slate-400 mb-3 italic">Basé sur les sections analytiques axe Projet (CDC §24) imputées sur les écritures.</p>
+              <p className="text-xs text-slate-400 mb-3 italic">Basé sur les sections analytiques axe Projet imputées sur les écritures.</p>
               <table className="w-full text-xs">
                 <thead className="border-b border-slate-100"><tr>
                   <th className="text-left py-1.5 text-slate-500">Projet</th>

@@ -310,7 +310,7 @@ function RefRow({ item, type, onPatch, onRemove, small, childLabel, showExtra, c
               <span className="absolute top-0.5 bg-white rounded-full transition-transform" style={{ height: 14, width: 14, left: item.actif ? 15 : 2 }} />
             </button>
             {comptable && (
-              <button onClick={() => setComptaOpen((v) => !v)} disabled={busy} title="Comptabilisation (CDC §52/§53)"
+              <button onClick={() => setComptaOpen((v) => !v)} disabled={busy} title="Comptabilisation"
                 className={`hover:text-blue-600 disabled:opacity-50 ${comptaOpen ? "text-blue-600" : "text-slate-400"}`}>
                 <Landmark className="w-3.5 h-3.5" />
               </button>

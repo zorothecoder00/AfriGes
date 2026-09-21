@@ -154,7 +154,7 @@ export default function ExercicesPage() {
               <button onClick={() => setAssistantClotureId(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><X size={16} /></button>
             </div>
             <p className="text-xs text-slate-500 mb-4">
-              Vérifications avant clôture définitive (CDC §30) — n&apos;altère rien tant que vous ne confirmez pas.
+              Vérifications avant clôture définitive — n&apos;altère rien tant que vous ne confirmez pas.
             </p>
 
             {preClotureLoading ? (
@@ -217,7 +217,7 @@ export default function ExercicesPage() {
             </div>
             <p className="text-xs text-slate-500 mb-4">
               Réévalue les soldes de bilan en devise étrangère au taux de clôture (Devise.tauxVersFonctionnelle) et
-              constate l&apos;écart en 476 (perte latente) / 477 (gain latent) — CDC §27. Vérifiez le taux avant de comptabiliser.
+              constate l&apos;écart en 476 (perte latente) / 477 (gain latent). Vérifiez le taux avant de comptabiliser.
             </p>
 
             {ecartsChangeLoading ? (

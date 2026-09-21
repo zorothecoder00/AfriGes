@@ -235,7 +235,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      avertissement: "Estimation opérationnelle rapide — non basée sur les écritures comptables validées. Voir /api/comptable/etats-financiers-reels pour les états officiels (CDC §36-39).",
+      avertissement: "Estimation opérationnelle rapide — non basée sur les écritures comptables validées. Voir /api/comptable/etats-financiers-reels pour les états officiels.",
       data: {
         annee,
         bilan: {

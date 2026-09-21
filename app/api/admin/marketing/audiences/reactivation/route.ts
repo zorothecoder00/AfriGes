@@ -29,7 +29,7 @@ export async function POST() {
     const audience = await prisma.audienceMarketing.create({
       data: {
         nom,
-        description: "Audience générée automatiquement à partir du segment RFM « À risque » (CDC §15).",
+        description: "Audience générée automatiquement à partir du segment RFM « À risque ».",
         type: "STATIQUE",
         creeParId: userId,
         tailleCalculee: clientIds.length,

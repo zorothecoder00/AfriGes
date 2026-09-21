@@ -37,7 +37,7 @@ export default function ControlesPage() {
             <p className="text-xs text-slate-500 mt-0.5">
               {controlesData
                 ? `${controlesData.meta.bloquants} bloquant(s) · ${controlesData.meta.anomalies} anomalie(s)`
-                : "Écritures déséquilibrées, comptes d'attente, soldes de trésorerie négatifs, doublons potentiels (CDC §40-42)"}
+                : "Écritures déséquilibrées, comptes d'attente, soldes de trésorerie négatifs, doublons potentiels"}
             </p>
           </div>
           <button onClick={() => refetchControles()} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50">

@@ -82,7 +82,7 @@ export default function AdminDecaissementsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Fiches de décaissement</h1>
-          <p className="text-sm text-slate-500 mt-1">CDC digitalisation §3.6 — justificatif d&apos;une sortie de caisse, contrôle N1/N2</p>
+          <p className="text-sm text-slate-500 mt-1">Justificatif d&apos;une sortie de caisse, contrôle N1/N2</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" title="Rafraîchir" />

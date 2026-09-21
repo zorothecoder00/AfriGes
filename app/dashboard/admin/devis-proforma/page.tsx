@@ -58,7 +58,7 @@ export default function AdminDevisProformaPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Devis / Proforma</h1>
-          <p className="text-sm text-slate-500 mt-1">CDC digitalisation §5.2 — proposition commerciale avant commande ferme</p>
+          <p className="text-sm text-slate-500 mt-1">Proposition commerciale avant commande ferme</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" title="Rafraîchir" />

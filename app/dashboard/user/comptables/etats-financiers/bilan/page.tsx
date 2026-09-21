@@ -41,7 +41,7 @@ export default function BilanPage() {
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Landmark className="text-emerald-600" size={22} /> Bilan
           </h2>
-          <p className="text-slate-500 text-sm mt-0.5">Dérivé exclusivement des soldes de comptes validés/clôturés (CDC §36).</p>
+          <p className="text-slate-500 text-sm mt-0.5">Dérivé exclusivement des soldes de comptes validés/clôturés.</p>
         </div>
         <div className="flex items-center gap-2">
           <input type="number" value={annee} onChange={(e) => setAnnee(e.target.value)}

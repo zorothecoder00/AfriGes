@@ -44,7 +44,7 @@ export default function NotesAnnexesPage() {
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <FileText className="text-emerald-600" size={22} /> Notes annexes
           </h2>
-          <p className="text-slate-500 text-sm mt-0.5">Détails structurés dérivés des écritures/immobilisations/provisions/régularisations (CDC §39).</p>
+          <p className="text-slate-500 text-sm mt-0.5">Détails structurés dérivés des écritures/immobilisations/provisions/régularisations.</p>
         </div>
         <div className="flex items-center gap-2">
           <input type="number" value={annee} onChange={(e) => setAnnee(e.target.value)}

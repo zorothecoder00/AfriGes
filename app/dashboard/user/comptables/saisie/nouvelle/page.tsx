@@ -108,7 +108,7 @@ export default function NouvelleEcriturePage() {
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-600 mb-1 block">Devise (CDC §49)</label>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Devise</label>
             <select value={saisieForm.devise} onChange={(e) => handleChangeDevise(e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
               {(devisesData?.data ?? []).map(d => <option key={d.code} value={d.code}>{d.code} — {d.nom}</option>)}
@@ -198,7 +198,7 @@ export default function NouvelleEcriturePage() {
         {periodeFermee && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3">
             <p className="text-xs font-semibold text-amber-800 mb-1.5">
-              Période fermée — autorisation spéciale requise (CDC §29). Réservé aux administrateurs, avec justification obligatoire.
+              Période fermée — autorisation spéciale requise. Réservé aux administrateurs, avec justification obligatoire.
             </p>
             <input value={derogationJustification} onChange={(e) => setDerogationJustification(e.target.value)}
               placeholder="Motif de la dérogation…"
@@ -209,7 +209,7 @@ export default function NouvelleEcriturePage() {
         {doublonDetecte && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3">
             <p className="text-xs font-semibold text-amber-800 flex items-center gap-1.5">
-              <AlertCircle size={13} /> {creationError} (CDC §42)
+              <AlertCircle size={13} /> {creationError}
             </p>
           </div>
         )}

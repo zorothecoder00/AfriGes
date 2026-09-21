@@ -72,7 +72,7 @@ function TourneesPageInner() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Truck className="text-blue-600" /> Tournées de livraison</h1>
-            <p className="text-sm text-slate-500">CDC digitalisation §5.7 — logistique avancée</p>
+            <p className="text-sm text-slate-500">Logistique avancée</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => refetch()} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50">

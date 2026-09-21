@@ -27,7 +27,7 @@ export default function FluxTresoreriePage() {
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Wallet className="text-emerald-600" size={22} /> Tableau des flux de trésorerie
           </h2>
-          <p className="text-slate-500 text-sm mt-0.5">Méthode indirecte — résultat retraité en flux exploitation/investissement/financement (CDC §38).</p>
+          <p className="text-slate-500 text-sm mt-0.5">Méthode indirecte — résultat retraité en flux exploitation/investissement/financement.</p>
         </div>
         <div className="flex items-center gap-2">
           <input type="number" value={annee} onChange={(e) => setAnnee(e.target.value)}

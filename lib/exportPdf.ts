@@ -61,3 +61,20 @@ export function printToPdf(title: string, sections: PdfSection[]) {
 </html>`);
   win.document.close();
 }
+
+const echapper = (v: string | number) =>
+  String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** Tableau HTML pour `printToPdf` (valeurs échappées). */
+export function tableHtml(headers: string[], rows: (string | number)[][]): string {
+  const th  = headers.map((h) => `<th>${echapper(h)}</th>`).join('');
+  const trs = rows.map((r) => `<tr>${r.map((c) => `<td>${echapper(c)}</td>`).join('')}</tr>`).join('');
+  return `<table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`;
+}
+
+/** Bandeau d'indicateurs (cartes) pour `printToPdf`. */
+export function kpisHtml(items: { label: string; value: string }[]): string {
+  return `<div class="kpis">${items.map((i) =>
+    `<div class="kpi"><div class="kpi-label">${echapper(i.label)}</div><div class="kpi-value">${echapper(i.value)}</div></div>`
+  ).join('')}</div>`;
+}

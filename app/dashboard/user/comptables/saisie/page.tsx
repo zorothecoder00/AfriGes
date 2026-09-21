@@ -439,7 +439,7 @@ export default function SaisieEcrituresPage() {
                     {e.statut === "BROUILLON" && (
                       <>
                         <button onClick={() => handleControler(e.id)} disabled={actioningEcritureId === e.id}
-                          title="Étape intermédiaire de contrôle (CDC §44), par un utilisateur distinct du créateur"
+                          title="Étape intermédiaire de contrôle, par un utilisateur distinct du créateur"
                           className="flex items-center gap-1 px-2.5 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-50 disabled:opacity-40">
                           <Eye size={13} /> Contrôler
                         </button>
@@ -453,7 +453,7 @@ export default function SaisieEcrituresPage() {
                     )}
                     {e.statut === "A_CONTROLER" && (
                       <button onClick={() => handleValider(e.id)} disabled={actioningEcritureId === e.id}
-                        title="Validation finale (CDC §44), par un 3e utilisateur distinct du créateur et du contrôleur"
+                        title="Validation finale, par un 3e utilisateur distinct du créateur et du contrôleur"
                         className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40">
                         <BadgeCheck size={13} /> Valider
                       </button>

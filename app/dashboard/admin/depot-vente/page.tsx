@@ -49,7 +49,7 @@ export default function AdminDepotVentePage() {
       <RetourLien />
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Dépôt-vente</h1>
-        <p className="text-sm text-slate-500 mt-1">CDC digitalisation §5.5 — conventions, dépôts de marchandises, état et règlements fournisseur</p>
+        <p className="text-sm text-slate-500 mt-1">Conventions, dépôts de marchandises, état et règlements fournisseur</p>
       </div>
       <div className="flex items-center gap-1 border border-slate-200 rounded-xl p-1 w-fit">
         {([["conventions", "Conventions"], ["depots", "Dépôts de marchandises"], ["etat", "État & règlements"]] as [Tab, string][]).map(([k, l]) => (

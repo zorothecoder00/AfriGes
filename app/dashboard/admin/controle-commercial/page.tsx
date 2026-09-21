@@ -1,16 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import RetourLien from "@/components/RetourLien";
 import {
   TrendingUp, ShoppingCart, Users, Package, Store, CreditCard, Wallet,
-  AlertTriangle, PhoneCall, PackageX, MessageSquareWarning, RefreshCw, BarChart3, Gauge,
+  AlertTriangle, PhoneCall, PackageX, MessageSquareWarning, RefreshCw, BarChart3, Gauge, FileSpreadsheet, FileText,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import KpiCard from "@/components/ui/KpiCard";
 import { formatCurrency, formatDateShort } from "@/lib/format";
+import { exportMultiSheetXlsx, type XlsxSheetSpec } from "@/lib/exportXlsx";
+import { printToPdf, tableHtml, kpisHtml } from "@/lib/exportPdf";
 
 /** Contrôle commercial & reporting (CDC digitalisation §5.9). */
 
@@ -60,15 +63,61 @@ export default function ControleCommercialPage() {
   // chiffres périmés qui donnent l'impression que le filtre n'agit pas.
   const dataPret = !!data && data.vue === tab && !loading;
 
+  // ── Export Excel / PDF de la vue affichée ───────────────────────────────
+  const libelleVue = TABS.find((t) => t.key === tab)?.label ?? "";
+  const filtresExport = (): [string, string][] => {
+    const agence = pdvs.find((p) => String(p.id) === pointDeVenteId);
+    return [
+      ["Vue", libelleVue],
+      // L'onglet Impayés liste toutes les échéances en retard, quelle que soit la période.
+      ["Période", tab === "impayes" ? "Toutes les échéances en retard" : PERIODE_LABEL[periode]],
+      ...(tab === "impayes" || !data?.plage ? [] : [["Du", formatDateShort(data.plage.debut)], ["Au", formatDateShort(data.plage.fin)]] as [string, string][]),
+      ["Agence", agence ? `${agence.nom} (${agence.code})` : "Toutes les agences"],
+    ];
+  };
+
+  async function exporterExcel() {
+    if (!dataPret || !data) return;
+    const m = modeleExport(tab, data.data);
+    const feuilles: XlsxSheetSpec[] = [
+      { sheetName: "Filtres", kind: "matrix", rows: [["Filtre", "Valeur"], ...filtresExport()] },
+      ...(m.kpis.length ? [{ sheetName: "Indicateurs", kind: "matrix" as const, columnTypes: [undefined, "number", undefined] as ("number" | undefined)[],
+        rows: [["Indicateur", "Valeur", "Unité"], ...m.kpis.map((x) => [x.label, x.valeur, x.unite])] }] : []),
+      ...m.tables.map((t): XlsxSheetSpec => ({ sheetName: nomOnglet(t.titre), kind: "matrix", columnTypes: t.types.map((c) => (c === "text" ? undefined : c)),
+        rows: [t.headers, ...t.rows.map((r) => r.map((c, i) => (t.types[i] === "date" ? new Date(String(c)) : c)))] })),
+    ];
+    if (feuilles.every((f) => f.sheetName === "Filtres" || f.rows.length <= 1)) { toast.info("Aucune donnée à exporter sur cette période."); return; }
+    await exportMultiSheetXlsx(feuilles, `controle-commercial-${tab}-${todayIso()}.xlsx`);
+  }
+
+  function exporterPdf() {
+    if (!dataPret || !data) return;
+    const m = modeleExport(tab, data.data);
+    printToPdf(`Contrôle commercial — ${libelleVue}`, [
+      { content: `<p class="meta">${filtresExport().map(([a, b]) => `${a} : ${b}`).join(" · ")}</p>` },
+      ...(m.kpis.length ? [{ content: kpisHtml(m.kpis.map((x) => ({ label: x.label, value: valeurKpi(x) }))) }] : []),
+      ...m.tables.map((t) => ({
+        heading: t.titre,
+        content: t.rows.length
+          ? tableHtml(t.headers, t.rows.map((r) => r.map((c, i) => valeurCellule(c, t.types[i]))))
+          : "<p>Aucune donnée sur cette période.</p>",
+      })),
+    ]);
+  }
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-4">
       <RetourLien />
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Contrôle commercial & reporting</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">CDC digitalisation §5.9 — pilotage de l&apos;activité commerciale</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Pilotage de l&apos;activité commerciale : ventes, encaissements, crédits, impayés, retours et réclamations</p>
         </div>
-        <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200 dark:border-slate-700" title="Rafraîchir" />
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" icon={<FileSpreadsheet size={15} />} onClick={exporterExcel} disabled={!dataPret} title="Exporter la vue affichée en Excel">Excel</Button>
+          <Button variant="secondary" size="sm" icon={<FileText size={15} />} onClick={exporterPdf} disabled={!dataPret} title="Exporter la vue affichée en PDF">PDF</Button>
+          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200 dark:border-slate-700" title="Rafraîchir" />
+        </div>
       </div>
 
       <Card>
@@ -151,6 +200,120 @@ interface DashboardData {
   ventes: VentesData; credit: CreditData; encaissements: EncaissementsData;
   impayes: ImpayesData; recouvrement: RecouvrementData; retours: RetoursData; reclamations: ReclamationsData;
 }
+
+// ── Export Excel / PDF ────────────────────────────────────────────────────
+// Chaque vue est décrite une fois pour l'export : indicateurs (valeur numérique + unité, pour Excel
+// exploitable) et tableaux typés (mêmes libellés que l'écran).
+
+type Unite = "FCFA" | "%" | "";
+type TypeCol = "text" | "number" | "currency" | "date";
+interface ExportKpi { label: string; valeur: number; unite: Unite }
+interface ExportTable { titre: string; headers: string[]; types: TypeCol[]; rows: (string | number)[][] }
+interface ExportModele { kpis: ExportKpi[]; tables: ExportTable[] }
+
+const k = (label: string, valeur: number, unite: Unite = ""): ExportKpi => ({ label, valeur, unite });
+const nomComplet = (p: { prenom: string; nom: string } | null | undefined, repli: string) => (p ? `${p.prenom} ${p.nom}` : repli);
+
+function modeleExport(vue: Vue, brut: unknown): ExportModele {
+  switch (vue) {
+    case "dashboard": {
+      const d = brut as DashboardData;
+      return { tables: [], kpis: [
+        k("Chiffre d'affaires", d.ventes.ca, "FCFA"), k("Nombre de ventes", d.ventes.nombreVentes), k("Panier moyen", d.ventes.panierMoyen, "FCFA"),
+        k("Total encaissé", d.encaissements.totalEncaisse, "FCFA"), k("Ventes à crédit", d.credit.caCredit, "FCFA"),
+        k("Impayés (montant dû)", d.impayes.montantTotalDu, "FCFA"), k("Échéances en retard", d.impayes.nombreEcheancesEnRetard),
+        k("Actions de recouvrement", d.recouvrement.nombreActions), k("Retours marchandise", d.retours.nombreRetours),
+        k("Réclamations", d.reclamations.nombreReclamations),
+      ] };
+    }
+    case "ventes": {
+      const d = brut as VentesData;
+      return {
+        kpis: [k("Chiffre d'affaires", d.ca, "FCFA"), k("Nombre de ventes", d.nombreVentes), k("Panier moyen", d.panierMoyen, "FCFA"), k("Encaissé", d.encaisse, "FCFA")],
+        tables: [{ titre: "Détail par jour", headers: ["Jour", "Ventes", "CA"], types: ["date", "number", "currency"], rows: d.parJour.map((j) => [j.jour, j.nombre, j.ca]) }],
+      };
+    }
+    case "agents": {
+      const d = brut as AgentLigne[];
+      return { kpis: [], tables: [{ titre: "Ventes par agent", headers: ["Agent", "Ventes", "CA"], types: ["text", "number", "currency"], rows: d.map((a) => [nomComplet(a.agent, `#${a.agentId}`), a.nombreVentes, a.ca]) }] };
+    }
+    case "produits": {
+      const d = brut as ProduitLigne[];
+      return { kpis: [], tables: [{ titre: "Ventes par produit", headers: ["Produit", "Code", "Quantité", "Montant"], types: ["text", "text", "number", "currency"], rows: d.map((p) => [p.nom, p.codeProduit ?? "", p.quantite, p.montant]) }] };
+    }
+    case "agences": {
+      const d = brut as AgenceLigne[];
+      return { kpis: [], tables: [{ titre: "Ventes par agence", headers: ["Agence", "Code", "Ventes", "CA"], types: ["text", "text", "number", "currency"], rows: d.map((a) => [a.pointDeVente?.nom ?? `#${a.pointDeVenteId}`, a.pointDeVente?.code ?? "", a.nombreVentes, a.ca]) }] };
+    }
+    case "credit": {
+      const d = brut as CreditData;
+      return { tables: [], kpis: [
+        k("Ventes réglées à crédit", d.caCredit, "FCFA"), k("Nombre de ventes à crédit", d.nombreVentesCredit), k("Nouveaux crédits ouverts", d.nouveauxCredits),
+        k("Montant des nouveaux crédits", d.montantNouveauxCredits, "FCFA"), k("Déjà remboursé (nouveaux)", d.montantRembourseSurNouveaux, "FCFA"),
+        k("Solde restant (nouveaux)", d.soldeRestantSurNouveaux, "FCFA"),
+      ] };
+    }
+    case "encaissements": {
+      const d = brut as EncaissementsData;
+      return {
+        kpis: [k("Total encaissé", d.totalEncaisse, "FCFA"), k("Encaissé sur ventes", d.encaisseVentes, "FCFA"), k("Remboursements crédit encaissés", d.encaisseRemboursementsCredit, "FCFA"), k("Nombre de remboursements", d.nombreRemboursementsCredit)],
+        tables: [{ titre: "Par mode de paiement", headers: ["Mode", "Montant"], types: ["text", "currency"], rows: d.parModePaiementVentes.map((m) => [m.mode, m.montant]) }],
+      };
+    }
+    case "impayes": {
+      const d = brut as ImpayesData;
+      return {
+        kpis: [k("Échéances en retard", d.nombreEcheancesEnRetard), k("Montant total dû", d.montantTotalDu, "FCFA"), k("Pénalités cumulées", d.penalitesTotal, "FCFA")],
+        tables: [{ titre: "Impayés par client", headers: ["Client", "Téléphone", "Échéances", "Montant dû", "Pénalités"], types: ["text", "text", "number", "currency", "currency"],
+          rows: d.parClient.map((c) => [nomComplet(c.client, "—"), c.client.telephone ?? "", c.nombreEcheances, c.montantDu, c.penalites]) }],
+      };
+    }
+    case "recouvrement": {
+      const d = brut as RecouvrementData;
+      return {
+        kpis: [k("Actions de recouvrement", d.nombreActions)],
+        tables: [
+          { titre: "Par type d'action", headers: ["Type", "Nombre"], types: ["text", "number"], rows: d.parType.map((t) => [t.type, t.nombre]) },
+          { titre: "Par statut", headers: ["Statut", "Nombre"], types: ["text", "number"], rows: d.parStatut.map((s) => [s.statut, s.nombre]) },
+        ],
+      };
+    }
+    case "retours": {
+      const d = brut as RetoursData;
+      return {
+        kpis: [k("Retours marchandise", d.nombreRetours), k("Articles retournés", d.quantiteTotale)],
+        tables: [{ titre: "Par statut", headers: ["Statut", "Nombre"], types: ["text", "number"], rows: d.parStatut.map((s) => [s.statut, s.nombre]) }],
+      };
+    }
+    case "reclamations": {
+      const d = brut as ReclamationsData;
+      return {
+        kpis: [k("Réclamations", d.nombreReclamations)],
+        tables: [
+          { titre: "Par statut", headers: ["Statut", "Nombre"], types: ["text", "number"], rows: d.parStatut.map((s) => [s.statut, s.nombre]) },
+          { titre: "Par type", headers: ["Type", "Nombre"], types: ["text", "number"], rows: d.parType.map((t) => [t.type, t.nombre]) },
+        ],
+      };
+    }
+    case "performances": {
+      const d = brut as PerformancesData;
+      return { tables: [], kpis: [
+        k("Chiffre d'affaires", d.ca, "FCFA"), k("Nombre de ventes", d.nombreVentes), k("Panier moyen", d.panierMoyen, "FCFA"),
+        k("Taux de vente à crédit", Number(d.tauxCredit.toFixed(1)), "%"), k("Taux de retour", Number(d.tauxRetour.toFixed(1)), "%"),
+        k("Taux de réclamation", Number(d.tauxReclamation.toFixed(1)), "%"),
+      ] };
+    }
+  }
+}
+
+const valeurKpi = (x: ExportKpi) =>
+  x.unite === "FCFA" ? formatCurrency(x.valeur) : x.unite === "%" ? `${x.valeur.toFixed(1)} %` : x.valeur.toLocaleString("fr-FR");
+
+const valeurCellule = (v: string | number, type: TypeCol) =>
+  type === "currency" ? formatCurrency(Number(v)) : type === "date" ? formatDateShort(String(v)) : type === "number" ? Number(v).toLocaleString("fr-FR") : String(v);
+
+/** Nom d'onglet Excel valide (31 caractères max, sans \ / ? * [ ] :). */
+const nomOnglet = (s: string) => s.replace(/[\\/?*[\]:]/g, " ").slice(0, 31);
 
 // ── Rendus par vue ────────────────────────────────────────────────────────
 

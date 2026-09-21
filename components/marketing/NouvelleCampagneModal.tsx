@@ -122,7 +122,7 @@ export default function NouvelleCampagneModal({ onClose, onCreated }: { onClose:
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Objectif ROI (%) <span className="font-normal text-slate-400">(alerte §77 si non atteint)</span></label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Objectif ROI (%) <span className="font-normal text-slate-400">(alerte si non atteint)</span></label>
               <input type="number" value={form.roiCible} onChange={(e) => setForm((f) => ({ ...f, roiCible: e.target.value }))}
                 placeholder="ex : 150"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />

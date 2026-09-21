@@ -63,7 +63,7 @@ function RemplacementsPageInner() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Repeat className="text-blue-600" size={22} /> Remplacements produits</h1>
-            <p className="text-sm text-slate-500">CDC digitalisation §5.8 — approuver puis livrer les remplacements de produits défectueux</p>
+            <p className="text-sm text-slate-500">Approuver puis livrer les remplacements de produits défectueux</p>
           </div>
           <button onClick={() => refetch()} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50">
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
