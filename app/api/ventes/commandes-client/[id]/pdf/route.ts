@@ -41,10 +41,11 @@ export async function GET(req: Request, { params }: Ctx) {
       agent: commande.agent, pointDeVente: commande.pointDeVente, client: commande.client,
       modeReglement: commande.modeReglement, typeClientCommande: commande.typeClientCommande,
       dateLivraisonSouhaitee: commande.dateLivraisonSouhaitee, lieuLivraison: commande.lieuLivraison,
-      lignes: commande.lignes.map((l) => ({ produitNom: l.produit.nom, quantite: l.quantite, prixUnitaire: Number(l.prixUnitaire), remiseMontant: Number(l.remiseMontant), totalLigne: Number(l.totalLigne) })),
+      lignes: commande.lignes.map((l) => ({ produitNom: l.produit?.nom ?? `${l.designationLibre} (hors catalogue)`, quantite: l.quantite, prixUnitaire: Number(l.prixUnitaire), remiseMontant: Number(l.remiseMontant), totalLigne: Number(l.totalLigne) })),
       totalHT: Number(commande.totalHT), totalRemise: Number(commande.totalRemise), totalTVA: Number(commande.totalTVA), totalTTC: Number(commande.totalTTC),
       signatureClientNom: commande.signatureClientNom, dateSignatureClient: commande.dateSignatureClient,
       visaResponsablePar: commande.visaResponsablePar, dateVisaResponsable: commande.dateVisaResponsable,
+      gps: commande.latitude != null && commande.longitude != null ? { latitude: commande.latitude, longitude: commande.longitude, precision: commande.precisionGps } : null,
       qrDataUrl,
     });
     const pdf = await htmlToPdf(html, PDF_A5_PAYSAGE);

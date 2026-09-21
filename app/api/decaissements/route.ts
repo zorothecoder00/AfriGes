@@ -5,7 +5,7 @@ import { getAuthSession } from "@/lib/auth";
 import { getComptableSession } from "@/lib/authComptable";
 import { auditLog, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
-import { chargerSortieCaisse, type SortieCaisse } from "@/lib/ficheDecaissementServer";
+import { chargerSortieCaisse, fichesSansJustificatifs, type SortieCaisse } from "@/lib/ficheDecaissementServer";
 
 /**
  * Fiche de Décaissement (CDC digitalisation §3.6) — sortie de fonds avec
@@ -99,6 +99,20 @@ export async function POST(req: Request) {
     const operationCaisseId = body.operationCaisseId ? Number(body.operationCaisseId) : null;
     const operationCaissePDVId = body.operationCaissePDVId ? Number(body.operationCaissePDVId) : null;
     const liee = operationCaisseId != null || operationCaissePDVId != null;
+
+    // Une nouvelle demande est refusée tant que les justificatifs d'une fiche payée précédente manquent :
+    // le demandeur est renvoyé vers cette fiche (l'Admin en est dispensé ; le justificatif d'une sortie
+    // de caisse existante n'est pas une nouvelle demande de fonds).
+    if (!liee && session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN") {
+      const manquantes = await fichesSansJustificatifs(userId);
+      if (manquantes.length > 0) {
+        const f = manquantes[0];
+        return NextResponse.json({
+          error: `Joignez d'abord les pièces justificatives de la fiche ${f.reference} (${f.beneficiaireNom}) avant d'en créer une nouvelle.`,
+          ficheEnAttente: { id: f.id, reference: f.reference },
+        }, { status: 409 });
+      }
+    }
 
     let op = null as unknown as SortieCaisse; // défini uniquement si `liee`
     if (liee) {

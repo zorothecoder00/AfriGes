@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useApi } from "@/hooks/useApi";
 import FicheDecaissementModal from "@/components/FicheDecaissementModal";
+import PiecesDecaissement from "@/components/PiecesDecaissement";
 import { toast } from "sonner";
 import { Wallet2, Plus, X, RefreshCw, FileText, CheckCircle, XCircle, Banknote } from "lucide-react";
 
@@ -181,6 +182,7 @@ function DetailModal({ id, onClose, onUpdated, isComptableOuAdmin, role, gRole }
               {f.approbateurN2 && <p className="text-sm text-amber-700">Visa N2 (Direction) : {f.approbateurN2.prenom} {f.approbateurN2.nom}</p>}
               {f.executePar && <p className="text-sm text-blue-700">Payé par {f.executePar.prenom} {f.executePar.nom} — réf. {f.referencePaiement}</p>}
               {f.motifRejet && <p className="text-sm text-red-600">Motif de rejet : {f.motifRejet}</p>}
+              <PiecesDecaissement ficheId={f.id} alerte={f.statut === "PAYEE"} onChange={onUpdated} />
             </>
           )}
         </div>

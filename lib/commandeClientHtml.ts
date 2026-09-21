@@ -38,6 +38,8 @@ export interface CommandeClientHtmlData {
   totalHT: number; totalRemise: number; totalTVA: number; totalTTC: number;
   signatureClientNom: string; dateSignatureClient: Date | string;
   visaResponsablePar: { nom: string; prenom: string } | null; dateVisaResponsable: Date | string | null;
+  /** Position GPS relevée à la prise de commande (facultative) */
+  gps?: { latitude: number; longitude: number; precision: number | null } | null;
   qrDataUrl?: string | null;
 }
 
@@ -79,6 +81,7 @@ export function genCommandeClientHtml(d: CommandeClientHtmlData): string {
       <p style="margin:0; font-weight:bold;">${esc(d.agent.prenom)} ${esc(d.agent.nom)}</p>
       <p style="margin:2px 0 0; font-size:12px;">${esc(d.pointDeVente.nom)} (${esc(d.pointDeVente.code)})</p>
       <p style="margin:6px 0 0; font-size:12px;">Règlement : ${esc(d.modeReglement)}</p>
+      ${d.gps ? `<p style="margin:2px 0 0; font-size:12px;">Position GPS : ${d.gps.latitude.toFixed(5)}, ${d.gps.longitude.toFixed(5)}${d.gps.precision != null ? ` (±${Math.round(d.gps.precision)} m)` : ""}</p>` : ""}
       <p style="margin:2px 0 0; font-size:12px;">Livraison souhaitée : ${d.dateLivraisonSouhaitee ? formatDateFr(d.dateLivraisonSouhaitee) : "non précisée"}${d.lieuLivraison ? ` — ${esc(d.lieuLivraison)}` : ""}</p>
     </div>
   </div>

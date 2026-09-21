@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { X, Loader2, Plus, Search, Printer, CheckCircle2 } from "lucide-react";
+import Link from "next/link";
+import { useApi } from "@/hooks/useApi";
+import { X, Loader2, Plus, Search, Printer, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import SortieCaissePicker from "@/components/SortieCaissePicker";
@@ -71,6 +73,10 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
   const [piecesJustificatives, setPiecesJustificatives] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [creee, setCreee] = useState<{ id: number; reference: string } | null>(null);
+  // Justificatifs manquants d'une fiche payée précédente : bloque une NOUVELLE demande (pas la justification d'une sortie de caisse)
+  const { data: manquantesRes } = useApi<{ data: { id: number; reference: string; beneficiaireNom: string; montantDemande: number | string; montantApprouve: number | string | null }[] }>("/api/decaissements/justificatifs-manquants");
+  const manquantes = manquantesRes?.data ?? [];
+  const bloque = !modeJustificatif && manquantes.length > 0;
 
   const requiertPieces = typeDepense === "ACHAT_MARCHANDISES" || typeDepense === "PAIEMENT_FOURNISSEUR";
 
@@ -147,6 +153,20 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
         ) : (
           <>
             <div className="px-6 py-4 space-y-3 overflow-y-auto">
+              {bloque && (
+                <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-amber-800"><AlertTriangle size={16} /> Justificatifs manquants</p>
+                  <p className="text-sm text-amber-800">Avant de créer une nouvelle fiche, joignez les pièces justificatives (reçus, factures…) de votre demande précédente :</p>
+                  <ul className="space-y-1">
+                    {manquantes.map((m) => (
+                      <li key={m.id} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-slate-700"><b className="font-mono">{m.reference}</b> — {m.beneficiaireNom} · {formatCurrency(Number(m.montantApprouve ?? m.montantDemande))}</span>
+                        <Link href={`/dashboard/user/decaissements?detail=${m.id}`} onClick={onClose} className="shrink-0 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-medium">Joindre les pièces</Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {!operationInitiale && (
                 <div className="flex gap-2 text-xs">
                   {[{ v: false, l: "Nouvelle demande" }, { v: true, l: "Justifier une sortie déjà faite" }].map((o) => (
@@ -249,7 +269,7 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100 shrink-0">
               <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 rounded-lg">Annuler</button>
-              <button onClick={submit} disabled={submitting || (modeJustificatif && !operation)}
+              <button onClick={submit} disabled={submitting || bloque || (modeJustificatif && !operation)}
                 className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
                 {submitting ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Créer la fiche
               </button>

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { ShoppingCart, RefreshCw, X, FileText, CheckCircle, XCircle } from "lucide-react";
 
 interface PersonRef { id: number; nom: string; prenom: string }
-interface Ligne { id: number; produitId: number; quantite: number; prixUnitaire: number | string; remiseMontant: number | string; totalLigne: number | string; produit: { id: number; nom: string } }
+interface Ligne { id: number; produitId: number | null; designationLibre?: string | null; quantite: number; prixUnitaire: number | string; remiseMontant: number | string; totalLigne: number | string; produit: { id: number; nom: string } | null }
 interface Commande {
   id: number; reference: string; statut: string;
   pointDeVente: { id: number; nom: string; code: string };
@@ -150,7 +150,7 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
                   <tbody className="divide-y divide-slate-100">
                     {c.lignes.map((l) => (
                       <tr key={l.id}>
-                        <td className="px-3 py-2">{l.produit.nom}</td>
+                        <td className="px-3 py-2">{l.produit?.nom ?? l.designationLibre}{!l.produit && <span className="ml-2 text-xs text-amber-600">hors catalogue</span>}</td>
                         <td className="text-center px-3 py-2">× {l.quantite}</td>
                         <td className="text-right px-3 py-2">{Number(l.remiseMontant) > 0 ? `-${Number(l.remiseMontant).toLocaleString("fr-FR")}` : "—"}</td>
                         <td className="text-right px-3 py-2 font-medium">{Number(l.totalLigne).toLocaleString("fr-FR")}</td>

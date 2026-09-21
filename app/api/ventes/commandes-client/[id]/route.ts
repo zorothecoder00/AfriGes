@@ -26,14 +26,15 @@ export async function GET(_req: Request, { params }: Ctx) {
 
     // Disponibilité stock temps réel (indicatif — CDC §3.2, ne bloque pas la saisie).
     const stocks = await prisma.stockSite.findMany({
-      where: { pointDeVenteId: commande.pointDeVenteId, produitId: { in: commande.lignes.map((l) => l.produitId) } },
+      where: { pointDeVenteId: commande.pointDeVenteId, produitId: { in: commande.lignes.flatMap((l) => (l.produitId != null ? [l.produitId] : [])) } },
       select: { produitId: true, quantite: true, quantiteReservee: true },
     });
     const stockParProduit = new Map(stocks.map((s) => [s.produitId, s.quantite - s.quantiteReservee]));
     const lignesAvecStock = commande.lignes.map((l) => ({
       ...l,
-      stockDisponible: stockParProduit.get(l.produitId) ?? 0,
-      ruptureSignalee: (stockParProduit.get(l.produitId) ?? 0) < l.quantite,
+      horsCatalogue: l.produitId == null,
+      stockDisponible: l.produitId != null ? (stockParProduit.get(l.produitId) ?? 0) : 0,
+      ruptureSignalee: l.produitId != null && (stockParProduit.get(l.produitId) ?? 0) < l.quantite,
     }));
 
     const seuilRemise = await getSeuilRemiseCommandeClient();
@@ -44,7 +45,7 @@ export async function GET(_req: Request, { params }: Ctx) {
   }
 }
 
-interface LigneInput { produitId: number; quantite: number; remisePourcent?: number }
+interface LigneInput { produitId?: number | null; designation?: string; prixUnitaire?: number; quantite: number; remisePourcent?: number }
 
 async function genererBonSortiePourCommande(
   tx: Prisma.TransactionClient,
@@ -110,10 +111,16 @@ export async function PATCH(req: Request, { params }: Ctx) {
       if (commande.statut !== "EN_VALIDATION") {
         return NextResponse.json({ error: `Impossible depuis le statut ${commande.statut}` }, { status: 422 });
       }
+      const horsCatalogue = commande.lignes.filter((l) => l.produitId == null);
+      if (horsCatalogue.length > 0) {
+        return NextResponse.json({
+          error: `${horsCatalogue.length} produit(s) hors catalogue (${horsCatalogue.map((l) => l.designationLibre).join(", ")}) : associez-les à un produit du catalogue (Ajuster) ou retirez-les avant de valider — aucune sortie de stock n'est possible sans produit du catalogue.`,
+        }, { status: 422 });
+      }
       const userId = parseInt(session.user.id);
       const updated = await prisma.$transaction(async (tx) => {
         await tx.commandeClient.update({ where: { id: commandeId }, data: { visaResponsableParId: userId, dateVisaResponsable: new Date() } });
-        await genererBonSortiePourCommande(tx, commande, commande.lignes, userId);
+        await genererBonSortiePourCommande(tx, commande, commande.lignes.map((l) => ({ produitId: l.produitId!, quantite: l.quantite, prixUnitaire: l.prixUnitaire })), userId);
         await notify(tx, [commande.agentId], {
           titre: `Commande ${commande.reference} validée`,
           message: "Votre commande est validée : le bon de sortie est généré et transmis au magasinier. Vous pouvez le télécharger depuis la fiche de la commande.",
@@ -199,24 +206,32 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (Array.isArray(body.lignes)) {
       const lignesInput = body.lignes as LigneInput[];
       for (const l of lignesInput) {
-        if (!l.produitId || !l.quantite || l.quantite <= 0) {
+        if (!l.quantite || l.quantite <= 0 || (!l.produitId && (!String(l.designation || "").trim() || !(Number(l.prixUnitaire) > 0)))) {
           return NextResponse.json({ error: "Ligne invalide" }, { status: 400 });
         }
       }
       const seuilRemise = await getSeuilRemiseCommandeClient();
       const updated = await prisma.$transaction(async (tx) => {
         const produits = await Promise.all(
-          lignesInput.map((l) => tx.produit.findUnique({ where: { id: Number(l.produitId) }, select: { id: true, nom: true, prixUnitaire: true, categorieId: true, familleId: true, marqueId: true } }))
+          lignesInput.map((l) => l.produitId ? tx.produit.findUnique({ where: { id: Number(l.produitId) }, select: { id: true, nom: true, prixUnitaire: true, categorieId: true, familleId: true, marqueId: true } }) : Promise.resolve(null))
         );
-        if (produits.some((p) => !p)) throw new Error("Produit introuvable");
+        if (lignesInput.some((l, i) => l.produitId && !produits[i])) throw new Error("Produit introuvable");
 
         const lignesCalc = await Promise.all(lignesInput.map(async (l, i) => {
-          const produit = produits[i]!;
-          const tarif = await tariferLigne(produit, l.quantite, { pointDeVenteId: commande.pointDeVenteId, clientId: commande.clientId, segment: commande.client.segment, aCredit: commande.modeReglement === "CREDIT" });
+          const produit = produits[i];
           const remisePourcent = Math.min(100, Math.max(0, Number(l.remisePourcent) || 0));
+          if (!produit) {
+            // Ligne encore hors catalogue (désignation libre + prix indicatif de l'agent)
+            const prixUnitaire = Number(l.prixUnitaire);
+            const montant = Math.round(prixUnitaire * l.quantite * 100) / 100;
+            const remiseMontant = Math.round(montant * remisePourcent / 100 * 100) / 100;
+            return { produitId: null as number | null, designationLibre: String(l.designation).trim() as string | null, quantite: l.quantite, prixUnitaire, remisePourcent, remiseMontant, totalLigne: montant - remiseMontant };
+          }
+          const tarif = await tariferLigne(produit, l.quantite, { pointDeVenteId: commande.pointDeVenteId, clientId: commande.clientId, segment: commande.client.segment, aCredit: commande.modeReglement === "CREDIT" });
           const remiseMontant = Math.round(tarif.montant * remisePourcent / 100 * 100) / 100;
           const totalLigne = tarif.montant - remiseMontant;
-          return { produitId: produit.id, quantite: l.quantite, prixUnitaire: tarif.prixUnitaire, remisePourcent, remiseMontant, totalLigne };
+          // Association d'un produit hors catalogue : le libellé libre n'est plus conservé
+          return { produitId: produit.id as number | null, designationLibre: null as string | null, quantite: l.quantite, prixUnitaire: tarif.prixUnitaire, remisePourcent, remiseMontant, totalLigne };
         }));
 
         const totalRemise = lignesCalc.reduce((s, l) => s + l.remiseMontant, 0);
@@ -234,7 +249,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
             notes: "notes" in body ? (body.notes || null) : undefined,
             dateLivraisonSouhaitee: "dateLivraisonSouhaitee" in body ? (body.dateLivraisonSouhaitee ? new Date(body.dateLivraisonSouhaitee) : null) : undefined,
             lieuLivraison: "lieuLivraison" in body ? (body.lieuLivraison || null) : undefined,
-            lignes: { create: lignesCalc.map((l) => ({ produitId: l.produitId, quantite: l.quantite, prixUnitaire: l.prixUnitaire, remisePourcent: l.remisePourcent, remiseMontant: l.remiseMontant, totalLigne: l.totalLigne })) },
+            lignes: { create: lignesCalc.map((l) => ({ produitId: l.produitId, designationLibre: l.designationLibre, quantite: l.quantite, prixUnitaire: l.prixUnitaire, remisePourcent: l.remisePourcent, remiseMontant: l.remiseMontant, totalLigne: l.totalLigne })) },
           },
           include: INCLUDE,
         });

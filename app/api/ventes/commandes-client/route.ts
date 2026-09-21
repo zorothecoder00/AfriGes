@@ -110,12 +110,14 @@ export async function GET(req: Request) {
   }
 }
 
-interface LigneInput { produitId: number; quantite: number; remisePourcent?: number }
+/** Ligne du catalogue (produitId) ou produit hors catalogue (designation + prixUnitaire indicatif). */
+interface LigneInput { produitId?: number | null; designation?: string; prixUnitaire?: number; quantite: number; remisePourcent?: number }
 
 /**
  * POST /api/ventes/commandes-client
  * Body : { clientId, pointDeVenteId?, typeClientCommande?, modeReglement?,
- *   dateLivraisonSouhaitee?, lieuLivraison?, lignes: [{produitId, quantite, remisePourcent?}],
+ *   dateLivraisonSouhaitee?, lieuLivraison?, latitude?, longitude?, precisionGps?,
+ *   lignes: [{produitId, quantite, remisePourcent?} | {designation, prixUnitaire, quantite, remisePourcent?}],
  *   signatureClientNom, notes? }
  */
 export async function POST(req: Request) {
@@ -140,14 +142,30 @@ export async function POST(req: Request) {
 
     const lignesInput = (body.lignes ?? []) as LigneInput[];
     if (!lignesInput.length) return NextResponse.json({ error: "Au moins une ligne de commande est requise" }, { status: 400 });
+    const estAdminCreateur = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
     for (const l of lignesInput) {
-      if (!l.produitId || !l.quantite || l.quantite <= 0) {
-        return NextResponse.json({ error: "Chaque ligne doit avoir produitId et quantite (>0)" }, { status: 400 });
+      if (!l.quantite || l.quantite <= 0) {
+        return NextResponse.json({ error: "Chaque ligne doit avoir une quantité (>0)" }, { status: 400 });
+      }
+      if (!l.produitId) {
+        // Produit hors catalogue : désignation + prix indicatif obligatoires ; à associer à un produit du
+        // catalogue par l'Admin avant validation (l'Admin, lui, choisit toujours dans le catalogue).
+        if (estAdminCreateur) return NextResponse.json({ error: "Sélectionnez un produit du catalogue pour chaque ligne" }, { status: 400 });
+        if (!String(l.designation || "").trim() || !(Number(l.prixUnitaire) > 0)) {
+          return NextResponse.json({ error: "Produit hors catalogue : désignation et prix unitaire (>0) obligatoires" }, { status: 400 });
+        }
       }
       if (l.remisePourcent != null && (l.remisePourcent < 0 || l.remisePourcent > 100)) {
         return NextResponse.json({ error: "Remise (%) invalide" }, { status: 400 });
       }
     }
+
+    // Position GPS facultative (relevée par l'appareil de l'agent)
+    const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
+    let latitude = num(body.latitude), longitude = num(body.longitude), precisionGps = num(body.precisionGps);
+    if (latitude != null && longitude != null && Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180) {
+      if (precisionGps != null && !(Number.isFinite(precisionGps) && precisionGps >= 0)) precisionGps = null;
+    } else { latitude = null; longitude = null; precisionGps = null; }
 
     const signatureClientNom = String(body.signatureClientNom || "").trim();
     if (!signatureClientNom) {
@@ -169,22 +187,29 @@ export async function POST(req: Request) {
       try {
         const commande = await prisma.$transaction(async (tx) => {
           const produits = await Promise.all(
-            lignesInput.map((l) => tx.produit.findUnique({
+            lignesInput.map((l) => l.produitId ? tx.produit.findUnique({
               where: { id: Number(l.produitId) },
               select: { id: true, nom: true, prixUnitaire: true, categorieId: true, familleId: true, marqueId: true },
-            }))
+            }) : Promise.resolve(null))
           );
-          if (produits.some((p) => !p)) throw new Error("Produit introuvable");
+          if (lignesInput.some((l, i) => l.produitId && !produits[i])) throw new Error("Produit introuvable");
 
           const lignesCalc = await Promise.all(lignesInput.map(async (l, i) => {
-            const produit = produits[i]!;
+            const produit = produits[i];
+            const remisePourcent = Math.min(100, Math.max(0, Number(l.remisePourcent) || 0));
+            if (!produit) {
+              // Ligne hors catalogue : prix indicatif saisi par l'agent, pas de moteur de prix.
+              const prixUnitaire = Number(l.prixUnitaire);
+              const montant = Math.round(prixUnitaire * l.quantite * 100) / 100;
+              const remiseMontant = Math.round(montant * remisePourcent / 100 * 100) / 100;
+              return { produitId: null as number | null, designationLibre: String(l.designation).trim(), quantite: l.quantite, prixUnitaire, remisePourcent, remiseMontant, totalLigne: montant - remiseMontant };
+            }
             const tarif = await tariferLigne(produit, l.quantite, {
               pointDeVenteId, clientId, segment: client.segment, aCredit: modeReglement === "CREDIT",
             });
-            const remisePourcent = Math.min(100, Math.max(0, Number(l.remisePourcent) || 0));
             const remiseMontant = Math.round(tarif.montant * remisePourcent / 100 * 100) / 100;
             const totalLigne = tarif.montant - remiseMontant;
-            return { produitId: produit.id, produitNom: produit.nom, quantite: l.quantite, prixUnitaire: tarif.prixUnitaire, remisePourcent, remiseMontant, totalLigne };
+            return { produitId: produit.id as number | null, designationLibre: null as string | null, quantite: l.quantite, prixUnitaire: tarif.prixUnitaire, remisePourcent, remiseMontant, totalLigne };
           }));
 
           const totalRemise = lignesCalc.reduce((s, l) => s + l.remiseMontant, 0);
@@ -213,12 +238,13 @@ export async function POST(req: Request) {
               dateLivraisonSouhaitee: body.dateLivraisonSouhaitee ? new Date(body.dateLivraisonSouhaitee) : null,
               lieuLivraison: body.lieuLivraison || null,
               totalHT, totalRemise, totalTVA, totalTTC,
+              latitude, longitude, precisionGps,
               ...(estAdmin ? { visaResponsableParId: userId, dateVisaResponsable: new Date() } : {}),
               signatureClientNom, dateSignatureClient: new Date(),
               notes: body.notes || null,
               lignes: {
                 create: lignesCalc.map((l) => ({
-                  produitId: l.produitId, quantite: l.quantite, prixUnitaire: l.prixUnitaire,
+                  produitId: l.produitId, designationLibre: l.designationLibre, quantite: l.quantite, prixUnitaire: l.prixUnitaire,
                   remisePourcent: l.remisePourcent, remiseMontant: l.remiseMontant, totalLigne: l.totalLigne,
                 })),
               },
@@ -257,7 +283,7 @@ export async function POST(req: Request) {
               motif: `Commande client ${reference}`,
               montantTotal: montantTotalBS,
               creeParId: userId,
-              lignes: { create: lignesCalc.map((l) => ({ produitId: l.produitId, quantite: l.quantite, quantiteDemandee: l.quantite, prixUnit: l.prixUnitaire })) },
+              lignes: { create: lignesCalc.map((l) => ({ produitId: l.produitId!, quantite: l.quantite, quantiteDemandee: l.quantite, prixUnit: l.prixUnitaire })) },
             },
           });
           const cUpdated = await tx.commandeClient.update({
@@ -275,7 +301,7 @@ export async function POST(req: Request) {
               reference: `BP-${Date.now()}-${c.id}`,
               bonSortieId: bonSortie.id,
               commandeClientId: c.id,
-              lignes: { create: lignesCalc.map((l) => ({ produitId: l.produitId, quantiteDemandee: l.quantite, quantitePreparee: l.quantite })) },
+              lignes: { create: lignesCalc.map((l) => ({ produitId: l.produitId!, quantiteDemandee: l.quantite, quantitePreparee: l.quantite })) },
             },
           });
           await notifyRoles(tx, ["MAGAZINIER", "RESPONSABLE_POINT_DE_VENTE"], {

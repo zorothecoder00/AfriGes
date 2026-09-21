@@ -64,6 +64,7 @@ export async function genererQrDataUrl(texte: string): Promise<string> {
  * Il ne porte aucune donnée : il ouvre le formulaire vierge dans l'app, après authentification.
  */
 export const QR_MODELES = [
+  { code: "DOC", libelle: "Menu documents commerciaux", cible: "/dashboard/user/agentsTerrain/documents" },
   { code: "BRF", libelle: "Bordereau de remise de fonds", cible: "/dashboard/user/agentsTerrain/bordereaux-remise?nouveau=1" },
   { code: "BCC", libelle: "Bon de commande client", cible: "/dashboard/user/agentsTerrain/commandes-client?nouveau=1" },
   { code: "DEV", libelle: "Devis", cible: "/dashboard/user/agentsTerrain/devis-proforma?nouveau=DEVIS" },

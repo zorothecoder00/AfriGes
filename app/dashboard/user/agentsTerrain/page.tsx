@@ -2139,6 +2139,14 @@ export default function AgentTerrainPage() {
               </button>
             );
           })}
+          <Link
+            href="/dashboard/user/agentsTerrain/documents"
+            onClick={() => setSidebarOpen(false)}
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all text-emerald-100/80 hover:bg-white/10 hover:text-white"
+          >
+            <FileText size={17} />
+            <span className="flex-1 text-left">Documents commerciaux</span>
+          </Link>
         </nav>
       </aside>
 
@@ -2200,22 +2208,10 @@ export default function AgentTerrainPage() {
               <CreditCard size={16} /> Crédits Clients
             </Link>
             <Link
-              href="/dashboard/user/agentsTerrain/devis-proforma"
+              href="/dashboard/user/agentsTerrain/documents"
               className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
             >
-              <FileText size={16} /> Devis &amp; Proforma
-            </Link>
-            <Link
-              href="/dashboard/user/agentsTerrain/commandes-client"
-              className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
-            >
-              <ShoppingCart size={16} /> Commandes client
-            </Link>
-            <Link
-              href="/dashboard/user/agentsTerrain/bordereaux-remise"
-              className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
-            >
-              <Wallet size={16} /> Remise de fonds
+              <FileText size={16} /> Documents commerciaux
             </Link>
             <button onClick={refetchAll} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
               <RefreshCw size={18} /> {t('refresh')}

@@ -11,7 +11,7 @@ import { ArrowLeft, ShoppingCart, Plus, X, RefreshCw, FileText, Search, PackageC
 
 interface PersonRef { id: number; nom: string; prenom: string }
 interface ClientRef { id: number; nom: string; prenom: string; telephone: string; adresse: string | null }
-interface Ligne { id: number; produitId: number; quantite: number; prixUnitaire: number | string; remisePourcent: number | string; remiseMontant: number | string; totalLigne: number | string; produit: { id: number; nom: string; codeProduit: string | null }; stockDisponible?: number; ruptureSignalee?: boolean }
+interface Ligne { id: number; produitId: number | null; designationLibre?: string | null; horsCatalogue?: boolean; quantite: number; prixUnitaire: number | string; remisePourcent: number | string; remiseMontant: number | string; totalLigne: number | string; produit: { id: number; nom: string; codeProduit: string | null } | null; stockDisponible?: number; ruptureSignalee?: boolean }
 interface Commande {
   id: number; reference: string; statut: string;
   pointDeVente: { id: number; nom: string; code: string };
@@ -19,6 +19,7 @@ interface Commande {
   typeClientCommande: string; modeReglement: string;
   totalHT: number | string; totalRemise: number | string; totalTVA: number | string; totalTTC: number | string;
   signatureClientNom: string;
+  latitude?: number | null; longitude?: number | null; precisionGps?: number | null;
   visaResponsablePar: PersonRef | null; motifRejet: string | null;
   bonSortie: { id: number; reference: string; statut: string } | null;
   bonPreparation: { id: number; reference: string; statut: string } | null;
@@ -162,7 +163,7 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
                   <tbody className="divide-y divide-slate-100">
                     {c.lignes.map((l) => (
                       <tr key={l.id}>
-                        <td className="px-3 py-2">{l.produit.nom}{l.ruptureSignalee && <span className="ml-2 text-xs text-red-600 flex items-center gap-1 inline-flex"><Search className="w-3 h-3" /> rupture partielle</span>}</td>
+                        <td className="px-3 py-2">{l.produit?.nom ?? l.designationLibre}{!l.produit && <span className="ml-2 text-xs text-amber-600">hors catalogue — à valider par l&apos;administration</span>}{l.ruptureSignalee && <span className="ml-2 text-xs text-red-600 flex items-center gap-1 inline-flex"><Search className="w-3 h-3" /> rupture partielle</span>}</td>
                         <td className="text-center px-3 py-2">× {l.quantite}</td>
                         <td className="text-right px-3 py-2 font-medium">{Number(l.totalLigne).toLocaleString("fr-FR")}</td>
                       </tr>
@@ -171,6 +172,9 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
                 </table>
               </div>
               <p className="text-right text-sm font-bold text-slate-800">Total TTC : {Number(c.totalTTC).toLocaleString("fr-FR")} FCFA</p>
+              {c.latitude != null && c.longitude != null && (
+                <p className="text-sm text-slate-600">Position GPS : <a href={`https://www.google.com/maps?q=${c.latitude},${c.longitude}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{c.latitude.toFixed(5)}, {c.longitude.toFixed(5)}</a>{c.precisionGps != null && ` (±${Math.round(c.precisionGps)} m)`}</p>
+              )}
               {c.visaResponsablePar && <p className="text-sm text-amber-700">Visa RVC : {c.visaResponsablePar.prenom} {c.visaResponsablePar.nom}</p>}
               {c.motifRejet && <p className="text-sm text-red-600">Motif de rejet : {c.motifRejet}</p>}
               {c.bonSortie && (

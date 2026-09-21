@@ -4,10 +4,12 @@ import { useState } from "react";
 import IdentiteAgent from "./IdentiteAgent";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
-import { X, Plus, Send, Trash2 } from "lucide-react";
+import { X, Plus, Send, Trash2, MapPin, Loader2 } from "lucide-react";
 
 export interface ClientRef { id: number; nom: string; prenom: string; telephone: string; adresse: string | null }
 interface ProduitRef { id: number; nom: string; reference: string | null; prixUnitaire: number | string }
+type LigneForm = { produitId: number | null; produitNom: string; quantite: string; remisePourcent: string; libre: boolean; prix: string };
+const LIGNE_VIDE: LigneForm = { produitId: null, produitNom: "", quantite: "", remisePourcent: "0", libre: false, prix: "" };
 const inputCls = "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500";
 
 export default function NouvelleCommandeClient({ onClose, onCreated }: { onClose: () => void; onCreated: (id: number) => void }) {
@@ -17,7 +19,9 @@ export default function NouvelleCommandeClient({ onClose, onCreated }: { onClose
   const [modeReglement, setModeReglement] = useState<"COMPTANT" | "MOBILE_MONEY" | "CREDIT">("COMPTANT");
   const [dateLivraisonSouhaitee, setDateLivraisonSouhaitee] = useState("");
   const [lieuLivraison, setLieuLivraison] = useState("");
-  const [lignes, setLignes] = useState<{ produitId: number | null; produitNom: string; quantite: string; remisePourcent: string }[]>([{ produitId: null, produitNom: "", quantite: "", remisePourcent: "0" }]);
+  const [lignes, setLignes] = useState<LigneForm[]>([{ ...LIGNE_VIDE }]);
+  const [gps, setGps] = useState<{ latitude: number; longitude: number; precision: number } | null>(null);
+  const [gpsEnCours, setGpsEnCours] = useState(false);
   const [produitSearch, setProduitSearch] = useState("");
   const [ligneEnRecherche, setLigneEnRecherche] = useState<number | null>(null);
   const [signatureClientNom, setSignatureClientNom] = useState("");
@@ -30,13 +34,24 @@ export default function NouvelleCommandeClient({ onClose, onCreated }: { onClose
   const produits = produitsData?.data ?? [];
 
   const updateLigne = (idx: number, patch: Partial<(typeof lignes)[number]>) => setLignes((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
-  const addLigne = () => setLignes((prev) => [...prev, { produitId: null, produitNom: "", quantite: "", remisePourcent: "0" }]);
+  const addLigne = () => setLignes((prev) => [...prev, { ...LIGNE_VIDE }]);
+
+  // Position GPS de la prise de commande (facultative) : relevée par l'appareil de l'agent.
+  const capturerPosition = () => {
+    if (!navigator.geolocation) { toast.error("La géolocalisation n'est pas disponible sur cet appareil"); return; }
+    setGpsEnCours(true);
+    navigator.geolocation.getCurrentPosition(
+      (p) => { setGps({ latitude: p.coords.latitude, longitude: p.coords.longitude, precision: p.coords.accuracy }); setGpsEnCours(false); },
+      (e) => { setGpsEnCours(false); toast.error(e.code === 1 ? "Autorisez la localisation dans votre navigateur" : "Position introuvable, réessayez"); },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  };
   const removeLigne = (idx: number) => setLignes((prev) => prev.filter((_, i) => i !== idx));
 
   const handleSubmit = async () => {
     if (!client) { toast.error("Sélectionnez un client"); return; }
     if (!signatureClientNom.trim()) { toast.error("Signature électronique du client obligatoire"); return; }
-    const lignesValides = lignes.filter((l) => l.produitId && Number(l.quantite) > 0);
+    const lignesValides = lignes.filter((l) => Number(l.quantite) > 0 && (l.libre ? l.produitNom.trim() && Number(l.prix) > 0 : l.produitId));
     if (lignesValides.length === 0) { toast.error("Ajoutez au moins une ligne valide"); return; }
 
     setSaving(true);
@@ -46,7 +61,10 @@ export default function NouvelleCommandeClient({ onClose, onCreated }: { onClose
         body: JSON.stringify({
           clientId: client.id, typeClientCommande, modeReglement,
           dateLivraisonSouhaitee: dateLivraisonSouhaitee || undefined, lieuLivraison: lieuLivraison || undefined,
-          lignes: lignesValides.map((l) => ({ produitId: l.produitId, quantite: Number(l.quantite), remisePourcent: Number(l.remisePourcent) || 0 })),
+          lignes: lignesValides.map((l) => l.libre
+            ? { designation: l.produitNom.trim(), prixUnitaire: Number(l.prix), quantite: Number(l.quantite), remisePourcent: Number(l.remisePourcent) || 0 }
+            : { produitId: l.produitId, quantite: Number(l.quantite), remisePourcent: Number(l.remisePourcent) || 0 }),
+          ...(gps ? { latitude: gps.latitude, longitude: gps.longitude, precisionGps: gps.precision } : {}),
           signatureClientNom, notes: notes || undefined,
         }),
       });
@@ -113,36 +131,62 @@ export default function NouvelleCommandeClient({ onClose, onCreated }: { onClose
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs text-slate-500">Produits</label>
-              <button onClick={addLigne} className="text-xs text-emerald-600 hover:text-emerald-700 flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> Ajouter</button>
-            </div>
-            <div className="space-y-2">
+            <label className="text-xs text-slate-500">Produits</label>
+            <div className="space-y-2 mt-1">
               {lignes.map((l, i) => (
                 <div key={i} className="flex gap-2 items-start">
                   <div className="flex-1 relative">
-                    <input
-                      value={ligneEnRecherche === i ? produitSearch : l.produitNom}
-                      onChange={(e) => { setProduitSearch(e.target.value); updateLigne(i, { produitNom: e.target.value, produitId: null }); setLigneEnRecherche(i); }}
-                      onFocus={() => setLigneEnRecherche(i)}
-                      placeholder="Rechercher un produit…" className={inputCls}
-                    />
-                    {ligneEnRecherche === i && produits.length > 0 && !l.produitId && (
-                      <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                    {l.libre ? (
+                      <input value={l.produitNom} onChange={(e) => updateLigne(i, { produitNom: e.target.value })} placeholder="Désignation du produit (hors catalogue)" className={inputCls + " border-amber-300 bg-amber-50/40"} />
+                    ) : (
+                      <input
+                        value={ligneEnRecherche === i ? produitSearch : l.produitNom}
+                        onChange={(e) => { setProduitSearch(e.target.value); updateLigne(i, { produitNom: e.target.value, produitId: null }); setLigneEnRecherche(i); }}
+                        onFocus={() => setLigneEnRecherche(i)}
+                        placeholder="Rechercher un produit…" className={inputCls}
+                      />
+                    )}
+                    {!l.libre && ligneEnRecherche === i && !l.produitId && produitSearch.length >= 2 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                         {produits.map((p) => (
                           <button key={p.id} onClick={() => { updateLigne(i, { produitId: p.id, produitNom: p.nom }); setLigneEnRecherche(null); }} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex justify-between">
                             <span>{p.nom}</span><span className="text-slate-400">{Number(p.prixUnitaire).toLocaleString("fr-FR")}</span>
                           </button>
                         ))}
+                        <button onClick={() => { updateLigne(i, { libre: true, produitId: null, produitNom: produitSearch }); setLigneEnRecherche(null); }} className="w-full text-left px-3 py-2 text-sm text-amber-700 hover:bg-amber-50 border-t border-slate-100">
+                          + Produit hors catalogue : « {produitSearch} »
+                        </button>
                       </div>
                     )}
+                    {l.libre && (
+                      <button onClick={() => updateLigne(i, { libre: false, prix: "", produitNom: "" })} className="text-[11px] text-slate-400 hover:text-slate-600 mt-0.5">← Choisir dans le catalogue</button>
+                    )}
                   </div>
+                  {l.libre && <input type="number" min="1" value={l.prix} onChange={(e) => updateLigne(i, { prix: e.target.value })} placeholder="Prix unit." className="w-24 px-3 py-2 border border-amber-300 bg-amber-50/40 rounded-lg text-sm" title="Prix unitaire indicatif (FCFA)" />}
                   <input type="number" min="1" value={l.quantite} onChange={(e) => updateLigne(i, { quantite: e.target.value })} placeholder="Qté" className="w-20 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
                   <input type="number" min="0" max="100" value={l.remisePourcent} onChange={(e) => updateLigne(i, { remisePourcent: e.target.value })} placeholder="Remise %" className="w-24 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
                   {lignes.length > 1 && <button onClick={() => removeLigne(i)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>}
                 </div>
               ))}
             </div>
+            <button onClick={addLigne} className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 border border-dashed border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-lg text-sm font-medium"><Plus className="w-4 h-4" /> Ajouter un produit</button>
+            {lignes.some((l) => l.libre) && (
+              <p className="text-[11px] text-amber-700 mt-1.5">Les produits hors catalogue devront être associés à un produit du catalogue par l&apos;administration avant validation de la commande.</p>
+            )}
+          </div>
+
+          <div>
+            <label className="text-xs text-slate-500">Position GPS <span className="text-slate-400">(facultatif)</span></label>
+            {gps ? (
+              <div className="flex items-center justify-between px-3 py-2 border border-emerald-200 bg-emerald-50 rounded-lg text-sm">
+                <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-emerald-600" /> {gps.latitude.toFixed(5)}, {gps.longitude.toFixed(5)} <span className="text-slate-400">(±{Math.round(gps.precision)} m)</span></span>
+                <button onClick={() => setGps(null)} className="text-emerald-700 hover:text-emerald-900"><X className="w-4 h-4" /></button>
+              </div>
+            ) : (
+              <button onClick={capturerPosition} disabled={gpsEnCours} className="w-full flex items-center justify-center gap-1.5 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-sm font-medium disabled:opacity-60">
+                {gpsEnCours ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />} {gpsEnCours ? "Localisation en cours…" : "Enregistrer ma position actuelle"}
+              </button>
+            )}
           </div>
 
           <div>

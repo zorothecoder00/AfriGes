@@ -6,6 +6,29 @@ import { prisma } from "@/lib/prisma";
  * par les flux fournisseur (paiement d'un bon de commande, règlement dépôt-vente).
  */
 
+/**
+ * Justificatifs obligatoires : un demandeur ne peut pas créer une nouvelle fiche tant qu'une de ses
+ * fiches payées n'a aucune pièce justificative jointe (reçu, facture…). Ne concerne que les fiches
+ * créées à partir de cette date (les anciennes fiches ne bloquent personne) ; les salaires en sont exemptés.
+ */
+export const JUSTIFICATIFS_OBLIGATOIRES_DEPUIS = new Date("2026-09-22T00:00:00");
+export const SOURCE_PIECES_DECAISSEMENT = "FICHE_DECAISSEMENT";
+
+export async function fichesSansJustificatifs(userId: number) {
+  const payees = await prisma.ficheDecaissement.findMany({
+    where: { demandeurId: userId, statut: "PAYEE", typeDepense: { not: "SALAIRE" }, createdAt: { gte: JUSTIFICATIFS_OBLIGATOIRES_DEPUIS } },
+    select: { id: true, reference: true, beneficiaireNom: true, montantDemande: true, montantApprouve: true, typeDepense: true },
+    orderBy: { createdAt: "asc" },
+  });
+  if (payees.length === 0) return [];
+  const avecPieces = await prisma.pieceJustificative.findMany({
+    where: { sourceType: SOURCE_PIECES_DECAISSEMENT, sourceId: { in: payees.map((f) => f.id) } },
+    select: { sourceId: true }, distinct: ["sourceId"],
+  });
+  const ok = new Set(avecPieces.map((p) => p.sourceId));
+  return payees.filter((f) => !ok.has(f.id));
+}
+
 export type SortieCaisse = {
   source: "CAISSE" | "CAISSE_PDV";
   operationCaisseId: number | null;

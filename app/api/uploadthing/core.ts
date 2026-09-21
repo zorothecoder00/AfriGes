@@ -99,6 +99,21 @@ export const ourFileRouter = {
       return { url: file.url, key: file.key, name: file.name, size: file.size, type: file.type, uploaderUserId: metadata.uploaderUserId };
     }),
 
+  // Endpoint pièces justificatives d'une fiche de décaissement (reçus, factures…) — tout utilisateur connecté ;
+  // le rattachement à la fiche (demandeur / comptable / admin) est contrôlé par l'API à l'enregistrement.
+  pieceDecaissement: f({
+    pdf:   { maxFileSize: "16MB", maxFileCount: 6 },
+    image: { maxFileSize: "8MB",  maxFileCount: 6 },
+  })
+    .middleware(async () => {
+      const session = await getAuthSession();
+      if (!session) throw new Error("Non autorisé");
+      return { uploaderUserId: Number(session.user.id) };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      return { url: file.url, key: file.key, name: file.name, size: file.size, type: file.type, uploaderUserId: metadata.uploaderUserId };
+    }),
+
   // Endpoint bibliothèque de contenu Marketing (photos, vidéos, affiches,
   // flyers… CDC Marketing §29) — réservé au marketing.
   contenuMarketingMedia: f({

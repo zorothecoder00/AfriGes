@@ -57,7 +57,7 @@ export async function GET(_req: Request, { params }: Ctx) {
       pointDeVente: commande.pointDeVente,
       lieuLivraison: commande.lieuLivraison,
       lignes: commande.lignes.map((l) => ({
-        designation: l.produit.nom, quantite: l.quantite, prixUnitaire: Number(l.prixUnitaire),
+        designation: l.produit?.nom ?? l.designationLibre ?? "Produit", quantite: l.quantite, prixUnitaire: Number(l.prixUnitaire),
         remiseMontant: Number(l.remiseMontant), montant: Number(l.totalLigne),
       })),
       totalHT: Number(commande.totalHT), totalRemise: Number(commande.totalRemise),

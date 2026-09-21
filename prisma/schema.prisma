@@ -3708,6 +3708,11 @@ model CommandeClient {
   dateLivraisonSouhaitee DateTime?
   lieuLivraison          String?
 
+  // Position GPS relevée par l'agent à la prise de commande (facultative)
+  latitude     Float?
+  longitude    Float?
+  precisionGps Float? // précision en mètres
+
   totalHT     Decimal @default(0)
   totalRemise Decimal @default(0)
   totalTVA    Decimal @default(0)
@@ -3746,15 +3751,18 @@ model CommandeClient {
 model LigneCommandeClient {
   id             Int     @id @default(autoincrement())
   commandeId     Int
-  produitId      Int
+  // Null = produit hors catalogue saisi par l'agent (désignation libre + prix indicatif) : à associer à un
+  // produit du catalogue par l'Admin avant validation (aucune sortie de stock possible sans produit).
+  produitId      Int?
+  designationLibre String?
   quantite       Int
-  prixUnitaire   Decimal // résolu via lib/venteTarification.ts (moteur de prix catalogue)
+  prixUnitaire   Decimal // résolu via lib/venteTarification.ts (moteur de prix catalogue) ; saisi pour un produit hors catalogue
   remisePourcent Decimal @default(0)
   remiseMontant  Decimal @default(0)
   totalLigne     Decimal
 
   commande CommandeClient @relation(fields: [commandeId], references: [id], onDelete: Cascade)
-  produit  Produit        @relation(fields: [produitId], references: [id])
+  produit  Produit?       @relation(fields: [produitId], references: [id])
 
   @@index([commandeId])
 }
