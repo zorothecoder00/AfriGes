@@ -22,7 +22,10 @@ export async function genererReferenceUnique<T>(
     try {
       return await creer(reference);
     } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
+      // Détection par duck-typing plutôt que `instanceof Prisma.PrismaClientKnownRequestError` :
+      // en dev (Turbopack), le module @prisma/client peut être bundlé deux fois (route vs lib),
+      // ce qui casse l'instanceof et fait échouer le retry dès le premier conflit.
+      if (e && typeof e === "object" && (e as { code?: string }).code === "P2002") continue;
       throw e;
     }
   }

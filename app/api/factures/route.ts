@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 import { getAdminSession } from "@/lib/authAdmin";
 import { getCaissierSession } from "@/lib/authCaissier";
 import { getRPVSession } from "@/lib/authRPV";
@@ -22,9 +21,13 @@ async function getSession() {
 async function genNumero(): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `FAC-${year}-`;
+  // Tri par `numero` (pas par `id`) : le padding fixe des deux côtés du
+  // préfixe rend l'ordre lexicographique équivalent à l'ordre numérique, et
+  // ça reste correct même si une autre source (ex. facture revendeur, voir
+  // app/api/admin/revendeurs/.../route.ts) a inséré une ligne hors ordre d'id.
   const last = await prisma.factureVente.findFirst({
     where: { numero: { startsWith: prefix } },
-    orderBy: { id: "desc" },
+    orderBy: { numero: "desc" },
     select: { numero: true },
   });
   const lastN = last ? parseInt(last.numero.slice(prefix.length)) || 0 : 0;
@@ -42,11 +45,17 @@ async function createFactureWithRetry(data: any, include: any) {
     try {
       return await prisma.factureVente.create({ data: { ...data, numero }, include });
     } catch (e) {
+      // Détection par duck-typing plutôt que `instanceof Prisma.PrismaClientKnownRequestError` :
+      // en dev (Turbopack), le module @prisma/client peut être bundlé deux fois (route vs lib),
+      // ce qui casse l'instanceof et fait échouer le retry dès le premier conflit (l'erreur brute
+      // remonte alors telle quelle au lieu d'être absorbée par une nouvelle tentative).
+      const err = e as { code?: string; meta?: { target?: unknown } } | null;
       const isNumeroConflict =
-        e instanceof Prisma.PrismaClientKnownRequestError &&
-        e.code === "P2002" &&
+        !!err &&
+        typeof err === "object" &&
+        err.code === "P2002" &&
         (() => {
-          const raw = (e.meta as { target?: unknown })?.target;
+          const raw = err.meta?.target;
           const str = Array.isArray(raw) ? raw.join(",") : String(raw ?? "");
           return str.toLowerCase().includes("numero");
         })();
