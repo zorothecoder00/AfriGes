@@ -639,7 +639,7 @@ export default function RVCPage() {
               </button>
               <div className="hidden lg:block" />
               <div className="flex items-center gap-3">
-                <Link href="/dashboard/admin/centre-commandement"
+                <Link href="/dashboard/user/responsablesVenteCredit/centre-commandement"
                   className="px-3 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold hover:bg-emerald-50 transition-all shadow-sm flex items-center gap-2">
                   <LayoutGrid className="w-4 h-4" />
                   Centre de commandement

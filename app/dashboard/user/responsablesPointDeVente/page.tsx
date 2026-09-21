@@ -1924,7 +1924,7 @@ export default function ResponsablePDVPage() {
                 <button onClick={refetchAll} className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg" title="Actualiser">
                   <RefreshCw size={18} />
                 </button>
-                <Link href="/dashboard/admin/centre-commandement"
+                <Link href="/dashboard/user/responsablesPointDeVente/centre-commandement"
                   className="flex items-center gap-1.5 px-3 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-xl text-sm font-medium hover:bg-indigo-50 transition-colors">
                   <LayoutGrid size={15} />Centre de commandement
                 </Link>

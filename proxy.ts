@@ -69,16 +69,13 @@ const sharedAdminPaths: { prefix: string; roles: string[] }[] = [
     prefix: "/dashboard/admin/marketing",
     roles: ["DIRECTEUR_GENERAL", "CHEF_AGENCE", "RESPONSABLE_POINT_DE_VENTE"],
   },
-  // Centre de commandement (annuaire + recherche documentaire CDC digitalisation)
-  // et Réclamations (§5.8, "Service Commercial" agence) — Admin/Super Admin ont
-  // déjà accès de plein droit via /dashboard/admin ; ces deux pages doivent
-  // aussi rester navigables pour le RPV/Chef d'agence qui les utilisent au
-  // quotidien (getReclamationSession/getCentreCommandementSession les acceptent
-  // déjà côté API, il ne manquait que la navigation).
-  {
-    prefix: "/dashboard/admin/centre-commandement",
-    roles: ["RESPONSABLE_POINT_DE_VENTE", "CHEF_AGENCE", "RESPONSABLE_VENTE_CREDIT"],
-  },
+  // Réclamations (§5.8, "Service Commercial" agence) — Admin/Super Admin ont
+  // déjà accès de plein droit via /dashboard/admin ; cette page doit aussi
+  // rester navigable pour le RPV/Chef d'agence qui l'utilisent au quotidien
+  // (getReclamationSession l'accepte déjà côté API, il ne manquait que la
+  // navigation). Le Centre de commandement, lui, a sa propre route dédiée
+  // sous chaque dashboard gestionnaire (voir gestionnaireDashboardMap et
+  // components/CentreCommandement.tsx) : plus besoin d'exception ici.
   {
     prefix: "/dashboard/admin/reclamations",
     roles: ["RESPONSABLE_POINT_DE_VENTE", "CHEF_AGENCE"],
@@ -86,8 +83,8 @@ const sharedAdminPaths: { prefix: string; roles: string[] }[] = [
   // Comptes revendeurs B2B (CDC digitalisation §5.6) — le RVC n'a pas de page
   // dédiée dans son propre dashboard (contrairement au Dossier de crédit),
   // cette page admin est sa seule surface (API déjà authentifiée via
-  // getRVCSession) ; il ne manquait que la navigation depuis le Centre de
-  // commandement, comme pour centre-commandement/reclamations ci-dessus.
+  // getRVCSession) ; il ne manquait que la navigation depuis son Centre de
+  // commandement, comme pour reclamations ci-dessus.
   {
     prefix: "/dashboard/admin/revendeurs",
     roles: ["RESPONSABLE_VENTE_CREDIT"],

@@ -20,7 +20,10 @@ const TAKE = 6;
 /**
  * Centre de commandement (CDC digitalisation) — recherche transverse sur les
  * principaux documents créés dans le cadre du CDC : Admin/Super Admin voient
- * tout, RPV/Chef d'agence sont scopés à leur(s) point(s) de vente.
+ * tout, RPV/Chef d'agence sont scopés à leur(s) point(s) de vente, RVC est
+ * national (non scopé PDV). Chaque type de document n'est interrogé que pour
+ * les rôles auxquels il est pertinent (cf. `peut`), et les liens "Ouvrir la
+ * fiche" pointent vers la page propre au rôle consultant quand elle existe.
  * GET /api/centre-commandement/recherche?q=...
  */
 export async function GET(req: Request) {
@@ -32,10 +35,18 @@ export async function GET(req: Request) {
     const q = (searchParams.get("q") || "").trim();
     if (q.length < 2) return NextResponse.json({ data: [] });
 
-    const pdvIds = await resolvePdvIdsAutorises(session);
-    const isAdmin = pdvIds === null;
-    const pdvFiltre = isAdmin ? undefined : { in: pdvIds ?? [] };
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const gRole = session.user.gestionnaireRole ?? null;
+    // RVC est un rôle national (non rattaché à un point de vente) : sa
+    // recherche n'est donc pas scopée par PDV, contrairement à RPV/Chef d'agence.
+    const unscoped = isAdmin || gRole === "RESPONSABLE_VENTE_CREDIT";
+    const pdvIds = unscoped ? null : await resolvePdvIdsAutorises(session);
+    const pdvFiltre = unscoped ? undefined : { in: pdvIds ?? [] };
     const ci = { contains: q, mode: "insensitive" as const };
+    // N'interroge un type de document que si le rôle consultant peut agir
+    // dessus (même logique que rolesGestionnaire du catalogue de navigation) —
+    // évite de faire remonter des résultats vers des fiches inaccessibles.
+    const peut = (roles: string[]) => isAdmin || (!!gRole && roles.includes(gRole));
 
     const resultats: Resultat[] = [];
 
@@ -45,7 +56,7 @@ export async function GET(req: Request) {
       commandesRevendeur, tournees, reclamations, retours, remplacements, incidents,
       facturesAchat,
     ] = await Promise.all([
-      prisma.bordereauRemiseFonds.findMany({
+      !peut(["AGENT_TERRAIN", "COMPTABLE", "CHEF_COMPTABLE"]) ? Promise.resolve([]) : prisma.bordereauRemiseFonds.findMany({
         where: {
           ...(pdvFiltre && { pointDeVenteId: pdvFiltre }),
           OR: [{ reference: ci }, { collecteur: { OR: [{ nom: ci }, { prenom: ci }] } }],
@@ -53,7 +64,7 @@ export async function GET(req: Request) {
         include: { collecteur: { select: { nom: true, prenom: true } } },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      prisma.commandeClient.findMany({
+      !peut(["AGENT_TERRAIN", "COMMERCIAL", "RESPONSABLE_VENTE_CREDIT"]) ? Promise.resolve([]) : prisma.commandeClient.findMany({
         where: {
           ...(pdvFiltre && { pointDeVenteId: pdvFiltre }),
           OR: [{ reference: ci }, { client: { OR: [{ nom: ci }, { prenom: ci }, { telephone: ci }] } }],
@@ -61,7 +72,7 @@ export async function GET(req: Request) {
         include: { client: { select: { nom: true, prenom: true } } },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      prisma.bonCommande.findMany({
+      !peut(["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "RESPONSABLE_ACHATS"]) ? Promise.resolve([]) : prisma.bonCommande.findMany({
         where: {
           ...(pdvFiltre && { pointDeVenteId: pdvFiltre }),
           OR: [{ reference: ci }, { fournisseur: { nom: ci } }],
@@ -69,11 +80,11 @@ export async function GET(req: Request) {
         include: { fournisseur: { select: { nom: true } } },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      prisma.bonSortie.findMany({
+      !peut(["MAGAZINIER"]) ? Promise.resolve([]) : prisma.bonSortie.findMany({
         where: { ...(pdvFiltre && { pointDeVenteId: pdvFiltre }), reference: ci },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      prisma.bonReception.findMany({
+      !peut(["AGENT_TERRAIN"]) ? Promise.resolve([]) : prisma.bonReception.findMany({
         where: {
           ...(pdvFiltre && { commandeClient: { pointDeVenteId: pdvFiltre } }),
           OR: [{ reference: ci }, { clientNom: ci }, { clientTelephone: ci }],
@@ -87,7 +98,7 @@ export async function GET(req: Request) {
         },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      prisma.devisProforma.findMany({
+      !peut(["AGENT_TERRAIN", "COMMERCIAL"]) ? Promise.resolve([]) : prisma.devisProforma.findMany({
         where: {
           ...(pdvFiltre && { pointDeVenteId: pdvFiltre }),
           OR: [{ reference: ci }, { client: { OR: [{ nom: ci }, { prenom: ci }, { telephone: ci }] } }],
@@ -95,14 +106,14 @@ export async function GET(req: Request) {
         include: { client: { select: { nom: true, prenom: true } } },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      prisma.bonLivraison.findMany({
+      !peut(["MAGAZINIER"]) ? Promise.resolve([]) : prisma.bonLivraison.findMany({
         where: {
           ...(pdvFiltre && { commandeClient: { pointDeVenteId: pdvFiltre } }),
           OR: [{ reference: ci }, { clientNom: ci }, { clientTelephone: ci }],
         },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      prisma.creditClient.findMany({
+      !peut(["RESPONSABLE_VENTE_CREDIT"]) ? Promise.resolve([]) : prisma.creditClient.findMany({
         where: {
           ...(pdvFiltre && { pointDeVenteId: pdvFiltre }),
           OR: [{ reference: ci }, { client: { OR: [{ nom: ci }, { prenom: ci }, { telephone: ci }] } }],
@@ -110,14 +121,14 @@ export async function GET(req: Request) {
         include: { client: { select: { nom: true, prenom: true } } },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      prisma.profilRevendeur.findMany({
+      !peut(["RESPONSABLE_VENTE_CREDIT"]) ? Promise.resolve([]) : prisma.profilRevendeur.findMany({
         where: {
           ...(pdvFiltre && { pointDeVenteId: pdvFiltre }),
           OR: [{ raisonSociale: ci }, { nomCommercial: ci }, { contactNom: ci }, { contactTelephone: ci }],
         },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      prisma.commandeRevendeur.findMany({
+      !peut(["RESPONSABLE_VENTE_CREDIT"]) ? Promise.resolve([]) : prisma.commandeRevendeur.findMany({
         where: {
           ...(pdvFiltre && { pointDeVenteId: pdvFiltre }),
           OR: [{ reference: ci }, { revendeur: { OR: [{ nom: ci }, { prenom: ci }] } }],
@@ -128,12 +139,12 @@ export async function GET(req: Request) {
         },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      prisma.tourneeLivraison.findMany({
+      !peut(["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "MAGAZINIER"]) ? Promise.resolve([]) : prisma.tourneeLivraison.findMany({
         where: { ...(pdvFiltre && { pointDeVenteId: pdvFiltre }), reference: ci },
         include: { livreur: { select: { nom: true, prenom: true } } },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      prisma.reclamationClient.findMany({
+      !peut(["RESPONSABLE_POINT_DE_VENTE", "CHEF_AGENCE", "MAGAZINIER"]) ? Promise.resolve([]) : prisma.reclamationClient.findMany({
         where: {
           ...(pdvFiltre && { pointDeVenteId: pdvFiltre }),
           OR: [{ numero: ci }, { objet: ci }, { client: { OR: [{ nom: ci }, { prenom: ci }, { telephone: ci }] } }],
@@ -141,17 +152,17 @@ export async function GET(req: Request) {
         include: { client: { select: { nom: true, prenom: true } } },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      prisma.retourMarchandiseClient.findMany({
+      !peut(["RESPONSABLE_POINT_DE_VENTE", "CHEF_AGENCE", "MAGAZINIER"]) ? Promise.resolve([]) : prisma.retourMarchandiseClient.findMany({
         where: { ...(pdvFiltre && { pointDeVenteId: pdvFiltre }), numero: ci },
         include: { reclamation: { select: { id: true, numero: true } } },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      prisma.remplacementProduit.findMany({
+      !peut(["RESPONSABLE_POINT_DE_VENTE", "CHEF_AGENCE", "MAGAZINIER"]) ? Promise.resolve([]) : prisma.remplacementProduit.findMany({
         where: { ...(pdvFiltre && { pointDeVenteId: pdvFiltre }), numero: ci },
         include: { reclamation: { select: { id: true, numero: true } } },
         orderBy: { createdAt: "desc" }, take: TAKE,
       }),
-      prisma.incidentCommercial.findMany({
+      !peut(["RESPONSABLE_POINT_DE_VENTE", "CHEF_AGENCE", "MAGAZINIER"]) ? Promise.resolve([]) : prisma.incidentCommercial.findMany({
         where: {
           ...(pdvFiltre && { reclamation: { pointDeVenteId: pdvFiltre } }),
           OR: [{ numero: ci }, { lieu: ci }],
@@ -185,7 +196,7 @@ export async function GET(req: Request) {
         sousLabel: `${c.client.prenom} ${c.client.nom}`, statut: c.statut, date: c.createdAt.toISOString(),
         liens: [
           { label: "Imprimer", url: `/api/ventes/commandes-client/${c.id}/pdf` },
-          { label: "Ouvrir la fiche", url: isAdmin ? "/dashboard/admin/commandes-client" : `/dashboard/user/agentsTerrain/commandes-client?detail=${c.id}` },
+          { label: "Ouvrir la fiche", url: isAdmin ? "/dashboard/admin/commandes-client" : `/dashboard/user/responsablesVenteCredit/commandes-client?detail=${c.id}` },
         ],
       });
     }
@@ -250,7 +261,7 @@ export async function GET(req: Request) {
     for (const cr of credits) {
       const liens: Lien[] = [
         { label: "Avis d'échéance", url: `/api/admin/credits/${cr.id}/avis-echeance/pdf` },
-        { label: "Ouvrir le dossier", url: `/dashboard/admin/credits?detail=${cr.id}` },
+        { label: "Ouvrir le dossier", url: isAdmin ? `/dashboard/admin/credits?detail=${cr.id}` : `/dashboard/user/responsablesVenteCredit/credits?detail=${cr.id}` },
       ];
       if (Number(cr.soldeRestant) <= 0) {
         liens.push({ label: "Attestation de solde", url: `/api/admin/credits/${cr.id}/attestation-solde/pdf` });
