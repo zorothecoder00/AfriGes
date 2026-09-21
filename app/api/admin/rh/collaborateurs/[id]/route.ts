@@ -113,6 +113,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (body.situationMatrimoniale!== undefined) data.situationMatrimoniale= body.situationMatrimoniale as SituationMatrimoniale;
     if (body.nbEnfants            !== undefined) data.nbEnfants            = Number(body.nbEnfants);
     if (body.telephoneSecondaire  !== undefined) data.telephoneSecondaire  = body.telephoneSecondaire;
+    if (body.personneAPrevenirNom       !== undefined) data.personneAPrevenirNom       = body.personneAPrevenirNom       || null;
+    if (body.personneAPrevenirLien      !== undefined) data.personneAPrevenirLien      = body.personneAPrevenirLien      || null;
+    if (body.personneAPrevenirTelephone !== undefined) data.personneAPrevenirTelephone = body.personneAPrevenirTelephone || null;
     if (body.managerId            !== undefined) data.managerId            = body.managerId ? Number(body.managerId) : null;
     if (body.notes                !== undefined) data.notes                = body.notes;
 

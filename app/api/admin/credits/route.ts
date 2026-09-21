@@ -8,6 +8,7 @@ import { getFidelite } from "@/lib/fidelite";
 import { tariferLigne } from "@/lib/venteTarification";
 import { estFormuleValide, dureeJoursPourFormule, remunerationFormule } from "@/lib/formuleCredit";
 import { conditionsNomPrenom } from "@/lib/clientNameSearch";
+import { notifyGestionnaires, ROLES_COMPTABLES } from "@/lib/notifications";
 
 /**
  * ==========================
@@ -405,6 +406,14 @@ export async function POST(req: Request) {
           });
         }
       }
+
+      // Créance créée : le comptable suit les dettes clients
+      await notifyGestionnaires(tx, ROLES_COMPTABLES, {
+        titre:    "Nouveau crédit client (créance)",
+        message:  msgNotif,
+        priorite: PrioriteNotification.NORMAL,
+        actionUrl: "/dashboard/user/comptables/journaux",
+      });
 
       return credit;
     });

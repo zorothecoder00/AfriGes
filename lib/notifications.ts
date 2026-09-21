@@ -159,3 +159,21 @@ export async function auditLog(
     },
   });
 }
+
+/** Rôles comptables : destinataires des contrôles (écritures à valider, pièces justificatives). */
+export const ROLES_COMPTABLES = ["COMPTABLE", "CHEF_COMPTABLE"];
+
+/**
+ * Notifie l'admin (avec le lien du payload, page admin) ET les comptables (avec leur propre page :
+ * un comptable ne peut pas ouvrir les pages admin). Sans doublon pour l'admin.
+ * À utiliser pour les événements que le comptable doit contrôler : entrées/sorties de caisse,
+ * collectes des agents, créances (crédits) créées, suppressions de souscriptions/versements.
+ */
+export async function notifyAdminsEtComptables(
+  tx: TxClient,
+  payload: NotifPayload,
+  actionUrlComptable = "/dashboard/user/comptables/journaux"
+): Promise<void> {
+  await notifyAdmins(tx, payload);
+  await notifyGestionnaires(tx, ROLES_COMPTABLES, { ...payload, actionUrl: actionUrlComptable });
+}

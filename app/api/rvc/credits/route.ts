@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getRVCSession } from "@/lib/authRVC";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { MemberStatus, NiveauRisque, Prisma, StatutCredit, PrioriteNotification } from "@prisma/client";
-import { notifyRoles, notifyAdmins, auditLog } from "@/lib/notifications";
+import { notifyRoles, notifyAdminsEtComptables, auditLog } from "@/lib/notifications";
 import { getFidelite } from "@/lib/fidelite";
 import { tariferLigne } from "@/lib/venteTarification";
 import { estFormuleValide, dureeJoursPourFormule, remunerationFormule } from "@/lib/formuleCredit";
@@ -387,7 +387,7 @@ export async function POST(req: Request) {
         ? `Crédit ${reference} (${montantTotal.toLocaleString("fr-FR")} FCFA) pour ${client.prenom} ${client.nom}. ${nbSansRupture} produit(s) à livrer physiquement au client.`
         : `Crédit ${reference} (${montantTotal.toLocaleString("fr-FR")} FCFA) créé pour ${client.prenom} ${client.nom}.`;
 
-      await notifyAdmins(tx, {
+      await notifyAdminsEtComptables(tx, {
         titre:    `Nouveau crédit RVC — ${reference}`,
         message:  msgAdmin,
         priorite: PrioriteNotification.NORMAL,

@@ -4,6 +4,7 @@ import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { tariferLigne } from "@/lib/venteTarification";
 import { estFormuleValide, dureeJoursPourFormule, remunerationFormule } from "@/lib/formuleCredit";
+import { notifyGestionnaires, ROLES_COMPTABLES } from "@/lib/notifications";
 
 /**
  * GET /api/agentTerrain/credits
@@ -334,6 +335,14 @@ export async function POST(req: Request) {
           }
         }
       }
+
+      // Créance créée : le comptable suit les dettes clients
+      await notifyGestionnaires(tx, ROLES_COMPTABLES, {
+        titre:     `Demande crédit terrain — ${reference}`,
+        message:   `${agentNom} a soumis une demande de crédit ${reference} (${montantTotal.toLocaleString("fr-FR")} FCFA) pour ${client.prenom} ${client.nom}.`,
+        priorite:  "NORMAL" as const,
+        actionUrl: "/dashboard/user/comptables/journaux",
+      });
 
       return credit;
     });

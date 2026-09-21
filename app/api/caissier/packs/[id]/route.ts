@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
-import { auditLog, notifyAdmins } from "@/lib/notifications";
+import { auditLog, notifyAdminsEtComptables } from "@/lib/notifications";
+import { verifierSuppressionVersements, nettoyerEffetsVersements } from "@/lib/versementPack";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -138,7 +139,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         data: { statut: "ANNULE", dateCloture: new Date() },
       });
 
-      await notifyAdmins(tx, {
+      await notifyAdminsEtComptables(tx, {
         titre: `Souscription annulée — ${souscription.pack.nom}`,
         message: `${caissierNom} a annulé la souscription #${souscriptionId} (${souscription.pack.nom}) — erreur de saisie.`,
         priorite: "HAUTE",
@@ -197,13 +198,20 @@ export async function DELETE(_req: Request, { params }: Ctx) {
 
     const caissierNom = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
 
+    // Versements supprimés avec la souscription : on retire aussi leurs traces (relevé client, écriture
+    // en brouillon, opération de caisse), sinon elles resteraient orphelines.
+    const versementIds = (await prisma.versementPack.findMany({ where: { souscriptionId }, select: { id: true } })).map((v) => v.id);
+    const blocage = await verifierSuppressionVersements(prisma, versementIds);
+    if (blocage) return NextResponse.json({ error: blocage }, { status: 400 });
+
     await prisma.$transaction(async (tx) => {
       await tx.receptionProduitPack.deleteMany({ where: { souscriptionId } });
       await tx.echeancePack.deleteMany({ where: { souscriptionId } });
+      await nettoyerEffetsVersements(tx, versementIds);
       await tx.versementPack.deleteMany({ where: { souscriptionId } });
       await tx.souscriptionPack.delete({ where: { id: souscriptionId } });
 
-      await notifyAdmins(tx, {
+      await notifyAdminsEtComptables(tx, {
         titre: `Souscription supprimée — #${souscriptionId}`,
         message: `${caissierNom} a supprimé la souscription #${souscriptionId} (${souscription.pack.nom}) — erreur de saisie.`,
         priorite: "HAUTE",

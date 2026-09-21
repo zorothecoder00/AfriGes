@@ -1822,6 +1822,7 @@ enum TypeFournisseur {
   INDUSTRIEL
   IMPORTATEUR
   TRANSPORTEUR
+  GROSSISTE
 }
 
 model Fournisseur {
@@ -6869,6 +6870,11 @@ model ProfilRH {
   situationMatrimoniale SituationMatrimoniale?
   nbEnfants             Int                    @default(0)
   telephoneSecondaire   String?
+
+  // ── Personne à prévenir en cas d'urgence ─────────────────
+  personneAPrevenirNom       String?
+  personneAPrevenirLien      String? // lien familial ou relation : conjoint(e), parent, frère/sœur, ami(e)…
+  personneAPrevenirTelephone String?
 
   // ── Contrat & poste ───────────────────────────────────────
   typeContrat        TypeContrat?

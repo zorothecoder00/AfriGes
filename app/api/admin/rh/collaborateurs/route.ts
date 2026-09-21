@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
  *   fonction?, service?, departement?, niveauHierarchique?,
  *   dateNaissance?, lieuNaissance?, sexe?,
  *   nationalite?, situationMatrimoniale?, nbEnfants?,
- *   telephoneSecondaire?, notes?, managerId?
+ *   telephoneSecondaire?, personneAPrevenirNom?, personneAPrevenirLien?, personneAPrevenirTelephone?, notes?, managerId?
  * }
  */
 export async function POST(req: NextRequest) {
@@ -165,6 +165,9 @@ export async function POST(req: NextRequest) {
         situationMatrimoniale:body.situationMatrimoniale as SituationMatrimoniale | undefined,
         nbEnfants:            body.nbEnfants            ? Number(body.nbEnfants) : 0,
         telephoneSecondaire:  body.telephoneSecondaire  ?? undefined,
+        personneAPrevenirNom:       body.personneAPrevenirNom       || undefined,
+        personneAPrevenirLien:      body.personneAPrevenirLien      || undefined,
+        personneAPrevenirTelephone: body.personneAPrevenirTelephone || undefined,
         managerId:            body.managerId            ? Number(body.managerId) : undefined,
         notes:                body.notes                ?? undefined,
       },

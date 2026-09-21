@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId, souscriptionPdvWhere } from "@/lib/authCaissier";
-import { recalculerSouscriptionApresVersements } from "@/lib/versementPack";
-import { auditLog, notifyAdmins } from "@/lib/notifications";
+import { recalculerSouscriptionApresVersements, verifierSuppressionVersements, nettoyerEffetsVersements } from "@/lib/versementPack";
+import { auditLog, notifyAdminsEtComptables } from "@/lib/notifications";
 import { mettreAJourTransactionClient, supprimerTransactionClient } from "@/lib/clientTransaction";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -187,14 +187,18 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     const caissierNom = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
     const souscriptionId = versement.souscriptionId;
 
+    const blocage = await verifierSuppressionVersements(prisma, [versementId]);
+    if (blocage) return NextResponse.json({ error: blocage }, { status: 400 });
+
     await prisma.$transaction(async (tx) => {
       if (versement.statut === "PAYE") {
         await supprimerTransactionClient(tx, { sourceType: "VERSEMENT_PACK", sourceId: versementId });
       }
+      await nettoyerEffetsVersements(tx, [versementId]);
       await tx.versementPack.delete({ where: { id: versementId } });
       await recalculerSouscriptionApresVersements(tx, souscriptionId);
 
-      await notifyAdmins(tx, {
+      await notifyAdminsEtComptables(tx, {
         titre: `Versement supprimé — ${versement.souscription.pack.nom}`,
         message: `${caissierNom} a supprimé un versement de ${Number(versement.montant).toLocaleString("fr-FR")} FCFA sur la souscription #${souscriptionId} (${versement.souscription.pack.nom}) — erreur de saisie.`,
         priorite: "HAUTE",

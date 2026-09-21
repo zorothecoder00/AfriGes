@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
-import { notifyAdmins, auditLog } from "@/lib/notifications";
+import { notifyAdminsEtComptables, auditLog } from "@/lib/notifications";
 import { chargerParametrageCC, debiterCCPourCredit, extraireMetaRequete } from "@/lib/compteCourant";
 import { ecritureRemboursementCreditConfirme } from "@/lib/comptabilite/moteur";
 import { obtenirOuCreerCompteAuxiliaireClient } from "@/lib/comptabilite/auxiliaire";
@@ -322,7 +322,7 @@ export async function POST(req: Request, { params }: Ctx) {
         : "—";
 
       const viaCC = remboursement.compteCourantId != null;
-      await notifyAdmins(tx, {
+      await notifyAdminsEtComptables(tx, {
         titre:    `Remboursement confirmé — ${credit.reference}`,
         message:  `${caissierNom} a confirmé ${montantNum.toLocaleString("fr-FR")} FCFA${viaCC ? " (via compte courant)" : ""} de ${clientNom} (${credit.reference}).${estSolde ? " Crédit soldé !" : ` Solde restant : ${Math.max(0, nouveauSolde).toLocaleString("fr-FR")} FCFA.`}`,
         priorite: estSolde ? "HAUTE" : "NORMAL",

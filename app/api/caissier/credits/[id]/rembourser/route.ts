@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification, StatutCredit, StatutEcheanceCredit, TypePaiement } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
-import { notifyAdmins, auditLog } from "@/lib/notifications";
+import { notifyAdminsEtComptables, auditLog } from "@/lib/notifications";
 import { validerNumeroJour, montantAttenduDuJour, parseDateCollecte } from "@/lib/remboursementCredit";
 import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
@@ -182,7 +182,7 @@ export async function POST(req: Request, { params }: Ctx) {
       await auditLog(tx, userId, "REMBOURSEMENT_CREDIT_CAISSE", "RemboursementCredit", remboursement.id);
 
       const estSolde = newStatut === StatutCredit.SOLDE;
-      await notifyAdmins(tx, {
+      await notifyAdminsEtComptables(tx, {
         titre:    estSolde ? "Crédit soldé (caisse)" : "Remboursement crédit (caisse)",
         message:  estSolde
           ? `Le crédit ${credit.reference} de ${credit.client.prenom} ${credit.client.nom} est intégralement remboursé au comptoir.`

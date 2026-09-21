@@ -3,7 +3,7 @@ import { PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getRPVSession } from "@/lib/authRPV";   
 import { randomUUID } from "crypto";
-import { notifyRoles, auditLog } from "@/lib/notifications";
+import { notifyRoles, notifyAdminsEtComptables, auditLog } from "@/lib/notifications";
 import { ecritureOperationCaisse } from "@/lib/comptabilite/moteur";
        
 /**
@@ -201,6 +201,12 @@ export async function PATCH(req: Request) {
         await ecritureOperationCaisse(tx, {
           source: "CAISSE_PDV", operationId: op.id, type: "DECAISSEMENT", categorie: categorie || null,
           montant: Number(montant), motif, modePaiement: mode || null, userId, pointDeVenteId: caisse.pointDeVenteId,
+        });
+        await notifyAdminsEtComptables(tx, {
+          titre:    `Dépense petite caisse — ${categorie || "autre"}`,
+          message:  `${session.user.prenom} ${session.user.nom} a enregistré une dépense de petite caisse de ${Number(montant).toLocaleString("fr-FR")} FCFA. Motif : ${motif}. Pièce justificative à contrôler et écriture à valider.`,
+          priorite: PrioriteNotification.NORMAL,
+          actionUrl: "/dashboard/user/responsablesPointDeVente",
         });
       }
 

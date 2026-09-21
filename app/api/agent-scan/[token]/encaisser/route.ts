@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { agentDepuisJetonScan, trouverOuCreerSessionDuJour } from "@/lib/collecteSession";
 import { enregistrerRemboursementCredit } from "@/lib/remboursementCredit";
-import { auditLog, notifyAdmins } from "@/lib/notifications";
+import { auditLog, notifyAdminsEtComptables } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ token: string }> };
 
@@ -80,7 +80,7 @@ export async function POST(req: Request, { params }: Ctx) {
       await auditLog(tx, agent.id, "REMBOURSEMENT_CREDIT_SCAN_CONFIRME", "RemboursementCredit", out.remboursementId);
 
       const clientNom = credit.client ? `${credit.client.prenom} ${credit.client.nom}` : "—";
-      await notifyAdmins(tx, {
+      await notifyAdminsEtComptables(tx, {
         titre: `Remboursement crédit — ${credit.reference}`,
         message: `${agentNom} a collecté ${out.montantEffectif.toLocaleString("fr-FR")} FCFA de ${clientNom} (${credit.reference}, via QR).`,
         priorite: "NORMAL",

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession } from "@/lib/authCaissier";
-import { notifyAdmins, auditLog } from "@/lib/notifications";
+import { notifyAdminsEtComptables, auditLog } from "@/lib/notifications";
 import { ecritureOperationCaisse } from "@/lib/comptabilite/moteur";
 
 function genRef(prefix: string): string {
@@ -183,15 +183,14 @@ export async function POST(req: Request) {
 
       await auditLog(tx, operateurId, `${type}_CAISSE`, "OperationCaisse", op.id);
 
-      // Notifier l'admin pour les décaissements
-      if (type === "DECAISSEMENT") {
-        await notifyAdmins(tx, {
-          titre:    `Décaissement caisse — ${categorie}`,
-          message:  `${operateurNom} a effectué un décaissement de ${montant.toLocaleString("fr-FR")} FCFA. Motif : ${motif.trim()}.`,
-          priorite: PrioriteNotification.NORMAL,
-          actionUrl: "/dashboard/user/caissiers",
-        });
-      }
+      // Chaque entrée / sortie de caisse manuelle est à contrôler par le comptable (pièce
+      // justificative + écriture en brouillon à valider) ; l'admin en est aussi informé.
+      await notifyAdminsEtComptables(tx, {
+        titre:    type === "DECAISSEMENT" ? `Décaissement caisse — ${categorie}` : `Encaissement caisse — ${mode}`,
+        message:  `${operateurNom} a enregistré un ${type === "DECAISSEMENT" ? "décaissement" : "encaissement"} de ${montant.toLocaleString("fr-FR")} FCFA. Motif : ${motif.trim()}. Pièce justificative à contrôler et écriture à valider.`,
+        priorite: PrioriteNotification.NORMAL,
+        actionUrl: "/dashboard/user/caissiers",
+      });
 
       return op;
     });

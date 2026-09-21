@@ -17,6 +17,7 @@ interface FormData {
   departement: string; niveauHierarchique: string; dateNaissance: string;
   lieuNaissance: string; sexe: string; nationalite: string;
   situationMatrimoniale: string; nbEnfants: string; telephoneSecondaire: string; notes: string;
+  personneAPrevenirNom: string; personneAPrevenirLien: string; personneAPrevenirTelephone: string;
 }
 
 const INIT: FormData = {
@@ -25,6 +26,7 @@ const INIT: FormData = {
   departement: "", niveauHierarchique: "", dateNaissance: "",
   lieuNaissance: "", sexe: "", nationalite: "",
   situationMatrimoniale: "", nbEnfants: "", telephoneSecondaire: "", notes: "",
+  personneAPrevenirNom: "", personneAPrevenirLien: "", personneAPrevenirTelephone: "",
 };
 
 export default function NouveauCollaborateurRHPage() {
@@ -64,6 +66,9 @@ export default function NouveauCollaborateurRHPage() {
     if (form.situationMatrimoniale) payload.situationMatrimoniale = form.situationMatrimoniale;
     if (form.nbEnfants)             payload.nbEnfants            = Number(form.nbEnfants);
     if (form.telephoneSecondaire)   payload.telephoneSecondaire  = form.telephoneSecondaire;
+    if (form.personneAPrevenirNom)       payload.personneAPrevenirNom       = form.personneAPrevenirNom;
+    if (form.personneAPrevenirLien)      payload.personneAPrevenirLien      = form.personneAPrevenirLien;
+    if (form.personneAPrevenirTelephone) payload.personneAPrevenirTelephone = form.personneAPrevenirTelephone;
     if (form.notes)                 payload.notes                = form.notes;
     const result = await mutate(payload);
     if (result) router.push("/dashboard/user/responsablesRH/collaborateurs");
@@ -279,6 +284,24 @@ export default function NouveauCollaborateurRHPage() {
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Téléphone secondaire</label>
                     <input type="tel" value={form.telephoneSecondaire} onChange={(e) => set("telephoneSecondaire", e.target.value)} placeholder="+229 00 00 00 00" className={inputCls} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+                <h3 className="text-sm font-semibold text-slate-700">Personne à prévenir en cas d&apos;urgence</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nom et prénom</label>
+                    <input value={form.personneAPrevenirNom} onChange={(e) => set("personneAPrevenirNom", e.target.value)} placeholder="Nom de la personne à prévenir" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Lien familial</label>
+                    <input value={form.personneAPrevenirLien} onChange={(e) => set("personneAPrevenirLien", e.target.value)} placeholder="Conjoint(e), père, mère, frère, sœur…" className={inputCls} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Numéro de téléphone</label>
+                    <input type="tel" value={form.personneAPrevenirTelephone} onChange={(e) => set("personneAPrevenirTelephone", e.target.value)} placeholder="+228 XX XX XX XX" className={inputCls} />
                   </div>
                 </div>
               </div>

@@ -50,7 +50,7 @@ const LITIGE_STATUT_CFG: Record<string, { label: string; badge: string }> = {
 
 const TYPE_LABEL: Record<string, string> = {
   PRODUCTEUR: "Producteur", COOPERATIVE: "Coopérative", INDUSTRIEL: "Industriel",
-  IMPORTATEUR: "Importateur", TRANSPORTEUR: "Transporteur",
+  IMPORTATEUR: "Importateur", TRANSPORTEUR: "Transporteur", GROSSISTE: "Grossiste",
 };
 
 const EMPTY_FORM = {

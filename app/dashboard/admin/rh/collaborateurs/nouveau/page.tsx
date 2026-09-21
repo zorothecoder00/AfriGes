@@ -43,6 +43,9 @@ interface FormData {
   situationMatrimoniale: string;
   nbEnfants: string;
   telephoneSecondaire: string;
+  personneAPrevenirNom: string;
+  personneAPrevenirLien: string;
+  personneAPrevenirTelephone: string;
   notes: string;
 }
 
@@ -63,6 +66,9 @@ const INITIAL_FORM: FormData = {
   situationMatrimoniale: "",
   nbEnfants: "",
   telephoneSecondaire: "",
+  personneAPrevenirNom: "",
+  personneAPrevenirLien: "",
+  personneAPrevenirTelephone: "",
   notes: "",
 };
 
@@ -108,6 +114,9 @@ export default function NouveauCollaborateurPage() {
     if (form.situationMatrimoniale) payload.situationMatrimoniale = form.situationMatrimoniale;
     if (form.nbEnfants)             payload.nbEnfants            = Number(form.nbEnfants);
     if (form.telephoneSecondaire)   payload.telephoneSecondaire  = form.telephoneSecondaire;
+    if (form.personneAPrevenirNom)       payload.personneAPrevenirNom       = form.personneAPrevenirNom;
+    if (form.personneAPrevenirLien)      payload.personneAPrevenirLien      = form.personneAPrevenirLien;
+    if (form.personneAPrevenirTelephone) payload.personneAPrevenirTelephone = form.personneAPrevenirTelephone;
     if (form.notes)                 payload.notes                = form.notes;
 
     const result = await mutate(payload);
@@ -480,6 +489,23 @@ export default function NouveauCollaborateurPage() {
                   </div>
                 </div>
               </div>
+              </Card>
+
+              {/* Personne à prévenir */}
+              <Card>
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Personne à prévenir en cas d&apos;urgence</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input label="Nom et prénom" value={form.personneAPrevenirNom}
+                      onChange={(e) => set("personneAPrevenirNom", e.target.value)} placeholder="Nom de la personne à prévenir" />
+                    <Input label="Lien familial" value={form.personneAPrevenirLien}
+                      onChange={(e) => set("personneAPrevenirLien", e.target.value)} placeholder="Conjoint(e), père, mère, frère, sœur…" />
+                    <div className="sm:col-span-2">
+                      <Input type="tel" label="Numéro de téléphone" value={form.personneAPrevenirTelephone}
+                        onChange={(e) => set("personneAPrevenirTelephone", e.target.value)} placeholder="+228 XX XX XX XX" />
+                    </div>
+                  </div>
+                </div>
               </Card>
 
               {/* Notes */}

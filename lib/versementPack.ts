@@ -8,12 +8,14 @@ function nomClient(c: { nom: string; prenom: string } | null | undefined): strin
   return c ? `${c.prenom} ${c.nom}` : "Client";
 }
 
-function genRefVersement(): string {
-  const d = new Date();
-  const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `ENC-${ymd}-${rand}`;
-}
+/**
+ * Référence de l'opération de caisse d'un versement confirmé : déterministe, pour retrouver et
+ * retirer cette opération si le versement est supprimé (erreur de saisie).
+ */
+const refOperationCaisseVersement = (versementId: number) => `ENC-VRS-${versementId}`;
+
+/** Référence de l'écriture comptable (brouillon) d'un versement — voir ecritureVersementPackConfirme. */
+const refEcritureVersement = (versementId: number) => `SYNC-PCK-VRS-${versementId}`;
 
 type SouscriptionAvecPack = {
   id: number;
@@ -102,6 +104,7 @@ async function creerOperationCaisseSiActive(
   montantEffectif: number,
   motif: string,
   operateurNom: string,
+  versementId: number,
 ): Promise<void> {
   const sessionActive = await tx.sessionCaisse.findFirst({
     where: { statut: { in: ["OUVERTE", "SUSPENDUE"] }, caissierId },
@@ -116,7 +119,7 @@ async function creerOperationCaisseSiActive(
       mode: "ESPECES",
       montant: new Prisma.Decimal(montantEffectif),
       motif,
-      reference: genRefVersement(),
+      reference: refOperationCaisseVersement(versementId),
       operateurNom,
       operateurId: caissierId,
     },
@@ -259,6 +262,7 @@ export async function confirmerVersementPackExistant(
     tx, caissierId, montantEffectif,
     `Versement pack confirmé — ${souscription.pack.nom} (${versement.encaisseParNom})`,
     caissierNom,
+    versement.id,
   );
 
   await ecritureVersementPackConfirme(tx, {
@@ -382,4 +386,39 @@ export async function recalculerSouscriptionApresVersements(
   }
 
   return { montantVerse: nouveauMontantVerse, montantRestant: estSolde ? 0 : nouveauMontantRestant, statut: nouveauStatut };
+}
+
+/**
+ * Contrôle préalable à la suppression de versements (erreur de saisie) : renvoie un message si l'un
+ * d'eux a déjà une écriture comptable VALIDÉE (elle ne se supprime pas : le comptable doit la
+ * contrepasser), sinon null.
+ */
+export async function verifierSuppressionVersements(tx: TX, versementIds: number[]): Promise<string | null> {
+  if (versementIds.length === 0) return null;
+  const validees = await tx.ecritureComptable.count({
+    where: { reference: { in: versementIds.map(refEcritureVersement) }, statut: { not: "BROUILLON" } },
+  });
+  return validees > 0
+    ? "L'écriture comptable de ce versement est déjà validée : suppression impossible. Demandez au comptable de la contrepasser."
+    : null;
+}
+
+/**
+ * Retire les traces d'un ou plusieurs versements supprimés : grand livre client, écriture comptable en
+ * brouillon et opération de caisse de confirmation (seulement si sa session de caisse est encore
+ * ouverte : une session clôturée ne se modifie pas). À appeler dans la même transaction que la
+ * suppression, après `verifierSuppressionVersements`.
+ */
+export async function nettoyerEffetsVersements(tx: TX, versementIds: number[]): Promise<void> {
+  if (versementIds.length === 0) return;
+  await tx.clientTransaction.deleteMany({ where: { sourceType: "VERSEMENT_PACK", sourceId: { in: versementIds } } });
+  await tx.ecritureComptable.deleteMany({
+    where: { reference: { in: versementIds.map(refEcritureVersement) }, statut: "BROUILLON" },
+  });
+  await tx.operationCaisse.deleteMany({
+    where: {
+      reference: { in: versementIds.map(refOperationCaisseVersement) },
+      session: { statut: { in: ["OUVERTE", "SUSPENDUE"] } },
+    },
+  });
 }

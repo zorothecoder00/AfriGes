@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
-import { notifyAdmins, auditLog } from "@/lib/notifications";
+import { notifyAdminsEtComptables, auditLog } from "@/lib/notifications";
 import { enregistrerVersementPack } from "@/lib/versementPack";
 import { enregistrerRemboursementCredit } from "@/lib/remboursementCredit";
 
@@ -111,7 +111,7 @@ export async function POST(req: Request, { params }: Ctx) {
         const clientNom = souscription.client
           ? `${souscription.client.prenom} ${souscription.client.nom}`
           : "—";
-        await notifyAdmins(tx, {
+        await notifyAdminsEtComptables(tx, {
           titre: `Collecte pack — ${souscription.pack.nom}`,
           message: `${agentNom} a collecté ${out.montantEffectif.toLocaleString("fr-FR")} FCFA chez ${clientNom} (session ${collecte.reference}).`,
           priorite: "NORMAL",
@@ -188,7 +188,7 @@ export async function POST(req: Request, { params }: Ctx) {
         const clientNom = credit.client
           ? `${credit.client.prenom} ${credit.client.nom}`
           : "—";
-        await notifyAdmins(tx, {
+        await notifyAdminsEtComptables(tx, {
           titre: `Remboursement crédit — ${credit.reference}`,
           message: `${agentNom} a collecté ${out.montantEffectif.toLocaleString("fr-FR")} FCFA de ${clientNom} (${credit.reference}, session ${collecte.reference}).`,
           priorite: "NORMAL",

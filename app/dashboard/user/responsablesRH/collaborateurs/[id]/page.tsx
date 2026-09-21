@@ -25,6 +25,7 @@ interface ProfilRH {
   niveauHierarchique: string | null; dateNaissance: string | null; lieuNaissance: string | null;
   sexe: string | null; nationalite: string | null; situationMatrimoniale: string | null;
   nbEnfants: number; telephoneSecondaire: string | null; notes: string | null;
+  personneAPrevenirNom: string | null; personneAPrevenirLien: string | null; personneAPrevenirTelephone: string | null;
   gestionnaire: {
     id: number; role: string; actif: boolean;
     member: { id: number; nom: string; prenom: string; email: string; telephone: string | null; photo: string | null; adresse: string | null;
@@ -231,6 +232,9 @@ function IdentiteTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => voi
     situationMatrimoniale: profil.situationMatrimoniale  ?? "",
     nbEnfants:             String(profil.nbEnfants       ?? 0),
     telephoneSecondaire:   profil.telephoneSecondaire    ?? "",
+    personneAPrevenirNom:       profil.personneAPrevenirNom       ?? "",
+    personneAPrevenirLien:      profil.personneAPrevenirLien      ?? "",
+    personneAPrevenirTelephone: profil.personneAPrevenirTelephone ?? "",
     notes:                 profil.notes                  ?? "",
   });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -240,6 +244,8 @@ function IdentiteTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => voi
       sexe: form.sexe || null, nationalite: form.nationalite || null,
       situationMatrimoniale: form.situationMatrimoniale || null, nbEnfants: Number(form.nbEnfants),
       telephoneSecondaire: form.telephoneSecondaire || null, notes: form.notes || null,
+      personneAPrevenirNom: form.personneAPrevenirNom || null, personneAPrevenirLien: form.personneAPrevenirLien || null,
+      personneAPrevenirTelephone: form.personneAPrevenirTelephone || null,
     });
     if (r) { toast.success("Identité mise à jour"); onSaved(); }
   };
@@ -281,6 +287,17 @@ function IdentiteTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => voi
           <input type="number" min={0} value={form.nbEnfants} onChange={(e) => set("nbEnfants", e.target.value)} className={inputCls} /></div>
         <div className="md:col-span-2"><label className="block text-xs font-medium text-slate-600 mb-1">Téléphone secondaire</label>
           <input value={form.telephoneSecondaire} onChange={(e) => set("telephoneSecondaire", e.target.value)} className={inputCls} /></div>
+      </div>
+      <div className="space-y-3 pt-2 border-t border-slate-100">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Personne à prévenir en cas d&apos;urgence</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div><label className="block text-xs font-medium text-slate-600 mb-1">Nom et prénom</label>
+            <input value={form.personneAPrevenirNom} onChange={(e) => set("personneAPrevenirNom", e.target.value)} placeholder="Nom de la personne à prévenir" className={inputCls} /></div>
+          <div><label className="block text-xs font-medium text-slate-600 mb-1">Lien familial</label>
+            <input value={form.personneAPrevenirLien} onChange={(e) => set("personneAPrevenirLien", e.target.value)} placeholder="Conjoint(e), père, mère, frère, sœur…" className={inputCls} /></div>
+          <div><label className="block text-xs font-medium text-slate-600 mb-1">Numéro de téléphone</label>
+            <input type="tel" value={form.personneAPrevenirTelephone} onChange={(e) => set("personneAPrevenirTelephone", e.target.value)} placeholder="+228 XX XX XX XX" className={inputCls} /></div>
+        </div>
       </div>
       <div><label className="block text-xs font-medium text-slate-600 mb-1">Notes internes</label>
         <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={3}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId, souscriptionPdvWhere } from "@/lib/authCaissier";
-import { notifyAdmins } from "@/lib/notifications";
+import { notifyAdminsEtComptables } from "@/lib/notifications";
 import { resolveViewAs } from "@/lib/viewAs";
 import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
@@ -384,7 +384,7 @@ export async function POST(req: Request) {
       }
 
       // 4. Notifier les admins
-      await notifyAdmins(tx, {
+      await notifyAdminsEtComptables(tx, {
         titre: `Nouvelle souscription — ${pack.nom}`,
         message: `${caissierNom} a enregistré une souscription au pack ${pack.nom} (${montantTotalNum.toLocaleString("fr-FR")} FCFA).`,
         priorite: "NORMAL",

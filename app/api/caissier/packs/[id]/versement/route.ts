@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
-import { notifyAdmins } from "@/lib/notifications";
+import { notifyAdmins, notifyAdminsEtComptables } from "@/lib/notifications";
 import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -202,6 +202,14 @@ export async function POST(req: Request, { params }: Ctx) {
           });
         }
       }
+
+      // Entrée de caisse : le comptable contrôle chaque versement encaissé (écriture en brouillon à valider)
+      await notifyAdminsEtComptables(tx, {
+        titre: `Versement pack — ${souscription.pack.nom}`,
+        message: `Versement de ${montantNum.toLocaleString("fr-FR")} FCFA encaissé sur la souscription #${souscriptionId} (${souscription.pack.nom}).`,
+        priorite: "NORMAL",
+        actionUrl: "/dashboard/admin/packs",
+      });
 
       // 4. Notifier admin si souscription soldée
       if (estSolde) {

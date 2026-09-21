@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
-import { notifyAdmins } from "@/lib/notifications";
+import { notifyAdminsEtComptables } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };  
        
@@ -90,7 +90,7 @@ export async function POST(req: Request, { params }: Ctx) {
         },
       });
 
-      await notifyAdmins(tx, {
+      await notifyAdminsEtComptables(tx, {
         titre: `Collecte terrain à confirmer — ${souscription.pack.nom}`,
         message: `${agentNom} a collecté ${montantNum.toLocaleString("fr-FR")} FCFA chez ${clientNom} (souscription #${souscriptionId}). En attente de confirmation caissier.`,
         priorite: "NORMAL",

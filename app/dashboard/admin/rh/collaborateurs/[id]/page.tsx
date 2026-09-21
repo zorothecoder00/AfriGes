@@ -43,6 +43,9 @@ interface ProfilRH {
   situationMatrimoniale: string | null;
   nbEnfants:             number;
   telephoneSecondaire:   string | null;
+  personneAPrevenirNom:       string | null;
+  personneAPrevenirLien:      string | null;
+  personneAPrevenirTelephone: string | null;
   notes:                 string | null;
   managerId:             number | null;
   gestionnaire: {
@@ -362,9 +365,15 @@ export default function DossierCollaborateurPage({
               </Link>
             </div>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg">
-                {profil.gestionnaire.member.prenom[0]}{profil.gestionnaire.member.nom[0]}
-              </div>
+              {profil.gestionnaire.member.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profil.gestionnaire.member.photo} alt={`${profil.gestionnaire.member.prenom} ${profil.gestionnaire.member.nom}`}
+                  className="w-16 h-16 rounded-full object-cover border border-slate-200 shadow-sm" />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-xl">
+                  {profil.gestionnaire.member.prenom[0]}{profil.gestionnaire.member.nom[0]}
+                </div>
+              )}
               <div>
                 <h1 className="text-xl font-bold text-slate-900">
                   {profil.gestionnaire.member.prenom} {profil.gestionnaire.member.nom}
@@ -392,6 +401,10 @@ export default function DossierCollaborateurPage({
           <InfoChip icon={<Phone className="w-3.5 h-3.5" />}   label={profil.gestionnaire.member.telephone ?? profil.telephoneSecondaire ?? "—"} />
           <InfoChip icon={<Building2 className="w-3.5 h-3.5" />} label={pdv?.nom ?? "Aucun PDV"} />
           <InfoChip icon={<Briefcase className="w-3.5 h-3.5" />} label={profil.fonction ?? "Fonction non définie"} />
+          {(profil.personneAPrevenirNom || profil.personneAPrevenirTelephone) && (
+            <InfoChip icon={<Phone className="w-3.5 h-3.5" />}
+              label={`À prévenir : ${[profil.personneAPrevenirNom, profil.personneAPrevenirLien && `(${profil.personneAPrevenirLien})`].filter(Boolean).join(" ")}${profil.personneAPrevenirTelephone ? ` · ${profil.personneAPrevenirTelephone}` : ""}`} />
+          )}
         </div>
 
         {/* ── Onglets ── */}
@@ -473,6 +486,9 @@ function IdentiteTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => voi
     situationMatrimoniale: profil.situationMatrimoniale  ?? "",
     nbEnfants:             String(profil.nbEnfants       ?? 0),
     telephoneSecondaire:   profil.telephoneSecondaire    ?? "",
+    personneAPrevenirNom:       profil.personneAPrevenirNom       ?? "",
+    personneAPrevenirLien:      profil.personneAPrevenirLien      ?? "",
+    personneAPrevenirTelephone: profil.personneAPrevenirTelephone ?? "",
     notes:                 profil.notes                  ?? "",
   });
 
@@ -487,6 +503,9 @@ function IdentiteTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => voi
       situationMatrimoniale: form.situationMatrimoniale  || null,
       nbEnfants:             Number(form.nbEnfants),
       telephoneSecondaire:   form.telephoneSecondaire    || null,
+      personneAPrevenirNom:       form.personneAPrevenirNom       || null,
+      personneAPrevenirLien:      form.personneAPrevenirLien      || null,
+      personneAPrevenirTelephone: form.personneAPrevenirTelephone || null,
       notes:                 form.notes                  || null,
     });
     if (result) { toast.success("Identité mise à jour"); onSaved(); }
@@ -556,6 +575,27 @@ function IdentiteTab({ profil, onSaved }: { profil: ProfilRH; onSaved: () => voi
             placeholder="+225 XX XX XX XX"
             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </Field>
+      </div>
+
+      <div className="space-y-3 pt-2 border-t border-slate-100">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Personne à prévenir en cas d&apos;urgence</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Field label="Nom et prénom">
+            <input value={form.personneAPrevenirNom} onChange={(e) => set("personneAPrevenirNom", e.target.value)}
+              placeholder="Nom de la personne à prévenir"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          </Field>
+          <Field label="Lien familial">
+            <input value={form.personneAPrevenirLien} onChange={(e) => set("personneAPrevenirLien", e.target.value)}
+              placeholder="Conjoint(e), père, mère, frère, sœur…"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          </Field>
+          <Field label="Numéro de téléphone">
+            <input type="tel" value={form.personneAPrevenirTelephone} onChange={(e) => set("personneAPrevenirTelephone", e.target.value)}
+              placeholder="+228 XX XX XX XX"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          </Field>
+        </div>
       </div>
 
       <Field label="Notes internes">
