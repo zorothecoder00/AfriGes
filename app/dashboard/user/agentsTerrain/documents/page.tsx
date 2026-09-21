@@ -84,6 +84,15 @@ export default function DocumentsCommerciauxPage() {
 
           <div className="bg-white border border-slate-200 rounded-2xl p-5 md:col-span-2 no-print">
             <div className="flex items-center gap-2 text-slate-800">
+              <span className="text-emerald-600"><Banknote className="w-5 h-5" /></span>
+              <h2 className="font-semibold">Mes fonds collectés</h2>
+            </div>
+            <p className="text-sm text-slate-500 mt-1.5">Consultez ce que vous avez collecté sur une période (3 mois maximum), ce que vous avez déjà remis par bordereau et ce qui reste à remettre.</p>
+            <Link href="/dashboard/user/agentsTerrain/fonds-collectes" className="inline-flex items-center gap-1.5 mt-3 px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-sm font-medium"><List className="w-4 h-4" /> Voir mes fonds collectés</Link>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 md:col-span-2 no-print">
+            <div className="flex items-center gap-2 text-slate-800">
               <span className="text-emerald-600"><PackageCheck className="w-5 h-5" /></span>
               <h2 className="font-semibold">Bon de réception client</h2>
             </div>

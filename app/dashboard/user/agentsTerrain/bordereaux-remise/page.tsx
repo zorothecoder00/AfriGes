@@ -68,10 +68,16 @@ function BordereauxRemisePageInner() {
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">Remise d&apos;espèces collectées au trésorier, avec billetage</p>
           </div>
-          <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700">
-            <Plus className="w-4 h-4" /> Nouveau bordereau
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link href="/dashboard/user/agentsTerrain/fonds-collectes"
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50">
+              <Wallet className="w-4 h-4" /> Mes fonds collectés
+            </Link>
+            <button onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700">
+              <Plus className="w-4 h-4" /> Nouveau bordereau
+            </button>
+          </div>
         </div>
 
         <div className="flex gap-2 flex-wrap">
