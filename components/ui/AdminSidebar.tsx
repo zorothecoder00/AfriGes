@@ -7,8 +7,8 @@ import { useSession } from "next-auth/react";
 import {
   TrendingUp, Users, MessageSquare, Layers, ShoppingCart, Package, Store, Truck,
   ClipboardCheck, BarChart2, UserCog, Network, Target, Shield, Lock, Megaphone,
-  ChevronsLeft, ChevronsRight, LayoutGrid, Inbox, PackageMinus, FileSignature, Receipt, Boxes, Route,
-  FileText, Wallet, Banknote, ClipboardList,
+  ChevronsLeft, ChevronsRight, LayoutGrid, Inbox, Boxes, Route,
+  ClipboardList,
 } from "lucide-react";
 import { useT } from "@/contexts/AppSettingsContext";
 import { useApi } from "@/hooks/useApi";
@@ -87,19 +87,12 @@ export default function AdminSidebar({
       title: t("commerce"),
       items: [
         { href: "/dashboard/admin/ventes", label: t("nav_ventes"), icon: <ShoppingCart size={19} /> },
-        { href: "/dashboard/admin/commandes-client", label: t("nav_commandes_client"), icon: <ClipboardList size={19} /> },
-        { href: "/dashboard/admin/devis-proforma", label: t("nav_devis_proforma"), icon: <FileText size={19} /> },
-        { href: "/dashboard/admin/decaissements", label: t("nav_decaissements"), icon: <Wallet size={19} /> },
-        { href: "/dashboard/admin/bordereaux-remise", label: t("nav_bordereaux_remise"), icon: <Banknote size={19} /> },
         { href: "/dashboard/admin/catalogue/produits", label: t("nav_catalogue_produits"), icon: <Layers size={19} /> },
         { href: "/dashboard/admin/stock", label: t("nav_stock"), icon: <Package size={19} /> },
         { href: "/dashboard/admin/pdv", label: t("nav_pdv"), icon: <Store size={19} /> },
         { href: "/dashboard/admin/approvisionnements", label: t("nav_approvisionnements"), icon: <Truck size={19} /> },
         { href: "/dashboard/admin/stock/ajustements", label: t("nav_ajustements_stock"), icon: <ClipboardCheck size={19} /> },
-        { href: "/dashboard/admin/stock/sorties", label: t("nav_bons_sortie"), icon: <PackageMinus size={19} /> },
         { href: "/dashboard/admin/stock/journal-sorties", label: t("nav_journal_sorties_stock"), icon: <ClipboardList size={19} /> },
-        { href: "/dashboard/admin/bons-commande-fournisseur", label: t("nav_bons_commande_fournisseur"), icon: <FileSignature size={19} /> },
-        { href: "/dashboard/admin/factures-fournisseur", label: t("nav_factures_fournisseur"), icon: <Receipt size={19} /> },
         { href: "/dashboard/admin/depot-vente", label: t("nav_depot_vente"), icon: <Boxes size={19} /> },
         { href: "/dashboard/admin/tournees", label: t("nav_tournees"), icon: <Route size={19} /> },
         { href: "/dashboard/gestionnaire/logistique", label: t("nav_dashboard_logistique"), icon: <BarChart2 size={19} /> },
