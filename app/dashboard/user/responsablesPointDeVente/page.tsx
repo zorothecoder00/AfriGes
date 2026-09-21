@@ -2992,11 +2992,18 @@ export default function ResponsablePDVPage() {
                           </td>
                           <td className="px-4 py-3 text-xs text-slate-400">{formatDateTime(v.createdAt)}</td>
                           <td className="px-4 py-3">
-                            {["CONFIRMEE", "BROUILLON"].includes(v.statut) && (
-                              <button onClick={() => openAnnulVente(v)} title="Annuler" className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
-                                <XCircle size={14} />
-                              </button>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {v.statut !== "BROUILLON" && v.statut !== "ANNULEE" && (
+                                <button onClick={() => setFactureVenteId(v.id)} title="Imprimer la facture" className="p-1.5 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
+                                  <Receipt size={14} />
+                                </button>
+                              )}
+                              {["CONFIRMEE", "BROUILLON"].includes(v.statut) && (
+                                <button onClick={() => openAnnulVente(v)} title="Annuler" className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                                  <XCircle size={14} />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );

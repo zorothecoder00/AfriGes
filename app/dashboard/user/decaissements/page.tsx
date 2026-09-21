@@ -3,9 +3,10 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
-import { Wallet2, Plus, X, RefreshCw, Send, FileText, CheckCircle, XCircle, Banknote } from "lucide-react";
+import { Wallet2, Plus, X, RefreshCw, Send, FileText, CheckCircle, XCircle, Banknote, ArrowLeft } from "lucide-react";
 
 const TYPES_DEPENSE = [
   { value: "ACHAT_MARCHANDISES", label: "Achat de marchandises" },
@@ -76,6 +77,13 @@ function DecaissementsPageInner() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="p-6 space-y-6 max-w-4xl mx-auto">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-violet-600 transition-colors"
+        >
+          <ArrowLeft size={16} />
+          Retour au tableau de bord
+        </Link>
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
