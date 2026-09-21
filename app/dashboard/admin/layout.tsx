@@ -18,15 +18,24 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <TagModalProvider>
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-        <AdminTopbar onMenuClick={showSidebar ? () => setMobileNavOpen(true) : undefined} />
-        <div className="max-w-[1800px] mx-auto px-5 md:px-8 py-6 flex gap-6">
-          {showSidebar && (
-            <AdminSidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
-          )}
-          <div className="flex-1 min-w-0">{children}</div>
+      {showSidebar ? (
+        // Accueil admin : sidebar pleine hauteur collée à gauche (logo inclus), barre du haut et
+        // contenu occupent tout le reste de la largeur (plus de marge vide à gauche).
+        <div className="min-h-screen flex bg-slate-50 dark:bg-slate-900">
+          <AdminSidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
+          <div className="flex-1 min-w-0 flex flex-col">
+            <AdminTopbar avecSidebar onMenuClick={() => setMobileNavOpen(true)} />
+            <div className="px-5 md:px-8 py-6 flex-1 min-w-0">{children}</div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+          <AdminTopbar />
+          <div className="max-w-[1800px] mx-auto px-5 md:px-8 py-6">
+            <div className="flex-1 min-w-0">{children}</div>
+          </div>
+        </div>
+      )}
       <TagClientsModal />
     </TagModalProvider>
   );

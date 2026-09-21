@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useT } from "@/contexts/AppSettingsContext";
 import { useApi } from "@/hooks/useApi";
+import AfriSimeLogo from "@/components/AfriSimeLogo";
 
 const COLLAPSE_STORAGE_KEY = "admin-sidebar-collapsed";
 
@@ -193,17 +194,21 @@ export default function AdminSidebar({
     <>
       {/* Desktop/tablette — sidebar statique, repliable */}
       <aside className={`shrink-0 hidden md:block transition-[width] duration-200 ${collapsed ? "w-[68px]" : "w-64"}`}>
-        <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto overflow-x-hidden rounded-2xl bg-brand-700 border border-brand-800 shadow-sm">
-          <div className={`flex items-center border-b border-brand-700/50 p-2 ${collapsed ? "justify-center" : "justify-end"}`}>
+        {/* Pleine hauteur de l'écran, collée au bord gauche ; le logo fait partie de la sidebar */}
+        <div className="sticky top-0 h-screen flex flex-col overflow-hidden bg-brand-700 border-r border-brand-800 shadow-sm">
+          <div className={`shrink-0 relative flex items-center justify-center gap-2 border-b border-brand-700/50 p-3 ${collapsed ? "flex-col" : ""}`}>
+            <Link href="/dashboard/admin" title="AfriSime" className="shrink-0 rounded-xl bg-white p-1">
+              <AfriSimeLogo className={collapsed ? "h-9 w-9 object-contain" : "h-11 w-auto"} priority />
+            </Link>
             <button
               onClick={toggleCollapsed}
               title={collapsed ? "Déplier la sidebar" : "Replier la sidebar"}
-              className="p-1.5 rounded-lg text-brand-100/80 hover:bg-brand-600/60 hover:text-white transition-colors"
+              className={`p-1.5 rounded-lg text-brand-100/80 hover:bg-brand-600/60 hover:text-white transition-colors ${collapsed ? "" : "absolute right-2 top-2"}`}
             >
               {collapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
             </button>
           </div>
-          {renderNav(collapsed)}
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">{renderNav(collapsed)}</div>
         </div>
       </aside>
 
