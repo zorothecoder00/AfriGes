@@ -92,7 +92,8 @@ export async function GET(req: NextRequest) {
  * POST /api/magasinier/bons-sortie
  * Créer un bon de sortie exceptionnel et déduire le stock du PDV concerné.
  * Body: { pointDeVenteId, typeSortie, motif, notes?, lignes: [{produitId, quantite}] }
- * typeSortie valides : PERTE | CASSE | DON | CONSOMMATION_INTERNE | LIVRAISON_CLIENT
+ * typeSortie valides : PERTE | CASSE | DON | CONSOMMATION_INTERNE
+ * (LIVRAISON_CLIENT refusé : généré uniquement par les flux de vente/livraison)
  */
 export async function POST(req: Request) {
   try {
@@ -127,7 +128,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const typesValides: TypeSortieStock[] = ["PERTE", "CASSE", "DON", "CONSOMMATION_INTERNE", "LIVRAISON_CLIENT"];
+    // LIVRAISON_CLIENT n'est jamais créable à la main : ces bons sont générés par
+    // leur flux source (vente crédit, livraison pack, commande client) qui porte la
+    // contrepartie commerciale. Un bon libre sortirait du stock sans vente ni créance.
+    if (typeSortie === "LIVRAISON_CLIENT") {
+      return NextResponse.json(
+        { error: "Un bon de sortie « Livraison client » ne peut pas être créé manuellement : il est généré automatiquement par la vente, la commande client ou la livraison de pack concernée." },
+        { status: 400 }
+      );
+    }
+
+    const typesValides: TypeSortieStock[] = ["PERTE", "CASSE", "DON", "CONSOMMATION_INTERNE"];
     if (!typesValides.includes(typeSortie as TypeSortieStock)) {
       return NextResponse.json(
         { error: `typeSortie invalide. Valeurs acceptées : ${typesValides.join(", ")}` },

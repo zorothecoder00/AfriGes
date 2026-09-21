@@ -237,7 +237,8 @@ function FormBonSortie({ pdvs, onClose, onDone }: { pdvs: PDV[]; onClose: () => 
           <div>
             <label className="text-xs font-medium text-slate-500 mb-1 block">Type de sortie *</label>
             <select value={typeSortie} onChange={(e) => setTypeSortie(e.target.value)} className={inputCls}>
-              {Object.entries(TYPE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              {/* Livraison client exclue : générée uniquement par les flux de vente/livraison */}
+              {Object.entries(TYPE_LABEL).filter(([k]) => k !== "LIVRAISON_CLIENT").map(([k, l]) => <option key={k} value={k}>{l}</option>)}
             </select>
           </div>
           <div>

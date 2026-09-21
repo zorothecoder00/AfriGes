@@ -5,7 +5,7 @@ import {
   Package, Archive, AlertTriangle, TrendingUp, Search,
   RefreshCw, Eye, ClipboardList, ArrowUpCircle, ArrowDownCircle,
   BarChart3, Boxes, LucideIcon, CheckCircle, X, Plus, ArrowRightLeft,
-  ChevronDown, ChevronUp, Truck, FileText, Printer, ShieldAlert,
+  ChevronDown, ChevronUp, Truck, Printer, ShieldAlert,
   Trash2, Gift, MinusCircle, Send, Clock, CheckSquare, XCircle, PackageCheck, ShoppingBag,
   AlertCircle, FileCheck, History, Inbox, AlertOctagon, Menu,
 } from 'lucide-react';
@@ -312,9 +312,6 @@ export default function MagasinierPage() {
   const [expandedPackLivId, setExpandedPackLivId] = useState<number | null>(null);
 
   // Livraisons clients en attente (LIVRAISON_CLIENT BROUILLON)
-  const [showLivClientForm, setShowLivClientForm] = useState(false);
-  const [lcMotif, setLcMotif] = useState('');
-  const [lcLignes, setLcLignes] = useState<{ produitId: string; quantite: string }[]>([{ produitId: '', quantite: '' }]);
   const [confirmLivClientId, setConfirmLivClientId] = useState<number | null>(null);
   const confirmLivClientIdRef = useRef<number | null>(null);
 
@@ -615,13 +612,6 @@ export default function MagasinierPage() {
     confirmingPackLivIdRef.current = null;
   };
 
-  const { mutate: submitLivClient, loading: livClientSubmitLoading } =
-    useMutation<unknown, { typeSortie: string; motif: string; notes?: string; lignes: { produitId: number; quantite: number }[] }>(
-      '/api/magasinier/bons-sortie',
-      'POST',
-      { successMessage: 'Livraison client créée — en attente de confirmation' }
-    );
-
   const handleConfirmerLivClient = async (id: number) => {
     confirmLivClientIdRef.current = id;
     setConfirmLivClientId(id);
@@ -629,22 +619,6 @@ export default function MagasinierPage() {
     if (r) { refetchLivClients(); refetchStock(); if (activeTab === 'journal') refetchJournal(); }
     setConfirmLivClientId(null);
     confirmLivClientIdRef.current = null;
-  };
-
-  const handleCreateLivClient = async () => {
-    const lignesValides = lcLignes.filter(l => l.produitId && l.quantite);
-    if (!lcMotif || lignesValides.length === 0) return;
-    const r = await submitLivClient({
-      typeSortie: 'LIVRAISON_CLIENT',
-      motif: lcMotif,
-      lignes: lignesValides.map(l => ({ produitId: Number(l.produitId), quantite: Number(l.quantite) })),
-    });
-    if (r) {
-      setShowLivClientForm(false);
-      setLcMotif('');
-      setLcLignes([{ produitId: '', quantite: '' }]);
-      refetchLivClients();
-    }
   };
 
   const openValiderModal = (liv: LivraisonRpv) => {
@@ -1617,83 +1591,13 @@ export default function MagasinierPage() {
                   )}
                   {livClientsLoading && <span className="text-xs text-slate-400 ml-2">Chargement…</span>}
                 </div>
-                <button
-                  onClick={() => setShowLivClientForm(v => !v)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 text-xs font-semibold transition-all"
-                >
-                  <Plus size={14} /> Nouvelle livraison
-                </button>
               </div>
 
-              {/* Formulaire création livraison client */}
-              {showLivClientForm && (
-                <div className="p-5 border-b border-amber-100 bg-amber-50/50">
-                  <p className="text-xs text-slate-600 mb-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                    Préparez la livraison — le stock sera déduit à la confirmation d&apos;expédition.
-                  </p>
-                  <div className="space-y-3">
-                    <input
-                      type="text"
-                      placeholder="Client / motif de la livraison *"
-                      value={lcMotif}
-                      onChange={e => setLcMotif(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
-                    />
-                    {lcLignes.map((l, i) => (
-                      <div key={i} className="flex gap-2 items-center">
-                        <select
-                          value={l.produitId}
-                          onChange={e => setLcLignes(prev => prev.map((x, j) => j === i ? { ...x, produitId: e.target.value } : x))}
-                          className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
-                        >
-                          <option value="">Choisir un produit…</option>
-                          {produits.map(p => (
-                            <option key={p.id} value={p.id}>{p.nom} (stock: {p.stock})</option>
-                          ))}
-                        </select>
-                        <input
-                          type="number" min="1"
-                          placeholder="Qté"
-                          value={l.quantite}
-                          onChange={e => setLcLignes(prev => prev.map((x, j) => j === i ? { ...x, quantite: e.target.value } : x))}
-                          className="w-24 px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
-                        />
-                        {lcLignes.length > 1 && (
-                          <button onClick={() => setLcLignes(prev => prev.filter((_, j) => j !== i))} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
-                            <X size={14} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    <button onClick={() => setLcLignes(prev => [...prev, { produitId: '', quantite: '' }])} className="text-xs text-amber-700 hover:underline flex items-center gap-1">
-                      <Plus size={12} /> Ajouter un produit
-                    </button>
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        onClick={() => { setShowLivClientForm(false); setLcMotif(''); setLcLignes([{ produitId: '', quantite: '' }]); }}
-                        className="flex-1 py-2 border border-slate-200 rounded-xl text-slate-600 text-sm hover:bg-slate-50"
-                      >
-                        {t('btn_cancel')}
-                      </button>
-                      <button
-                        onClick={handleCreateLivClient}
-                        disabled={livClientSubmitLoading || !lcMotif || lcLignes.every(l => !l.produitId)}
-                        className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
-                      >
-                        {livClientSubmitLoading
-                          ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Création…</>
-                          : <><FileText size={14} /> Créer livraison</>}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {livClientsPending.length === 0 && !livClientsLoading && !showLivClientForm ? (
+              {livClientsPending.length === 0 && !livClientsLoading ? (
                 <div className="p-8 text-center">
                   <Send className="w-10 h-10 text-amber-200 mx-auto mb-3" />
                   <p className="text-slate-500 text-sm">Aucune livraison client en attente.</p>
-                  <p className="text-slate-400 text-xs mt-1">Cliquez sur &quot;Nouvelle livraison&quot; pour préparer une expédition.</p>
+                  <p className="text-slate-400 text-xs mt-1">Les livraisons apparaissent ici automatiquement depuis les ventes et commandes clients.</p>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
