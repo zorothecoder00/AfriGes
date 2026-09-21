@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
+  ArrowLeft,
   TrendingUp, ShoppingCart, Users, Package, Store, CreditCard, Wallet,
   AlertTriangle, PhoneCall, PackageX, MessageSquareWarning, RefreshCw, BarChart3, Gauge,
 } from "lucide-react";
@@ -54,10 +56,16 @@ export default function ControleCommercialPage() {
   // qu'un changement d'onglet déclenche le refetch (useApi ne vide pas `data`
   // à chaque changement d'URL) — sans ce garde-fou, VueVentes/VueAgents/etc.
   // reçoivent la forme de données d'un autre onglet et plantent sur un .map.
-  const dataPret = !!data && data.vue === tab;
+  // Même chose pour la période/date/agence : tant que `loading` est vrai, `data`
+  // correspond encore à l'ancien filtre → on affiche le spinner plutôt que des
+  // chiffres périmés qui donnent l'impression que le filtre n'agit pas.
+  const dataPret = !!data && data.vue === tab && !loading;
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-4">
+      <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+        <ArrowLeft className="w-4 h-4" /> Retour au tableau de bord
+      </Link>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Contrôle commercial & reporting</h1>

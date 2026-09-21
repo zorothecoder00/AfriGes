@@ -1,17 +1,14 @@
 "use client";
 
 import { Suspense, useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
-  MessageSquareWarning, Plus, X, RefreshCw, Printer, Loader2, Search,
+  ArrowLeft, Plus, X, RefreshCw, Printer, Loader2, Search,
   PackageX, Repeat, AlertTriangle, ReceiptText, CheckCircle2, Ban, UserCheck,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
-import NotificationBell from "@/components/NotificationBell";
-import AccountMenuButton from "@/components/AccountMenuButton";
-import DashboardBackButton from "@/components/DashboardBackButton";
-import AfriSimeLogo from "@/components/AfriSimeLogo";
 import { LABEL_TYPE_RECLAMATION, LABEL_TYPE_ACTION_RECLAMATION } from "@/lib/reclamationClient";
 
 /** Retours et réclamations client (CDC digitalisation §5.8). */
@@ -134,39 +131,24 @@ function AdminReclamationsPageInner() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-rose-50/20 to-white font-['DM_Sans',sans-serif]">
-      <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
-        <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center overflow-hidden shadow-sm border border-slate-100">
-              <AfriSimeLogo className="w-full h-full object-contain" />
-            </div>
-            <DashboardBackButton />
-            <h1 className="text-base font-bold flex items-center gap-2 text-slate-800">
-              <MessageSquareWarning size={18} className="text-rose-600" /> Retours et réclamations
-            </h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <NotificationBell href="/dashboard/admin/notifications" />
-            <AccountMenuButton settingsHref="/dashboard/admin/parametres" inline />
-          </div>
-        </div>
-      </header>
-
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
+          <ArrowLeft className="w-4 h-4" /> Retour au tableau de bord
+        </Link>
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Réclamations clients</h2>
             <p className="text-sm text-slate-500">CDC digitalisation §5.8 — réclamations, retours, remplacements, incidents</p>
           </div>
-          <div className="flex items-center gap-2">
-            <select value={statutFiltre} onChange={(e) => setStatutFiltre(e.target.value)} className={`${inputCls} w-auto`}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select value={statutFiltre} onChange={(e) => setStatutFiltre(e.target.value)} className="w-44 shrink-0 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rose-500">
               <option value="">Tous les statuts</option>
               {Object.entries(STATUT_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
             </select>
-            <button onClick={() => refetch()} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50">
+            <button onClick={() => refetch()} className="shrink-0 p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50">
               <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
             </button>
-            <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium">
+            <button onClick={() => setShowCreate(true)} className="shrink-0 inline-flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-medium">
               <Plus size={16} /> Nouvelle réclamation
             </button>
           </div>
@@ -674,9 +656,18 @@ function FormRetour({ reclamationId, onClose, onDone }: { reclamationId: number;
 
   return (
     <MiniModal title="Fiche de retour marchandise" onClose={onClose} onConfirm={submit} confirmLabel={submitting ? "…" : "Créer"} confirmClass="bg-slate-700 hover:bg-slate-800">
-      <ProduitPicker produit={produit} setProduit={setProduit} search={produitSearch} />
-      <input type="number" min={1} value={quantite} onChange={(e) => setQuantite(e.target.value)} className={inputCls} placeholder="Quantité" />
-      <input value={etatProduit} onChange={(e) => setEtatProduit(e.target.value)} className={inputCls} placeholder="État constaté (optionnel)" />
+      <div>
+        <label className="block text-xs font-medium text-slate-500 mb-1">Produit retourné</label>
+        <ProduitPicker produit={produit} setProduit={setProduit} search={produitSearch} />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-slate-500 mb-1">Quantité retournée</label>
+        <input type="number" min={1} value={quantite} onChange={(e) => setQuantite(e.target.value)} className={inputCls} placeholder="Quantité" />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-slate-500 mb-1">État constaté (optionnel)</label>
+        <input value={etatProduit} onChange={(e) => setEtatProduit(e.target.value)} className={inputCls} placeholder="Ex. emballage ouvert, produit périmé…" />
+      </div>
     </MiniModal>
   );
 }
@@ -711,7 +702,10 @@ function FormRemplacement({ reclamationId, onClose, onDone }: { reclamationId: n
       <ProduitPicker produit={produitOrigine} setProduit={setProduitOrigine} search={searchOrigine} />
       <p className="text-xs text-slate-500">Produit de remplacement</p>
       <ProduitPicker produit={produitRemplacement} setProduit={setProduitRemplacement} search={searchNouveau} />
-      <input type="number" min={1} value={quantite} onChange={(e) => setQuantite(e.target.value)} className={inputCls} placeholder="Quantité" />
+      <div>
+        <label className="block text-xs font-medium text-slate-500 mb-1">Quantité à remplacer</label>
+        <input type="number" min={1} value={quantite} onChange={(e) => setQuantite(e.target.value)} className={inputCls} placeholder="Quantité" />
+      </div>
     </MiniModal>
   );
 }
