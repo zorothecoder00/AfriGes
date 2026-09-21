@@ -107,6 +107,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     description: "Circuit achats : demande interne, cotation comparative, réception + contrôle qualité/quantité.",
     roles: ["Agent Logistique/Approvisionnement"],
     pageUrl: "/dashboard/user/logistiquesApprovisionnements",
+    pageUrlAdmin: "/dashboard/admin/approvisionnements",
   },
   {
     id: "facture-fournisseur",
