@@ -168,6 +168,14 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Catégorie invalide (SALAIRE, AVANCE, FOURNISSEUR, CARBURANT, AUTRE)" }, { status: 400 });
     }
 
+    // Membre bénéficiaire (facultatif, décaissements uniquement) : repris sur la fiche de décaissement.
+    let beneficiaireId: number | null = null;
+    if (type === "DECAISSEMENT" && body.beneficiaireId) {
+      const membre = await prisma.user.findUnique({ where: { id: Number(body.beneficiaireId) }, select: { id: true } });
+      if (!membre) return NextResponse.json({ error: "Bénéficiaire introuvable" }, { status: 400 });
+      beneficiaireId = membre.id;
+    }
+
     const operation = await prisma.$transaction(async (tx) => {
       const op = await tx.operationCaissePDV.create({
         data: {
@@ -177,6 +185,7 @@ export async function PATCH(req: Request) {
           motif,
           mode:         mode      || null,
           categorie:    categorie || null,
+          beneficiaireId,
           reference:    `OPP-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`,
           operateurNom: `${session.user.prenom} ${session.user.nom}`,
           operateurId:  userId,

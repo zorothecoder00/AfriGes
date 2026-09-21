@@ -4,50 +4,69 @@ import { getAuthSession } from "@/lib/auth";
 import { getComptableSession } from "@/lib/authComptable";
 
 /**
- * GET /api/decaissements/operations-disponibles
+ * GET /api/decaissements/operations-disponibles?jours=30&page=1&limit=10
  * Sorties de caisse (DECAISSEMENT) qui n'ont pas encore de fiche de décaissement.
  * La fiche vient APRÈS la sortie de caisse : c'est la liste dans laquelle on choisit
  * l'opération à justifier. Comptable/Chef Comptable/Admin : toutes ; sinon : celles
  * dont l'utilisateur est l'opérateur.
+ * - jours : ne garde que les sorties des N derniers jours (0 = sans limite de date) ; défaut 30.
+ * - page/limit : pagination sur l'ensemble grande caisse + petite caisse, plus récentes d'abord.
  */
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+    const { searchParams } = new URL(req.url);
+    const jours = Math.max(0, Number(searchParams.get("jours") ?? 30) || 0);
+    const page = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
+    const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? 10) || 10));
+
     const userId = parseInt(session.user.id);
     const voitTout = !!(await getComptableSession());
     const filtreOperateur = voitTout ? {} : { operateurId: userId };
+    const filtreDate = jours > 0 ? { createdAt: { gte: new Date(Date.now() - jours * 86_400_000) } } : {};
+    const where = { type: "DECAISSEMENT" as const, ficheDecaissement: null, ...filtreOperateur, ...filtreDate };
 
-    const [grandeCaisse, petiteCaisse] = await Promise.all([
+    // Pagination sur deux sources : on prend les (page × limit) plus récentes de chacune,
+    // on fusionne, puis on découpe la page demandée.
+    const [grandeCaisse, petiteCaisse, totalGrande, totalPetite] = await Promise.all([
       prisma.operationCaisse.findMany({
-        where: { type: "DECAISSEMENT", ficheDecaissement: null, ...filtreOperateur },
-        orderBy: { createdAt: "desc" },
-        take: 100,
-        include: { session: { select: { pointDeVente: { select: { id: true, nom: true, code: true } } } } },
+        where, orderBy: { createdAt: "desc" }, take: page * limit,
+        include: {
+          session: { select: { pointDeVente: { select: { id: true, nom: true, code: true } } } },
+          beneficiaire: { select: { id: true, nom: true, prenom: true, telephone: true } },
+        },
       }),
       prisma.operationCaissePDV.findMany({
-        where: { type: "DECAISSEMENT", ficheDecaissement: null, ...filtreOperateur },
-        orderBy: { createdAt: "desc" },
-        take: 100,
-        include: { caissePDV: { select: { pointDeVente: { select: { id: true, nom: true, code: true } } } } },
+        where, orderBy: { createdAt: "desc" }, take: page * limit,
+        include: {
+          caissePDV: { select: { pointDeVente: { select: { id: true, nom: true, code: true } } } },
+          beneficiaire: { select: { id: true, nom: true, prenom: true, telephone: true } },
+        },
       }),
+      prisma.operationCaisse.count({ where }),
+      prisma.operationCaissePDV.count({ where }),
     ]);
 
-    const data = [
+    const fusion = [
       ...grandeCaisse.map((o) => ({
         source: "CAISSE" as const, id: o.id, reference: o.reference, montant: Number(o.montant), motif: o.motif,
         categorie: o.categorie, mode: o.mode, date: o.createdAt, operateurNom: o.operateurNom,
-        pointDeVente: o.session.pointDeVente,
+        pointDeVente: o.session.pointDeVente, beneficiaire: o.beneficiaire,
       })),
       ...petiteCaisse.map((o) => ({
         source: "CAISSE_PDV" as const, id: o.id, reference: o.reference, montant: Number(o.montant), motif: o.motif,
         categorie: o.categorie, mode: o.mode, date: o.createdAt, operateurNom: o.operateurNom,
-        pointDeVente: o.caissePDV.pointDeVente,
+        pointDeVente: o.caissePDV.pointDeVente, beneficiaire: o.beneficiaire,
       })),
     ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
-    return NextResponse.json({ data });
+    const total = totalGrande + totalPetite;
+    return NextResponse.json({
+      data: fusion.slice((page - 1) * limit, page * limit),
+      meta: { total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)), jours },
+    });
   } catch (error) {
     console.error("GET /decaissements/operations-disponibles:", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

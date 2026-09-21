@@ -86,7 +86,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const userId = parseInt(session.user.id);
 
-    const beneficiaireNom = String(body.beneficiaireNom || "").trim();
+    const beneficiaireNomSaisi = String(body.beneficiaireNom || "").trim();
     const typeDepense = body.typeDepense;
 
     // ── Sortie de caisse obligatoire : pas de fiche sans mouvement de caisse ──
@@ -102,11 +102,17 @@ export async function POST(req: Request) {
     const op = operationCaisseId != null
       ? await prisma.operationCaisse.findUnique({
           where: { id: operationCaisseId },
-          include: { ficheDecaissement: { select: { reference: true } }, session: { select: { pointDeVenteId: true } } },
+          include: {
+            ficheDecaissement: { select: { reference: true } }, session: { select: { pointDeVenteId: true } },
+            beneficiaire: { select: { nom: true, prenom: true, telephone: true } },
+          },
         })
       : await prisma.operationCaissePDV.findUnique({
           where: { id: operationCaissePDVId! },
-          include: { ficheDecaissement: { select: { reference: true } }, caissePDV: { select: { pointDeVenteId: true } } },
+          include: {
+            ficheDecaissement: { select: { reference: true } }, caissePDV: { select: { pointDeVenteId: true } },
+            beneficiaire: { select: { nom: true, prenom: true, telephone: true } },
+          },
         });
     if (!op) return NextResponse.json({ error: "Sortie de caisse introuvable" }, { status: 404 });
     if (op.type !== "DECAISSEMENT") return NextResponse.json({ error: "Cette opération de caisse n'est pas une sortie (décaissement)" }, { status: 422 });
@@ -124,6 +130,11 @@ export async function POST(req: Request) {
     if (motifSaisi && motifSaisi.length < 10) return NextResponse.json({ error: "Motif : 10 caractères minimum" }, { status: 400 });
     const motif = motifSaisi || op.motif;
 
+    // Bénéficiaire : si la sortie de caisse désigne un membre, son nom et son téléphone sont
+    // repris automatiquement (la saisie du formulaire est ignorée) ; sinon saisie manuelle.
+    const membre = op.beneficiaire;
+    const beneficiaireNom = membre ? `${membre.prenom} ${membre.nom}`.trim() : beneficiaireNomSaisi;
+    const beneficiaireContact = membre ? membre.telephone : (body.beneficiaireContact || null);
     if (!beneficiaireNom) return NextResponse.json({ error: "Bénéficiaire obligatoire" }, { status: 400 });
     if (!TYPES_DEPENSE.includes(typeDepense)) return NextResponse.json({ error: `Type de dépense invalide. Valeurs acceptées : ${TYPES_DEPENSE.join(", ")}` }, { status: 400 });
 
@@ -156,7 +167,7 @@ export async function POST(req: Request) {
               demandeurId: userId,
               pointDeVenteId,
               beneficiaireNom,
-              beneficiaireContact: body.beneficiaireContact || null,
+              beneficiaireContact,
               fournisseurId,
               motif,
               typeDepense,

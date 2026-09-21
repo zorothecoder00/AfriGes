@@ -18,6 +18,7 @@ import AccountMenuButton from "@/components/AccountMenuButton";
 import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
+import BeneficiairePicker, { type MembreBeneficiaire } from "@/components/BeneficiairePicker";
 import DashboardBackButton from "@/components/DashboardBackButton";
 import AfriSimeLogo from "@/components/AfriSimeLogo";
 import ClientSegmentTags from "@/components/ClientSegmentTags";
@@ -401,6 +402,7 @@ function ResponsablePDVPageInner() {
   const [modalDepense,         setModalDepense]         = useState(false);
   const [depenseMontant,       setDepenseMontant]       = useState("");
   const [depenseMotif,         setDepenseMotif]         = useState("");
+  const [depenseBeneficiaire,  setDepenseBeneficiaire]  = useState<MembreBeneficiaire | null>(null);
   const [depenseCategorie,     setDepenseCategorie]     = useState("");
 
   // Modals
@@ -859,8 +861,12 @@ function ResponsablePDVPageInner() {
   const handleEnregistrerDepense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!depenseMontant || !depenseMotif.trim()) return;
-    const r = await doDepense({ type: "DECAISSEMENT", montant: Number(depenseMontant), motif: depenseMotif.trim(), categorie: depenseCategorie || null });
-    if (r) { setModalDepense(false); setDepenseMontant(""); setDepenseMotif(""); setDepenseCategorie(""); refetchCaissePDV(); }
+    const avecMembre = ["SALAIRE", "AVANCE", "CARBURANT"].includes(depenseCategorie) && depenseBeneficiaire;
+    const r = await doDepense({
+      type: "DECAISSEMENT", montant: Number(depenseMontant), motif: depenseMotif.trim(), categorie: depenseCategorie || null,
+      ...(avecMembre ? { beneficiaireId: avecMembre.id } : {}),
+    });
+    if (r) { setModalDepense(false); setDepenseMontant(""); setDepenseMotif(""); setDepenseCategorie(""); setDepenseBeneficiaire(null); refetchCaissePDV(); }
   };
 
   const handleExportClients = () => {
@@ -1067,6 +1073,14 @@ function ResponsablePDVPageInner() {
                   <option value="AUTRE">Autre</option>
                 </select>
               </div>
+              {["SALAIRE", "AVANCE", "CARBURANT"].includes(depenseCategorie) && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Membre bénéficiaire <span className="text-slate-400 font-normal">(facultatif — repris sur la fiche)</span>
+                  </label>
+                  <BeneficiairePicker value={depenseBeneficiaire} onChange={setDepenseBeneficiaire} />
+                </div>
+              )}
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setModalDepense(false)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-slate-600 text-sm font-medium hover:bg-slate-50">{t('btn_cancel')}</button>
                 <button type="submit" disabled={enregistreDepense}

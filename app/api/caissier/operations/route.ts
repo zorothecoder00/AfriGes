@@ -59,7 +59,10 @@ export async function GET(req: Request) {
         skip:    (page - 1) * limit,
         take:    limit,
         // Fiche de décaissement rattachée (le caissier crée puis imprime la fiche après sa sortie)
-        include: { ficheDecaissement: { select: { id: true, reference: true, statut: true } } },
+        include: {
+          ficheDecaissement: { select: { id: true, reference: true, statut: true } },
+          beneficiaire: { select: { id: true, nom: true, prenom: true } },
+        },
       }),
       prisma.operationCaisse.count({ where }),
       prisma.operationCaisse.aggregate({
@@ -128,6 +131,14 @@ export async function POST(req: Request) {
     const operateurId  = parseInt(auth.user.id);
     const isAdmin      = auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN";
 
+    // Membre bénéficiaire (facultatif, décaissements uniquement) : repris sur la fiche de décaissement.
+    let beneficiaireId: number | null = null;
+    if (type === "DECAISSEMENT" && body.beneficiaireId) {
+      const membre = await prisma.user.findUnique({ where: { id: Number(body.beneficiaireId) }, select: { id: true } });
+      if (!membre) return NextResponse.json({ message: "Bénéficiaire introuvable" }, { status: 400 });
+      beneficiaireId = membre.id;
+    }
+
     // Récupère la session active du caissier connecté uniquement
     const sessionActive = await prisma.sessionCaisse.findFirst({
       where: {
@@ -150,6 +161,7 @@ export async function POST(req: Request) {
           type,
           mode:         type === "ENCAISSEMENT" ? mode : null,
           categorie:    type === "DECAISSEMENT" ? categorie : null,
+          beneficiaireId,
           montant:      new Prisma.Decimal(montant),
           motif:        motif.trim(),
           reference:    genRef(prefix),

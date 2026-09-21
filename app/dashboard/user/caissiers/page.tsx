@@ -16,6 +16,7 @@ import AccountMenuButton from "@/components/AccountMenuButton";
 import CongesNavButton from "@/components/CongesNavButton";
 import FactureModal from "@/components/FactureModal";
 import FicheDecaissementModal from "@/components/FicheDecaissementModal";
+import BeneficiairePicker, { type MembreBeneficiaire } from "@/components/BeneficiairePicker";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
 import DashboardBackButton from "@/components/DashboardBackButton";
@@ -92,6 +93,7 @@ interface OperationCaisse {
   montant: number; motif: string; reference: string;
   operateurNom: string; createdAt: string;
   ficheDecaissement?: { id: number; reference: string; statut: string } | null;
+  beneficiaire?: { id: number; nom: string; prenom: string; telephone?: string | null } | null;
 }
 
 interface HistoEncItem {
@@ -899,6 +901,8 @@ export default function CaissierPage() {
   const [decCategorie, setDecCategorie] = useState<"SALAIRE" | "AVANCE" | "FOURNISSEUR" | "CARBURANT" | "AUTRE">("AUTRE");
   // Sortie de caisse pour laquelle on crée la fiche de décaissement (modal partagé)
   const [ficheOp, setFicheOp] = useState<OperationCaisse | null>(null);
+  // Membre bénéficiaire d'un salaire / avance / carburant (repris automatiquement sur la fiche)
+  const [decBeneficiaire, setDecBeneficiaire] = useState<MembreBeneficiaire | null>(null);
   const [decMontant,   setDecMontant]   = useState("");
   const [decMotif,     setDecMotif]     = useState("");
 
@@ -1119,7 +1123,7 @@ export default function CaissierPage() {
     );
 
   const { mutate: creerOperation, loading: creantOp } =
-    useMutation<{ success: boolean }, { type: string; mode?: string; categorie?: string; montant: number; motif: string }>(
+    useMutation<{ success: boolean }, { type: string; mode?: string; categorie?: string; montant: number; motif: string; beneficiaireId?: number }>(
       "/api/caissier/operations",
       "POST",
       { successMessage: "Opération enregistrée ✓" }
@@ -1540,10 +1544,15 @@ export default function CaissierPage() {
     e.preventDefault();
     const montant = parseFloat(decMontant);
     if (isNaN(montant) || montant <= 0 || !decMotif.trim()) return;
-    const result = await creerOperation({ type: "DECAISSEMENT", categorie: decCategorie, montant, motif: decMotif.trim() });
+    const avecMembre = ["SALAIRE", "AVANCE", "CARBURANT"].includes(decCategorie) && decBeneficiaire;
+    const result = await creerOperation({
+      type: "DECAISSEMENT", categorie: decCategorie, montant, motif: decMotif.trim(),
+      ...(avecMembre ? { beneficiaireId: avecMembre.id } : {}),
+    });
     if (result) {
       setDecMontant("");
       setDecMotif("");
+      setDecBeneficiaire(null);
       refetchOperations();
       refetchDashboard();
     }
@@ -1697,6 +1706,7 @@ export default function CaissierPage() {
           operationInitiale={{
             source: "CAISSE", id: ficheOp.id, reference: ficheOp.reference, montant: ficheOp.montant, motif: ficheOp.motif,
             categorie: ficheOp.categorie, mode: ficheOp.mode, date: ficheOp.createdAt, operateurNom: ficheOp.operateurNom, pointDeVente: null,
+            beneficiaire: ficheOp.beneficiaire ? { id: ficheOp.beneficiaire.id, nom: ficheOp.beneficiaire.nom, prenom: ficheOp.beneficiaire.prenom, telephone: ficheOp.beneficiaire.telephone ?? null } : null,
           }}
           onClose={() => setFicheOp(null)}
           onDone={() => { setFicheOp(null); refetchOperations(); }}
@@ -2828,6 +2838,14 @@ export default function CaissierPage() {
                 ))}
               </div>
               <form onSubmit={handleDecaisser} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {["SALAIRE", "AVANCE", "CARBURANT"].includes(decCategorie) && (
+                  <div className="sm:col-span-3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Membre bénéficiaire <span className="text-slate-400 font-normal">(facultatif — repris automatiquement sur la fiche de décaissement)</span>
+                    </label>
+                    <BeneficiairePicker value={decBeneficiaire} onChange={setDecBeneficiaire} />
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Montant (FCFA)</label>
                   <input
@@ -2895,7 +2913,10 @@ export default function CaissierPage() {
                           <tr key={op.id} className="hover:bg-slate-50">
                             <td className="px-5 py-3 font-mono text-xs text-slate-500">{op.reference}</td>
                             <td className="px-5 py-3 font-bold text-red-600">{formatCurrency(op.montant)}</td>
-                            <td className="px-5 py-3 text-slate-600">{op.motif}</td>
+                            <td className="px-5 py-3 text-slate-600">
+                              {op.motif}
+                              {op.beneficiaire && <span className="block text-xs text-emerald-700">→ {op.beneficiaire.prenom} {op.beneficiaire.nom}</span>}
+                            </td>
                             <td className="px-5 py-3 text-slate-400 text-xs">{formatDateTime(op.createdAt)}</td>
                             <td className="px-5 py-3">
                               {op.ficheDecaissement ? (

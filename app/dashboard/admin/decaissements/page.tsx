@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import Pagination from "@/components/ui/Pagination";
 import FicheDecaissementModal, { type OperationCaisseDispo } from "@/components/FicheDecaissementModal";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 
@@ -48,8 +49,14 @@ export default function AdminDecaissementsPage() {
   const { data, loading, refetch } = useApi<FichesResponse>(`/api/decaissements?${params}`);
   const fiches = data?.data ?? [];
   // Sorties de caisse (grande caisse + petite caisse RPV) qui attendent leur fiche
-  const { data: opsData, refetch: refetchOps } = useApi<{ data: OperationCaisseDispo[] }>("/api/decaissements/operations-disponibles");
+  // Limité aux sorties récentes (par défaut 30 jours), paginé par 10.
+  const [joursOps, setJoursOps] = useState("30");
+  const [pageOps, setPageOps] = useState(1);
+  const { data: opsData, refetch: refetchOps } = useApi<{
+    data: OperationCaisseDispo[]; meta: { total: number; page: number; totalPages: number };
+  }>(`/api/decaissements/operations-disponibles?jours=${joursOps}&page=${pageOps}&limit=10`);
   const sortiesSansFiche = opsData?.data ?? [];
+  const totalSorties = opsData?.meta?.total ?? 0;
 
   async function action(id: number, body: Record<string, unknown>, successMsg: string) {
     try {
@@ -81,12 +88,26 @@ export default function AdminDecaissementsPage() {
         </div>
       </div>
 
-      {sortiesSansFiche.length > 0 && (
-        <Card className="!border-amber-200 !bg-amber-50/50">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle size={16} className="text-amber-600" />
-            <h2 className="text-sm font-bold text-slate-800">Sorties de caisse sans fiche de décaissement ({sortiesSansFiche.length})</h2>
+      {opsData && (
+        <Card className={totalSorties > 0 ? "!border-amber-200 !bg-amber-50/50" : ""}>
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={16} className={totalSorties > 0 ? "text-amber-600" : "text-emerald-600"} />
+              <h2 className="text-sm font-bold text-slate-800">Sorties de caisse sans fiche de décaissement ({totalSorties})</h2>
+            </div>
+            <select value={joursOps} onChange={(e) => { setJoursOps(e.target.value); setPageOps(1); }}
+              className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-primary-300">
+              <option value="7">7 derniers jours</option>
+              <option value="30">30 derniers jours</option>
+              <option value="90">90 derniers jours</option>
+              <option value="0">Toutes les sorties</option>
+            </select>
           </div>
+          {totalSorties === 0 && (
+            <p className="text-xs text-slate-500">
+              {joursOps === "0" ? "Toutes les sorties de caisse ont leur fiche." : "Aucune sortie sans fiche sur cette période — élargissez la période pour voir les plus anciennes."}
+            </p>
+          )}
           <div className="space-y-2">
             {sortiesSansFiche.map((o) => (
               <div key={`${o.source}-${o.id}`} className="flex items-center justify-between gap-3 flex-wrap bg-white border border-amber-100 rounded-lg px-3 py-2">
@@ -106,6 +127,11 @@ export default function AdminDecaissementsPage() {
               </div>
             ))}
           </div>
+          {opsData?.meta && (
+            <div className="-mx-5 -mb-5 mt-3">
+              <Pagination page={opsData.meta.page} totalPages={opsData.meta.totalPages} total={opsData.meta.total} onPageChange={setPageOps} itemLabel="sorties" />
+            </div>
+          )}
         </Card>
       )}
 

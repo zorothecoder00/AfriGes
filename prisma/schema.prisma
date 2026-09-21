@@ -864,6 +864,8 @@ model User {
   sessionsCaisse         SessionCaisse[]      @relation("SessionsCaisseCaissier")
   operationsCaisse       OperationCaisse[]    @relation("OperationsCaisse")
   operationsCaissePDV    OperationCaissePDV[] @relation("OperationsCaissePDV")
+  operationsCaisseBeneficiaire    OperationCaisse[]    @relation("OperationsCaisseBeneficiaire")
+  operationsCaissePDVBeneficiaire OperationCaissePDV[] @relation("OperationsCaissePDVBeneficiaire")
   transfertsCaisse       TransfertCaisse[]    @relation("TransfertsCaisse")
 
   // Ventes directes
@@ -4500,6 +4502,11 @@ model OperationCaissePDV {
   caissePDV CaissePDV @relation(fields: [caissePDVId], references: [id])
   operateur User      @relation("OperationsCaissePDV", fields: [operateurId], references: [id])
 
+  // Membre bénéficiaire d'une sortie (salaire, avance, carburant…) — reprise automatique
+  // sur la fiche de décaissement. Null si le bénéficiaire n'est pas un membre.
+  beneficiaireId Int?
+  beneficiaire   User? @relation("OperationsCaissePDVBeneficiaire", fields: [beneficiaireId], references: [id])
+
   ficheDecaissement FicheDecaissement?
 }
 
@@ -4519,6 +4526,11 @@ model OperationCaisse {
 
   session   SessionCaisse @relation(fields: [sessionId], references: [id])
   operateur User          @relation("OperationsCaisse", fields: [operateurId], references: [id])
+
+  // Membre bénéficiaire d'une sortie (salaire, avance, carburant…) — reprise automatique
+  // sur la fiche de décaissement. Null si le bénéficiaire n'est pas un membre.
+  beneficiaireId Int?
+  beneficiaire   User? @relation("OperationsCaisseBeneficiaire", fields: [beneficiaireId], references: [id])
 
   ficheDecaissement FicheDecaissement?
 }

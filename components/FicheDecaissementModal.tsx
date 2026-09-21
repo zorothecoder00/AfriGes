@@ -25,6 +25,8 @@ export interface OperationCaisseDispo {
   date: string;
   operateurNom: string;
   pointDeVente: { nom: string } | null;
+  /** Membre bénéficiaire désigné à la sortie de caisse (salaire, avance, carburant…) */
+  beneficiaire?: { id: number; nom: string; prenom: string; telephone: string | null } | null;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -48,12 +50,18 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
 }) {
   const [operation, setOperation] = useState<OperationCaisseDispo | null>(operationInitiale ?? null);
   const { data: opsData, loading: opsLoading } = useApi<{ data: OperationCaisseDispo[] }>(
-    operationInitiale ? null : "/api/decaissements/operations-disponibles"
+    // Sélecteur : toutes les sorties sans fiche (pas de limite de date), jusqu'à 100 les plus récentes
+    operationInitiale ? null : "/api/decaissements/operations-disponibles?jours=0&limit=100"
   );
   const operations = opsData?.data ?? [];
 
-  const [beneficiaireNom, setBeneficiaireNom] = useState("");
-  const [beneficiaireContact, setBeneficiaireContact] = useState("");
+  // Bénéficiaire désigné à la sortie de caisse → repris automatiquement et non modifiable ici
+  // (le serveur fait foi). Sinon saisie manuelle.
+  const membre = operation?.beneficiaire ?? null;
+  const [beneficiaireNomSaisi, setBeneficiaireNom] = useState("");
+  const [beneficiaireContactSaisi, setBeneficiaireContact] = useState("");
+  const beneficiaireNom = membre ? `${membre.prenom} ${membre.nom}` : beneficiaireNomSaisi;
+  const beneficiaireContact = membre ? (membre.telephone ?? "") : beneficiaireContactSaisi;
   const [typeDepense, setTypeDepense] = useState(
     operationInitiale?.categorie ? (TYPE_SUGGERE[operationInitiale.categorie] ?? "AUTRES") : "AUTRES"
   );
@@ -178,12 +186,16 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
                 )}
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-500 mb-1 block">Bénéficiaire *</label>
-                <input value={beneficiaireNom} onChange={(e) => setBeneficiaireNom(e.target.value)} className={inputCls} />
+                <label className="text-xs font-medium text-slate-500 mb-1 block">
+                  Bénéficiaire * {membre && <span className="text-emerald-600 font-normal">(membre désigné à la sortie de caisse)</span>}
+                </label>
+                <input value={beneficiaireNom} onChange={(e) => setBeneficiaireNom(e.target.value)} readOnly={!!membre}
+                  className={`${inputCls} ${membre ? "bg-slate-50 text-slate-600" : ""}`} />
               </div>
               <div>
                 <label className="text-xs font-medium text-slate-500 mb-1 block">Contact bénéficiaire</label>
-                <input value={beneficiaireContact} onChange={(e) => setBeneficiaireContact(e.target.value)} className={inputCls} />
+                <input value={beneficiaireContact} onChange={(e) => setBeneficiaireContact(e.target.value)} readOnly={!!membre}
+                  className={`${inputCls} ${membre ? "bg-slate-50 text-slate-600" : ""}`} />
               </div>
               <div>
                 <label className="text-xs font-medium text-slate-500 mb-1 block">Type de dépense *</label>
