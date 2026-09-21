@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -329,6 +329,14 @@ function MiniBarChart({ data }: { data: { heure: number; count: number; montant:
 // ============================================================================
 
 export default function ResponsablePDVPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResponsablePDVPageInner />
+    </Suspense>
+  );
+}
+
+function ResponsablePDVPageInner() {
   const t = useT();
   const { isAllowed, allowedPages } = usePageAccess();
   const searchParams = useSearchParams();
