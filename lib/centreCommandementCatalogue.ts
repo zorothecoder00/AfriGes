@@ -11,8 +11,15 @@ export type EntreeCatalogue = {
   titre: string;
   description: string;
   roles: string[];
+  // Clés RoleGestionnaire autorisées à voir cette entrée depuis LEUR Centre de
+  // commandement (RPV/Chef d'agence/RVC...). Absent = visible à tous les
+  // gestionnaires (cas "Tout gestionnaire (créateur)" type Fiche de décaissement).
+  rolesGestionnaire?: string[];
   pageUrl: string;
   pageUrlAdmin?: string; // si présent, remplace pageUrl pour un viewer Admin/Super Admin (page admin native, pas de détour par une page "user")
+  // Override de pageUrl pour un rôle gestionnaire précis qui dispose de sa
+  // propre page adaptée (évite de le rediriger vers le dashboard d'un autre rôle).
+  pageUrlParRole?: Record<string, string>;
   rolesRestreints?: boolean; // true = visible seulement pour Admin/Super Admin dans l'UI
 };
 
@@ -24,6 +31,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Bordereau de remise de fonds",
     description: "Remise des fonds terrain (cotisations, remboursements, ventes) à la trésorerie, avec billetage contradictoire et visa CGT.",
     roles: ["Agent terrain", "Comptable/Trésorier", "Admin"],
+    rolesGestionnaire: ["AGENT_TERRAIN", "COMPTABLE", "CHEF_COMPTABLE"],
     pageUrl: "/dashboard/user/comptables/tresorerie/bordereaux-remise",
     pageUrlAdmin: "/dashboard/admin/bordereaux-remise",
   },
@@ -33,8 +41,10 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Bon de commande client",
     description: "Prise de commande terrain, signature électronique client, génération automatique du Bon de sortie une fois validée.",
     roles: ["Agent terrain", "Commercial", "RVC"],
+    rolesGestionnaire: ["AGENT_TERRAIN", "COMMERCIAL", "RESPONSABLE_VENTE_CREDIT"],
     pageUrl: "/dashboard/user/agentsTerrain/commandes-client",
     pageUrlAdmin: "/dashboard/admin/commandes-client",
+    pageUrlParRole: { RESPONSABLE_VENTE_CREDIT: "/dashboard/user/responsablesVenteCredit/commandes-client" },
   },
   {
     id: "bcf",
@@ -42,6 +52,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Bon de commande fournisseur",
     description: "Commande AfriSime → fournisseur, circuit DRAFT → APPROVED → SENT → COMPLETED, visa CGT si montant élevé.",
     roles: ["Agent Logistique/Approvisionnement", "Admin"],
+    rolesGestionnaire: ["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "RESPONSABLE_ACHATS"],
     pageUrl: "/dashboard/user/logistiquesApprovisionnements/bons-commande",
     pageUrlAdmin: "/dashboard/admin/bons-commande-fournisseur",
   },
@@ -51,6 +62,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Bon de sortie de marchandises",
     description: "Sortie physique de stock (livraison client, transfert, perte, casse, don...), génère le Bon de livraison associé.",
     roles: ["Magasinier", "Admin"],
+    rolesGestionnaire: ["MAGAZINIER"],
     pageUrl: "/dashboard/user/magasiniers",
     pageUrlAdmin: "/dashboard/admin/stock/sorties",
   },
@@ -60,6 +72,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Bon de réception (client)",
     description: "Attestation client de réception, sans compte requis (lien SMS à jeton opaque). Consultable depuis la commande client liée.",
     roles: ["Agent terrain", "Client (lien SMS)"],
+    rolesGestionnaire: ["AGENT_TERRAIN"],
     pageUrl: "/dashboard/user/agentsTerrain/commandes-client",
     pageUrlAdmin: "/dashboard/admin/commandes-client",
   },
@@ -80,6 +93,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Devis / Proforma",
     description: "Proposition commerciale, conversion Devis → Proforma, réponse client sans compte via lien à jeton.",
     roles: ["Agent terrain", "Commercial", "Admin"],
+    rolesGestionnaire: ["AGENT_TERRAIN", "COMMERCIAL"],
     pageUrl: "/dashboard/user/agentsTerrain/devis-proforma",
     pageUrlAdmin: "/dashboard/admin/devis-proforma",
   },
@@ -89,6 +103,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Bon de livraison",
     description: "Généré automatiquement à la validation du Bon de sortie — document de transport figé une fois émis.",
     roles: ["Magasinier", "Admin"],
+    rolesGestionnaire: ["MAGAZINIER"],
     pageUrl: "/dashboard/user/magasiniers",
     pageUrlAdmin: "/dashboard/admin/stock/sorties",
   },
@@ -98,7 +113,9 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Facture / Facture à crédit / Avoir",
     description: "Générée automatiquement à chaque vente (fenêtre \"Facture\" sur les pages de vente). Facture d'avoir réservée au Comptable.",
     roles: ["Caissier", "RPV", "Comptable", "Admin"],
+    rolesGestionnaire: ["CAISSIER", "RESPONSABLE_POINT_DE_VENTE", "COMPTABLE", "CHEF_COMPTABLE"],
     pageUrl: "/dashboard/admin/ventes",
+    pageUrlParRole: { RESPONSABLE_POINT_DE_VENTE: "/dashboard/user/responsablesPointDeVente?tab=ventes" },
   },
   {
     id: "achats-fournisseurs",
@@ -106,6 +123,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Demande d'achat / RFQ / Réception",
     description: "Circuit achats : demande interne, cotation comparative, réception + contrôle qualité/quantité.",
     roles: ["Agent Logistique/Approvisionnement"],
+    rolesGestionnaire: ["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "RESPONSABLE_ACHATS"],
     pageUrl: "/dashboard/user/logistiquesApprovisionnements",
     pageUrlAdmin: "/dashboard/admin/approvisionnements",
   },
@@ -115,6 +133,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Facture fournisseur",
     description: "Numéro/date/montant de la facture reçue, rapprochement avec la réception correspondante.",
     roles: ["Comptable", "Admin"],
+    rolesGestionnaire: ["COMPTABLE", "CHEF_COMPTABLE"],
     pageUrl: "/dashboard/user/comptables/factures-achat",
     pageUrlAdmin: "/dashboard/admin/factures-fournisseur",
   },
@@ -124,7 +143,9 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Dossier de crédit (contrat, échéancier, reçus, avis, recouvrement)",
     description: "Demande/contrat de crédit, carnet digital (/suivi), reçus de remboursement, avis d'échéance, actions de recouvrement, attestation de solde.",
     roles: ["RVC", "Admin"],
+    rolesGestionnaire: ["RESPONSABLE_VENTE_CREDIT"],
     pageUrl: "/dashboard/admin/credits",
+    pageUrlParRole: { RESPONSABLE_VENTE_CREDIT: "/dashboard/user/responsablesVenteCredit/credits" },
   },
   {
     id: "depot-vente",
@@ -132,6 +153,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Dépôt-vente (convention, fiche de dépôt, état des ventes)",
     description: "Convention fournisseur, fiche de dépôt de marchandises, état stock/ventes/invendus, demande de règlement.",
     roles: ["Agent Logistique/Approvisionnement", "Admin"],
+    rolesGestionnaire: ["AGENT_LOGISTIQUE_APPROVISIONNEMENT"],
     pageUrl: "/dashboard/user/logistiquesApprovisionnements/depot-vente",
     pageUrlAdmin: "/dashboard/admin/depot-vente",
   },
@@ -141,6 +163,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Comptes revendeurs (B2B) — ouverture, commandes, factures, relevé",
     description: "Fiche d'ouverture/carte pro/convention/attestation, bons de commande, factures et bons de livraison revendeur, relevé de compte.",
     roles: ["RVC", "Admin", "Revendeur (self-service)"],
+    rolesGestionnaire: ["RESPONSABLE_VENTE_CREDIT"],
     pageUrl: "/dashboard/admin/revendeurs",
   },
   {
@@ -149,6 +172,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Tournées de livraison",
     description: "Fiche de tournée (mission/chargement/bordereau), fiches d'arrêt (livré/non effectué/incident/retour).",
     roles: ["Agent Logistique/Approvisionnement", "Magasinier", "Admin"],
+    rolesGestionnaire: ["AGENT_LOGISTIQUE_APPROVISIONNEMENT", "MAGAZINIER"],
     pageUrl: "/dashboard/user/logistiquesApprovisionnements/tournees",
     pageUrlAdmin: "/dashboard/admin/tournees",
   },
@@ -158,6 +182,7 @@ export const CATALOGUE_DOCUMENTS: EntreeCatalogue[] = [
     titre: "Réclamations, retours et remplacements",
     description: "Formulaire de réclamation, fiche de traitement/clôture, fiche de retour marchandise, bon de remplacement, rapport d'incident, avoir client.",
     roles: ["RPV", "Chef d'agence", "Magasinier", "Admin"],
+    rolesGestionnaire: ["RESPONSABLE_POINT_DE_VENTE", "CHEF_AGENCE", "MAGAZINIER"],
     pageUrl: "/dashboard/admin/reclamations",
   },
   {

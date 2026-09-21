@@ -5,7 +5,7 @@ import {
   Users, Search, RefreshCw, CheckCircle, XCircle, Clock,
   AlertCircle, User, Phone, MapPin, Briefcase,
   Loader2, Eye, Shield, TrendingUp, Wallet, Edit3,
-  CreditCard, FileText, Network, Menu, X, ShoppingCart,
+  CreditCard, FileText, Network, Menu, X, ShoppingCart, LayoutGrid,
 } from "lucide-react";
 import Link from "next/link";
 import NotificationBell from "@/components/NotificationBell";
@@ -639,6 +639,11 @@ export default function RVCPage() {
               </button>
               <div className="hidden lg:block" />
               <div className="flex items-center gap-3">
+                <Link href="/dashboard/admin/centre-commandement"
+                  className="px-3 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold hover:bg-emerald-50 transition-all shadow-sm flex items-center gap-2">
+                  <LayoutGrid className="w-4 h-4" />
+                  Centre de commandement
+                </Link>
                 <MessagesLink />
                 <CongesNavButton />
                 <NotificationBell href="/dashboard/user/notifications" />

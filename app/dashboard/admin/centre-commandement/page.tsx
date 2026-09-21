@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Search, FileText, Printer, ExternalLink, LayoutGrid, Loader2 } from "lucide-react";
+import { Search, FileText, Printer, ExternalLink, LayoutGrid, Loader2, ArrowLeft } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatDateTime } from "@/lib/format";
 import { CATALOGUE_DOCUMENTS } from "@/lib/centreCommandementCatalogue";
@@ -23,6 +23,7 @@ type Resultat = {
 export default function CentreCommandementPage() {
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN";
+  const gestionnaireRole = session?.user?.gestionnaireRole ?? null;
 
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -36,13 +37,35 @@ export default function CentreCommandementPage() {
   const resultats = data?.data ?? [];
 
   const catalogueVisible = useMemo(
-    () => CATALOGUE_DOCUMENTS.filter((c) => !c.rolesRestreints || isAdmin),
-    [isAdmin]
+    () => CATALOGUE_DOCUMENTS.filter((c) => {
+      if (c.rolesRestreints && !isAdmin) return false;
+      // Admin voit tout ; un gestionnaire ne voit que les documents qui le
+      // concernent (évite les cartes qui renvoient vers un dashboard qui ne
+      // lui est pas accessible).
+      if (isAdmin || !c.rolesGestionnaire) return true;
+      return !!gestionnaireRole && c.rolesGestionnaire.includes(gestionnaireRole);
+    }),
+    [isAdmin, gestionnaireRole]
   );
+
+  const resoudreUrl = (item: (typeof CATALOGUE_DOCUMENTS)[number]) => {
+    if (isAdmin) return item.pageUrlAdmin ?? item.pageUrl;
+    if (gestionnaireRole && item.pageUrlParRole?.[gestionnaireRole]) {
+      return item.pageUrlParRole[gestionnaireRole];
+    }
+    return item.pageUrl;
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div>
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 transition-colors mb-2"
+        >
+          <ArrowLeft size={16} />
+          Retour au tableau de bord
+        </Link>
         <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
           <LayoutGrid className="text-indigo-600" size={24} />
           Centre de commandement
@@ -122,7 +145,7 @@ export default function CentreCommandementPage() {
           {catalogueVisible.map((item) => (
             <Link
               key={item.id}
-              href={isAdmin ? (item.pageUrlAdmin ?? item.pageUrl) : item.pageUrl}
+              href={resoudreUrl(item)}
               className="block bg-white rounded-xl border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm transition-all"
             >
               <p className="text-sm font-semibold text-slate-800">{item.titre}</p>

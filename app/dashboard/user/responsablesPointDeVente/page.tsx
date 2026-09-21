@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Package, Users, ShoppingCart, TrendingUp, AlertTriangle, Archive,
   Search, Eye, RefreshCw, Plus, BarChart3, Clock,
@@ -330,8 +331,13 @@ function MiniBarChart({ data }: { data: { heure: number; count: number; montant:
 export default function ResponsablePDVPage() {
   const t = useT();
   const { isAllowed, allowedPages } = usePageAccess();
+  const searchParams = useSearchParams();
 
-  const [activeTab,   setActiveTab]   = useState<TabKey>("synthese");
+  const TAB_KEYS: TabKey[] = ["synthese", "ventes", "stock", "approvisionnement", "reappro", "livraisons", "caisse", "clients", "equipe", "ventes-terrain", "rapports"];
+  const tabFromUrl = searchParams.get("tab") as TabKey | null;
+  const [activeTab,   setActiveTab]   = useState<TabKey>(
+    tabFromUrl && TAB_KEYS.includes(tabFromUrl) ? tabFromUrl : "synthese"
+  );
   const [stockSub,    setStockSub]    = useState<StockSub>("inventaire");
   const [factureVenteId,     setFactureVenteId]     = useState<number | null>(null);
   const [factureReceptionId, setFactureReceptionId] = useState<number | null>(null);

@@ -77,11 +77,20 @@ const sharedAdminPaths: { prefix: string; roles: string[] }[] = [
   // déjà côté API, il ne manquait que la navigation).
   {
     prefix: "/dashboard/admin/centre-commandement",
-    roles: ["RESPONSABLE_POINT_DE_VENTE", "CHEF_AGENCE"],
+    roles: ["RESPONSABLE_POINT_DE_VENTE", "CHEF_AGENCE", "RESPONSABLE_VENTE_CREDIT"],
   },
   {
     prefix: "/dashboard/admin/reclamations",
     roles: ["RESPONSABLE_POINT_DE_VENTE", "CHEF_AGENCE"],
+  },
+  // Comptes revendeurs B2B (CDC digitalisation §5.6) — le RVC n'a pas de page
+  // dédiée dans son propre dashboard (contrairement au Dossier de crédit),
+  // cette page admin est sa seule surface (API déjà authentifiée via
+  // getRVCSession) ; il ne manquait que la navigation depuis le Centre de
+  // commandement, comme pour centre-commandement/reclamations ci-dessus.
+  {
+    prefix: "/dashboard/admin/revendeurs",
+    roles: ["RESPONSABLE_VENTE_CREDIT"],
   },
 ]
 
