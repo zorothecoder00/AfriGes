@@ -295,7 +295,7 @@ function FormBordereau({ onClose, onDone }: { onClose: () => void; onDone: () =>
           {Number(montantVirement) > 0 && <PiecesUploader nature="RELEVE_BANCAIRE" label="Avis de virement" obligatoire pieces={pieces} onChange={setPieces} />}
 
           <p className="text-xs font-semibold text-slate-500 uppercase pt-2">Billetage (nombre de billets/pièces par dénomination)</p>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             {DENOMINATIONS.map((d) => (
               <div key={d}>
                 <label className="text-[11px] text-slate-500 mb-1 block">{d.toLocaleString("fr-FR")} F</label>

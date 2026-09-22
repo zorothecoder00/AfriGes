@@ -146,6 +146,7 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
               <p className="text-sm text-slate-600">Client : {c.client.prenom} {c.client.nom} — {c.client.telephone} ({c.typeClientCommande})</p>
               <p className="text-sm text-slate-600">Règlement : <b>{c.modeReglement}</b></p>
               <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <tbody className="divide-y divide-slate-100">
                     {c.lignes.map((l) => (
@@ -158,6 +159,7 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
               <p className="text-right text-sm text-slate-500">Remise totale : {Number(c.totalRemise).toLocaleString("fr-FR")} FCFA</p>
               <p className="text-right text-sm font-bold text-slate-800">Total TTC : {Number(c.totalTTC).toLocaleString("fr-FR")} FCFA</p>
