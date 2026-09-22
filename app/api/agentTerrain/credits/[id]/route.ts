@@ -8,8 +8,11 @@ type Ctx = { params: Promise<{ id: string }> };
 
 /**
  * PATCH /api/agentTerrain/credits/[id]
- * Modifie la durée / date de début d'un crédit d'un client assigné à l'agent.
- * Régénère l'échéancier en réimputant le déjà-payé (cf. appliquerNouvelleDureeCredit).
+ * Modifie garantie/observations d'un crédit d'un client assigné à l'agent.
+ * La durée / date de début (dureeJours, dateDebut) — qui régénère tout
+ * l'échéancier — n'est PAS modifiable par l'agent terrain : c'est réservé au
+ * RVC (/api/rvc/credits/[id]) et à l'admin, seuls habilités à requalifier un
+ * crédit déjà en cours.
  */
 export async function PATCH(req: Request, { params }: Ctx) {
   try {
@@ -24,6 +27,16 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
 
     const body = await req.json() as { dureeJours?: number; dateDebut?: string; garantie?: string | null; observations?: string | null };
+
+    if (!isAdmin && (body.dureeJours !== undefined || body.dateDebut !== undefined)) {
+      return NextResponse.json(
+        { error: "Seuls le Responsable Vente Crédit ou l'admin peuvent modifier la durée ou la date de début d'un crédit" },
+        { status: 403 }
+      );
+    }
+    // Un agent terrain ne peut toucher que garantie/observations — la durée/date
+    // de début du crédit reste celle déjà enregistrée (aucune valeur transmise).
+    const bodyAutorise = isAdmin ? body : { garantie: body.garantie, observations: body.observations };
 
     const result = await prisma.$transaction(async (tx) => {
       const credit = await tx.creditClient.findUnique({
@@ -41,7 +54,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         credit.statut === StatutCredit.EN_RETARD;
       if (!modifiable) throw new Error("CREDIT_NON_MODIFIABLE");
 
-      return appliquerNouvelleDureeCredit(tx, credit, body);
+      return appliquerNouvelleDureeCredit(tx, credit, bodyAutorise);
     });
 
     return NextResponse.json({ data: result });
