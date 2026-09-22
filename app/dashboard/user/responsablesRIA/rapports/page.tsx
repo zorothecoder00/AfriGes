@@ -3,10 +3,11 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
-  FileText, RefreshCw, Plus, ChevronRight, Calendar, Filter,
+  FileText, RefreshCw, Plus, ChevronRight, Calendar, Filter, TrendingUp,
 } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/format";
 
 interface RapportItem {
   id: number; portefeuilleId: number; portefeuille: string; investisseur: string;
@@ -16,6 +17,11 @@ interface RapportsData { rapports: RapportItem[]; total: number }
 
 interface PortefeuilleOption { id: number; reference: string; nom: string | null; investisseur: string }
 interface PortefeuillesData { portefeuilles: PortefeuilleOption[] }
+
+interface EvolutionItem {
+  mois: string; label: string;
+  finance: number; paye: number; payeCumule: number; restant: number; tauxRecouvrement: number;
+}
 
 const MOIS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const ANNEE_COURANTE = new Date().getFullYear();
@@ -28,6 +34,8 @@ export default function RapportsResponsableRIAPage() {
   const urlRapports = `/api/admin/ria/rapports${filtreAnnee ? `?annee=${filtreAnnee}` : ""}`;
   const { data, loading, error, refetch } = useApi<RapportsData>(urlRapports);
   const { data: pfData } = useApi<PortefeuillesData>("/api/admin/ria/portefeuilles");
+  const { data: evoData, loading: evoLoading } = useApi<{ data: EvolutionItem[] }>("/api/admin/ria/rapports/evolution?mois=12");
+  const evolution = evoData?.data ?? [];
 
   const liste = useMemo(() => {
     if (!data) return [];
@@ -65,6 +73,49 @@ export default function RapportsResponsableRIAPage() {
         >
           <Plus className="w-4 h-4" /> Générer un rapport
         </button>
+      </div>
+
+      {/* Évolution du recouvrement (12 derniers mois, global tous portefeuilles) */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-3">
+          <TrendingUp className="w-4 h-4 text-emerald-600" /> Évolution du recouvrement — 12 derniers mois
+        </h2>
+        {evoLoading ? (
+          <div className="flex items-center justify-center py-8 text-slate-400 text-sm">
+            <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Chargement…
+          </div>
+        ) : evolution.length === 0 ? (
+          <p className="text-sm text-slate-400 py-4">Aucune donnée disponible.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-slate-400 uppercase tracking-wide border-b border-slate-100">
+                  <th className="py-2 pr-3">Mois</th>
+                  <th className="py-2 pr-3 text-right">Taux recouvrement</th>
+                  <th className="py-2 pr-3 text-right">Payé (mois)</th>
+                  <th className="py-2 pr-3 text-right">Payé cumulé</th>
+                  <th className="py-2 pr-3 text-right">Restant (encours)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {evolution.map((m) => (
+                  <tr key={m.mois} className="hover:bg-slate-50">
+                    <td className="py-2 pr-3 font-medium text-slate-700">{m.label}</td>
+                    <td className="py-2 pr-3 text-right">
+                      <span className={`font-semibold ${m.tauxRecouvrement >= 80 ? 'text-emerald-600' : m.tauxRecouvrement >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                        {m.tauxRecouvrement}%
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3 text-right text-slate-600">{formatCurrency(m.paye)}</td>
+                    <td className="py-2 pr-3 text-right text-slate-600">{formatCurrency(m.payeCumule)}</td>
+                    <td className="py-2 pr-3 text-right text-slate-700 font-medium">{formatCurrency(m.restant)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-3">
