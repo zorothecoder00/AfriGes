@@ -34,11 +34,16 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       where: { id: souscriptionId },
       select: {
         id: true,
-        client: { select: { id: true, nom: true, prenom: true, pointDeVenteId: true } },
+        client: { select: { id: true, nom: true, prenom: true, pointDeVenteId: true, agentTerrainId: true } },
         pack:   { select: { id: true, nom: true, type: true } },
       },
     });
     if (!souscription) return NextResponse.json({ error: "Souscription introuvable" }, { status: 404 });
+
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    if (!isAdmin && souscription.client?.agentTerrainId !== parseInt(session.user.id)) {
+      return NextResponse.json({ error: "Ce client n'est pas affecté à votre portefeuille" }, { status: 403 });
+    }
 
     const lignes = await prisma.ligneSouscriptionProduit.findMany({
       where: { souscriptionId },
@@ -138,9 +143,14 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     // Récupérer la souscription pour dénormaliser le PDV du client
     const souscription = await prisma.souscriptionPack.findUnique({
       where: { id: souscriptionId },
-      select: { id: true, client: { select: { pointDeVenteId: true } } },
+      select: { id: true, client: { select: { pointDeVenteId: true, agentTerrainId: true } } },
     });
     if (!souscription) return NextResponse.json({ error: "Souscription introuvable" }, { status: 404 });
+
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    if (!isAdmin && souscription.client?.agentTerrainId !== parseInt(session.user.id)) {
+      return NextResponse.json({ error: "Ce client n'est pas affecté à votre portefeuille" }, { status: 403 });
+    }
 
     const pointDeVenteId = souscription.client?.pointDeVenteId ?? null;
 

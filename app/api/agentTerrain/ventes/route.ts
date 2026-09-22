@@ -127,10 +127,16 @@ export async function GET(req: NextRequest) {
       return { ...s, produit: { ...compat, ...projected } };
     }));
 
-    // Clients du PDV
+    // Portefeuille de l'agent (affectation dédiée ∪ agent legacy) — PAS tous les clients du PDV.
     const clients = affectation
       ? await prisma.client.findMany({
-          where: { etat: "ACTIF", pointDeVenteId: affectation.pointDeVente.id },
+          where: {
+            etat: "ACTIF",
+            OR: [
+              { agentTerrainId: effectiveUserId },
+              { agentAffectations: { some: { agentId: effectiveUserId, actif: true } } },
+            ],
+          },
           select: { id: true, nom: true, prenom: true, telephone: true },
           orderBy: { nom: "asc" },
         })

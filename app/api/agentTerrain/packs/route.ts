@@ -39,18 +39,18 @@ export async function GET(req: NextRequest) {
       where: {
         statut: "EN_ATTENTE",
         datePrevue: { lt: now },
-        souscription: {  
-          client: { pointDeVenteId: pdvId },
+        souscription: {
+          client: { agentTerrainId: effectiveUserId },
         },
-      }, 
+      },
       data: { statut: "EN_RETARD" },
     });
 
     const souscriptions = await prisma.souscriptionPack.findMany({
       where: {
         statut: { in: ["EN_ATTENTE", "ACTIF", "SUSPENDU"] },
-        // Filtrer uniquement les clients du PDV de l'agent
-        client: { pointDeVenteId: pdvId },
+        // Filtrer uniquement les clients affectés à l'agent (pas tout le PDV)
+        client: { agentTerrainId: effectiveUserId },
         ...(typePack ? { pack: { type: typePack as never } } : {}),
         ...(search
           ? (() => {
@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
       where: {
         statut: "SUSPENDU",
         montantRestant: { gt: 0 },
-        client: { pointDeVenteId: pdvId },
+        client: { agentTerrainId: effectiveUserId },
       },
     });
 

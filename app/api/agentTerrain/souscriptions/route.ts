@@ -38,13 +38,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "montantTotal doit être > 0" }, { status: 400 });
     }
 
-    // Vérifier que le client appartient bien au PDV de l'agent
+    // Vérifier que le client appartient bien au PDV ET au portefeuille de l'agent
     const client = await prisma.client.findUnique({
       where: { id: parseInt(clientId) },
-      select: { id: true, nom: true, prenom: true, pointDeVenteId: true },
+      select: { id: true, nom: true, prenom: true, pointDeVenteId: true, agentTerrainId: true },
     });
+    const isAdminSouscription = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
     if (!client || client.pointDeVenteId !== pdvId) {
       return NextResponse.json({ error: "Client introuvable ou hors PDV" }, { status: 403 });
+    }
+    if (!isAdminSouscription && client.agentTerrainId !== parseInt(session.user.id)) {
+      return NextResponse.json({ error: "Ce client n'est pas affecté à votre portefeuille" }, { status: 403 });
     }
 
     const pack = await prisma.pack.findUnique({ where: { id: parseInt(packId) } });

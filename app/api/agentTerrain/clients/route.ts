@@ -9,7 +9,10 @@ import { genererCodeClient } from "@/lib/codeClient";
 
 /**
  * GET /api/agentTerrain/clients
- * Liste clients du PDV de l'agent terrain, avec pagination et recherche.
+ * Liste clients du PDV, avec pagination et recherche. Un AGENT_TERRAIN ne voit que
+ * son propre portefeuille (client affecté à lui : agentTerrainId ∪ ClientAgentAffectation
+ * actif) — pas tous les clients du PDV. Le magasinier (fallback session) et l'admin hors
+ * viewAs conservent la vue PDV complète (recherche client pour une vente, par ex.).
  */
 export async function GET(req: NextRequest) {
   try {
@@ -22,15 +25,19 @@ export async function GET(req: NextRequest) {
     const viewAs  = isAdmin ? resolveViewAs(req) : null;
     const effectiveUserId = viewAs?.userId ?? parseInt(session.user.id);
 
-    // Résoudre le PDV de l'agent terrain (ou du gestionnaire ciblé en viewAs)
+    // Résoudre le PDV (+ rôle gestionnaire) de l'agent terrain, ou du gestionnaire ciblé en viewAs.
     const aff = await prisma.gestionnaireAffectation.findFirst({
       where: { userId: effectiveUserId, actif: true },
-      select: { pointDeVenteId: true },
+      select: { pointDeVenteId: true, user: { select: { gestionnaire: { select: { role: true } } } } },
     });
     const pdvId = aff?.pointDeVenteId;
     if (!pdvId) {
       return NextResponse.json({ error: "Aucun point de vente associé à cet agent" }, { status: 400 });
     }
+
+    // Restreindre au portefeuille personnel uniquement quand l'utilisateur effectif est
+    // bien un AGENT_TERRAIN (pas pour un magasinier réel, ni un admin sans viewAs).
+    const restreindreAuPortefeuille = aff?.user.gestionnaire?.role === "AGENT_TERRAIN";
 
     const { searchParams } = new URL(req.url);
     const page  = Math.max(1, Number(searchParams.get("page")  || 1));
@@ -38,22 +45,37 @@ export async function GET(req: NextRequest) {
     const skip  = (page - 1) * limit;
     const search = ( searchParams.get("search") || "" ).trim();
 
+    // AND explicite (au lieu de spreads d'objets) pour ne jamais laisser une clause OR
+    // (portefeuille ou recherche) en écraser une autre.
+    const conditionsEtAND: Prisma.ClientWhereInput[] = [];
+
+    if (restreindreAuPortefeuille) {
+      conditionsEtAND.push({
+        OR: [
+          { agentTerrainId: effectiveUserId },
+          { agentAffectations: { some: { agentId: effectiveUserId, actif: true } } },
+        ],
+      });
+    }
+
+    if (search) {
+      const parts = search.split(/\s+/);
+      const conditions: Prisma.ClientWhereInput[] = [
+        { nom:       { contains: search, mode: "insensitive" } },
+        { prenom:    { contains: search, mode: "insensitive" } },
+        { telephone: { contains: search, mode: "insensitive" } },
+      ];
+      if (parts.length >= 2) {
+        const [first, ...rest] = parts; const restStr = rest.join(" ");
+        conditions.push({ AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: restStr, mode: "insensitive" } }] });
+        conditions.push({ AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: restStr, mode: "insensitive" } }] });
+      }
+      conditionsEtAND.push({ OR: conditions });
+    }
+
     const where: Prisma.ClientWhereInput = {
       pointDeVenteId: pdvId,
-      ...(search && (() => {
-        const parts = search.split(/\s+/);
-        const conditions: object[] = [
-          { nom:       { contains: search, mode: "insensitive" } },
-          { prenom:    { contains: search, mode: "insensitive" } },
-          { telephone: { contains: search, mode: "insensitive" } },
-        ];
-        if (parts.length >= 2) {
-          const [first, ...rest] = parts; const restStr = rest.join(" ");
-          conditions.push({ AND: [{ prenom: { contains: first, mode: "insensitive" } }, { nom: { contains: restStr, mode: "insensitive" } }] });
-          conditions.push({ AND: [{ nom: { contains: first, mode: "insensitive" } }, { prenom: { contains: restStr, mode: "insensitive" } }] });
-        }
-        return { OR: conditions };
-      })()),
+      ...(conditionsEtAND.length > 0 ? { AND: conditionsEtAND } : {}),
     };
 
     const [clients, total] = await Promise.all([

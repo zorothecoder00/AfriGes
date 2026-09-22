@@ -30,8 +30,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Aucun point de vente associé à cet agent" }, { status: 400 });
     }
 
-    // Filtre strict : uniquement les livraisons pour des clients de son PDV
-    const where = { souscription: { client: { pointDeVenteId: pdvId } } };
+    // Filtre strict : uniquement les livraisons pour des clients affectés à l'agent
+    const where = { souscription: { client: { agentTerrainId: effectiveUserId } } };
 
     const since30j = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 

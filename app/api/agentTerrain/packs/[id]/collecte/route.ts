@@ -26,11 +26,16 @@ export async function POST(req: Request, { params }: Ctx) {
 
     const souscription = await prisma.souscriptionPack.findUnique({
       where: { id: souscriptionId },
-      include: { pack: true, client: { select: { nom: true, prenom: true } } },
-    });  
+      include: { pack: true, client: { select: { nom: true, prenom: true, agentTerrainId: true } } },
+    });
 
     if (!souscription) {
       return NextResponse.json({ error: "Souscription introuvable" }, { status: 404 });
+    }
+
+    const isAdminCollecte = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    if (!isAdminCollecte && souscription.client?.agentTerrainId !== parseInt(session.user.id)) {
+      return NextResponse.json({ error: "Ce client n'est pas affecté à votre portefeuille" }, { status: 403 });
     }
 
     if (souscription.statut === "ANNULE" || souscription.statut === "COMPLETE" ) {
