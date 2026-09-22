@@ -124,7 +124,7 @@ export default function ResponsableMarketingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-fuchsia-800 to-fuchsia-900 text-white transform transition-transform lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-fuchsia-900 bg-gradient-to-b from-fuchsia-800 to-fuchsia-900 text-white transform transition-transform lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         {/* Logo centré — la sidebar occupe toute la hauteur de l'écran et porte le logo */}
         <div className="flex-shrink-0 flex justify-center border-b border-white/10 px-3 py-3">
           <div className="rounded-xl bg-white p-1 shadow-sm">

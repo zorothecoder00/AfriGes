@@ -132,7 +132,7 @@ export default function RevendeurPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-rose-50/30 to-pink-50/20 font-['DM_Sans',sans-serif] lg:flex">
       {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-rose-800 to-rose-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:z-auto lg:flex-shrink-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-rose-950 bg-gradient-to-b from-rose-800 to-rose-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:z-auto lg:flex-shrink-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         {/* Logo centré — la sidebar occupe toute la hauteur de l'écran et porte le logo */}
         <div className="flex-shrink-0 flex justify-center border-b border-white/10 px-3 py-3">
           <div className="rounded-xl bg-white p-1 shadow-sm">
