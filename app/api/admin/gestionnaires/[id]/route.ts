@@ -4,6 +4,7 @@ import {
   RoleGestionnaire,
   PrioriteNotification,
 } from "@prisma/client";
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/authAdmin";
 
@@ -98,7 +99,14 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { role, actif, email, googleOnly } = body;
+    const { role, actif, email, googleOnly, password } = body;
+
+    if (password !== undefined && password !== null && String(password).trim() !== "" && String(password).length < 8) {
+      return NextResponse.json(
+        { message: "Le mot de passe doit contenir au moins 8 caractères" },
+        { status: 400 }
+      );
+    }
 
     if (
       role &&
@@ -161,13 +169,22 @@ export async function PATCH(
         if (clash) throw new Error("EMAIL_TAKEN");
       }
 
-      // Mettre à jour le membre (User) : rôle, e-mail, et/ou désactivation du mot de passe.
-      // googleOnly = true → passwordHash null → la connexion par mot de passe est
-      // désactivée pour ce compte ; il ne pourra plus se connecter que via Google.
-      const memberData: { role?: Role; email?: string; passwordHash?: null } = {};
+      // Mettre à jour le membre (User) : rôle, e-mail, mot de passe et/ou
+      // désactivation du mot de passe. googleOnly = true → passwordHash null →
+      // la connexion par mot de passe est désactivée pour ce compte ; il ne
+      // pourra plus se connecter que via Google. Sinon, si un nouveau mot de
+      // passe est fourni, on le hache et on remplace passwordHash.
+      const newPasswordHash =
+        googleOnly === true
+          ? null
+          : password
+            ? await bcrypt.hash(password, 10)
+            : undefined;
+
+      const memberData: { role?: Role; email?: string; passwordHash?: string | null } = {};
       if (newMemberRole) memberData.role = newMemberRole;
       if (emailNormalized) memberData.email = emailNormalized;
-      if (googleOnly === true) memberData.passwordHash = null;
+      if (newPasswordHash !== undefined) memberData.passwordHash = newPasswordHash;
 
       if (Object.keys(memberData).length > 0) {
         await tx.user.update({
@@ -187,6 +204,7 @@ export async function PATCH(
             ...(role && { role }),
             ...(emailNormalized && { emailChange: emailNormalized }),
             ...(googleOnly === true && { passwordDisabled: true }),
+            ...(newPasswordHash !== undefined && newPasswordHash !== null && { passwordChanged: true }),
           },
         },
       });
