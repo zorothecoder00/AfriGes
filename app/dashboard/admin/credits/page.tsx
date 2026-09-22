@@ -73,8 +73,13 @@ interface CreditsResponse {
     // Sous-totaux mensuels calculés côté serveur sur tout le filtre (hors pagination),
     // clé "YYYY-MM". Sert à afficher le vrai total du mois en tête de groupe.
     parMois?: Record<string, { total: number; rembourse: number; count: number }>;
+    // Totaux par statut (tous statuts, indépendant du filtre `statut` en cours),
+    // scopés aux autres filtres actifs (agent, PDV, recherche…).
+    statsParStatut?: Record<string, { nb: number; montantTotal: number; soldeRestant: number }>;
   };
 }
+
+interface AgentOption { id: number; nom: string; prenom: string }
 
 interface LigneCreditDetail {
   id: number;
@@ -211,6 +216,7 @@ export default function CreditsPage() {
   const [search,      setSearch]      = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [statut,      setStatut]      = useState('');
+  const [agentId,     setAgentId]     = useState('');
   const [page,        setPage]        = useState(1);
   const LIMIT = 20;
 
@@ -629,16 +635,18 @@ export default function CreditsPage() {
   // ── API principale ─────────────────────────────────────────────────────────
   const query = new URLSearchParams({
     page: String(page), limit: String(LIMIT),
-    ...(search && { search }),
-    ...(statut && { statut }),
+    ...(search  && { search }),
+    ...(statut  && { statut }),
+    ...(agentId && { agentId }),
   }).toString();
 
   const { data: res, loading, refetch } = useApi<CreditsResponse>(`/api/admin/credits?${query}`);
 
-  // ── Stats (3 petites requêtes) ────────────────────────────────────────────
-  const { data: statsActif }    = useApi<CreditsResponse>('/api/admin/credits?statut=ACTIF&limit=1');
-  const { data: statsRetard }   = useApi<CreditsResponse>('/api/admin/credits?statut=EN_RETARD&limit=1');
-  const { data: statsAttente }  = useApi<CreditsResponse>('/api/admin/credits?statut=EN_ATTENTE_VALIDATION&limit=1');
+  // ── Agents terrain (pour le filtre par agent) ────────────────────────────
+  const { data: agentsRes } = useApi<{ data: { id: number; member: { id: number; nom: string; prenom: string } }[] }>(
+    '/api/admin/gestionnaires?role=AGENT_TERRAIN&actif=true&limit=200'
+  );
+  const agents: AgentOption[] = (agentsRes?.data ?? []).map((g) => ({ id: g.member.id, nom: g.member.nom, prenom: g.member.prenom }));
 
   const credits = res?.data ?? [];
   const meta    = res?.meta;
@@ -970,23 +978,37 @@ export default function CreditsPage() {
           </div>
         </div>
 
-        {/* ── Stats ──────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: 'En attente validation', value: statsAttente?.meta.total ?? 0,  icon: <Clock className="w-5 h-5 text-amber-600" />,   bg: 'bg-amber-50 border-amber-200',    text: 'text-amber-700',   action: () => { setStatut('EN_ATTENTE_VALIDATION'); setPage(1); } },
-            { label: 'Crédits actifs',        value: statsActif?.meta.total ?? 0,    icon: <Wallet className="w-5 h-5 text-emerald-600" />, bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', action: () => { setStatut('ACTIF'); setPage(1); } },
-            { label: 'En retard',             value: statsRetard?.meta.total ?? 0,   icon: <AlertCircle className="w-5 h-5 text-red-600" />,bg: 'bg-red-50 border-red-200',         text: 'text-red-700',     action: () => { setStatut('EN_RETARD'); setPage(1); } },
-            { label: 'Total (filtre actuel)', value: meta?.total ?? 0,               icon: <CreditCard className="w-5 h-5 text-blue-600" />, bg: 'bg-blue-50 border-blue-200',     text: 'text-blue-700',    action: () => { setStatut(''); setPage(1); } },
-          ].map((s) => (
-            <button key={s.label} onClick={s.action}
-              className={`${s.bg} border rounded-2xl p-5 flex items-center gap-4 hover:opacity-90 transition text-left`}>
-              <div className={`p-2.5 rounded-xl bg-white/60`}>{s.icon}</div>
-              <div>
-                <p className="text-xs text-slate-500 font-medium">{s.label}</p>
-                <p className={`text-3xl font-bold ${s.text} mt-0.5`}>{s.value}</p>
-              </div>
-            </button>
-          ))}
+        {/* ── Stats par statut (nombre + montant, tous statuts) ─────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          {([
+            { statut: 'EN_ATTENTE_VALIDATION', label: 'En attente validation', montantCle: 'soldeRestant' as const, icon: <Clock className="w-5 h-5 text-amber-600" />,     bg: 'bg-amber-50 border-amber-200',     text: 'text-amber-700' },
+            { statut: 'ACTIF',                 label: 'Crédits actifs',        montantCle: 'soldeRestant' as const, icon: <Wallet className="w-5 h-5 text-emerald-600" />,   bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+            { statut: 'EN_RETARD',             label: 'Impayés (en retard)',   montantCle: 'soldeRestant' as const, icon: <AlertCircle className="w-5 h-5 text-red-600" />,  bg: 'bg-red-50 border-red-200',         text: 'text-red-700' },
+            { statut: 'SOLDE',                 label: 'Soldés',                montantCle: 'montantTotal' as const, icon: <CheckCircle2 className="w-5 h-5 text-blue-600" />, bg: 'bg-blue-50 border-blue-200',      text: 'text-blue-700' },
+            { statut: 'ANNULE',                label: 'Annulés',               montantCle: 'montantTotal' as const, icon: <XCircle className="w-5 h-5 text-slate-500" />,     bg: 'bg-slate-50 border-slate-200',    text: 'text-slate-600' },
+            { statut: 'REJETE',                label: 'Rejetés',               montantCle: 'montantTotal' as const, icon: <Ban className="w-5 h-5 text-slate-500" />,         bg: 'bg-slate-50 border-slate-200',    text: 'text-slate-600' },
+          ]).map((s) => {
+            const stat = meta?.statsParStatut?.[s.statut];
+            return (
+              <button key={s.label} onClick={() => { setStatut(s.statut); setPage(1); }}
+                className={`${s.bg} border rounded-2xl p-4 flex items-center gap-3 hover:opacity-90 transition text-left`}>
+                <div className="p-2.5 rounded-xl bg-white/60">{s.icon}</div>
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-500 font-medium truncate">{s.label}</p>
+                  <p className={`text-2xl font-bold ${s.text} mt-0.5`}>{stat?.nb ?? 0}</p>
+                  <p className={`text-xs font-semibold ${s.text} opacity-80 truncate`}>{formatCurrency(stat?.[s.montantCle] ?? 0)}</p>
+                </div>
+              </button>
+            );
+          })}
+          <button onClick={() => { setStatut(''); setPage(1); }}
+            className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3 hover:opacity-90 transition text-left">
+            <div className="p-2.5 rounded-xl bg-slate-50"><CreditCard className="w-5 h-5 text-slate-500" /></div>
+            <div className="min-w-0">
+              <p className="text-xs text-slate-500 font-medium truncate">Total (filtre actuel)</p>
+              <p className="text-2xl font-bold text-slate-700 mt-0.5">{meta?.total ?? 0}</p>
+            </div>
+          </button>
         </div>
 
         {/* ── Activité des 12 derniers mois (tous les mois, zéros inclus) ──── */}
@@ -1066,8 +1088,17 @@ export default function CreditsPage() {
             <option value="REJETE">Rejeté</option>
           </select>
 
-          {(statut || search) && (
-            <button onClick={() => { setStatut(''); setSearch(''); setSearchInput(''); setPage(1); }}
+          {/* Filtre agent terrain */}
+          <select value={agentId} onChange={(e) => { setAgentId(e.target.value); setPage(1); }}
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px]">
+            <option value="">Tous les agents</option>
+            {agents.map((a) => (
+              <option key={a.id} value={a.id}>{a.prenom} {a.nom}</option>
+            ))}
+          </select>
+
+          {(statut || search || agentId) && (
+            <button onClick={() => { setStatut(''); setSearch(''); setSearchInput(''); setAgentId(''); setPage(1); }}
               className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
               <X className="w-3.5 h-3.5" /> Réinitialiser
             </button>

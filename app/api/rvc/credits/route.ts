@@ -37,12 +37,14 @@ export async function GET(req: Request) {
     const page   = Math.max(1, Number(searchParams.get("page")  || 1));
     const limit  = Math.max(1, Number(searchParams.get("limit") || 20));
     const skip   = (page - 1) * limit;
-    const search = (searchParams.get("search") || "").trim();
-    const statut = searchParams.get("statut") as StatutCredit | null;
+    const search  = (searchParams.get("search") || "").trim();
+    const statut  = searchParams.get("statut") as StatutCredit | null;
+    // Filtre par agent terrain (portefeuille client) : Client.agentTerrainId.
+    const agentId = searchParams.get("agentId") ? Number(searchParams.get("agentId")) : null;
 
-    const where: Prisma.CreditClientWhereInput = {
+    const whereBase: Prisma.CreditClientWhereInput = {
       ...(rvcPdvId !== null && { pointDeVenteId: rvcPdvId }),
-      ...(statut && { statut }),
+      ...(agentId  && { client: { agentTerrainId: agentId } }),
       ...(search && {
         OR: [
           { reference: { contains: search, mode: "insensitive" } },
@@ -54,8 +56,12 @@ export async function GET(req: Request) {
         ],
       }),
     };
+    const where: Prisma.CreditClientWhereInput = {
+      ...whereBase,
+      ...(statut && { statut }),
+    };
 
-    const [credits, total, creditsPourMois] = await Promise.all([
+    const [credits, total, creditsPourMois, statsGroup] = await Promise.all([
       prisma.creditClient.findMany({
         where,
         skip,
@@ -81,6 +87,14 @@ export async function GET(req: Request) {
         where,
         select: { dateDebut: true, montantTotal: true },
       }),
+      // Totaux par statut (tous statuts, indépendant du filtre `statut` en cours),
+      // scopés au PDV du RVC + agent/recherche courants.
+      prisma.creditClient.groupBy({
+        by: ["statut"],
+        where: whereBase,
+        _count: true,
+        _sum: { montantTotal: true, soldeRestant: true },
+      }),
     ]);
 
     // Regroupement par mois (clé "YYYY-MM", cf. lib/groupByMonth). Calcul en UTC
@@ -99,9 +113,20 @@ export async function GET(req: Request) {
     }
     const parMois: Record<string, { total: number; count: number }> = Object.fromEntries(parMoisMap);
 
+    const statsParStatut: Record<string, { nb: number; montantTotal: number; soldeRestant: number }> = Object.fromEntries(
+      Object.values(StatutCredit).map((s) => [s, { nb: 0, montantTotal: 0, soldeRestant: 0 }])
+    );
+    for (const g of statsGroup) {
+      statsParStatut[g.statut] = {
+        nb: g._count,
+        montantTotal: Number(g._sum.montantTotal ?? 0),
+        soldeRestant: Number(g._sum.soldeRestant ?? 0),
+      };
+    }
+
     return NextResponse.json({
       data: credits,
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit), parMois },
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit), parMois, statsParStatut },
     });
   } catch (error) {
     console.error("GET /api/rvc/credits", error);

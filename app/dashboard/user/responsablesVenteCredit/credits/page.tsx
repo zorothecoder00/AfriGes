@@ -90,8 +90,12 @@ interface CreditsResponse {
     total: number; page: number; limit: number; totalPages: number;
     // Sous-totaux mensuels calculés côté serveur sur tout le filtre (hors pagination).
     parMois?: Record<string, { total: number; count: number }>;
+    // Totaux par statut (tous statuts), scopés au PDV + agent/recherche courants.
+    statsParStatut?: Record<string, { nb: number; montantTotal: number; soldeRestant: number }>;
   };
 }
+
+interface AgentOption { id: number; nom: string; prenom: string }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -572,6 +576,7 @@ export default function RVCCreditsPage() {
   const [search,      setSearch]      = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [statut,      setStatut]      = useState("");
+  const [agentId,     setAgentId]     = useState("");
   const [page,        setPage]        = useState(1);
   const LIMIT = 20;
 
@@ -650,13 +655,18 @@ export default function RVCCreditsPage() {
 
   const query = new URLSearchParams({
     page: String(page), limit: String(LIMIT),
-    ...(search && { search }),
-    ...(statut && { statut }),
+    ...(search  && { search }),
+    ...(statut  && { statut }),
+    ...(agentId && { agentId }),
   }).toString();
 
   const { data: res, loading, refetch } = useApi<CreditsResponse>(`/api/rvc/credits?${query}`);
   const credits = res?.data ?? [];
   const meta    = res?.meta;
+
+  // Agents terrain du PDV (pour le filtre par agent) — endpoint déjà scopé au RVC.
+  const { data: agentsRes } = useApi<{ data: AgentOption[] }>('/api/rvc/collecteurs');
+  const agents: AgentOption[] = agentsRes?.data ?? [];
 
   // Pliage des regroupements mensuels (liste des crédits + remboursements du détail)
   const credMonths = useCollapsedMonths();
@@ -1117,6 +1127,27 @@ export default function RVCCreditsPage() {
 
       <main className="max-w-screen-xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-5">
 
+        {/* Stats par statut — se recalculent selon l'agent sélectionné */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          {([
+            { statut: 'EN_ATTENTE_VALIDATION', label: 'En attente',  montantCle: 'soldeRestant' as const },
+            { statut: 'ACTIF',                 label: 'Actifs',      montantCle: 'soldeRestant' as const },
+            { statut: 'EN_RETARD',             label: 'Impayés',     montantCle: 'soldeRestant' as const },
+            { statut: 'SOLDE',                 label: 'Soldés',      montantCle: 'montantTotal' as const },
+            { statut: 'ANNULE',                label: 'Annulés',     montantCle: 'montantTotal' as const },
+          ]).map((s) => {
+            const stat = meta?.statsParStatut?.[s.statut];
+            return (
+              <button key={s.label} onClick={() => { setStatut(s.statut); setPage(1); }}
+                className="bg-white border border-gray-200 rounded-xl p-3 text-left hover:border-indigo-300 transition">
+                <p className="text-xs text-gray-500 font-medium">{s.label}{agentId ? " · agent" : ""}</p>
+                <p className="text-xl font-bold text-gray-800 mt-0.5">{stat?.nb ?? 0}</p>
+                <p className="text-xs font-semibold text-indigo-600 truncate">{formatCurrency(stat?.[s.montantCle] ?? 0)}</p>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Toolbar */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 flex-1 min-w-[200px]">
@@ -1149,6 +1180,19 @@ export default function RVCCreditsPage() {
               <option value="SOLDE">Soldé</option>
               <option value="ANNULE">Annulé</option>
             </select>
+            <select value={agentId} onChange={(e) => { setAgentId(e.target.value); setPage(1); }}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">Tous les agents</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>{a.prenom} {a.nom}</option>
+              ))}
+            </select>
+            {(statut || search || agentId) && (
+              <button onClick={() => { setStatut(""); setSearch(""); setSearchInput(""); setAgentId(""); setPage(1); }}
+                className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 px-2">
+                <X className="w-3.5 h-3.5" /> Réinitialiser
+              </button>
+            )}
             <button
               onClick={() => setShowNouveauCredit(true)}
               className="flex items-center gap-1.5 px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"

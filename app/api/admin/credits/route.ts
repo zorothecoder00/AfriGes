@@ -29,11 +29,16 @@ export async function GET(req: Request) {
     const statut  = searchParams.get("statut") as StatutCredit | null;
     const clientId       = searchParams.get("clientId")       ? Number(searchParams.get("clientId"))       : null;
     const pointDeVenteId = searchParams.get("pointDeVenteId") ? Number(searchParams.get("pointDeVenteId")) : null;
+    // Filtre par agent terrain (portefeuille client) : Client.agentTerrainId,
+    // pas de champ direct sur CreditClient.
+    const agentId = searchParams.get("agentId") ? Number(searchParams.get("agentId")) : null;
 
-    const where: Prisma.CreditClientWhereInput = {
-      ...(statut       && { statut }),
+    // Filtres communs à la liste ET à l'agrégat par statut (hors `statut` lui-même,
+    // qui ne doit pas restreindre l'agrégat : les cartes KPI affichent tous les statuts).
+    const whereBase: Prisma.CreditClientWhereInput = {
       ...(clientId     && { clientId }),
       ...(pointDeVenteId && { pointDeVenteId }),
+      ...(agentId      && { client: { agentTerrainId: agentId } }),
       ...(search && {
         OR: [
           { reference: { contains: search, mode: "insensitive" } },
@@ -49,8 +54,12 @@ export async function GET(req: Request) {
         ],
       }),
     };
+    const where: Prisma.CreditClientWhereInput = {
+      ...whereBase,
+      ...(statut && { statut }),
+    };
 
-    const [credits, total, creditsPourMois] = await Promise.all([
+    const [credits, total, creditsPourMois, statsGroup] = await Promise.all([
       prisma.creditClient.findMany({
         where,
         skip,
@@ -85,6 +94,15 @@ export async function GET(req: Request) {
         where,
         select: { dateDebut: true, montantTotal: true, montantRembourse: true },
       }),
+      // Totaux par statut (tous statuts, indépendant du filtre `statut` en cours) —
+      // alimente les cartes KPI de /dashboard/admin/credits ; scopé aux mêmes
+      // filtres client/PDV/agent/recherche que la liste, via whereBase.
+      prisma.creditClient.groupBy({
+        by: ["statut"],
+        where: whereBase,
+        _count: true,
+        _sum: { montantTotal: true, soldeRestant: true },
+      }),
     ]);
 
     // Regroupement par mois (clé "YYYY-MM", identique à lib/groupByMonth côté client).
@@ -105,9 +123,22 @@ export async function GET(req: Request) {
     }
     const parMois: Record<string, { total: number; rembourse: number; count: number }> = Object.fromEntries(parMoisMap);
 
+    // Totaux par statut, tous les statuts initialisés à zéro même sans crédit
+    // (pour que les cartes KPI ne "disparaissent" pas selon le filtre agent/PDV).
+    const statsParStatut: Record<string, { nb: number; montantTotal: number; soldeRestant: number }> = Object.fromEntries(
+      Object.values(StatutCredit).map((s) => [s, { nb: 0, montantTotal: 0, soldeRestant: 0 }])
+    );
+    for (const g of statsGroup) {
+      statsParStatut[g.statut] = {
+        nb: g._count,
+        montantTotal: Number(g._sum.montantTotal ?? 0),
+        soldeRestant: Number(g._sum.soldeRestant ?? 0),
+      };
+    }
+
     return NextResponse.json({
       data: credits,
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit), parMois },
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit), parMois, statsParStatut },
     });
   } catch (error) {
     console.error("GET /api/admin/credits", error);
