@@ -2202,10 +2202,13 @@ export default function AgentTerrainPage() {
         </div>
         )}
 
-        {/* Search + filtres */}
+        {/* Search + filtres — colonne sur mobile (le select + bouton pouvaient sortir du
+            cadre visible sur les petits écrans, invisibles à cause de overflow-x-hidden
+            sur html/body qui les clippait au lieu de laisser un scroll) ; ligne à partir
+            de sm, avec wrap au besoin plutôt qu'un débordement clippé. */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 relative">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1 min-w-0 relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input type="text" placeholder="Rechercher…" value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setClientPage(1); }}
@@ -2213,9 +2216,9 @@ export default function AgentTerrainPage() {
               />
             </div>
             {activeTab === "packs" && (
-              <>
+              <div className="flex items-center gap-3 flex-wrap">
                 <select value={packTypeFilter} onChange={(e) => setPackTypeFilter(e.target.value)}
-                  className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                  className="flex-1 sm:flex-none px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
                   <option value="">{t("field_all_types")}</option>
                   <option value="ALIMENTAIRE">Alimentaire</option>
                   <option value="REVENDEUR">Revendeur</option>
@@ -2225,10 +2228,10 @@ export default function AgentTerrainPage() {
                 </select>
                 <button
                   onClick={() => setNouvelleSouscriptionModal(true)}
-                  className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 shadow-lg shadow-teal-200 flex items-center gap-2 text-sm font-medium shrink-0">
+                  className="shrink-0 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 shadow-lg shadow-teal-200 flex items-center gap-2 text-sm font-medium">
                   <Plus size={16} /> Nouvelle souscription
                 </button>
-              </>
+              </div>
             )}
             {activeTab === "prospects" && (
               <button onClick={() => setAddClientModal(true)}
