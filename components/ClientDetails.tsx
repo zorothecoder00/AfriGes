@@ -6,6 +6,7 @@ import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
 import CreditEcheancier from '@/components/CreditEcheancier';
 import BordereauRemboursement from '@/components/BordereauRemboursement';
+import { MonthGroupHeaderRow, useCollapsedMonths } from '@/components/MonthGroupHeaderRow';
 import JournalMarketingClient from '@/components/marketing/JournalMarketingClient';
 import {
   Phone, MapPin, Calendar, Activity, ArrowLeft, Edit, Trash2,
@@ -288,6 +289,10 @@ export default function ClientDetails({
   const [activeTab, setActiveTab] = useState<TabId>('versements');
   const [expandedCredits, setExpandedCredits] = useState<Set<number>>(new Set());
   const [bordereauCredit, setBordereauCredit] = useState<CreditItem | null>(null);
+  // Onglet Historique crédit : filtre par crédit + pliage des groupes par crédit
+  // (les remboursements de plusieurs crédits ne doivent pas rester mélangés).
+  const [histoCreditFilter, setHistoCreditFilter] = useState<string>('');
+  const histoCreditGroups = useCollapsedMonths();
   const { data: creditsRes, loading: creditsLoading, refetch: creditsRefetch } =
     useApi<CreditsClientResponse>(`${apiBase}/${clientId}/credits`);
 
@@ -799,9 +804,22 @@ export default function ClientDetails({
 
           {/* ── Tab: HISTORIQUE CRÉDIT ─────────────────────────────────── */}
           {activeTab === 'histo-credit' && (() => {
-            const remboursements = (creditsRes?.data ?? [])
-              .flatMap((c) => c.remboursements.map((r) => ({ ...r, creditRef: c.reference })))
-              .sort((a, b) => new Date(b.dateRemboursement).getTime() - new Date(a.dateRemboursement).getTime());
+            // Crédits ayant au moins un remboursement — sert au filtre et au
+            // regroupement (dans l'ordre déjà retourné par l'API, le plus récent
+            // crédit en premier).
+            const creditsAvecRemb = (creditsRes?.data ?? []).filter((c) => c.remboursements.length > 0);
+            const creditsAffiches = histoCreditFilter
+              ? creditsAvecRemb.filter((c) => String(c.id) === histoCreditFilter)
+              : creditsAvecRemb;
+            // Groupes affichés dans le même ordre que les crédits (récent → ancien),
+            // remboursements triés du plus récent au plus ancien à l'intérieur de chaque crédit.
+            const groupes = creditsAffiches.map((c) => ({
+              credit: c,
+              remboursements: [...c.remboursements].sort(
+                (a, b) => new Date(b.dateRemboursement).getTime() - new Date(a.dateRemboursement).getTime()
+              ),
+            }));
+            const totalRemboursements = groupes.reduce((s, g) => s + g.remboursements.length, 0);
             const st = creditsRes?.stats;
             return (
               <div className="p-6 space-y-6">
@@ -825,27 +843,41 @@ export default function ClientDetails({
 
                 {/* Historique des remboursements (complet, non modifiable) */}
                 <div>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                     <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
-                      <Banknote className="w-4 h-4 text-primary-600" /> Historique des remboursements ({remboursements.length})
+                      <Banknote className="w-4 h-4 text-primary-600" /> Historique des remboursements ({totalRemboursements})
                     </h3>
-                    <button onClick={creditsRefetch} className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
-                      <RefreshCw className={`w-3 h-3 ${creditsLoading ? 'animate-spin' : ''}`} /> Actualiser
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {/* Filtre par crédit — évite de mélanger les remboursements de plusieurs crédits */}
+                      <select
+                        value={histoCreditFilter}
+                        onChange={(e) => setHistoCreditFilter(e.target.value)}
+                        className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
+                      >
+                        <option value="">Tous les crédits ({creditsAvecRemb.length})</option>
+                        {creditsAvecRemb.map((c) => (
+                          <option key={c.id} value={String(c.id)}>{c.reference} ({c.remboursements.length})</option>
+                        ))}
+                      </select>
+                      <button onClick={creditsRefetch} className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
+                        <RefreshCw className={`w-3 h-3 ${creditsLoading ? 'animate-spin' : ''}`} /> Actualiser
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-400 mb-2">Historique complet et non modifiable.</p>
+                  <p className="text-xs text-slate-400 mb-2">Historique complet et non modifiable, regroupé par crédit.</p>
                   {creditsLoading && !creditsRes ? (
                     <div className="flex items-center justify-center py-8 text-slate-400">
                       <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Chargement…
                     </div>
-                  ) : remboursements.length === 0 ? (
-                    <p className="text-sm text-slate-400 italic text-center py-6">Aucun remboursement enregistré</p>
+                  ) : totalRemboursements === 0 ? (
+                    <p className="text-sm text-slate-400 italic text-center py-6">
+                      {histoCreditFilter ? 'Aucun remboursement pour ce crédit' : 'Aucun remboursement enregistré'}
+                    </p>
                   ) : (
                     <div className="overflow-x-auto border border-slate-100 rounded-xl">
                       <table className="w-full text-sm">
                         <thead className="bg-slate-50 border-b border-slate-100">
                           <tr>
-                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Crédit</th>
                             <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Date</th>
                             <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Jour</th>
                             <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Attendu</th>
@@ -856,29 +888,42 @@ export default function ClientDetails({
                             <th className="text-center px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Statut</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
-                          {remboursements.map((r) => (
-                            <tr key={r.id} className="hover:bg-slate-50/50">
-                              <td className="px-4 py-2.5 text-slate-700 text-xs font-mono font-semibold whitespace-nowrap">{r.creditRef}</td>
-                              <td className="px-4 py-2.5 text-slate-600 text-xs">{formatDate(r.dateRemboursement)}</td>
-                              <td className="px-4 py-2.5 text-slate-500 text-xs">{r.numeroJour != null ? `J${r.numeroJour}` : '—'}</td>
-                              <td className="px-4 py-2.5 text-right text-slate-500 text-xs">{r.montantAttendu != null ? formatCurrency(Number(r.montantAttendu)) : '—'}</td>
-                              <td className="px-4 py-2.5 text-right font-semibold text-emerald-700">{formatCurrency(Number(r.montant))}</td>
-                              <td className="px-4 py-2.5 text-slate-500 text-xs">{r.modePaiement ? r.modePaiement.replace(/_/g, ' ') : '—'}</td>
-                              <td className="px-4 py-2.5 text-slate-600 text-xs">
-                                {r.agentCollecteur
-                                  ? `${r.agentCollecteur.prenom} ${r.agentCollecteur.nom}`
-                                  : `${r.enregistrePar.prenom} ${r.enregistrePar.nom}`}
-                              </td>
-                              <td className="px-4 py-2.5 text-slate-500 text-xs max-w-[14rem] truncate" title={r.notes ?? ''}>{r.notes || '—'}</td>
-                              <td className="px-4 py-2.5 text-center">
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${REMB_STATUT_STYLE[r.statut] ?? 'bg-slate-100 text-slate-600'}`}>
-                                  {REMB_STATUT_LABEL[r.statut] ?? r.statut}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
+                        {groupes.map(({ credit, remboursements: rembsDuCredit }) => {
+                          const totalCredit = rembsDuCredit.reduce((s, r) => s + Number(r.montant), 0);
+                          const open = histoCreditGroups.isOpen(String(credit.id));
+                          return (
+                            <tbody key={credit.id} className="divide-y divide-slate-50">
+                              <MonthGroupHeaderRow
+                                label={credit.reference}
+                                total={totalCredit}
+                                count={rembsDuCredit.length}
+                                colSpan={8}
+                                open={open}
+                                onToggle={() => histoCreditGroups.toggle(String(credit.id))}
+                              />
+                              {open && rembsDuCredit.map((r) => (
+                                <tr key={r.id} className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-2.5 text-slate-600 text-xs">{formatDate(r.dateRemboursement)}</td>
+                                  <td className="px-4 py-2.5 text-slate-500 text-xs">{r.numeroJour != null ? `J${r.numeroJour}` : '—'}</td>
+                                  <td className="px-4 py-2.5 text-right text-slate-500 text-xs">{r.montantAttendu != null ? formatCurrency(Number(r.montantAttendu)) : '—'}</td>
+                                  <td className="px-4 py-2.5 text-right font-semibold text-emerald-700">{formatCurrency(Number(r.montant))}</td>
+                                  <td className="px-4 py-2.5 text-slate-500 text-xs">{r.modePaiement ? r.modePaiement.replace(/_/g, ' ') : '—'}</td>
+                                  <td className="px-4 py-2.5 text-slate-600 text-xs">
+                                    {r.agentCollecteur
+                                      ? `${r.agentCollecteur.prenom} ${r.agentCollecteur.nom}`
+                                      : `${r.enregistrePar.prenom} ${r.enregistrePar.nom}`}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-slate-500 text-xs max-w-[14rem] truncate" title={r.notes ?? ''}>{r.notes || '—'}</td>
+                                  <td className="px-4 py-2.5 text-center">
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${REMB_STATUT_STYLE[r.statut] ?? 'bg-slate-100 text-slate-600'}`}>
+                                      {REMB_STATUT_LABEL[r.statut] ?? r.statut}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          );
+                        })}
                       </table>
                     </div>
                   )}
