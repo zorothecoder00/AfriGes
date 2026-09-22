@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { htmlToPdf, pdfResponse, PDF_A5_PAYSAGE } from "@/lib/pdf";
+import { htmlToPdfAdaptatif, pdfResponse } from "@/lib/pdf";
 import { genCommandeClientHtml } from "@/lib/commandeClientHtml";
 import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
 import { getViewSession, getValideurScope, peutValider } from "../../route";
@@ -48,7 +48,7 @@ export async function GET(req: Request, { params }: Ctx) {
       gps: commande.latitude != null && commande.longitude != null ? { latitude: commande.latitude, longitude: commande.longitude, precision: commande.precisionGps } : null,
       qrDataUrl,
     });
-    const pdf = await htmlToPdf(html, PDF_A5_PAYSAGE);
+    const pdf = await htmlToPdfAdaptatif(html);
     return pdfResponse(pdf, `${commande.reference}.pdf`);
   } catch (error) {
     console.error("GET /ventes/commandes-client/[id]/pdf:", error);

@@ -13,7 +13,7 @@
  *   export const maxDuration = 30;
  */
 
-import puppeteer, { type Browser } from "puppeteer-core";
+import puppeteer, { type Browser, type Page } from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 
 const isProd = process.env.NODE_ENV === "production";
@@ -57,6 +57,30 @@ export const PDF_A5_PAYSAGE: PdfOptions = {
   margin: { top: "8mm", right: "8mm", bottom: "9mm", left: "8mm" },
 };
 
+/** Repli automatique quand un gabarit A5 déborde : même esprit paysage, en A4. */
+export const PDF_A4_PAYSAGE: PdfOptions = {
+  format: "A4", landscape: true, scale: 0.9,
+  margin: { top: "10mm", right: "10mm", bottom: "11mm", left: "10mm" },
+};
+
+async function renderPdfPage(page: Page, opts: PdfOptions): Promise<Buffer> {
+  const pdf = await page.pdf({
+    format:          opts.format ?? "A4",
+    landscape:       opts.landscape ?? false,
+    scale:           opts.scale ?? 1,
+    printBackground: true,
+    margin:          opts.margin ?? { top: "12mm", right: "12mm", bottom: "14mm", left: "12mm" },
+    timeout:         15_000,
+  });
+  return Buffer.from(pdf);
+}
+
+/** Nombre de pages d'un PDF, par comptage brut des objets `/Type /Page` (évite une dépendance PDF). */
+function countPdfPages(pdf: Buffer): number {
+  const matches = pdf.toString("latin1").match(/\/Type\s*\/Page[^s]/g);
+  return matches ? matches.length : 1;
+}
+
 /**
  * Rend un document HTML complet en PDF (Buffer) via Chromium headless.
  * `html` doit être un document HTML autonome (styles inline ou <style>).
@@ -69,18 +93,40 @@ export async function htmlToPdf(html: string, opts: PdfOptions = {}): Promise<Bu
     // Nos gabarits sont autonomes (aucune ressource distante) → "load" est immédiat ;
     // le timeout borne malgré tout un éventuel blocage plutôt que d'attendre indéfiniment.
     await page.setContent(html, { waitUntil: "load", timeout: 15_000 });
-    const pdf = await page.pdf({
-      format:          opts.format ?? "A4",
-      landscape:       opts.landscape ?? false,
-      scale:           opts.scale ?? 1,
-      printBackground: true,
-      margin:          opts.margin ?? { top: "12mm", right: "12mm", bottom: "14mm", left: "12mm" },
-      timeout:         15_000,
-    });
-    return Buffer.from(pdf);
+    return await renderPdfPage(page, opts);
   } catch (err) {
     // Rendu visible dans les Runtime Logs Vercel (au lieu d'un « en attente » muet).
     console.error("[htmlToPdf] génération PDF échouée :", err);
+    throw err;
+  } finally {
+    if (browser) await browser.close();
+  }
+}
+
+/**
+ * Rend un document en petit format (A5 paysage par défaut) et bascule automatiquement
+ * en grand format (A4 paysage) si le contenu déborde sur plusieurs pages en A5 — pour
+ * les documents commerciaux / centre de commandement dont certains ont beaucoup de
+ * champs à remplir (donc plus de texte que le gabarit A5 standard).
+ * Même contrat que `htmlToPdf` : à utiliser à sa place partout où `PDF_A5_PAYSAGE`
+ * servait jusqu'ici.
+ */
+export async function htmlToPdfAdaptatif(
+  html: string,
+  compact: PdfOptions = PDF_A5_PAYSAGE,
+  large: PdfOptions = PDF_A4_PAYSAGE,
+): Promise<Buffer> {
+  let browser: Browser | null = null;
+  try {
+    browser = await launchBrowser();
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "load", timeout: 15_000 });
+    const pdf = await renderPdfPage(page, compact);
+    if (countPdfPages(pdf) <= 1) return pdf;
+    // Contenu trop long pour tenir sur une page A5 → même page déjà chargée, on régénère juste le PDF en A4.
+    return await renderPdfPage(page, large);
+  } catch (err) {
+    console.error("[htmlToPdfAdaptatif] génération PDF échouée :", err);
     throw err;
   } finally {
     if (browser) await browser.close();

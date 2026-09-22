@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
-import { htmlToPdf, pdfResponse, PDF_A5_PAYSAGE } from "@/lib/pdf";
+import { htmlToPdfAdaptatif, pdfResponse } from "@/lib/pdf";
 import { genBordereauRemiseHtml } from "@/lib/bordereauRemiseHtml";
 import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
 import { getSession } from "../../route";
@@ -60,7 +60,7 @@ export async function GET(req: Request, { params }: Ctx) {
       depotBancaireReference: bordereau.depotBancaireReference, dateCloture: bordereau.dateCloture,
       qrDataUrl,
     });
-    const pdf = await htmlToPdf(html, PDF_A5_PAYSAGE);
+    const pdf = await htmlToPdfAdaptatif(html);
     return pdfResponse(pdf, `${bordereau.reference}.pdf`);
   } catch (error) {
     console.error("GET /tresorerie/bordereaux-remise/[id]/pdf:", error);

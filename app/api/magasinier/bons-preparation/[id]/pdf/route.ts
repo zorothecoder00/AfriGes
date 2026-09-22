@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { getRVCSession } from "@/lib/authRVC";
-import { htmlToPdf, pdfResponse, PDF_A5_PAYSAGE } from "@/lib/pdf";
+import { htmlToPdfAdaptatif, pdfResponse } from "@/lib/pdf";
 import { genBonPreparationHtml } from "@/lib/bonPreparationHtml";
 import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
 
@@ -46,7 +46,7 @@ export async function GET(req: Request, { params }: Ctx) {
       commentaireEcart: bp.commentaireEcart,
       qrDataUrl,
     });
-    const pdf = await htmlToPdf(html, PDF_A5_PAYSAGE);
+    const pdf = await htmlToPdfAdaptatif(html);
     return pdfResponse(pdf, `${bp.reference}.pdf`);
   } catch (error) {
     console.error("GET /magasinier/bons-preparation/[id]/pdf:", error);

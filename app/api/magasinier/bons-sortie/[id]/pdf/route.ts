@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getRPVSession } from "@/lib/authRPV";
 import { getAuthSession } from "@/lib/auth";
-import { htmlToPdf, pdfResponse, PDF_A5_PAYSAGE } from "@/lib/pdf";
+import { htmlToPdfAdaptatif, pdfResponse } from "@/lib/pdf";
 import { genBonSortieHtml } from "@/lib/bonSortieHtml";
 import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
 
@@ -63,7 +63,7 @@ export async function GET(req: Request, { params }: Ctx) {
       visePar: bon.visePar, dateVisa: bon.dateVisa,
       qrDataUrl,
     });
-    const pdf = await htmlToPdf(html, PDF_A5_PAYSAGE);
+    const pdf = await htmlToPdfAdaptatif(html);
     return pdfResponse(pdf, `${bon.reference}.pdf`);
   } catch (error) {
     console.error("GET /magasinier/bons-sortie/[id]/pdf:", error);
