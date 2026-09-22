@@ -2142,43 +2142,45 @@ export default function AgentTerrainPage() {
         <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-4">
           <div>
-            <h2 className="text-3xl font-bold text-slate-800 mb-1">{t("field_dash_title")}</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-1">{t("field_dash_title")}</h2>
             <p className="text-slate-500 text-sm">{t('field_dash_subtitle')}</p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Bande défilante horizontalement sur mobile (évite l'empilement de 6 boutons
+              pleine largeur avant le contenu) ; wrap normal à partir de lg. */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0 lg:flex-wrap">
             <Link
               href="/dashboard/user/agentsTerrain/tournee"
-              className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
+              className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
             >
               <Navigation size={16} /> Ma tournée
             </Link>
             <Link
               href="/dashboard/user/agentsTerrain/objectifs"
-              className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
+              className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
             >
               <Target size={16} /> Mes objectifs
             </Link>
             <Link
               href="/dashboard/user/agentsTerrain/mon-qr"
-              className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
+              className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
             >
               <QrCode size={16} /> Mon QR
             </Link>
             <Link
               href="/dashboard/user/agentsTerrain/credits"
-              className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
+              className="shrink-0 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
             >
               <CreditCard size={16} /> Crédits Clients
             </Link>
             <Link
               href="/dashboard/user/agentsTerrain/documents"
-              className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
+              className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
             >
               <FileText size={16} /> Documents commerciaux
             </Link>
-            <button onClick={refetchAll} className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
+            <button onClick={refetchAll} className="shrink-0 px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
               <RefreshCw size={18} /> {t('refresh')}
             </button>
           </div>
@@ -2244,20 +2246,20 @@ export default function AgentTerrainPage() {
                 </div>
                 <div className="p-6">
                   {/* Mini-stats d'aperçu */}
-                  <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="text-center p-4 bg-slate-50 rounded-xl">
-                      <p className="text-2xl font-bold text-slate-800">{collecteJourData?.stats.totalClients ?? 0}</p>
-                      <p className="text-xs text-slate-500 mt-1">Clients</p>
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
+                    <div className="text-center p-2.5 sm:p-4 bg-slate-50 rounded-xl">
+                      <p className="text-lg sm:text-2xl font-bold text-slate-800">{collecteJourData?.stats.totalClients ?? 0}</p>
+                      <p className="text-[11px] sm:text-xs text-slate-500 mt-1">Clients</p>
                     </div>
-                    <div className="text-center p-4 bg-teal-50 rounded-xl">
-                      <p className="text-lg font-bold text-teal-700">
+                    <div className="text-center p-2.5 sm:p-4 bg-teal-50 rounded-xl">
+                      <p className="text-sm sm:text-lg font-bold text-teal-700 break-words">
                         {formatCurrency(collecteJourData?.stats.totalACollecter ?? 0)}
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">À collecter</p>
+                      <p className="text-[11px] sm:text-xs text-slate-500 mt-1">À collecter</p>
                     </div>
-                    <div className="text-center p-4 bg-red-50 rounded-xl">
-                      <p className="text-2xl font-bold text-red-600">{collecteJourData?.stats.retardsCritiques ?? 0}</p>
-                      <p className="text-xs text-slate-500 mt-1">Retards</p>
+                    <div className="text-center p-2.5 sm:p-4 bg-red-50 rounded-xl">
+                      <p className="text-lg sm:text-2xl font-bold text-red-600">{collecteJourData?.stats.retardsCritiques ?? 0}</p>
+                      <p className="text-[11px] sm:text-xs text-slate-500 mt-1">Retards</p>
                     </div>
                   </div>
                   <button
@@ -2296,18 +2298,18 @@ export default function AgentTerrainPage() {
                           <RefreshCw size={14} />
                         </button>
                       </div>
-                      <div className="grid grid-cols-3 gap-3 mb-3">
-                        <div className="text-center p-3 bg-slate-50 rounded-xl">
-                          <p className="text-xs text-slate-500 mb-0.5">Prévu</p>
-                          <p className="text-sm font-bold text-slate-700">{formatCurrency(prevu)}</p>
+                      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
+                        <div className="text-center p-2 sm:p-3 bg-slate-50 rounded-xl">
+                          <p className="text-[11px] sm:text-xs text-slate-500 mb-0.5">Prévu</p>
+                          <p className="text-xs sm:text-sm font-bold text-slate-700 break-words">{formatCurrency(prevu)}</p>
                         </div>
-                        <div className="text-center p-3 bg-emerald-50 rounded-xl">
-                          <p className="text-xs text-slate-500 mb-0.5">Collecté</p>
-                          <p className="text-sm font-bold text-emerald-700">{formatCurrency(collecte)}</p>
+                        <div className="text-center p-2 sm:p-3 bg-emerald-50 rounded-xl">
+                          <p className="text-[11px] sm:text-xs text-slate-500 mb-0.5">Collecté</p>
+                          <p className="text-xs sm:text-sm font-bold text-emerald-700 break-words">{formatCurrency(collecte)}</p>
                         </div>
-                        <div className="text-center p-3 bg-red-50 rounded-xl">
-                          <p className="text-xs text-slate-500 mb-0.5">Restant</p>
-                          <p className="text-sm font-bold text-red-600">{formatCurrency(Math.max(0, prevu - collecte))}</p>
+                        <div className="text-center p-2 sm:p-3 bg-red-50 rounded-xl">
+                          <p className="text-[11px] sm:text-xs text-slate-500 mb-0.5">Restant</p>
+                          <p className="text-xs sm:text-sm font-bold text-red-600 break-words">{formatCurrency(Math.max(0, prevu - collecte))}</p>
                         </div>
                       </div>
                       <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -2564,7 +2566,7 @@ export default function AgentTerrainPage() {
             ) : (
               <>
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex items-center gap-4">
                     <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
                       <CreditCard className="w-5 h-5 text-blue-600" />
@@ -3582,10 +3584,10 @@ export default function AgentTerrainPage() {
                       {isOpen && (
                         <div className="border-t border-slate-100 px-5 py-4 space-y-4">
                           {/* Jauges mobile */}
-                          <div className="sm:hidden grid grid-cols-3 gap-3 text-center text-xs">
-                            <div><p className="text-slate-400">Plafond</p><p className="font-bold text-slate-700">{client.limiteCredit !== null ? formatCurrency(client.limiteCredit) : "—"}</p></div>
-                            <div><p className="text-slate-400">Engagé</p><p className={`font-bold ${client.soldeActuel > 0 ? "text-amber-600" : "text-slate-400"}`}>{formatCurrency(client.soldeActuel)}</p></div>
-                            <div><p className="text-slate-400">Disponible</p><p className={`font-bold ${client.creditDisponible > 0 ? "text-emerald-600" : "text-red-500"}`}>{formatCurrency(client.creditDisponible)}</p></div>
+                          <div className="sm:hidden grid grid-cols-3 gap-2 text-center text-xs">
+                            <div><p className="text-slate-400">Plafond</p><p className="font-bold text-slate-700 break-words">{client.limiteCredit !== null ? formatCurrency(client.limiteCredit) : "—"}</p></div>
+                            <div><p className="text-slate-400">Engagé</p><p className={`font-bold break-words ${client.soldeActuel > 0 ? "text-amber-600" : "text-slate-400"}`}>{formatCurrency(client.soldeActuel)}</p></div>
+                            <div><p className="text-slate-400">Disponible</p><p className={`font-bold break-words ${client.creditDisponible > 0 ? "text-emerald-600" : "text-red-500"}`}>{formatCurrency(client.creditDisponible)}</p></div>
                           </div>
 
                           {/* Barre de progression */}

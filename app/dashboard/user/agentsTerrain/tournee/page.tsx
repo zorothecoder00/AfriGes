@@ -56,7 +56,7 @@ export default function TourneePage() {
         </div>
 
         {/* Résumé */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
             <div className="flex items-center gap-1.5 text-slate-400 text-xs"><MapPin className="w-4 h-4" /> Clients à visiter</div>
             <div className="text-2xl font-bold text-slate-800 mt-1">{fmt(meta?.total ?? 0)}</div>
