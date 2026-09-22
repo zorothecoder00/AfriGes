@@ -173,7 +173,11 @@ export default function AgentsTerrainPage() {
           <div className="flex items-center gap-2">
             <Link href="/dashboard/admin/agents-terrain/qr-planche"
               className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm">
-              <QrCode className="w-4 h-4" /> Imprimer tous les QR
+              <QrCode className="w-4 h-4" /> QR tournée (sans connexion)
+            </Link>
+            <Link href="/dashboard/admin/agents-terrain/qr-documents"
+              className="flex items-center gap-2 px-4 py-2 text-sm text-primary-700 bg-white border border-primary-200 hover:bg-primary-50 rounded-xl shadow-sm">
+              <Printer className="w-4 h-4" /> QR bon de commande (BCC)
             </Link>
             <Button variant="secondary" icon={<RefreshCw className={loading ? 'animate-spin' : ''} size={16} />} onClick={refetch}>
               Actualiser
