@@ -4,6 +4,8 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { auditLog, notifyRoles } from "@/lib/notifications";
+import { consommerFEFOBestEffort } from "@/lib/lotsFefo";
+import { creerEcritureVenteDepuisVenteDirecte, creerEcritureCogsVenteDirecte } from "@/lib/ecritureVenteServer";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -72,12 +74,16 @@ export async function PATCH(_req: Request, { params }: Ctx) {
     const magasinierNom = `${session.user.prenom} ${session.user.nom}`;
 
     const updated = await prisma.$transaction(async (tx) => {
-      // Décrémenter StockSite + créer MouvementStock pour chaque ligne
+      // Décrémenter StockSite (stock réel + libération de la réservation du
+      // lancement) + créer MouvementStock pour chaque ligne
       for (const l of vente.lignes) {
         if (!l.produitId) continue;
         await tx.stockSite.update({
           where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: pdvId } },
-          data: { quantite: { decrement: l.quantite } },
+          data: {
+            quantite:         { decrement: l.quantite },
+            quantiteReservee: { decrement: l.quantite },
+          },
         });
         await tx.mouvementStock.create({
           data: {
@@ -92,6 +98,11 @@ export async function PATCH(_req: Request, { params }: Ctx) {
             venteDirecteId: vente.id,
           },
         });
+        // Déstockage FEFO best-effort (traçabilité lots/péremption, Enterprise #5).
+        await consommerFEFOBestEffort(tx, {
+          produitId: l.produitId, pointDeVenteId: pdvId, quantite: l.quantite,
+          operateurId: parseInt(session.user.id), motif: `Sortie stock vente terrain ${vente.reference}`,
+        });
       }
 
       const result = await tx.venteDirecte.update({
@@ -99,6 +110,13 @@ export async function PATCH(_req: Request, { params }: Ctx) {
         data:  { statut: "SORTIE_VALIDEE" },
         include: { lignes: { include: { produit: { select: { id: true, nom: true } } } } },
       });
+
+      // Écriture comptable automatique (CDC §8/§54) — moteur central. C'est ICI, à
+      // la sortie physique réelle du stock (validée par le magasinier), que la
+      // vente terrain devient définitive comptablement — pas au lancement par
+      // l'agent (BROUILLON), qui reste annulable jusque-là.
+      await creerEcritureVenteDepuisVenteDirecte(tx, venteId, parseInt(session.user.id));
+      await creerEcritureCogsVenteDirecte(tx, venteId, parseInt(session.user.id));
 
       await auditLog(tx, parseInt(session.user.id), "VENTE_TERRAIN_SORTIE_VALIDEE", "VenteDirecte", venteId);
 

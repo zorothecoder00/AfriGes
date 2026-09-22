@@ -9,14 +9,12 @@ import {
   getCompteCourantParClient, chargerParametrageCC, preleverCompteCourant, extraireMetaRequete,
 } from "@/lib/compteCourant";
 import { tariferLigne } from "@/lib/venteTarification";
-import { consommerFEFOBestEffort } from "@/lib/lotsFefo";
 import { substitutsDisponibles } from "@/lib/substitutsServer";
 import { resoudrePrixBatch } from "@/lib/tarificationBatch";
 import { projeterProduit, type ProduitSource } from "@/lib/vuesCatalogue";
 import { vueEffective } from "@/lib/vuesCatalogueServer";
 import { promotionApplicable } from "@/lib/promotionsServer";
 import { libelleRemise } from "@/lib/promotions";
-import { creerEcritureVenteDepuisVenteDirecte, creerEcritureCogsVenteDirecte } from "@/lib/ecritureVenteServer";
 
 /**
  * GET /api/agentTerrain/ventes
@@ -268,7 +266,12 @@ export async function POST(req: Request) {
       const v = await tx.venteDirecte.create({
         data: {
           reference:       ref,
-          statut:          "PAID",
+          // L'agent terrain LANCE la vente, il ne la valide pas (CDC) : statut
+          // BROUILLON → le RPV confirme (/api/rpv/ventes-terrain/[id]), puis le
+          // magasinier valide la sortie physique du stock
+          // (/api/magasinier/ventes-terrain/[id], stock décrémenté + écritures
+          // comptables), enfin l'agent confirme la livraison au client.
+          statut:          "BROUILLON",
           pointDeVenteId:  pdvId,
           vendeurId:       userId,
           modePaiement:    "ESPECES",
@@ -286,43 +289,25 @@ export async function POST(req: Request) {
         },
       });
 
-      // Écriture comptable automatique (CDC §8/§54) — moteur central.
-      await creerEcritureVenteDepuisVenteDirecte(tx, v.id, userId);
-      await creerEcritureCogsVenteDirecte(tx, v.id, userId);
-
       const vLignes = await tx.ligneVenteDirecte.findMany({
         where: { venteId: v.id },
         select: { id: true, produitId: true, quantite: true },
       });
 
-      // Décrémente stock + MouvementStock
+      // Réserve le stock (pas de sortie, pas d'écriture comptable, pas de FEFO tant
+      // que ce n'est pas confirmé) — la sortie réelle a lieu à la validation
+      // magasinier (SORTIE_VALIDEE), qui décrémente cette même réservation.
       for (const ligne of vLignes) {
         if (!ligne.produitId) continue;
         await tx.stockSite.update({
           where: { produitId_pointDeVenteId: { produitId: ligne.produitId, pointDeVenteId: pdvId } },
-          data:  { quantite: { decrement: ligne.quantite } },
-        });
-        await tx.mouvementStock.create({
-          data: {
-            produitId:      ligne.produitId,
-            pointDeVenteId: pdvId,
-            type:           "SORTIE",
-            typeSortie:     "VENTE_DIRECTE",
-            quantite:       ligne.quantite,
-            motif:          `Vente directe comptant ${ref}`,
-            reference:      `${ref}-P${ligne.produitId}`,
-            operateurId:    userId,
-            venteDirecteId: v.id,
-          },
-        });
-        // Déstockage FEFO best-effort (traçabilité lots/péremption, Enterprise #5).
-        await consommerFEFOBestEffort(tx, {
-          produitId: ligne.produitId, pointDeVenteId: pdvId, quantite: ligne.quantite,
-          operateurId: userId, motif: `Vente directe comptant ${ref}`,
+          data:  { quantiteReservee: { increment: ligne.quantite } },
         });
       }
 
-      // Prélèvement du compte courant (CDC §8) si une part est réglée via le CC.
+      // Prélèvement du compte courant (CDC §8) si une part est réglée via le CC —
+      // l'agent a déjà encaissé sur le terrain, cette part du paiement est acquise
+      // dès le lancement (seule la vente elle-même reste à confirmer).
       if (ccMontant > 0 && param) {
         await preleverCompteCourant(tx, {
           clientId: Number(clientId), montant: ccMontant, nature: "PAIEMENT_COMPTANT",
@@ -330,10 +315,10 @@ export async function POST(req: Request) {
         });
       }
 
-      await auditLog(tx, userId, "VENTE_DIRECTE_COMPTANT", "VenteDirecte", v.id);
-      await notifyRoles(tx, ["CAISSIER", "COMPTABLE", "RESPONSABLE_POINT_DE_VENTE"], {
-        titre:     `Vente comptant enregistrée : ${ref}`,
-        message:   `${session.user.prenom} ${session.user.nom} a réalisé une vente de ${montantTotal.toLocaleString("fr-FR")} FCFA sur "${affectation.pointDeVente.nom}".`,
+      await auditLog(tx, userId, "VENTE_TERRAIN_LANCEE", "VenteDirecte", v.id);
+      await notifyRoles(tx, ["RESPONSABLE_POINT_DE_VENTE"], {
+        titre:     `Vente terrain à confirmer : ${ref}`,
+        message:   `${session.user.prenom} ${session.user.nom} a lancé une vente de ${montantTotal.toLocaleString("fr-FR")} FCFA sur "${affectation.pointDeVente.nom}" — en attente de votre confirmation.`,
         priorite:  PrioriteNotification.NORMAL,
         actionUrl: `/dashboard/user/responsablesPointDeVente`,
       });

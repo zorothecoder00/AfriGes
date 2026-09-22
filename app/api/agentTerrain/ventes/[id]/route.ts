@@ -45,6 +45,18 @@ export async function PATCH(req: Request, { params }: Ctx) {
         return NextResponse.json({ error: `Impossible d'annuler : statut actuel "${vente.statut}"` }, { status: 400 });
       }
       const updated = await prisma.$transaction(async (tx) => {
+        // Libère le stock réservé au lancement (jamais sorti tant que non confirmé).
+        const lignes = await tx.ligneVenteDirecte.findMany({
+          where: { venteId, produitId: { not: null } },
+          select: { produitId: true, quantite: true },
+        });
+        for (const l of lignes) {
+          if (!l.produitId) continue;
+          await tx.stockSite.update({
+            where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: vente.pointDeVenteId } },
+            data:  { quantiteReservee: { decrement: l.quantite } },
+          });
+        }
         const result = await tx.venteDirecte.update({
           where: { id: venteId },
           data:  { statut: "ANNULEE" },

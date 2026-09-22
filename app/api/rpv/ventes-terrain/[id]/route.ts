@@ -52,6 +52,17 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const nouveauStatut = action === "CONFIRMER" ? "CONFIRMEE" : "ANNULEE";
 
     const updated = await prisma.$transaction(async (tx) => {
+      // Refus : libère le stock réservé au lancement (jamais sorti tant que non confirmé).
+      if (action === "ANNULER") {
+        for (const l of vente.lignes) {
+          if (!l.produitId) continue;
+          await tx.stockSite.update({
+            where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: vente.pointDeVenteId } },
+            data:  { quantiteReservee: { decrement: l.quantite } },
+          });
+        }
+      }
+
       const result = await tx.venteDirecte.update({
         where: { id: venteId },
         data: { statut: nouveauStatut },
