@@ -2104,14 +2104,52 @@ export default function AgentTerrainPage() {
               </button>
             );
           })}
-          <Link
-            href="/dashboard/user/agentsTerrain/documents"
-            onClick={() => setSidebarOpen(false)}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all text-emerald-100/80 hover:bg-white/10 hover:text-white"
-          >
-            <FileText size={17} />
-            <span className="flex-1 text-left">Documents commerciaux</span>
-          </Link>
+          {/* Raccourcis — pages hors tabs, mêmes qu'avant en bande défilante en haut
+              (invisible/perdue sur mobile, cf. retour utilisateur) : regroupés ici,
+              toujours au même endroit prévisible, ouvert via le hamburger sur mobile. */}
+          <div className="pt-3 mt-3 border-t border-white/10 space-y-1">
+            <p className="px-3.5 pb-1 text-[10px] font-semibold text-emerald-100/50 uppercase tracking-wider">Raccourcis</p>
+            <Link
+              href="/dashboard/user/agentsTerrain/tournee"
+              onClick={() => setSidebarOpen(false)}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all text-emerald-100/80 hover:bg-white/10 hover:text-white"
+            >
+              <Navigation size={17} />
+              <span className="flex-1 text-left">Ma tournée</span>
+            </Link>
+            <Link
+              href="/dashboard/user/agentsTerrain/objectifs"
+              onClick={() => setSidebarOpen(false)}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all text-emerald-100/80 hover:bg-white/10 hover:text-white"
+            >
+              <Target size={17} />
+              <span className="flex-1 text-left">Mes objectifs</span>
+            </Link>
+            <Link
+              href="/dashboard/user/agentsTerrain/mon-qr"
+              onClick={() => setSidebarOpen(false)}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all text-emerald-100/80 hover:bg-white/10 hover:text-white"
+            >
+              <QrCode size={17} />
+              <span className="flex-1 text-left">Mon QR</span>
+            </Link>
+            <Link
+              href="/dashboard/user/agentsTerrain/credits"
+              onClick={() => setSidebarOpen(false)}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all text-emerald-100/80 hover:bg-white/10 hover:text-white"
+            >
+              <CreditCard size={17} />
+              <span className="flex-1 text-left">Crédits Clients</span>
+            </Link>
+            <Link
+              href="/dashboard/user/agentsTerrain/documents"
+              onClick={() => setSidebarOpen(false)}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all text-emerald-100/80 hover:bg-white/10 hover:text-white"
+            >
+              <FileText size={17} />
+              <span className="flex-1 text-left">Documents commerciaux</span>
+            </Link>
+          </div>
         </nav>
       </aside>
 
@@ -2129,6 +2167,10 @@ export default function AgentTerrainPage() {
               </button>
               <div className="hidden lg:block" />
               <div className="flex items-center gap-3">
+                <button onClick={refetchAll} title={t('refresh')}
+                  className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+                  <RefreshCw size={18} />
+                </button>
                 <UserPdvBadge />
                 <MessagesLink />
                 <CongesNavButton />
@@ -2141,52 +2183,12 @@ export default function AgentTerrainPage() {
 
         <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-4">
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-1">{t("field_dash_title")}</h2>
-            <p className="text-slate-500 text-sm">{t('field_dash_subtitle')}</p>
-          </div>
-          {/* Bande défilante horizontalement sur mobile (évite l'empilement de 6 boutons
-              pleine largeur avant le contenu) ; wrap normal à partir de lg. min-w-0 est
-              indispensable : sans lui, un enfant flex avec du contenu non-wrappable impose
-              sa largeur min-content au parent (donc à toute la page) au lieu d'être contenu
-              par overflow-x-auto. */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar min-w-0 -mx-4 px-4 lg:mx-0 lg:px-0 lg:flex-wrap">
-            <Link
-              href="/dashboard/user/agentsTerrain/tournee"
-              className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
-            >
-              <Navigation size={16} /> Ma tournée
-            </Link>
-            <Link
-              href="/dashboard/user/agentsTerrain/objectifs"
-              className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
-            >
-              <Target size={16} /> Mes objectifs
-            </Link>
-            <Link
-              href="/dashboard/user/agentsTerrain/mon-qr"
-              className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
-            >
-              <QrCode size={16} /> Mon QR
-            </Link>
-            <Link
-              href="/dashboard/user/agentsTerrain/credits"
-              className="shrink-0 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
-            >
-              <CreditCard size={16} /> Crédits Clients
-            </Link>
-            <Link
-              href="/dashboard/user/agentsTerrain/documents"
-              className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
-            >
-              <FileText size={16} /> Documents commerciaux
-            </Link>
-            <button onClick={refetchAll} className="shrink-0 px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
-              <RefreshCw size={18} /> {t('refresh')}
-            </button>
-          </div>
+        {/* Header — les raccourcis (tournée/objectifs/QR/crédits/documents) sont dans la
+            sidebar ("Raccourcis") et Actualiser dans la topbar : toujours au même endroit
+            prévisible, plutôt que dans une bande qui pouvait se perdre sur mobile. */}
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-1">{t("field_dash_title")}</h2>
+          <p className="text-slate-500 text-sm">{t('field_dash_subtitle')}</p>
         </div>
 
         {/* Stats (uniquement sur l'onglet par défaut, pour ne pas masquer les autres onglets) */}
