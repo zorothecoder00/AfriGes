@@ -159,6 +159,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
     montantTotal:      credit.montantTotal,
     montantJournalier: credit.montantJournalier,
     echeances:         credit.echeances,
+    remboursements:    credit.remboursements,
   }, today).map((r) => {
     const enRetard = r.statut === "EN_RETARD";
     const estPaye  = r.statut === "PAYE";

@@ -48,6 +48,9 @@ export default async function SuiviRemboursementPage({ params }: Ctx) {
         orderBy: { numeroEcheance: "asc" },
         select: { numeroEcheance: true, dateEcheance: true, montantDu: true, montantPaye: true, statut: true },
       },
+      remboursements: {
+        select: { montant: true, numeroJour: true, statut: true },
+      },
     },
   });
 
@@ -69,6 +72,11 @@ export default async function SuiviRemboursementPage({ params }: Ctx) {
       montantDu:      num(e.montantDu),
       montantPaye:    num(e.montantPaye),
       statut:         e.statut,
+    })),
+    remboursements: credit.remboursements.map((r) => ({
+      montant:    num(r.montant),
+      numeroJour: r.numeroJour,
+      statut:     r.statut,
     })),
   });
 

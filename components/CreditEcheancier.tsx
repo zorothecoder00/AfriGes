@@ -101,15 +101,8 @@ interface Row {
   montantDu: number;
   tone: Tone;
   label: string;
+  /** UNIQUEMENT la somme des remboursements réellement enregistrés ce jour — jamais un montant dérivé/alloué de l'échéance. */
   montantPaye: number;
-  /**
-   * true = montantPaye vient d'un remboursement réellement enregistré ce
-   * jour-là (numeroJour) — traçable (date/agent/mode). false = montant
-   * hérité de l'allocation en cascade de l'échéance (comblé par le
-   * reliquat d'un paiement fait un AUTRE jour) — réel mais non attribuable
-   * à un paiement précis de ce jour précis.
-   */
-  traceable: boolean;
   agent: string | null;
   dateCollecte: string | null;
   lateDays: number;
@@ -187,12 +180,21 @@ export default function CreditEcheancier({
       const dateEcheance = (ech?.dateEcheance ?? dateEcheanceDuJour(credit.dateDebut, numeroJour)).toString();
 
       const rembs = rembByJour.get(numeroJour) ?? [];
-      const sommeRemb = rembs.reduce((s, r) => s + Number(r.montant), 0);
-      const traceable = sommeRemb > 0;
-      const montantPaye = traceable ? sommeRemb : Number(ech?.montantPaye ?? 0);
+      // Montant payé = UNIQUEMENT les remboursements réellement enregistrés ce
+      // jour précis (numeroJour). On n'utilise JAMAIS ech.montantPaye ici : ce
+      // champ est une allocation en cascade côté serveur (le paiement du jour
+      // ciblé remplit d'abord son échéance, le reliquat comble ensuite les plus
+      // anciennes impayées) — un seul paiement peut ainsi "étaler" un montant
+      // sur plusieurs jours suivants qui n'ont reçu aucun argent ce jour-là. Le
+      // afficher comme "payé ce jour" fabriquerait des paiements inexistants.
+      const montantPaye = rembs.reduce((s, r) => s + Number(r.montant), 0);
 
-      const paid = ech?.statut === 'PAYE' || (montantDu > 0 && montantPaye >= montantDu);
-      const partiel = !paid && montantPaye > 0;
+      // Le statut (couverture de l'échéance) reste piloté par le champ serveur
+      // authentique, qui reflète correctement la cascade — décorrélé du montant
+      // affiché ci-dessus : un jour peut être "Payé" par report d'un paiement
+      // fait un autre jour, sans qu'un montant ne soit affiché sur CE jour.
+      const paid = ech?.statut === 'PAYE';
+      const partiel = !paid && (ech?.statut === 'PARTIEL' || montantPaye > 0);
 
       const echeanceDay = startOfDay(new Date(dateEcheance));
       const lateDays = Math.floor((today - echeanceDay) / DAY_MS);
@@ -228,7 +230,6 @@ export default function CreditEcheancier({
         tone,
         label,
         montantPaye,
-        traceable,
         agent: agentUser ? `${agentUser.prenom} ${agentUser.nom}` : null,
         dateCollecte: dernier ? dernier.dateRemboursement : null,
         lateDays,
@@ -253,8 +254,10 @@ export default function CreditEcheancier({
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-red-500" /> Retard &gt; 7 j</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-amber-400" /> Aujourd&apos;hui</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-blue-500" /> Partiel</span>
-        <span className="text-gray-400 italic">* comblé par le reliquat d&apos;un paiement fait un autre jour (voir Remboursements ci-dessous pour la source réelle)</span>
       </div>
+      <p className="text-[11px] text-gray-400 italic mb-2">
+        Le montant affiché est le paiement réel reçu ce jour précis. Un jour &quot;Payé&quot; sans montant a été couvert par le reliquat d&apos;un paiement fait un autre jour — voir la liste des remboursements ci-dessous pour la source réelle.
+      </p>
 
       <div className="overflow-x-auto border border-gray-100 rounded-xl">
         <table className="w-full text-sm">
@@ -284,17 +287,14 @@ export default function CreditEcheancier({
                   <span className="text-xs text-gray-400 ml-2">{formatDate(row.dateEcheance)}</span>
                 </td>
 
-                {/* Montant payé / attendu */}
+                {/* Montant payé (réel, ce jour uniquement) / attendu */}
                 <td className="px-3 py-2.5 text-right whitespace-nowrap">
                   {row.montantPaye > 0 ? (
-                    <span
-                      className={`text-xs font-semibold ${row.traceable ? (row.tone === 'paid' ? 'text-emerald-700' : 'text-blue-700') : 'text-gray-400 italic'}`}
-                      title={row.traceable ? undefined : "Comblé par le reliquat d'un paiement fait un autre jour — voir la liste des remboursements pour le paiement source"}
-                    >
-                      {formatCurrency(row.montantPaye)}{!row.traceable && ' *'}
+                    <span className={`text-xs font-semibold ${row.tone === 'paid' ? 'text-emerald-700' : 'text-blue-700'}`}>
+                      {formatCurrency(row.montantPaye)}
                     </span>
                   ) : (
-                    <span className="text-xs text-gray-300">—</span>
+                    <span className="text-xs text-gray-300" title={row.tone === 'paid' ? "Couvert par un paiement fait un autre jour — voir la liste des remboursements" : undefined}>—</span>
                   )}
                   <span className="block text-[10px] text-gray-400">
                     dû {formatCurrency(row.montantDu)}
