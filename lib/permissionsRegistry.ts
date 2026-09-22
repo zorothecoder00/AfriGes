@@ -68,15 +68,21 @@ export const DEFAULT_MATRIX: Record<string, Partial<Record<string, PermissionAct
   CHEF_AGENCE: {
     credits: [L, C, M, V, E], compte_courant: [L, C, M, V, E],
     stock: ROE, ventes: ROE, caisse: ROE, rh: RO, paie: RO, marketing: RO,
+    // Modification des factures (champs annexes uniquement, cf. app/api/factures/[id]
+    // action "modifier") : Chef Agence, RPV et Admin ("les 3") — jamais de suppression.
+    factures: [L, M],
   },
   RESPONSABLE_ECONOMIQUE: {
     credits: [L, V, E], compte_courant: [L, V, E], ventes: ROE, caisse: ROE, stock: ROE, paie: ROE,
   },
   CAISSIER: {
-    caisse: RW, ventes: [L, C, E], compte_courant: [L, C, E], credits: [L, S], stock: RO, factures: [L, S],
+    // Suppression (annulation) de facture retirée : réservée à Admin/SuperAdmin
+    // (bypass RBAC), cf. demande 2026-09-22 "les autres gestionnaires ne peuvent pas".
+    caisse: RW, ventes: [L, C, E], compte_courant: [L, C, E], credits: [L, S], stock: RO, factures: [L],
   },
   RESPONSABLE_VENTE_CREDIT: {
-    credits: FULL, compte_courant: RO, ventes: ROE, factures: [L, E, S],
+    // Idem CAISSIER : plus de SUPPRESSION_LOGIQUE sur factures (admin seul).
+    credits: FULL, compte_courant: RO, ventes: ROE, factures: [L, E],
   },
   AGENT_TERRAIN: {
     credits: [L, C], ventes: [L, C], compte_courant: ROE,
@@ -119,6 +125,8 @@ export const DEFAULT_MATRIX: Record<string, Partial<Record<string, PermissionAct
   },
   RESPONSABLE_POINT_DE_VENTE: {
     ventes: RW, caisse: ROE, stock: [L, M, E], credits: RO, compte_courant: RO, marketing: RO,
+    // Modification des factures (champs annexes) : RPV, Chef Agence et Admin ("les 3").
+    factures: [L, M],
   },
   RESPONSABLE_RH: {
     rh: FULL, paie: [L, C, M, V, E],

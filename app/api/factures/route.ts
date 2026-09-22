@@ -100,8 +100,35 @@ async function chargerEcheancier(creditClientId: number | null | undefined) {
   }));
 }
 
+/**
+ * Mouvements de compte courant liés aux remboursements de ce crédit (avance CC,
+ * solde au moment du prélèvement) — affichés sur la facture crédit quand le
+ * client a réglé (en tout ou partie) via son compte courant. `null` si aucun
+ * paiement par CC (cas normal : la plupart des remboursements sont en espèces).
+ */
+async function chargerMouvementsCC(creditClientId: number | null | undefined) {
+  if (!creditClientId) return null;
+  const mouvements = await prisma.remboursementCredit.findMany({
+    where: { creditId: creditClientId, compteCourantId: { not: null } },
+    orderBy: { dateRemboursement: "asc" },
+    select: {
+      montant: true, dateRemboursement: true, statut: true,
+      compteCourant: { select: { numeroCompte: true, solde: true } },
+    },
+  });
+  if (!mouvements.length) return null;
+  return mouvements.map(m => ({
+    montant: m.montant.toNumber(),
+    date: m.dateRemboursement.toISOString(),
+    statut: m.statut,
+    numeroCompte: m.compteCourant?.numeroCompte ?? null,
+    soldeCompte: m.compteCourant ? m.compteCourant.solde.toNumber() : null,
+  }));
+}
+
 async function buildResponse(f: FactureRow, getParam: (k: string) => string) {
-  const echeancier = f.type === "CREDIT" ? await chargerEcheancier(f.creditClientId) : null;
+  const echeancier   = f.type === "CREDIT" ? await chargerEcheancier(f.creditClientId) : null;
+  const mouvementsCC = f.type === "CREDIT" ? await chargerMouvementsCC(f.creditClientId) : null;
   return {
     id: f.id,
     numero: f.numero,
@@ -125,6 +152,7 @@ async function buildResponse(f: FactureRow, getParam: (k: string) => string) {
     notes: f.notes,
     garantie: f.garantie ?? null,
     echeancier,
+    mouvementsCC,
     lignes: f.lignes.map(l => ({
       designation: l.designation,
       unite: l.unite,

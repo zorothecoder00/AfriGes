@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { X, Printer, FileText, Plus, Trash2, Loader2, Receipt, Search, ChevronDown, UserPlus, Ban } from "lucide-react";
+import { X, Printer, FileText, Plus, Trash2, Loader2, Receipt, Search, ChevronDown, UserPlus, Ban, Pencil, Save } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { SOCIETE, SOCIETE_LEGAL, SOCIETE_SIEGE } from "@/lib/societe";
 import { toast } from "sonner";
@@ -23,6 +23,14 @@ interface EcheanceFacture {
   montantDu: number;
   montantPaye: number;
   statut: string;
+}
+
+interface MouvementCCFacture {
+  montant: number;
+  date: string;
+  statut: string;
+  numeroCompte: string | null;
+  soldeCompte: number | null;
 }
 
 interface FactureData {
@@ -48,6 +56,7 @@ interface FactureData {
   notes?: string | null;
   garantie?: string | null;
   echeancier?: EcheanceFacture[] | null;
+  mouvementsCC?: MouvementCCFacture[] | null;
   lignes: LigneFacture[];
   entreprise: { nom: string; adresse?: string; telephone?: string };
 }
@@ -297,6 +306,43 @@ function InvoiceLayout({ f }: { f: FactureData }) {
                       : "bg-slate-100 text-slate-600"
                     }`}>
                       {e.statut === "PAYE" ? "Payée" : e.statut === "PARTIEL" ? "Partielle" : e.statut === "EN_RETARD" ? "En retard" : "À venir"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── Mouvements de compte courant (paiements via CC : avance, solde…) ─── */}
+      {f.type === "CREDIT" && f.mouvementsCC && f.mouvementsCC.length > 0 && (
+        <div className="mb-6">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Paiement par compte courant</p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b-2 border-slate-200 text-xs uppercase tracking-wide">
+                <th className="text-left pb-2 text-slate-400">Date</th>
+                <th className="text-left pb-2 text-slate-400">N° compte</th>
+                <th className="text-right pb-2 text-slate-400">Montant prélevé</th>
+                <th className="text-right pb-2 text-slate-400">Solde du compte</th>
+                <th className="text-right pb-2 text-slate-400">Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {f.mouvementsCC.map((m, i) => (
+                <tr key={i} className="border-b border-slate-100">
+                  <td className="py-1.5 text-slate-700">{new Date(m.date).toLocaleDateString("fr-FR")}</td>
+                  <td className="py-1.5 text-slate-500 text-xs">{m.numeroCompte ?? "—"}</td>
+                  <td className="py-1.5 text-right text-slate-600">{formatCurrency(m.montant)}</td>
+                  <td className="py-1.5 text-right text-slate-600">{m.soldeCompte != null ? formatCurrency(m.soldeCompte) : "—"}</td>
+                  <td className="py-1.5 text-right">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      m.statut === "CONFIRME" ? "bg-emerald-100 text-emerald-700"
+                      : m.statut === "REJETE" ? "bg-red-100 text-red-700"
+                      : "bg-amber-100 text-amber-700"
+                    }`}>
+                      {m.statut === "CONFIRME" ? "Confirmé" : m.statut === "REJETE" ? "Rejeté" : "En attente"}
                     </span>
                   </td>
                 </tr>
@@ -869,6 +915,35 @@ function printInvoice(f: FactureData, opts?: { mono?: boolean }) {
     </table>
   </div>` : ""}
 
+  ${f.type === "CREDIT" && f.mouvementsCC && f.mouvementsCC.length > 0 ? `
+  <!-- Paiement par compte courant -->
+  <div style="margin-bottom:24px">
+    <p style="font-size:10px;font-weight:700;color:${c.faint};letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Paiement par compte courant</p>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="border-bottom:2px solid ${c.headRule}">
+          <th style="text-align:left;padding-bottom:6px;color:${c.faint};font-size:10px;letter-spacing:1px;text-transform:uppercase">Date</th>
+          <th style="text-align:left;padding-bottom:6px;color:${c.faint};font-size:10px;letter-spacing:1px;text-transform:uppercase">N° compte</th>
+          <th style="text-align:right;padding-bottom:6px;color:${c.faint};font-size:10px;letter-spacing:1px;text-transform:uppercase">Montant prélevé</th>
+          <th style="text-align:right;padding-bottom:6px;color:${c.faint};font-size:10px;letter-spacing:1px;text-transform:uppercase">Solde du compte</th>
+          <th style="text-align:right;padding-bottom:6px;color:${c.faint};font-size:10px;letter-spacing:1px;text-transform:uppercase">Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${f.mouvementsCC.map(m => `
+        <tr style="border-bottom:1px solid ${c.rowLine}">
+          <td style="padding:6px 0;color:${c.text}">${fmtDate(m.date)}</td>
+          <td style="padding:6px 0;color:${c.faint};font-size:11px">${m.numeroCompte ?? "—"}</td>
+          <td style="padding:6px 0;text-align:right;color:${c.muted}">${fmt(m.montant)}</td>
+          <td style="padding:6px 0;text-align:right;color:${c.muted}">${m.soldeCompte != null ? fmt(m.soldeCompte) : "—"}</td>
+          <td style="padding:6px 0;text-align:right;color:${c.text}">${
+            m.statut === "CONFIRME" ? "Confirmé" : m.statut === "REJETE" ? "Rejeté" : "En attente"
+          }</td>
+        </tr>`).join("")}
+      </tbody>
+    </table>
+  </div>` : ""}
+
   ${f.garantie ? `
   <!-- Garantie -->
   <div style="border:${mono ? "1px solid #000000" : "1px solid #fcd34d"};background:${mono ? "#ffffff" : "#fffbeb"};border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;color:${mono ? c.text : "#92400e"}">
@@ -940,6 +1015,45 @@ export default function FactureModal({
   const [annulation, setAnnulation] = useState(false);
   const { can: canPermission } = usePermissions();
   const canAnnulerFacture = canPermission("factures", "SUPPRESSION_LOGIQUE");
+  const canModifierFacture = canPermission("factures", "MODIFICATION");
+
+  // ── Modification des champs annexes (notes, coordonnées client, garantie) ──
+  // Jamais les montants/lignes/statut, pilotés par la vente/le crédit source.
+  const [editOpen,   setEditOpen]   = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editForm,   setEditForm]   = useState({ notes: "", clientTelephone: "", clientAdresse: "", garantie: "" });
+
+  function ouvrirEdition() {
+    if (!facture) return;
+    setEditForm({
+      notes:           facture.notes ?? "",
+      clientTelephone: facture.clientTelephone ?? "",
+      clientAdresse:   facture.clientAdresse ?? "",
+      garantie:        facture.garantie ?? "",
+    });
+    setEditOpen(true);
+  }
+
+  async function enregistrerEdition() {
+    if (!facture) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/factures/${facture.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "modifier", ...editForm }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? "Erreur lors de la modification");
+      setFacture(f => f ? { ...f, ...editForm } : f);
+      toast.success("Facture mise à jour");
+      setEditOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur réseau");
+    } finally {
+      setEditSaving(false);
+    }
+  }
 
   async function annulerFacture() {
     if (!facture) return;
@@ -1300,6 +1414,15 @@ export default function FactureModal({
                 <Printer size={14} />
                 <span className="hidden sm:inline">Imprimer</span>
               </button>
+              {canModifierFacture && facture.statut !== "ANNULEE" && (
+                <button
+                  onClick={() => (editOpen ? setEditOpen(false) : ouvrirEdition())}
+                  title="Modifier les champs annexes (notes, coordonnées client, garantie)"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-xl text-sm font-medium transition-colors">
+                  <Pencil size={14} />
+                  <span className="hidden sm:inline">Modifier</span>
+                </button>
+              )}
               {canAnnulerFacture && facture.statut !== "ANNULEE" && (
                 <button
                   onClick={annulerFacture}
@@ -1315,6 +1438,49 @@ export default function FactureModal({
               </button>
             </div>
           </div>
+
+          {/* Édition des champs annexes (notes, coordonnées client, garantie) */}
+          {editOpen && (
+            <div className="px-4 sm:px-8 py-4 bg-blue-50/50 border-b border-blue-100 shrink-0 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Téléphone client</label>
+                  <input value={editForm.clientTelephone}
+                    onChange={(e) => setEditForm(f => ({ ...f, clientTelephone: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Adresse client</label>
+                  <input value={editForm.clientAdresse}
+                    onChange={(e) => setEditForm(f => ({ ...f, clientAdresse: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Garantie</label>
+                <input value={editForm.garantie}
+                  onChange={(e) => setEditForm(f => ({ ...f, garantie: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Notes</label>
+                <textarea value={editForm.notes} rows={2}
+                  onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setEditOpen(false)} disabled={editSaving}
+                  className="px-4 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+                  Annuler
+                </button>
+                <button onClick={enregistrerEdition} disabled={editSaving}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50">
+                  {editSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Aperçu scrollable */}
           <div className="overflow-auto flex-1 p-4 sm:p-8">
