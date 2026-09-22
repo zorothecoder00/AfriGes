@@ -35,7 +35,7 @@ export default function MessagesLink() {
       className="relative flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
     >
       <MessageSquare className="w-4 h-4" />
-      Messages
+      <span className="hidden sm:inline">Messages</span>
       {nonLus > 0 && (
         <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
           {nonLus > 99 ? "99+" : nonLus}

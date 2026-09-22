@@ -2148,8 +2148,11 @@ export default function AgentTerrainPage() {
             <p className="text-slate-500 text-sm">{t('field_dash_subtitle')}</p>
           </div>
           {/* Bande défilante horizontalement sur mobile (évite l'empilement de 6 boutons
-              pleine largeur avant le contenu) ; wrap normal à partir de lg. */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0 lg:flex-wrap">
+              pleine largeur avant le contenu) ; wrap normal à partir de lg. min-w-0 est
+              indispensable : sans lui, un enfant flex avec du contenu non-wrappable impose
+              sa largeur min-content au parent (donc à toute la page) au lieu d'être contenu
+              par overflow-x-auto. */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar min-w-0 -mx-4 px-4 lg:mx-0 lg:px-0 lg:flex-wrap">
             <Link
               href="/dashboard/user/agentsTerrain/tournee"
               className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"

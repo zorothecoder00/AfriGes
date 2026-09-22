@@ -23,9 +23,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
+    <html lang="fr" className="overflow-x-hidden">
       <body
-        className={`${inter.variable} antialiased`}
+        // overflow-x-hidden (html + body) : garde-fou contre le débordement
+        // horizontal (ex. les halos "aurora" décoratifs de
+        // app/dashboard/layout.tsx, position:fixed + animés, positionnés
+        // relativement à la racine — leur propre overflow-hidden ne suffit pas
+        // à empêcher document.documentElement.scrollWidth de s'élargir sur
+        // mobile ; il faut le garde-fou sur html ET body — cf. session
+        // responsive agent terrain).
+        className={`${inter.variable} antialiased overflow-x-hidden`}
       >
         <SessionWrapper>
           <AppSettingsProvider>

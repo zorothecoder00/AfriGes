@@ -102,12 +102,12 @@ export default function UserPdvBadge() {
         }`}
       >
         {peutArrivee ? (
-          <><Clock className="w-4 h-4" /> Pointer arrivée</>
+          <><Clock className="w-4 h-4" /> <span className="hidden sm:inline">Pointer arrivée</span></>
         ) : peutDepart ? (
-          <><LogOut className="w-4 h-4" /> Pointer départ</>
+          <><LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Pointer départ</span></>
         ) : (
           <span className={`flex items-center gap-1 ${statutCfg?.color ?? ""}`}>
-            {statutCfg?.icon} {statutCfg?.label}
+            {statutCfg?.icon} <span className="hidden sm:inline">{statutCfg?.label}</span>
           </span>
         )}
       </button>
