@@ -148,23 +148,6 @@ export default function CreditEcheancier({
     const echByJour = new Map<number, EcheanceItem>();
     for (const e of credit.echeances) echByJour.set(e.numeroEcheance, e);
 
-    // Remboursements non rejetés, regroupés par jour de collecte (numeroJour).
-    // Certains paiements sont saisis sans renseigner le champ "Jour" (numeroJour
-    // null) — plutôt que de les rendre invisibles dans la vue jour par jour, on
-    // les rattache alors à la date réelle où ils ont été effectivement reçus
-    // (dateRemboursement) comparée à la date de l'échéance du jour : ça reste
-    // 100% réel/traçable, juste une autre façon d'identifier "quel jour" sans
-    // exiger la saisie du champ.
-    const rembByJour = new Map<number, RemboursementItem[]>();
-    const rembSansJour: RemboursementItem[] = [];
-    for (const r of credit.remboursements) {
-      if (r.statut === 'REJETE') continue;
-      if (r.numeroJour == null) { rembSansJour.push(r); continue; }
-      const arr = rembByJour.get(r.numeroJour) ?? [];
-      arr.push(r);
-      rembByJour.set(r.numeroJour, arr);
-    }
-
     // Montant attendu de référence + résiduel sur le dernier jour
     const montantJournalier = Number(credit.montantJournalier) || 0;
     const montantTotal = Number(credit.montantTotal) || 0;
@@ -172,44 +155,92 @@ export default function CreditEcheancier({
       ? Number((montantTotal - montantJournalier * nbJours).toFixed(2))
       : 0;
 
-    // Génère TOUT l'échéancier prévisionnel, jour 1 → nbJours
-    return Array.from({ length: nbJours }, (_, idx) => {
+    // Infos de chaque jour (numéro, montant dû, date) — calculées une fois,
+    // nécessaires à la fois pour la répartition des paiements non datés
+    // ci-dessous et pour la construction finale des lignes.
+    const joursInfo = Array.from({ length: nbJours }, (_, idx) => {
       const numeroJour = idx + 1;
       const ech = echByJour.get(numeroJour);
-
-      // Montant attendu (dû) : échéance réelle sinon valeur calculée
       const montantDu = ech
         ? Number(ech.montantDu)
         : numeroJour === nbJours
           ? Number((montantJournalier + residuel).toFixed(2))
           : montantJournalier;
-
-      // Date d'échéance : échéance réelle sinon calculée depuis dateDebut
       const dateEcheance = (ech?.dateEcheance ?? dateEcheanceDuJour(credit.dateDebut, numeroJour)).toString();
+      return { numeroJour, montantDu, dateEcheance, ech };
+    });
 
-      // Paiements réels de ce jour : ceux tagués avec ce numeroJour, + ceux sans
-      // numeroJour dont la date réelle tombe ce jour-là (repli, cf. ci-dessus).
-      const rembsSansJourCeJour = rembSansJour.filter(
-        (r) => startOfDay(new Date(r.dateRemboursement)) === startOfDay(new Date(dateEcheance))
-      );
-      const rembs = [...(rembByJour.get(numeroJour) ?? []), ...rembsSansJourCeJour];
-      // Montant payé = UNIQUEMENT les remboursements réellement enregistrés ce
-      // jour précis. On n'utilise JAMAIS ech.montantPaye ici : ce champ est une
-      // allocation en cascade côté serveur (le paiement du jour ciblé remplit
-      // d'abord son échéance, le reliquat comble ensuite les plus anciennes
-      // impayées) — un seul paiement peut ainsi "étaler" un montant sur
-      // plusieurs jours suivants qui n'ont reçu aucun argent ce jour-là. Le
-      // afficher comme "payé ce jour" fabriquerait des paiements inexistants.
-      const montantPaye = rembs.reduce((s, r) => s + Number(r.montant), 0);
+    // Contribution réelle (portion d'un remboursement) allouée à un jour —
+    // un même remboursement peut être scindé sur plusieurs jours (cascade
+    // ci-dessous), mais chaque portion reste traçable jusqu'à sa source.
+    type Contribution = { remb: RemboursementItem; montant: number };
+    const contribParJour = new Map<number, Contribution[]>();
+    for (const j of joursInfo) contribParJour.set(j.numeroJour, []);
+
+    // 1) Remboursements tagués avec un "Jour" (numeroJour) → placement EXACT,
+    // intégral, sur ce jour précis — jamais scindé ni étalé sur d'autres jours
+    // (c'est justement ce que faisait à tort echeance.montantPaye, la cause du
+    // bug initial : un paiement tagué day4 ne doit jamais "déborder" ailleurs).
+    const rembSansJour: RemboursementItem[] = [];
+    for (const r of credit.remboursements) {
+      if (r.statut === 'REJETE') continue;
+      if (r.numeroJour != null && contribParJour.has(r.numeroJour)) {
+        contribParJour.get(r.numeroJour)!.push({ remb: r, montant: Number(r.montant) });
+      } else {
+        rembSansJour.push(r);
+      }
+    }
+
+    // 2) Remboursements SANS "Jour" renseigné (y compris tardifs, reçus bien
+    // après l'échéance qu'ils couvrent réellement — on ne peut pas deviner
+    // fiablement leur date de couverture) : répartis en cascade sur le plus
+    // ancien jour encore non couvert, comme le ferait une réconciliation
+    // manuelle. Fait ICI en frontend, à partir des VRAIS montants de
+    // remboursement uniquement (jamais echeance.montantPaye) : chaque jour
+    // garde donc la trace exacte des remboursements réels qui le composent.
+    const montantDejaCouvert = new Map<number, number>();
+    for (const j of joursInfo) {
+      montantDejaCouvert.set(j.numeroJour, (contribParJour.get(j.numeroJour) ?? []).reduce((s, c) => s + c.montant, 0));
+    }
+    const rembSansJourTries = [...rembSansJour].sort(
+      (a, b) => new Date(a.dateRemboursement).getTime() - new Date(b.dateRemboursement).getTime()
+    );
+    for (const r of rembSansJourTries) {
+      let reste = Number(r.montant);
+      for (const j of joursInfo) {
+        if (reste <= 0) break;
+        const couvert = montantDejaCouvert.get(j.numeroJour) ?? 0;
+        const place = Math.max(0, j.montantDu - couvert);
+        if (place <= 0) continue; // jour déjà couvert, passer au suivant
+        const alloue = Math.min(reste, place);
+        contribParJour.get(j.numeroJour)!.push({ remb: r, montant: alloue });
+        montantDejaCouvert.set(j.numeroJour, couvert + alloue);
+        reste -= alloue;
+      }
+      // Reliquat au-delà de tous les jours (crédit déjà soldé/dépassé, etc.) —
+      // ajouté sur le dernier jour pour ne perdre aucun montant réel à l'affichage.
+      if (reste > 0 && joursInfo.length > 0) {
+        const dernierJour = joursInfo[joursInfo.length - 1].numeroJour;
+        contribParJour.get(dernierJour)!.push({ remb: r, montant: reste });
+        montantDejaCouvert.set(dernierJour, (montantDejaCouvert.get(dernierJour) ?? 0) + reste);
+      }
+    }
+
+    // Génère TOUTES les lignes, jour 1 → nbJours
+    return joursInfo.map(({ numeroJour, montantDu, dateEcheance, ech }) => {
+      const contribs = contribParJour.get(numeroJour) ?? [];
+      // Montant payé = UNIQUEMENT la somme des portions de remboursements
+      // réellement alloués à ce jour (ci-dessus). Jamais ech.montantPaye : ce
+      // champ est une allocation en cascade côté serveur, opaque et non
+      // traçable jusqu'aux remboursements source.
+      const montantPaye = contribs.reduce((s, c) => s + c.montant, 0);
 
       // Le statut (couverture de l'échéance) reste piloté par le champ serveur
       // authentique, qui reflète correctement la cascade — décorrélé du montant
-      // affiché ci-dessus : un jour peut être "Payé" par report d'un paiement
-      // fait un autre jour, sans qu'un montant ne soit affiché sur CE jour.
-      // Un crédit SOLDE (plus aucun solde dû) ne doit JAMAIS montrer un jour en
-      // retard, même si l'échéance de ce jour précis n'a pas été balayée par le
-      // mécanisme de clôture (ex. durée modifiée après coup, jour au-delà des
-      // échéances réellement générées) : la vérité au niveau crédit prime.
+      // affiché ci-dessus. Un crédit SOLDE (plus aucun solde dû) ne doit JAMAIS
+      // montrer un jour en retard, même si l'échéance de ce jour précis n'a pas
+      // été balayée par le mécanisme de clôture (durée modifiée après coup…) :
+      // la vérité au niveau crédit prime.
       const soldeIntegral = credit.statut === 'SOLDE';
       const paid = soldeIntegral || ech?.statut === 'PAYE';
       const partiel = !paid && (ech?.statut === 'PARTIEL' || montantPaye > 0);
@@ -239,10 +270,10 @@ export default function CreditEcheancier({
         tone = 'future'; label = 'À venir';
       }
 
-      // Agent collecteur le plus récent pour ce jour
-      const dernier = rembs
+      // Agent collecteur le plus récent parmi les contributions de ce jour
+      const dernier = contribs
         .slice()
-        .sort((a, b) => new Date(b.dateRemboursement).getTime() - new Date(a.dateRemboursement).getTime())[0];
+        .sort((a, b) => new Date(b.remb.dateRemboursement).getTime() - new Date(a.remb.dateRemboursement).getTime())[0]?.remb;
       const agentUser = dernier ? (dernier.agentCollecteur ?? dernier.enregistrePar) : null;
 
       return {
