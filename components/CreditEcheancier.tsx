@@ -148,10 +148,18 @@ export default function CreditEcheancier({
     const echByJour = new Map<number, EcheanceItem>();
     for (const e of credit.echeances) echByJour.set(e.numeroEcheance, e);
 
-    // Remboursements non rejetés, regroupés par jour de collecte
+    // Remboursements non rejetés, regroupés par jour de collecte (numeroJour).
+    // Certains paiements sont saisis sans renseigner le champ "Jour" (numeroJour
+    // null) — plutôt que de les rendre invisibles dans la vue jour par jour, on
+    // les rattache alors à la date réelle où ils ont été effectivement reçus
+    // (dateRemboursement) comparée à la date de l'échéance du jour : ça reste
+    // 100% réel/traçable, juste une autre façon d'identifier "quel jour" sans
+    // exiger la saisie du champ.
     const rembByJour = new Map<number, RemboursementItem[]>();
+    const rembSansJour: RemboursementItem[] = [];
     for (const r of credit.remboursements) {
-      if (r.statut === 'REJETE' || r.numeroJour == null) continue;
+      if (r.statut === 'REJETE') continue;
+      if (r.numeroJour == null) { rembSansJour.push(r); continue; }
       const arr = rembByJour.get(r.numeroJour) ?? [];
       arr.push(r);
       rembByJour.set(r.numeroJour, arr);
@@ -179,13 +187,18 @@ export default function CreditEcheancier({
       // Date d'échéance : échéance réelle sinon calculée depuis dateDebut
       const dateEcheance = (ech?.dateEcheance ?? dateEcheanceDuJour(credit.dateDebut, numeroJour)).toString();
 
-      const rembs = rembByJour.get(numeroJour) ?? [];
+      // Paiements réels de ce jour : ceux tagués avec ce numeroJour, + ceux sans
+      // numeroJour dont la date réelle tombe ce jour-là (repli, cf. ci-dessus).
+      const rembsSansJourCeJour = rembSansJour.filter(
+        (r) => startOfDay(new Date(r.dateRemboursement)) === startOfDay(new Date(dateEcheance))
+      );
+      const rembs = [...(rembByJour.get(numeroJour) ?? []), ...rembsSansJourCeJour];
       // Montant payé = UNIQUEMENT les remboursements réellement enregistrés ce
-      // jour précis (numeroJour). On n'utilise JAMAIS ech.montantPaye ici : ce
-      // champ est une allocation en cascade côté serveur (le paiement du jour
-      // ciblé remplit d'abord son échéance, le reliquat comble ensuite les plus
-      // anciennes impayées) — un seul paiement peut ainsi "étaler" un montant
-      // sur plusieurs jours suivants qui n'ont reçu aucun argent ce jour-là. Le
+      // jour précis. On n'utilise JAMAIS ech.montantPaye ici : ce champ est une
+      // allocation en cascade côté serveur (le paiement du jour ciblé remplit
+      // d'abord son échéance, le reliquat comble ensuite les plus anciennes
+      // impayées) — un seul paiement peut ainsi "étaler" un montant sur
+      // plusieurs jours suivants qui n'ont reçu aucun argent ce jour-là. Le
       // afficher comme "payé ce jour" fabriquerait des paiements inexistants.
       const montantPaye = rembs.reduce((s, r) => s + Number(r.montant), 0);
 

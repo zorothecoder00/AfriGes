@@ -42,6 +42,7 @@ export interface CalendrierInput {
   remboursements: {
     montant: number | string;
     numeroJour: number | null;
+    dateRemboursement: string;
     statut: string;
   }[];
 }
@@ -56,6 +57,7 @@ export interface CalendrierRow {
 }
 
 const N = (v: number | string | null | undefined) => Number(v ?? 0);
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
 export function buildCalendrier(input: CalendrierInput, now: Date = new Date()): CalendrierRow[] {
   const duree        = Math.max(0, input.dureeJours);
@@ -66,10 +68,16 @@ export function buildCalendrier(input: CalendrierInput, now: Date = new Date()):
 
   const byNum = new Map(input.echeances.map((e) => [e.numeroEcheance, e]));
 
-  // Remboursements réels, regroupés par jour de collecte (numeroJour).
+  // Remboursements réels, regroupés par jour de collecte (numeroJour). Certains
+  // paiements sont saisis sans renseigner le champ "Jour" (numeroJour null) —
+  // plutôt que de les rendre invisibles dans le calendrier, on les rattache à
+  // la date réelle où ils ont été effectivement reçus (dateRemboursement),
+  // comparée à la date de l'échéance du jour : ça reste 100% réel/traçable.
   const rembByJour = new Map<number, number>();
+  const rembSansJour: { montant: number; date: Date }[] = [];
   for (const r of input.remboursements) {
-    if (r.statut === "REJETE" || r.numeroJour == null) continue;
+    if (r.statut === "REJETE") continue;
+    if (r.numeroJour == null) { rembSansJour.push({ montant: N(r.montant), date: new Date(r.dateRemboursement) }); continue; }
     rembByJour.set(r.numeroJour, (rembByJour.get(r.numeroJour) ?? 0) + N(r.montant));
   }
 
@@ -84,7 +92,10 @@ export function buildCalendrier(input: CalendrierInput, now: Date = new Date()):
 
     const montantPrevu = e ? N(e.montantDu) : (jour === duree ? dernierMontant : journalier);
     // Montant réellement reçu CE jour précis — jamais e.montantPaye (cascade serveur, cf. commentaire ci-dessus).
-    const montantPaye  = rembByJour.get(jour) ?? 0;
+    const rembDateMatch = rembSansJour
+      .filter((r) => startOfDay(r.date) === startOfDay(dateEch))
+      .reduce((s, r) => s + r.montant, 0);
+    const montantPaye = (rembByJour.get(jour) ?? 0) + rembDateMatch;
 
     // Amortissement affiché : réel si payé ce jour, sinon théorique (le statut
     // PAYE/EN_RETARD reste piloté par echeance.statut ci-dessous, pas par ce calcul).

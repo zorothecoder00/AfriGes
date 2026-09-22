@@ -49,7 +49,7 @@ export default async function SuiviRemboursementPage({ params }: Ctx) {
         select: { numeroEcheance: true, dateEcheance: true, montantDu: true, montantPaye: true, statut: true },
       },
       remboursements: {
-        select: { montant: true, numeroJour: true, statut: true },
+        select: { montant: true, numeroJour: true, dateRemboursement: true, statut: true },
       },
     },
   });
@@ -75,9 +75,10 @@ export default async function SuiviRemboursementPage({ params }: Ctx) {
       statut:         e.statut,
     })),
     remboursements: credit.remboursements.map((r) => ({
-      montant:    num(r.montant),
-      numeroJour: r.numeroJour,
-      statut:     r.statut,
+      montant:           num(r.montant),
+      numeroJour:        r.numeroJour,
+      dateRemboursement: r.dateRemboursement.toISOString(),
+      statut:            r.statut,
     })),
   });
 
