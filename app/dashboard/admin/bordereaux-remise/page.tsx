@@ -21,6 +21,7 @@ interface Bordereau {
   cotisationsEspeces: string; cotisationsMobileMoney: string; remboursements: string; ventes: string; venteCarnet: string;
   fraisLivraison: string; montantVirement: string; totalEspecesAttendu: string; totalBilletageCalcule: string;
   ecartSoumission: string; ecartTresorier: string | null; visaCGTParId: number | null;
+  depotBancaireReference: string | null;
   pointDeVente: PDV; collecteur: { nom: string; prenom: string }; createdAt: string;
   pieces?: { id: number; nom: string; url: string; nature: string }[];
 }
@@ -98,13 +99,13 @@ export default function AdminBordereauxRemisePage() {
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {["SOUMIS", "ECART_SIGNALE"].includes(b.statut) && (
-                  <button onClick={() => setTraiterBordereau(b)} className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200"><CheckCircle2 size={13} /> Traiter</button>
+                  <button onClick={() => setTraiterBordereau(b)} className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200"><CheckCircle2 size={13} /> Traiter (billetage)</button>
                 )}
                 {b.statut === "VALIDE" && !b.visaCGTParId && (
                   <button onClick={() => viserCGT(b.id)} className="flex items-center gap-1 px-2.5 py-1.5 bg-orange-100 text-orange-700 rounded-lg text-xs font-medium hover:bg-orange-200"><Stamp size={13} /> Viser CGT</button>
                 )}
-                {b.statut === "VALIDE" && (
-                  <button onClick={() => setCloturerBordereau(b)} className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-200"><CheckCircle2 size={13} /> Clôturer</button>
+                {b.statut === "CLOTURE" && !b.depotBancaireReference && (
+                  <button onClick={() => setCloturerBordereau(b)} className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-200"><CheckCircle2 size={13} /> Dépôt bancaire</button>
                 )}
                 <a href={`/api/tresorerie/bordereaux-remise/${b.id}/pdf`} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg" title="Imprimer"><Printer size={15} /></a>
               </div>
@@ -135,7 +136,12 @@ function FormTraiter({ bordereau, onClose, onDone }: { bordereau: Bordereau; onC
       });
       const j = await res.json();
       if (!res.ok) { toast.error(j.error || "Erreur"); return; }
-      toast.success("Bordereau traité");
+      const statut = j.data?.statut as string | undefined;
+      toast.success(
+        statut === "CLOTURE" ? "Billetage confirmé — écriture comptable générée automatiquement"
+        : statut === "VALIDE" ? "Billetage confirmé — en attente du visa Direction"
+        : "Écart signalé"
+      );
       onDone();
     } catch { toast.error("Erreur réseau"); }
     finally { setSubmitting(false); }
@@ -174,11 +180,11 @@ function FormCloturer({ bordereau, onClose, onDone }: { bordereau: Bordereau; on
     try {
       const res = await fetch(`/api/tresorerie/bordereaux-remise/${bordereau.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "CLOTURER", depotBancaireReference }),
+        body: JSON.stringify({ action: "ENREGISTRER_DEPOT", depotBancaireReference }),
       });
       const j = await res.json();
       if (!res.ok) { toast.error(j.error || "Erreur"); return; }
-      toast.success("Bordereau clôturé — écriture comptable générée");
+      toast.success("Dépôt bancaire enregistré");
       onDone();
     } catch { toast.error("Erreur réseau"); }
     finally { setSubmitting(false); }
@@ -188,16 +194,17 @@ function FormCloturer({ bordereau, onClose, onDone }: { bordereau: Bordereau; on
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[210] p-4">
       <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-          <h4 className="font-bold text-slate-800 text-sm">Clôturer — {bordereau.reference}</h4>
+          <h4 className="font-bold text-slate-800 text-sm">Dépôt bancaire — {bordereau.reference}</h4>
           <button onClick={onClose}><X size={16} className="text-slate-400" /></button>
         </div>
         <div className="p-5 space-y-3">
+          <p className="text-xs text-slate-500">L&apos;écriture comptable a déjà été générée automatiquement à la validation. Rattachez ici la référence une fois le dépôt physiquement effectué (rapprochement bancaire, informatif).</p>
           <input value={depotBancaireReference} onChange={(e) => setRef(e.target.value)} className={inputCls} placeholder="Référence de dépôt bancaire *" />
         </div>
         <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-100">
           <button onClick={onClose} className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 rounded-lg">Annuler</button>
           <button onClick={submit} disabled={submitting} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium disabled:opacity-50">
-            {submitting ? <Loader2 size={13} className="animate-spin" /> : "Clôturer"}
+            {submitting ? <Loader2 size={13} className="animate-spin" /> : "Enregistrer"}
           </button>
         </div>
       </div>

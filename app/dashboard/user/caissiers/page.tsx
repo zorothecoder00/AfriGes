@@ -1054,6 +1054,10 @@ export default function CaissierPage() {
 
   const { data: ventesDirRes, refetch: refetchVentesDir } = useApi<VentesDirectesResponse>(`/api/caissier/ventes?${ventesDirParams}`);
   const { data: aConfirmerRes, refetch: refetchAConfirmer } = useApi<AConfirmerResponse>("/api/caissier/a-confirmer?limit=50");
+  // Bordereaux de remise de fonds (agents terrain) en attente de billetage — juste le compteur ici,
+  // le traitement se fait sur sa propre page dédiée (formulaire de comptage contradictoire).
+  const { data: bordereauxRes } = useApi<{ stats: Record<string, number> }>("/api/tresorerie/bordereaux-remise");
+  const nbBordereauxAConfirmer = (bordereauxRes?.stats?.SOUMIS ?? 0) + (bordereauxRes?.stats?.ECART_SIGNALE ?? 0);
 
   const facturesParams = useMemo(
     () => new URLSearchParams({ page: String(facturesPage), limit: "20" }).toString(),
@@ -4670,6 +4674,21 @@ export default function CaissierPage() {
                 </div>
               </div>
             )}
+
+            {/* Bordereaux de remise de fonds (agents terrain) — billetage contradictoire */}
+            <a href="/dashboard/user/caissiers/bordereaux-remise"
+              className="flex items-center justify-between bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:border-teal-300 hover:shadow-md transition-all">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-teal-50 rounded-xl"><Wallet size={22} className="text-teal-600" /></div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-lg">Bordereaux de remise de fonds</h3>
+                  <p className="text-sm text-slate-500">Comptage contradictoire du billetage remis par les agents terrain</p>
+                </div>
+              </div>
+              {nbBordereauxAConfirmer > 0 && (
+                <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-full">{nbBordereauxAConfirmer} à traiter</span>
+              )}
+            </a>
 
             {/* Versements EN_ATTENTE */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">

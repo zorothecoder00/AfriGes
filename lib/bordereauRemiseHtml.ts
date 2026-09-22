@@ -116,7 +116,7 @@ export function genBordereauRemiseHtml(d: BordereauRemiseHtmlData): string {
 
   ${d.tresorier ? `
   <div style="padding:10px 16px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; margin-bottom:16px; font-size:12px; color:#065f46;">
-    <strong>Comptage trésorier</strong> — ${esc(d.tresorier.prenom)} ${esc(d.tresorier.nom)} a confirmé ${d.montantConfirmeTresorier != null ? fmtMontant(d.montantConfirmeTresorier) : "—"} XOF le ${formatDateFr(d.dateTraitementTresorier)}.
+    <strong>Comptage caissier</strong> — ${esc(d.tresorier.prenom)} ${esc(d.tresorier.nom)} a confirmé ${d.montantConfirmeTresorier != null ? fmtMontant(d.montantConfirmeTresorier) : "—"} XOF le ${formatDateFr(d.dateTraitementTresorier)}.
   </div>` : ""}
 
   ${d.visaCGTPar ? `

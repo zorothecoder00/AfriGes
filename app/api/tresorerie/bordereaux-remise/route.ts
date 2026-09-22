@@ -2,18 +2,20 @@ import { NextResponse } from "next/server";
 import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
+import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
 import { getComptableSession } from "@/lib/authComptable";
 import { auditLog, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 
 /**
  * Bordereau de Remise de Fonds (CDC digitalisation §3.1) — remise d'espèces
- * collectées sur le terrain par un collecteur au trésorier, avec billetage
- * contradictoire et visa Président CGT au-delà du seuil paramétré.
+ * collectées sur le terrain par un collecteur au caissier de son PDV, avec
+ * billetage contradictoire ; écriture comptable générée automatiquement dès
+ * que le circuit est validé (voir [id]/route.ts).
  *
- * Namespace neutre (ni /api/agentTerrain ni /api/comptable) car ce document a
- * deux acteurs symétriques : le collecteur (création) et le trésorier
- * (traitement) — voir lib/parametresDocuments.ts pour le seuil.
+ * Namespace neutre (ni /api/agentTerrain ni /api/caissier) car ce document a
+ * deux acteurs symétriques : le collecteur (création) et le caissier
+ * (traitement) — voir lib/parametresDocuments.ts pour le seuil de visa CGT.
  */
 
 const INCLUDE = {
@@ -28,13 +30,16 @@ const INCLUDE = {
 async function getSession() {
   const agent = await getAgentTerrainSession();
   if (agent) return agent;
+  const caissier = await getCaissierSession();
+  if (caissier) return caissier;
   return getComptableSession();
 }
 
 /**
  * GET /api/tresorerie/bordereaux-remise
- * Un collecteur (non admin/comptable) ne voit que ses propres bordereaux ; le
- * trésorier (Comptable/Chef Comptable) et l'admin voient tout.
+ * Un collecteur (non caissier/comptable/admin) ne voit que ses propres
+ * bordereaux ; un caissier voit ceux de son PDV (à traiter) ; le comptable et
+ * l'admin voient tout.
  * Query: statut?, collecteurId?
  */
 export async function GET(req: Request) {
@@ -42,24 +47,32 @@ export async function GET(req: Request) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const isTresorierOuAdmin = !!(await getComptableSession());
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const isComptable = !!(await getComptableSession());
+    const isCaissier = !isAdmin && !!(await getCaissierSession());
 
     const { searchParams } = new URL(req.url);
     const statut = searchParams.get("statut");
     const collecteurIdParam = searchParams.get("collecteurId");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {};
-    if (statut) where.statut = statut;
-    if (!isTresorierOuAdmin) {
-      where.collecteurId = parseInt(session.user.id);
-    } else if (collecteurIdParam) {
-      where.collecteurId = Number(collecteurIdParam);
+    const whereScope: any = {};
+    if (isAdmin || isComptable) {
+      if (collecteurIdParam) whereScope.collecteurId = Number(collecteurIdParam);
+    } else if (isCaissier) {
+      // Un caissier ne traite que les bordereaux déposés à son propre PDV.
+      const pdvId = await getCaissierPdvId(parseInt(session.user.id));
+      whereScope.pointDeVenteId = pdvId ?? -1;
+    } else {
+      whereScope.collecteurId = parseInt(session.user.id);
     }
+    const where = { ...whereScope, ...(statut ? { statut } : {}) };
 
     const [bordereaux, statsRaw] = await Promise.all([
       prisma.bordereauRemiseFonds.findMany({ where, orderBy: { createdAt: "desc" }, include: INCLUDE }),
-      prisma.bordereauRemiseFonds.groupBy({ by: ["statut"], where: isTresorierOuAdmin ? {} : { collecteurId: parseInt(session.user.id) }, _count: { id: true } }),
+      // Stats par statut TOUJOURS sur le même périmètre (scope), jamais filtrées
+      // par `statut` (sinon les badges/onglets ne refléteraient plus qu'une valeur).
+      prisma.bordereauRemiseFonds.groupBy({ by: ["statut"], where: whereScope, _count: { id: true } }),
     ]);
 
     // Pièces jointes (polymorphes) rattachées en une seule requête.

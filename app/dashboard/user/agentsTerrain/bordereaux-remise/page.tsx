@@ -66,7 +66,7 @@ function BordereauxRemisePageInner() {
             <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               <Wallet className="w-6 h-6 text-teal-600" /> Bordereaux de remise de fonds
             </h1>
-            <p className="text-sm text-slate-500 mt-0.5">Remise d&apos;espèces collectées au trésorier, avec billetage</p>
+            <p className="text-sm text-slate-500 mt-0.5">Remise d&apos;espèces collectées au caissier de l&apos;agence, avec billetage</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Link href="/dashboard/user/agentsTerrain/fonds-collectes"
@@ -154,7 +154,7 @@ function DetailModal({ id, onClose }: { id: number; onClose: () => void }) {
               {Math.abs(Number(b.ecartSoumission)) > 0.01 && <p className="text-sm text-amber-600">Écart déclaré : {Number(b.ecartSoumission).toLocaleString("fr-FR")} FCFA — {b.motifEcartSoumission}</p>}
               {b.tresorier && (
                 <div className="pt-2 border-t border-slate-100">
-                  <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Trésorier</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Caissier</p>
                   <p className="text-sm text-slate-700 flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> {b.tresorier.prenom} {b.tresorier.nom} — confirmé {b.montantConfirmeTresorier != null ? Number(b.montantConfirmeTresorier).toLocaleString("fr-FR") : "—"} FCFA</p>
                   {b.motifEcartTresorier && <p className="text-xs text-red-600 mt-1">Écart : {Number(b.ecartTresorier).toLocaleString("fr-FR")} FCFA — {b.motifEcartTresorier}</p>}
                 </div>
