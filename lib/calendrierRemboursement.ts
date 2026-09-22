@@ -15,16 +15,22 @@
  *    client a remboursé, sinon par le montant prévu (amortissement théorique).
  *  - Statut : piloté par le champ serveur `echeance.statut` (reflète correctement
  *    la cascade), décorrélé du montant affiché — un jour peut être "Payé" par
- *    report d'un paiement fait un autre jour, sans montant sur CE jour.
+ *    report d'un paiement fait un autre jour, sans montant sur CE jour. Un
+ *    crédit SOLDE ne montre plus jamais de retard, même sur un jour dont
+ *    l'échéance n'a pas été balayée par la clôture (durée modifiée après coup…).
+ *    Un jour en retard qui a quand même reçu un paiement réel (mais partiel)
+ *    est marqué PARTIEL plutôt que EN_RETARD, pour ne pas perdre l'info.
  */
 
-export type StatutCalendrier = "PAYE" | "EN_RETARD" | "A_VENIR";
+export type StatutCalendrier = "PAYE" | "PARTIEL" | "EN_RETARD" | "A_VENIR";
 
 export interface CalendrierInput {
   dureeJours: number;
   dateDebut: string;
   montantTotal: number | string;
   montantJournalier: number | string;
+  /** Statut global du crédit — SOLDE force tous les jours à "Payé". */
+  statutCredit: string;
   echeances: {
     numeroEcheance: number;
     dateEcheance: string;
@@ -85,10 +91,11 @@ export function buildCalendrier(input: CalendrierInput, now: Date = new Date()):
     cumulDecrement += montantPaye > 0 ? montantPaye : montantPrevu;
     const soldeRestant = Math.max(0, montantTotal - cumulDecrement);
 
-    const statutRaw = e ? e.statut : "EN_ATTENTE";
-    const estPaye   = statutRaw === "PAYE";
-    const enRetard  = !estPaye && dateEch < now;
-    const statut: StatutCalendrier = estPaye ? "PAYE" : enRetard ? "EN_RETARD" : "A_VENIR";
+    const statutRaw   = e ? e.statut : "EN_ATTENTE";
+    const estPaye      = input.statutCredit === "SOLDE" || statutRaw === "PAYE";
+    const estPartiel   = !estPaye && (statutRaw === "PARTIEL" || montantPaye > 0);
+    const enRetard     = !estPaye && !estPartiel && dateEch < now;
+    const statut: StatutCalendrier = estPaye ? "PAYE" : estPartiel ? "PARTIEL" : enRetard ? "EN_RETARD" : "A_VENIR";
 
     return { jour, date: dateEch.toISOString(), montantPrevu, montantPaye, soldeRestant, statut };
   });

@@ -152,24 +152,27 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
   // ── E. Calendrier journalier — TOUTES les lignes jusqu'à la fin du crédit ──
   // On génère 1..dureeJours ; on utilise l'échéance réelle si elle existe (crédit validé),
   // sinon on synthétise (date = dateDebut + n, montant prévu = journalier, dernier jour = résiduel).
-  const STATUT_CAL_LABEL: Record<string, string> = { PAYE: "Payé", EN_RETARD: "En retard", A_VENIR: "" };
+  const STATUT_CAL_LABEL: Record<string, string> = { PAYE: "Payé", PARTIEL: "Partiel", EN_RETARD: "En retard", A_VENIR: "" };
   const calendrierRows = buildCalendrier({
     dureeJours:        credit.dureeJours,
     dateDebut:         credit.dateDebut,
     montantTotal:      credit.montantTotal,
     montantJournalier: credit.montantJournalier,
+    statutCredit:      credit.statut,
     echeances:         credit.echeances,
     remboursements:    credit.remboursements,
   }, today).map((r) => {
     const enRetard = r.statut === "EN_RETARD";
     const estPaye  = r.statut === "PAYE";
+    const estPartiel = r.statut === "PARTIEL";
+    const couleurStatut = enRetard ? `color:${c.danger};font-weight:600` : (estPaye || estPartiel) ? `color:${c.accent};font-weight:600` : "";
     return `<tr>
       <td style="padding:2.5px 6px;border:1px solid ${c.line};text-align:center">${r.jour}</td>
       <td style="padding:2.5px 6px;border:1px solid ${c.line}">${fmtDate(r.date)}</td>
       <td style="padding:2.5px 6px;border:1px solid ${c.line};text-align:right">${fmt(r.montantPrevu)}</td>
       <td style="padding:2.5px 6px;border:1px solid ${c.line};text-align:right">${fmt(r.montantPaye)}</td>
       <td style="padding:2.5px 6px;border:1px solid ${c.line};text-align:right">${fmt(r.soldeRestant)}</td>
-      <td style="padding:2.5px 6px;border:1px solid ${c.line};text-align:center;${enRetard ? `color:${c.danger};font-weight:600` : estPaye ? `color:${c.accent};font-weight:600` : ""}">${STATUT_CAL_LABEL[r.statut]}</td>
+      <td style="padding:2.5px 6px;border:1px solid ${c.line};text-align:center;${couleurStatut}">${STATUT_CAL_LABEL[r.statut]}</td>
       <td style="padding:2.5px 6px;border:1px solid ${c.line}"></td>
     </tr>`;
   }).join("");

@@ -193,16 +193,27 @@ export default function CreditEcheancier({
       // authentique, qui reflète correctement la cascade — décorrélé du montant
       // affiché ci-dessus : un jour peut être "Payé" par report d'un paiement
       // fait un autre jour, sans qu'un montant ne soit affiché sur CE jour.
-      const paid = ech?.statut === 'PAYE';
+      // Un crédit SOLDE (plus aucun solde dû) ne doit JAMAIS montrer un jour en
+      // retard, même si l'échéance de ce jour précis n'a pas été balayée par le
+      // mécanisme de clôture (ex. durée modifiée après coup, jour au-delà des
+      // échéances réellement générées) : la vérité au niveau crédit prime.
+      const soldeIntegral = credit.statut === 'SOLDE';
+      const paid = soldeIntegral || ech?.statut === 'PAYE';
       const partiel = !paid && (ech?.statut === 'PARTIEL' || montantPaye > 0);
 
       const echeanceDay = startOfDay(new Date(dateEcheance));
       const lateDays = Math.floor((today - echeanceDay) / DAY_MS);
 
+      // Un paiement partiel réel prime toujours sur l'étiquette "Retard" — un
+      // jour en retard qui a quand même reçu de l'argent doit le montrer
+      // (l'info de retard n'est pas perdue pour autant, juste combinée).
       let tone: Tone;
       let label: string;
       if (paid) {
         tone = 'paid'; label = 'Payé';
+      } else if (partiel) {
+        tone = 'partiel';
+        label = lateDays >= 1 ? `Partiel (retard ${lateDays}j)` : 'Partiel';
       } else if (lateDays > 7) {
         tone = 'red'; label = `Retard ${lateDays}j`;
       } else if (lateDays >= 5) {
@@ -210,11 +221,9 @@ export default function CreditEcheancier({
       } else if (lateDays >= 1) {
         tone = 'orange'; label = `Retard ${lateDays}j`;
       } else if (lateDays === 0) {
-        tone = partiel ? 'partiel' : 'today';
-        label = partiel ? 'Partiel' : "Aujourd'hui";
+        tone = 'today'; label = "Aujourd'hui";
       } else {
-        tone = partiel ? 'partiel' : 'future';
-        label = partiel ? 'Partiel' : 'À venir';
+        tone = 'future'; label = 'À venir';
       }
 
       // Agent collecteur le plus récent pour ce jour

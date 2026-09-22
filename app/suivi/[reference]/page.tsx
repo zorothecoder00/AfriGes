@@ -66,6 +66,7 @@ export default async function SuiviRemboursementPage({ params }: Ctx) {
     dateDebut:         credit.dateDebut.toISOString(),
     montantTotal:      montantTotal,
     montantJournalier: num(credit.montantJournalier),
+    statutCredit:      credit.statut,
     echeances:         credit.echeances.map((e) => ({
       numeroEcheance: e.numeroEcheance,
       dateEcheance:   e.dateEcheance.toISOString(),
@@ -88,6 +89,7 @@ export default async function SuiviRemboursementPage({ params }: Ctx) {
 
   const STATUT_CELL: Record<string, { label: string; cls: string }> = {
     PAYE:      { label: "Payé",     cls: "bg-emerald-100 text-emerald-700" },
+    PARTIEL:   { label: "Partiel",  cls: "bg-blue-100 text-blue-700" },
     EN_RETARD: { label: "En retard", cls: "bg-red-100 text-red-700" },
     A_VENIR:   { label: "À venir",  cls: "bg-slate-100 text-slate-400" },
   };
