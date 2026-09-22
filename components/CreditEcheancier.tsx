@@ -102,6 +102,14 @@ interface Row {
   tone: Tone;
   label: string;
   montantPaye: number;
+  /**
+   * true = montantPaye vient d'un remboursement réellement enregistré ce
+   * jour-là (numeroJour) — traçable (date/agent/mode). false = montant
+   * hérité de l'allocation en cascade de l'échéance (comblé par le
+   * reliquat d'un paiement fait un AUTRE jour) — réel mais non attribuable
+   * à un paiement précis de ce jour précis.
+   */
+  traceable: boolean;
   agent: string | null;
   dateCollecte: string | null;
   lateDays: number;
@@ -180,7 +188,8 @@ export default function CreditEcheancier({
 
       const rembs = rembByJour.get(numeroJour) ?? [];
       const sommeRemb = rembs.reduce((s, r) => s + Number(r.montant), 0);
-      const montantPaye = sommeRemb > 0 ? sommeRemb : Number(ech?.montantPaye ?? 0);
+      const traceable = sommeRemb > 0;
+      const montantPaye = traceable ? sommeRemb : Number(ech?.montantPaye ?? 0);
 
       const paid = ech?.statut === 'PAYE' || (montantDu > 0 && montantPaye >= montantDu);
       const partiel = !paid && montantPaye > 0;
@@ -219,6 +228,7 @@ export default function CreditEcheancier({
         tone,
         label,
         montantPaye,
+        traceable,
         agent: agentUser ? `${agentUser.prenom} ${agentUser.nom}` : null,
         dateCollecte: dernier ? dernier.dateRemboursement : null,
         lateDays,
@@ -243,6 +253,7 @@ export default function CreditEcheancier({
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-red-500" /> Retard &gt; 7 j</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-amber-400" /> Aujourd&apos;hui</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-blue-500" /> Partiel</span>
+        <span className="text-gray-400 italic">* comblé par le reliquat d&apos;un paiement fait un autre jour (voir Remboursements ci-dessous pour la source réelle)</span>
       </div>
 
       <div className="overflow-x-auto border border-gray-100 rounded-xl">
@@ -276,8 +287,11 @@ export default function CreditEcheancier({
                 {/* Montant payé / attendu */}
                 <td className="px-3 py-2.5 text-right whitespace-nowrap">
                   {row.montantPaye > 0 ? (
-                    <span className={`text-xs font-semibold ${row.tone === 'paid' ? 'text-emerald-700' : 'text-blue-700'}`}>
-                      {formatCurrency(row.montantPaye)}
+                    <span
+                      className={`text-xs font-semibold ${row.traceable ? (row.tone === 'paid' ? 'text-emerald-700' : 'text-blue-700') : 'text-gray-400 italic'}`}
+                      title={row.traceable ? undefined : "Comblé par le reliquat d'un paiement fait un autre jour — voir la liste des remboursements pour le paiement source"}
+                    >
+                      {formatCurrency(row.montantPaye)}{!row.traceable && ' *'}
                     </span>
                   ) : (
                     <span className="text-xs text-gray-300">—</span>

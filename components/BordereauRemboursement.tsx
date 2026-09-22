@@ -116,7 +116,31 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
   const valeurProduits = credit.lignes.reduce((s, l) => s + N(l.montantLigne), 0);
   const montantTotal   = N(credit.montantTotal);
 
-  // ── F. Pénalités ──
+  // ── F. Historique des remboursements enregistrés (données réelles, traçables) ──
+  // Contrairement au calendrier (E, théorique/estimé par échéance), cette section
+  // liste chaque RemboursementCredit réellement encaissé : seule source fiable
+  // pour retracer qui a payé quoi, quand et comment.
+  const REMB_STATUT_LABEL: Record<string, string> = {
+    CONFIRME: "Confirmé", EN_ATTENTE_CAISSIER: "En attente caissier", REJETE: "Rejeté",
+  };
+  const remboursementsValides = credit.remboursements.filter((r) => r.statut !== "REJETE");
+  const totalEncaisse = remboursementsValides.reduce((s, r) => s + N(r.montant), 0);
+  const historiqueRows = remboursementsValides
+    .slice()
+    .sort((a, b) => new Date(a.dateRemboursement).getTime() - new Date(b.dateRemboursement).getTime())
+    .map((r) => {
+      const agent = r.agentCollecteur ?? r.enregistrePar;
+      return `<tr>
+        <td style="padding:2.5px 6px;border:1px solid ${c.line}">${fmtDate(r.dateRemboursement)}</td>
+        <td style="padding:2.5px 6px;border:1px solid ${c.line};text-align:center">${r.numeroJour != null ? `J${r.numeroJour}` : "—"}</td>
+        <td style="padding:2.5px 6px;border:1px solid ${c.line};text-align:right;font-weight:600">${fmt(r.montant)}</td>
+        <td style="padding:2.5px 6px;border:1px solid ${c.line}">${esc(r.modePaiement.replace(/_/g, " "))}</td>
+        <td style="padding:2.5px 6px;border:1px solid ${c.line}">${esc(`${agent.prenom} ${agent.nom}`)}</td>
+        <td style="padding:2.5px 6px;border:1px solid ${c.line}">${esc(REMB_STATUT_LABEL[r.statut] ?? r.statut)}</td>
+      </tr>`;
+    }).join("");
+
+  // ── G. Pénalités ──
   const retards       = credit.echeances.filter((e) => e.statut !== "PAYE" && new Date(e.dateEcheance) < today);
   const nombreRetards = retards.length;
   const tauxPen       = N(credit.tauxPenalite);
@@ -263,9 +287,29 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
     </tr></thead>
     <tbody>${calendrierRows || `<tr><td colspan="7" style="padding:10px;border:1px solid ${c.line};text-align:center;color:${c.faint}">Durée du crédit non définie</td></tr>`}</tbody>
   </table>
+  <p style="font-size:9px;color:${c.faint};margin-top:3px;font-style:italic">Calendrier théorique par échéance — pour le détail réel de chaque encaissement (date, agent, mode), voir la section F ci-dessous.</p>
 
-  <!-- F. Gestion des pénalités — deux colonnes -->
-  ${sectionTitle("F. Gestion des pénalités")}
+  <!-- F. Historique des remboursements enregistrés (données réelles, traçables) -->
+  ${sectionTitle("F. Historique des remboursements enregistrés")}
+  <table style="width:100%;border-collapse:collapse;font-size:10px">
+    <thead><tr style="background:${c.headBg};color:${c.headText}">
+      <th style="padding:4px 6px;border:1px solid ${c.line}">Date</th>
+      <th style="padding:4px 6px;border:1px solid ${c.line}">Jour</th>
+      <th style="padding:4px 6px;border:1px solid ${c.line}">Montant encaissé</th>
+      <th style="padding:4px 6px;border:1px solid ${c.line}">Mode</th>
+      <th style="padding:4px 6px;border:1px solid ${c.line}">Agent</th>
+      <th style="padding:4px 6px;border:1px solid ${c.line}">Statut</th>
+    </tr></thead>
+    <tbody>${historiqueRows || `<tr><td colspan="6" style="padding:10px;border:1px solid ${c.line};text-align:center;color:${c.faint}">Aucun remboursement enregistré</td></tr>`}</tbody>
+    ${historiqueRows ? `<tfoot><tr style="font-weight:700">
+      <td colspan="2" style="padding:4px 6px;border:1px solid ${c.line};text-align:right">Total encaissé</td>
+      <td style="padding:4px 6px;border:1px solid ${c.line};text-align:right">${fmt(totalEncaisse)}</td>
+      <td colspan="3" style="padding:4px 6px;border:1px solid ${c.line}"></td>
+    </tr></tfoot>` : ""}
+  </table>
+
+  <!-- G. Gestion des pénalités — deux colonnes -->
+  ${sectionTitle("G. Gestion des pénalités")}
   ${twoCol(
     kv("Délai de grâce", `${grace} jour(s)`) +
     kv("Début des pénalités", grace > 0 ? `Après ${grace} jour(s) de retard` : "Dès le 1er jour de retard") +
@@ -276,9 +320,9 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
   )}
   <p style="font-size:9.5px;color:${c.faint};margin-top:3px;font-style:italic">Calcul auto : montant journalier × taux × jours de retard = ${fmt(credit.montantJournalier)} × ${tauxPen}% × ${joursRetardFactures} = ${fmt(totalPenalites)}.</p>
 
-  <!-- G + H. Consentement & signatures — gardés ensemble sur une même page -->
+  <!-- H + I. Consentement & signatures — gardés ensemble sur une même page -->
   <div style="page-break-inside:avoid">
-    ${sectionTitle("G. Consentement du client")}
+    ${sectionTitle("H. Consentement du client")}
     <p style="font-size:10.5px;line-height:1.5;color:${c.text};text-align:justify;border:1px solid ${c.line};background:${c.headBg};padding:8px 12px;border-radius:4px">
       Par la présente, je reconnais avoir bénéficié d'un crédit accordé par AFRISIME et m'engage
       irrévocablement à rembourser le montant total indiqué sur ce bordereau selon le calendrier
@@ -286,7 +330,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
       applicables en cas de retard et des dispositions prévues en cas de non-respect de mes engagements.
     </p>
 
-    ${sectionTitle("H. Signatures")}
+    ${sectionTitle("I. Signatures")}
     <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:10px">
       <tr>
         ${["Client", "Agent affecté", "Responsable crédit"].map((r) => `

@@ -845,6 +845,7 @@ export default function ClientDetails({
                       <table className="w-full text-sm">
                         <thead className="bg-slate-50 border-b border-slate-100">
                           <tr>
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Crédit</th>
                             <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Date</th>
                             <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Jour</th>
                             <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Attendu</th>
@@ -858,6 +859,7 @@ export default function ClientDetails({
                         <tbody className="divide-y divide-slate-50">
                           {remboursements.map((r) => (
                             <tr key={r.id} className="hover:bg-slate-50/50">
+                              <td className="px-4 py-2.5 text-slate-700 text-xs font-mono font-semibold whitespace-nowrap">{r.creditRef}</td>
                               <td className="px-4 py-2.5 text-slate-600 text-xs">{formatDate(r.dateRemboursement)}</td>
                               <td className="px-4 py-2.5 text-slate-500 text-xs">{r.numeroJour != null ? `J${r.numeroJour}` : '—'}</td>
                               <td className="px-4 py-2.5 text-right text-slate-500 text-xs">{r.montantAttendu != null ? formatCurrency(Number(r.montantAttendu)) : '—'}</td>
