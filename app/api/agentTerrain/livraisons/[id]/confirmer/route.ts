@@ -47,7 +47,7 @@ export async function POST(_req: Request, { params }: Ctx) {
           souscription: {
             include: {
               pack: true,
-              client: { select: { nom: true, prenom: true, pointDeVenteId: true } },
+              client: { select: { nom: true, prenom: true, pointDeVenteId: true, agentTerrainId: true } },
             },
           },
         },
@@ -56,10 +56,10 @@ export async function POST(_req: Request, { params }: Ctx) {
       if (!rec) throw new Error("Réception introuvable");
       if (rec.statut !== "PLANIFIEE") throw new Error(`Statut invalide : déjà ${rec.statut.toLowerCase()}`);
 
-      // ── Vérification que la livraison appartient au PDV de l'agent ───────────
-      const clientPdvId = rec.souscription.client?.pointDeVenteId;
-      if (clientPdvId !== agentPdvId) {
-        throw new Error("Vous n'êtes pas autorisé à confirmer une livraison pour un autre point de vente");
+      // ── Vérification que la livraison appartient au portefeuille de l'agent ──
+      const isAdminConfirmer = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+      if (!isAdminConfirmer && rec.souscription.client?.agentTerrainId !== agentId) {
+        throw new Error("Ce client n'est pas affecté à votre portefeuille");
       }
 
       const souscription = rec.souscription;
