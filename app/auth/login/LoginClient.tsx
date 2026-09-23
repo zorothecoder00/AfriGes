@@ -148,7 +148,7 @@ export default function LoginPage() {
   };
    
   return (
-    <div className="h-screen overflow-hidden flex items-center justify-center px-4 relative bg-gradient-to-br from-primary-600 via-primary-700 to-slate-900">
+    <div className="min-h-screen overflow-x-hidden flex items-center justify-center px-4 py-6 relative bg-gradient-to-br from-primary-600 via-primary-700 to-slate-900">
 
       {/* Halos décoratifs discrets */}
       <div className="absolute -top-20 -left-20 w-72 h-72 rounded-full bg-primary-300/20 blur-3xl" />
@@ -159,18 +159,18 @@ export default function LoginPage() {
       {/* Pattern points subtil */}
       <div className="absolute inset-0 opacity-5 bg-[radial-gradient(circle,rgba(255,255,255,0.8)_1px,transparent_1px)] bg-[length:40px_40px]" />
 
-      <div className="w-full max-w-sm md:max-w-md mx-auto relative z-10 animate-[slideUp_0.6s_ease-out]">
+      <div className="w-full max-w-sm md:max-w-3xl lg:max-w-4xl mx-auto relative z-10 animate-[slideUp_0.6s_ease-out]">
 
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-br from-primary-700 to-primary-600 px-8 py-6 text-center relative overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden md:flex">
+          {/* Header — bandeau en haut sur mobile, panneau de gauche en paysage */}
+          <div className="bg-gradient-to-br from-primary-700 to-primary-600 px-8 py-6 md:py-10 md:w-5/12 md:shrink-0 md:flex md:flex-col md:items-center md:justify-center text-center relative overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_20%,transparent_70%)] opacity-50" />
-            <div className="relative z-10 mb-4 flex justify-center">
-              <div className="bg-white rounded-2xl px-3 py-2 shadow-lg">
-                <AfriSimeLogo className="h-10 w-auto md:h-12" priority />
+            <div className="relative z-10 mb-4 md:mb-6 flex justify-center">
+              <div className="bg-white rounded-2xl sm:rounded-3xl px-4 py-3 md:px-6 md:py-5 shadow-lg">
+                <AfriSimeLogo className="h-24 w-auto sm:h-28 md:h-32 lg:h-44" priority />
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-white mb-1 relative z-10 tracking-tight">
+            <h1 className="text-3xl lg:text-4xl font-bold text-white mb-1 relative z-10 tracking-tight">
               Bienvenue
             </h1>
             <p className="text-white/80 text-sm relative z-10">
@@ -178,14 +178,15 @@ export default function LoginPage() {
             </p>
           </div>
 
+          <div className="md:flex-1 md:min-w-0 md:flex md:flex-col md:justify-center">
           {infoMessage && (
-            <div className={`text-sm text-center px-4 py-2 mt-4 mb-2 rounded-lg mx-4 ${infoMessage.warn ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+            <div className={`text-sm text-center px-4 py-2 mt-4 mb-2 rounded-lg mx-4 md:mx-8 ${infoMessage.warn ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
               {infoMessage.text}
             </div>
           )}
 
           {/* Body */}
-          <div className="px-6 py-6 md:px-8 md:py-6">
+          <div className="px-6 py-6 md:px-8 lg:px-10 md:py-8">
             <form onSubmit={handleSubmit} className="space-y-4">
               {errors.general && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
@@ -253,7 +254,7 @@ export default function LoginPage() {
                 {isLoading ? 'Connexion en cours...' : 'Se connecter'}
               </Button>
 
-              <div className="relative flex items-center my-6">
+              <div className="relative flex items-center my-6 md:my-4">
                 <div className="flex-grow border-t border-slate-200" />
                 <span className="px-4 text-sm text-slate-500">ou continuer avec</span>
                 <div className="flex-grow border-t border-slate-200" />
@@ -279,12 +280,13 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-slate-200 text-center">
+            <div className="mt-6 pt-6 md:mt-5 md:pt-4 border-t border-slate-200 text-center">
               <p className="text-sm text-slate-500">
                 Les comptes sont créés uniquement par l’administrateur.
               </p>
             </div>
 
+          </div>
           </div>
         </div>
       </div>
