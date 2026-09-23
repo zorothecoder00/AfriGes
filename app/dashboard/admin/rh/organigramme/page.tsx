@@ -543,7 +543,7 @@ export default function OrganigrammePage() {
       )}
 
       {/* Header */}
-      <div className="bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 px-6 py-4">
+      <div className="bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 px-4 md:px-6 py-4">
         <div className="max-w-screen-2xl mx-auto">
           <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
             <div>
@@ -552,9 +552,9 @@ export default function OrganigrammePage() {
                 {data ? `${data.total} collaborateurs actifs` : "Chargement…"}
               </p>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap min-w-0 max-w-full">
               {/* Vue switcher */}
-              <div className="flex bg-slate-100 dark:bg-slate-900/40 rounded-xl p-1 gap-1">
+              <div className="flex max-w-full overflow-x-auto scrollbar-hide bg-slate-100 dark:bg-slate-900/40 rounded-xl p-1 gap-1 [&>button]:shrink-0">
                 {VIEWS.map((v) => (
                   <button
                     key={v.id}
@@ -602,7 +602,7 @@ export default function OrganigrammePage() {
         </div>
       </div>
 
-      <div className="flex gap-6 p-6 max-w-screen-2xl mx-auto">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 md:p-6 max-w-screen-2xl mx-auto">
         {/* Main content */}
         <div className="flex-1 min-w-0">
           {loading ? (
@@ -644,7 +644,7 @@ export default function OrganigrammePage() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-64 flex-shrink-0 space-y-4">
+        <div className="w-full lg:w-64 lg:flex-shrink-0 space-y-4">
           {/* Stats */}
           {data && <StatsPanel stats={data.statsDept} total={data.total} depts={depts} />}
 

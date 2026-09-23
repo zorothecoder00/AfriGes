@@ -352,7 +352,7 @@ export default function DossierCollaborateurPage({
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="p-6 space-y-6 max-w-5xl mx-auto">
+      <div className="md:p-6 space-y-6 max-w-5xl mx-auto">
 
         {/* ── Breadcrumb + titre ── */}
         <div className="flex items-start justify-between flex-wrap gap-3">
@@ -1608,7 +1608,7 @@ function PointagesTab({ profilId }: { profilId: number }) {
               </div>
             )}
             {/* Calendrier */}
-            <div className="grid grid-cols-7 gap-px bg-slate-100 p-px m-4 rounded-lg overflow-hidden text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-px bg-slate-100 p-px m-4 rounded-lg overflow-hidden text-center">
               {["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map((d) => (
                 <div key={d} className="bg-slate-50 text-xs font-medium text-slate-400 py-1.5">{d}</div>
               ))}

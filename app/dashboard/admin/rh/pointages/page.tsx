@@ -448,7 +448,7 @@ function PointageCalendar({ collab, year, month, onPrev, onNext }: {
 
         {/* Grille */}
         <div className="p-4">
-          <div className="grid grid-cols-7 gap-1 mb-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-1 mb-1">
             {JOURS_LABELS.map((j) => (
               <div key={j} className="text-center text-[10px] font-semibold text-slate-400 py-1">{j}</div>
             ))}

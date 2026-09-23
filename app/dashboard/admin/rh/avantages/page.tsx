@@ -89,7 +89,7 @@ export default function AvantagesPage() {
   const [tab, setTab] = useState<"avantages" | "remboursements">("avantages");
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="md:p-6 max-w-6xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Avantages & Remboursements</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Avantages en nature et remboursements de frais</p>
@@ -144,7 +144,7 @@ function AvantagesTab() {
             icon={<Search className="w-4 h-4" />} />
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="border border-slate-200 dark:border-slate-700" title="Rafraîchir" />
+          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="border border-slate-200 dark:border-slate-700" icon={<RefreshCw size={16} />} title="Rafraîchir" />
           <Button onClick={() => setShowCreate(true)} icon={<Plus className="w-4 h-4" />}>
             Nouvel avantage
           </Button>
@@ -241,7 +241,7 @@ function RemboursementsTab() {
           <button key={key} onClick={() => setStatut(statut === key ? "" : key)}
             className={`p-4 rounded-2xl border text-left transition-all ${statut === key ? "border-primary-400 dark:border-primary-600 bg-primary-50 dark:bg-primary-900/20 ring-1 ring-primary-400 dark:ring-primary-600" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"}`}>
             <div className="mb-1"><Badge variant={cfg.variant} icon={cfg.icon}>{cfg.label}</Badge></div>
-            <p className="text-2xl font-bold text-slate-900 dark:text-slate-50">{stats[key] ?? 0}</p>
+            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-900 dark:text-slate-50">{stats[key] ?? 0}</p>
           </button>
         ))}
       </div>
@@ -253,7 +253,7 @@ function RemboursementsTab() {
             icon={<Search className="w-4 h-4" />} />
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="border border-slate-200 dark:border-slate-700" title="Rafraîchir" />
+          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="border border-slate-200 dark:border-slate-700" icon={<RefreshCw size={16} />} title="Rafraîchir" />
           <Button onClick={() => setShowCreate(true)} icon={<Plus className="w-4 h-4" />}>
             Nouveau remboursement
           </Button>

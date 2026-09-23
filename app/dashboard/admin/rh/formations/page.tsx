@@ -223,15 +223,15 @@ export default function FormationsPage() {
       <div className="p-6 space-y-5 max-w-6xl mx-auto">
 
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
               <ArrowLeft size={15} /> Dashboard RH
             </Link>
             <h1 className="text-2xl font-bold text-slate-900">Formations & Développement</h1>
             <p className="text-sm text-slate-500 mt-0.5">Catalogue · Suivi · KPIs</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button onClick={refetch} className="p-2 text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -276,7 +276,7 @@ export default function FormationsPage() {
                 <button key={key} onClick={() => setStatut(statut === key ? "" : key)}
                   className={`p-4 rounded-xl border text-left transition-all ${statut === key ? "border-emerald-400 bg-emerald-50 ring-1 ring-emerald-400" : "bg-white border-slate-200 hover:border-slate-300"}`}>
                   <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md w-fit mb-2 text-xs font-medium ${cfg.badge}`}>{cfg.icon} {cfg.label}</div>
-                  <p className="text-2xl font-bold text-slate-900">{stats[key] ?? 0}</p>
+                  <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-900">{stats[key] ?? 0}</p>
                 </button>
               ))}
             </div>
@@ -765,8 +765,8 @@ function NewPlanFormationModal({ onClose, onCreated }: { onClose: () => void; on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="font-semibold text-slate-900">Nouveau plan de formation annuel</h2>
           <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
@@ -813,7 +813,7 @@ function KpiCard({ icon, label, value, sub, color, pct }: { icon: React.ReactNod
           <span className={`text-xs font-bold ${pct >= 70 ? "text-emerald-700" : pct >= 50 ? "text-amber-700" : "text-red-600"}`}>{pct}%</span>
         )}
       </div>
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
+      <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-900">{value}</p>
       <p className="text-xs text-slate-500 mt-0.5">{sub}</p>
       {pct !== undefined && (
         <div className="mt-2 h-1.5 bg-white/60 rounded-full overflow-hidden">
@@ -949,7 +949,7 @@ function CreateFormationModal({ onClose, onCreated }: { onClose: () => void; onC
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="font-semibold text-slate-900">Nouvelle formation</h2>
@@ -1098,7 +1098,7 @@ function FormationDetailModal({ formation, onClose, onUpdated }: { formation: Fo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div className="min-w-0">

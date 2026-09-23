@@ -107,16 +107,16 @@ export default function MissionsPage() {
   const handleStatut = useCallback((v: string) => { setStatut(v); setPage(1); }, []);
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto">
+    <div className="md:p-6 space-y-6 max-w-6xl mx-auto">
 
         {/* ── En-tête ── */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Missions & déplacements</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Gestion des missions des collaborateurs</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="border border-slate-200 dark:border-slate-700" title="Rafraîchir" />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="border border-slate-200 dark:border-slate-700" icon={<RefreshCw size={16} />} title="Rafraîchir" />
             <Button onClick={() => setShowCreate(true)} icon={<Plus className="w-4 h-4" />}>
               Nouvelle mission
             </Button>

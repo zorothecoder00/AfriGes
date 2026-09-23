@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import RetourLien from "@/components/RetourLien";
-import { Plus, Printer, X, Loader2, CheckCircle2, Ban, Stamp, Search } from "lucide-react";
+import { Plus, Printer, X, Loader2, CheckCircle2, Ban, Stamp, Search, RefreshCw} from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 import Button from "@/components/ui/Button";
@@ -89,7 +89,7 @@ export default function AdminBonsSortiePage() {
           <Link href="/dashboard/admin/stock/journal-sorties?from=sorties" className="text-xs font-medium text-primary-600 hover:underline whitespace-nowrap">
             Voir toutes les sorties de stock →
           </Link>
-          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" title="Rafraîchir" />
+          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" icon={<RefreshCw size={16} />} title="Rafraîchir" />
           <Button size="sm" icon={<Plus size={15} />} onClick={() => setShowCreate(true)}>Nouveau bon de sortie</Button>
         </div>
       </div>

@@ -111,16 +111,16 @@ function StatCard({
   return (
     <Link
       href={href}
-      className={`group relative overflow-hidden bg-gradient-to-br ${c.wrap} to-white dark:from-slate-800 dark:to-slate-800 dark:border-slate-700 rounded-2xl border shadow-sm p-5 flex items-start gap-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${alert ? "!border-red-200 !from-red-50 dark:!border-red-800 dark:!from-red-900/10" : ""}`}
+      className={`group relative overflow-hidden bg-gradient-to-br ${c.wrap} to-white dark:from-slate-800 dark:to-slate-800 dark:border-slate-700 rounded-2xl border shadow-sm p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${alert ? "!border-red-200 !from-red-50 dark:!border-red-800 dark:!from-red-900/10" : ""}`}
     >
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${alert ? "bg-red-500" : c.bar}`} />
       <div className={`p-2.5 rounded-xl flex-shrink-0 transition-transform duration-300 ease-out group-hover:scale-110 ${ACCENT[accent]}`}>{icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{title}</p>
-        <p className={`text-2xl font-bold mt-0.5 transition-transform duration-300 group-hover:scale-105 origin-left ${alert ? "text-red-600 dark:text-red-400" : c.value}`}>{value}</p>
+        <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold mt-0.5 transition-transform duration-300 group-hover:scale-105 origin-left ${alert ? "text-red-600 dark:text-red-400" : c.value}`}>{value}</p>
         {sub && <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{sub}</p>}
       </div>
-      <ArrowRight size={16} className="text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 flex-shrink-0 mt-1 transition-colors" />
+      <ArrowRight size={16} className="absolute top-4 right-4 sm:static text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 flex-shrink-0 mt-1 transition-colors" />
     </Link>
   );
 }
@@ -198,15 +198,15 @@ export default function RHDashboardPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-2">
+    <div className="md:p-6 max-w-6xl mx-auto space-y-2">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Tableau de bord RH</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Vue consolidée de la gestion des ressources humaines</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/dashboard/admin/rh/notifications"
               title="Déclencheurs de notifications RH"
@@ -231,7 +231,7 @@ export default function RHDashboardPage() {
               onClick={refetch}
               loading={loading}
               className="!p-2.5 border border-slate-200 dark:border-slate-700"
-              title="Rafraîchir"
+              icon={<RefreshCw size={16} />} title="Rafraîchir"
             />
           </div>
         </div>

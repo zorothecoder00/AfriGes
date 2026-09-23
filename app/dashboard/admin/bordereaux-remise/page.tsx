@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import RetourLien from "@/components/RetourLien";
-import { Plus, X, Loader2, Stamp, CheckCircle2, Printer } from "lucide-react";
+import { Plus, X, Loader2, Stamp, CheckCircle2, Printer, RefreshCw} from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 import Button from "@/components/ui/Button";
@@ -63,7 +63,7 @@ export default function AdminBordereauxRemisePage() {
           <p className="text-sm text-slate-500 mt-1">Remise des fonds terrain à la trésorerie</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" title="Rafraîchir" />
+          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" icon={<RefreshCw size={16} />} title="Rafraîchir" />
           <Button size="sm" icon={<Plus size={15} />} onClick={() => setShowCreate(true)}>Nouveau bordereau</Button>
         </div>
       </div>

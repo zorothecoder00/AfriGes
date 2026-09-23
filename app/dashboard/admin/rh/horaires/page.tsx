@@ -52,11 +52,11 @@ export default function HorairesPage() {
   const configs = res?.data ?? [];
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="md:p-6 max-w-4xl mx-auto space-y-6">
 
         {/* En-tête */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <Link href="/dashboard/admin/rh/pointages" className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 mb-2">
               <ArrowLeft size={15} /> Pointages
             </Link>

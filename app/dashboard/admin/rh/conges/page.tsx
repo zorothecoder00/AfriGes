@@ -210,18 +210,18 @@ export default function CongesPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="p-6 max-w-[1400px] mx-auto space-y-6">
+      <div className="md:p-6 max-w-[1400px] mx-auto space-y-6">
 
         {/* En-tête */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
               <ArrowLeft size={15} /> Dashboard RH
             </Link>
             <h1 className="text-2xl font-bold text-slate-900">Congés & Absences</h1>
             <p className="text-sm text-slate-500 mt-0.5">Gestion des demandes, validation et soldes</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button onClick={() => setShowPolitiques(true)}
               className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">
               <Settings className="w-4 h-4" /> Politiques
@@ -371,7 +371,7 @@ export default function CongesPage() {
               <div className="flex justify-center py-16 text-slate-400"><RefreshCw className="w-6 h-6 animate-spin" /></div>
             ) : (
               <div className="p-4">
-                <div className="grid grid-cols-7 gap-1 mb-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-1 mb-2">
                   {JOURS_LABELS.map((j) => (
                     <div key={j} className="text-center text-[10px] font-semibold text-slate-400 py-1">{j}</div>
                   ))}
@@ -933,7 +933,7 @@ function RejetModal({ demandeId, onClose, onRejeted }: { demandeId: number; onCl
 
   return (
     <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-slate-800">Rejeter la demande</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
@@ -981,7 +981,7 @@ function AnnulerModal({ demande, onClose, onDone }: { demande: Demande; onClose:
 
   return (
     <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-slate-100 rounded-xl"><Ban className="w-5 h-5 text-slate-600" /></div>
           <h3 className="font-semibold text-slate-800">Annuler la demande ?</h3>
@@ -1046,7 +1046,7 @@ function AjusterSoldeModal({ profilRHId, type, nom, annee, currentSolde, onClose
 
   return (
     <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-slate-800">Ajuster le solde</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>

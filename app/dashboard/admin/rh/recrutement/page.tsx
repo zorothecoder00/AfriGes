@@ -180,7 +180,7 @@ function TempPasswordModal({
   };
   return (
     <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
         <div className="p-6 text-center space-y-4">
           <div className="w-14 h-14 mx-auto bg-green-50 rounded-2xl flex items-center justify-center">
             <KeyRound size={28} className="text-green-600" />
@@ -295,7 +295,7 @@ function CandidatureModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/40 z-[130] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-4">
           <div>
@@ -500,7 +500,7 @@ function CandidaturePipeline({ candidatures, posteId, onRefresh }: {
 
       {/* Modal ajout */}
       {showAdd && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowAdd(false)}>
+        <div className="fixed inset-0 bg-black/40 z-[130] flex items-center justify-center p-4" onClick={() => setShowAdd(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-slate-800 mb-4">Nouvelle candidature</h3>
             <div className="space-y-3">
@@ -1004,7 +1004,7 @@ function CreatePosteModal({ onClose, onCreated }: { onClose: () => void; onCreat
     setForm((p) => ({ ...p, [k]: e.target.value }));
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/40 z-[130] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-slate-800 mb-5">Nouveau poste <span className="text-xs text-slate-400 font-normal ml-2">(créé en brouillon)</span></h2>
         <div className="space-y-3">
@@ -1082,11 +1082,11 @@ export default function RecrutementPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-6">
+    <div className="min-h-screen bg-slate-50/50 md:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
               <ArrowLeft size={15} /> Dashboard RH
             </Link>
@@ -1269,8 +1269,8 @@ function NewPlanRecrutementModal({ onClose, onCreated }: { onClose: () => void; 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="font-semibold text-slate-900">Nouveau plan de recrutement annuel</h2>
           <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X size={16} /></button>

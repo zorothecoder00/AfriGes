@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, Loader2, Search, Send, Award, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, X, Loader2, Search, Send, Award, ChevronDown, ChevronUp, RefreshCw} from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 import Button from "@/components/ui/Button";
@@ -73,7 +73,7 @@ export default function AdminRfqPage() {
           <p className="text-sm text-slate-500 mt-1">Consultation fournisseurs et tableau comparatif</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" title="Rafraîchir" />
+          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" icon={<RefreshCw size={16} />} title="Rafraîchir" />
           <Button size="sm" icon={<Plus size={15} />} onClick={() => setShowCreate(true)}>Nouvelle RFQ</Button>
         </div>
       </div>

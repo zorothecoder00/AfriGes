@@ -116,7 +116,7 @@ export default function ControleCommercialPage() {
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" icon={<FileSpreadsheet size={15} />} onClick={exporterExcel} disabled={!dataPret} title="Exporter la vue affichée en Excel">Excel</Button>
           <Button variant="secondary" size="sm" icon={<FileText size={15} />} onClick={exporterPdf} disabled={!dataPret} title="Exporter la vue affichée en PDF">PDF</Button>
-          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200 dark:border-slate-700" title="Rafraîchir" />
+          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200 dark:border-slate-700" icon={<RefreshCw size={16} />} title="Rafraîchir" />
         </div>
       </div>
 

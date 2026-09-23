@@ -425,10 +425,10 @@ export default function DisciplinairePage() {
   ];
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="md:p-6 max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Procédures disciplinaires</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Suivi et gestion des procédures disciplinaires</p>
           </div>

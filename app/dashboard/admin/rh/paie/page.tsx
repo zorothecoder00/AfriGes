@@ -163,7 +163,7 @@ export default function PaiePage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="p-6 max-w-7xl mx-auto space-y-5">
+      <div className="md:p-6 max-w-7xl mx-auto space-y-5">
 
         {/* En-tête */}
         <div>
@@ -420,7 +420,7 @@ function CreateFicheModal({ onClose, onCreated }: { onClose: () => void; onCreat
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="font-semibold text-slate-900">Nouvelle fiche de paie</h2>
@@ -481,7 +481,7 @@ function CreateFicheModal({ onClose, onCreated }: { onClose: () => void; onCreat
                       const opt = TYPE_COMPOSANT_OPTS.find((o) => o.value === e.target.value);
                       setNewComp((n) => ({ ...n, type: e.target.value, isRetenue: opt?.isRetenue ?? false, libelle: opt?.label ?? "" }));
                     }}
-                    className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none">
+                    className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none min-w-0">
                     <option value="">Type…</option>
                     {TYPE_COMPOSANT_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -536,7 +536,7 @@ function FicheDetailModal({ fiche, onClose, onUpdated }: { fiche: FichePaie; onC
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div>
@@ -608,7 +608,7 @@ function FicheDetailModal({ fiche, onClose, onUpdated }: { fiche: FichePaie; onC
             <p className="text-xs font-medium text-slate-600 mb-1">Fichier PDF</p>
             <div className="flex gap-2">
               <input value={fichierUrl} onChange={(e) => setFichierUrl(e.target.value)} placeholder="https://…"
-                className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-0" />
               <button onClick={async () => { const r = await mutate({ fichierUrl: fichierUrl || null }); if (r) { toast.success("Fichier lié"); onUpdated(); } }} disabled={loading}
                 className="px-3 py-2 text-sm text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"><Save className="w-4 h-4" /></button>
             </div>
@@ -854,8 +854,8 @@ function AvanceModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="font-semibold text-slate-900">Nouvelle avance sur salaire</h2>
           <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
@@ -1072,8 +1072,8 @@ function PretModal({ onClose, onCreated }: { onClose: () => void; onCreated: () 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="font-semibold text-slate-900">Nouveau prêt employé</h2>
           <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
@@ -1560,7 +1560,7 @@ function RetenuesTab() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white rounded-xl border border-slate-200 p-4">
               <p className="text-xs text-slate-500 mb-1">Total des retenues</p>
-              <p className="text-2xl font-bold text-red-600">{fmt(data?.totalRetenues ?? 0)} FCFA</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-red-600">{fmt(data?.totalRetenues ?? 0)} FCFA</p>
             </div>
             <div className="bg-white rounded-xl border border-slate-200 p-4">
               <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Répartition par type</p>
@@ -1686,19 +1686,19 @@ function CnssFiscalTab() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl border border-slate-200 p-4">
               <p className="text-xs text-slate-500 mb-1">CNSS salariale (4 %)</p>
-              <p className="text-2xl font-bold text-red-600">{fmt(data?.totalSalariale ?? 0)} FCFA</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-red-600">{fmt(data?.totalSalariale ?? 0)} FCFA</p>
             </div>
             <div className="bg-white rounded-xl border border-slate-200 p-4">
               <p className="text-xs text-slate-500 mb-1">CNSS patronale (17,50 %)</p>
-              <p className="text-2xl font-bold text-orange-600">{fmt(data?.totalPatronale ?? 0)} FCFA</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-orange-600">{fmt(data?.totalPatronale ?? 0)} FCFA</p>
             </div>
             <div className="bg-white rounded-xl border border-slate-200 p-4">
               <p className="text-xs text-slate-500 mb-1">Total CNSS à reverser (21,50 %)</p>
-              <p className="text-2xl font-bold text-slate-800">{fmt(data?.totalCnss ?? 0)} FCFA</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{fmt(data?.totalCnss ?? 0)} FCFA</p>
             </div>
             <div className="bg-white rounded-xl border border-slate-200 p-4">
               <p className="text-xs text-slate-500 mb-1">IRPP à reverser (OTR)</p>
-              <p className="text-2xl font-bold text-purple-600">{fmt(data?.totalIrpp ?? 0)} FCFA</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-purple-600">{fmt(data?.totalIrpp ?? 0)} FCFA</p>
             </div>
           </div>
 
@@ -1837,7 +1837,7 @@ function ArchiveRow({ fiche, onRefetch }: { fiche: ArchiveItem; onRefetch: () =>
                 ) : (
                   <div className="flex gap-2">
                     <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… URL du bulletin signé (scan)"
-                      className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                      className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-0" />
                     <button onClick={attacher} disabled={saving}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50">
                       {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Paperclip className="w-3.5 h-3.5" />} Archiver
@@ -2227,15 +2227,15 @@ function DashboardTab() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
               <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
                 <p className="text-xs text-emerald-700 font-medium">Commissions versées</p>
-                <p className="text-2xl font-bold text-emerald-800 mt-1">{fmt(d.variables.commissions)} FCFA</p>
+                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-800 mt-1">{fmt(d.variables.commissions)} FCFA</p>
               </div>
               <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
                 <p className="text-xs text-amber-700 font-medium">Bonus versés</p>
-                <p className="text-2xl font-bold text-amber-800 mt-1">{fmt(d.variables.bonus)} FCFA</p>
+                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-amber-800 mt-1">{fmt(d.variables.bonus)} FCFA</p>
               </div>
               <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
                 <p className="text-xs text-indigo-700 font-medium">Primes versées</p>
-                <p className="text-2xl font-bold text-indigo-800 mt-1">{fmt(d.variables.primes)} FCFA</p>
+                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-indigo-800 mt-1">{fmt(d.variables.primes)} FCFA</p>
               </div>
             </div>
             <VariablesChart data={d.variablesMensuelles} moisCourant={d.moisCourant} />

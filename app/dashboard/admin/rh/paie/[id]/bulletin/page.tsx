@@ -82,14 +82,14 @@ export default function BulletinPage() {
     <div className="min-h-screen bg-slate-100 print:bg-white">
 
       {/* Barre d'actions (masquée à l'impression) */}
-      <div className="print:hidden sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
+      <div className="print:hidden sticky top-0 z-10 bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2">
         <Link
           href="/dashboard/admin/rh/paie"
           className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700"
         >
           <ArrowLeft className="w-4 h-4" /> Retour à la liste
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canExportPaie && (
             <a
               href={`/api/admin/rh/paie/${params.id}/pdf`}

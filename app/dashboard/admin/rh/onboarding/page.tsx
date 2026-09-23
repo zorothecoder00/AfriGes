@@ -140,7 +140,7 @@ export default function OnboardingPage() {
               ))}
             </select>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => refetch()} loading={loading} className="border border-slate-200 dark:border-slate-700" title="Rafraîchir" />
+          <Button variant="ghost" size="sm" onClick={() => refetch()} loading={loading} className="border border-slate-200 dark:border-slate-700" icon={<RefreshCw size={16} />} title="Rafraîchir" />
         </div>
         </Card>
 

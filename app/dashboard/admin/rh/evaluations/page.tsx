@@ -257,15 +257,15 @@ export default function EvaluationsPage() {
       <div className="p-6 space-y-5 max-w-6xl mx-auto">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <Link href="/dashboard/admin/rh" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2">
               <ArrowLeft size={15} /> Dashboard RH
             </Link>
             <h1 className="text-2xl font-bold text-slate-900">Évaluations de performance</h1>
             <p className="text-sm text-slate-500 mt-0.5">Cycle KPI · Hiérarchique · Auto-évaluation · 360°</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button onClick={refetch} className="p-2 text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -661,7 +661,7 @@ function CreateEvalModal({ onClose, onCreated }: { onClose: () => void; onCreate
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="font-semibold text-slate-900">Nouvelle évaluation</h2>
@@ -728,7 +728,7 @@ function CreateEvalModal({ onClose, onCreated }: { onClose: () => void; onCreate
                       <input value={c.libelle}
                         onChange={(e) => setCriteres((prev) => prev.map((x, j) => j === i ? { ...x, libelle: e.target.value } : x))}
                         placeholder="Libellé du critère…"
-                        className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary-500" />
+                        className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 min-w-0" />
                     )}
                     <StarRating value={c.note} onChange={(v) => setCriteres((prev) => prev.map((x, j) => j === i ? { ...x, note: v } : x))} />
                     <button onClick={() => setCriteres((prev) => prev.filter((_, j) => j !== i))} className="text-slate-300 hover:text-red-400">
@@ -983,7 +983,7 @@ function EvalDetailModal({ eval_: e, onClose, onUpdated }: { eval_: Evaluation; 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] flex flex-col">
 
         {/* Header */}
@@ -1071,7 +1071,7 @@ function EvalDetailModal({ eval_: e, onClose, onUpdated }: { eval_: Evaluation; 
                       {editMode && !c.id ? (
                         <input value={c.libelle}
                           onChange={(e) => setCriteres((p) => p.map((x, j) => j === i ? { ...x, libelle: e.target.value } : x))}
-                          className="flex-1 px-2 py-1 border border-slate-200 rounded text-sm"
+                          className="flex-1 px-2 py-1 border border-slate-200 rounded text-sm min-w-0"
                           placeholder="Libellé" />
                       ) : (
                         <span className="flex-1 text-sm text-slate-600">{c.libelle}</span>

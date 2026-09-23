@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import RetourLien from "@/components/RetourLien";
-import { X, Stamp, XCircle, CheckCircle2 } from "lucide-react";
+import { X, Stamp, XCircle, CheckCircle2, RefreshCw} from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 import { useFocusDetail } from "@/hooks/useFocusDetail";
@@ -76,7 +76,7 @@ function Contenu() {
           <h1 className="text-2xl font-bold text-slate-900">Bons de commande internes</h1>
           <p className="text-sm text-slate-500 mt-1">Demandes de réapprovisionnement du magasinier, du RPV et du chef d&apos;agence</p>
         </div>
-        <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" title="Rafraîchir" />
+        <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" icon={<RefreshCw size={16} />} title="Rafraîchir" />
       </div>
 
       <Card>

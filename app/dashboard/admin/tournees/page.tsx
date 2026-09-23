@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import RetourLien from "@/components/RetourLien";
-import { Plus, Printer, X, Loader2, PlayCircle, CheckCircle2, Ban, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Printer, X, Loader2, PlayCircle, CheckCircle2, Ban, ChevronDown, ChevronUp, RefreshCw} from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 import Button from "@/components/ui/Button";
@@ -69,7 +69,7 @@ export default function AdminTourneesPage() {
           <p className="text-sm text-slate-500 mt-1">Planification et suivi des tournées</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" title="Rafraîchir" />
+          <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" icon={<RefreshCw size={16} />} title="Rafraîchir" />
           <Button size="sm" icon={<Plus size={15} />} onClick={() => setShowCreate(true)}>Nouvelle tournée</Button>
         </div>
       </div>

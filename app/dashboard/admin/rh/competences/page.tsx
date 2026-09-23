@@ -728,7 +728,7 @@ function AddCompetenceModal({ profilRHId, referentiel, onClose, onAdded }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-3 sm:p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200 flex-shrink-0">
@@ -880,7 +880,7 @@ function CompetenceModal({ initial, onClose, onSaved }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-3 sm:p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200 flex-shrink-0">

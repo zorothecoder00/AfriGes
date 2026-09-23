@@ -426,7 +426,7 @@ function PreviewModal({ doc, onClose }: { doc: DocRH; onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -703,7 +703,7 @@ function HistoriqueTab() {
           <select
             value={profilRHId}
             onChange={(e) => { setProfilRHId(e.target.value); setExpanded({}); }}
-            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-0"
           >
             <option value="">— Sélectionner un collaborateur —</option>
             {collabs.map((c) => (
@@ -877,8 +877,8 @@ function CreateDocModal({ onClose, onCreated }: { onClose: () => void; onCreated
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="font-semibold text-slate-900">Nouveau document (manuel)</h2>
           <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
@@ -946,10 +946,10 @@ function EditDocModal({ doc, onClose, onUpdated }: { doc: DocRH; onClose: () => 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <div>
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-200">
+          <div className="min-w-0">
             <h2 className="font-semibold text-slate-900 truncate">{doc.titre}</h2>
             <div className="flex items-center gap-2 mt-0.5">
               <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>

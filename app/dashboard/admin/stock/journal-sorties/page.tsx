@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, FileText, Printer } from "lucide-react";import { useApi } from "@/hooks/useApi";
+import { ArrowLeft, FileText, Printer, RefreshCw} from "lucide-react";import { useApi } from "@/hooks/useApi";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Pagination from "@/components/ui/Pagination";
@@ -98,7 +98,7 @@ function JournalSorties() {
             Toutes les sorties : ventes directes, livraisons packs et crédit, pertes, casses, dons, transferts…
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200 dark:border-slate-700" title="Rafraîchir" />
+        <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200 dark:border-slate-700" icon={<RefreshCw size={16} />} title="Rafraîchir" />
       </div>
 
       {recap.length > 0 && (
