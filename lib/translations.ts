@@ -1056,6 +1056,7 @@ export const translations = {
   nav_catalogue_produits:  { fr: "Catalogue produits",           en: "Product catalog",        ar: "كتالوج المنتجات",            es: "Catálogo de productos",           pt: "Catálogo de produtos" },
   nav_approvisionnements:  { fr: "Approvisionnements",           en: "Procurement",             ar: "التوريد",                    es: "Aprovisionamiento",               pt: "Abastecimento" },
   nav_ajustements_stock:   { fr: "Ajustements stock",            en: "Stock adjustments",       ar: "تسويات المخزون",             es: "Ajustes de stock",                pt: "Ajustes de estoque" },
+  nav_inventaires_stock:   { fr: "Inventaires physiques",        en: "Stock counts",            ar: "الجرد الفعلي",               es: "Inventarios físicos",             pt: "Inventários físicos" },
   nav_dashboard_logistique:{ fr: "Dashboard logistique",         en: "Logistics dashboard",     ar: "لوحة اللوجستيات",            es: "Panel de logística",              pt: "Painel de logística" },
   nav_section_rh:          { fr: "Ressources humaines",          en: "Human resources",         ar: "الموارد البشرية",            es: "Recursos humanos",                pt: "Recursos humanos" },
   nav_dashboard_rh:        { fr: "Dashboard RH",                 en: "HR dashboard",            ar: "لوحة الموارد البشرية",       es: "Panel de RRHH",                   pt: "Painel de RH" },

@@ -8,6 +8,7 @@ import {
   ChevronDown, ChevronUp, Truck, Printer, ShieldAlert,
   Trash2, Gift, MinusCircle, Send, Clock, CheckSquare, XCircle, PackageCheck, ShoppingBag,
   AlertCircle, FileCheck, History, Inbox, AlertOctagon, Menu,
+  ClipboardCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import HistoriquePrixProduit from '@/components/HistoriquePrixProduit';
@@ -960,6 +961,13 @@ export default function MagasinierPage() {
             >
               <Truck size={16} />
               Livraisons Crédit
+            </Link>
+            <Link
+              href="/dashboard/user/magasiniers/inventaires"
+              className="px-4 py-2.5 bg-white border border-orange-200 text-orange-700 rounded-xl text-sm font-semibold hover:bg-orange-50 transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <ClipboardCheck size={16} />
+              Inventaires physiques
             </Link>
             <Link
               href="/dashboard/user/agentsTerrain/commandes-client"

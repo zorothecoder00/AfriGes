@@ -5,26 +5,10 @@ import { getRPVSession } from "@/lib/authRPV";
 import { resolveViewAs } from "@/lib/viewAs";
 import { randomUUID } from "crypto";
 import { auditLog } from "@/lib/notifications";
+import { getOwnPDV } from "@/lib/inventaireServer";
 
 async function getSession() {
   return (await getMagasinierSession()) ?? (await getRPVSession());
-}
-
-/**
- * Résout le PDV de l'utilisateur connecté (magasinier via affectation, RPV via rpvId).
- */
-async function getOwnPDV(userId: number): Promise<number | null> {
-  const aff = await prisma.gestionnaireAffectation.findFirst({
-    where: { userId, actif: true },
-    select: { pointDeVenteId: true },
-  });
-  if (aff?.pointDeVenteId) return aff.pointDeVenteId;
-
-  const pdv = await prisma.pointDeVente.findUnique({
-    where: { rpvId: userId },
-    select: { id: true },
-  });
-  return pdv?.id ?? null;
 }
 
 /**
@@ -65,6 +49,7 @@ export async function GET(req: NextRequest) {
           realisePar:   { select: { id: true, nom: true, prenom: true } },
           validePar:    { select: { id: true, nom: true, prenom: true } },
           _count: { select: { lignes: true } },
+          lignes: { where: { ecart: { not: 0 } }, select: { id: true } },
         },
       }),
       prisma.inventaireSite.count({ where }),
@@ -97,6 +82,17 @@ export async function POST(req: Request) {
     }
 
     const { notes } = await req.json();
+
+    // Un seul inventaire ouvert (en cours ou en attente de validation) par PDV
+    const ouvert = await prisma.inventaireSite.findFirst({
+      where: { pointDeVenteId, statut: { in: ["EN_COURS", "SOUMIS"] } },
+      select: { reference: true, statut: true },
+    });
+    if (ouvert) {
+      return NextResponse.json({
+        error: `L'inventaire ${ouvert.reference} est déjà ${ouvert.statut === "SOUMIS" ? "en attente de validation" : "en cours"} sur ce point de vente`,
+      }, { status: 400 });
+    }
 
     // Charger tous les stocks actuels du PDV
     const stocksActuels = await prisma.stockSite.findMany({

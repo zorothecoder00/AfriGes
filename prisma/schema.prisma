@@ -194,8 +194,9 @@ enum ModeReglementAchat {
 }
 
 enum StatutInventaire {
-  EN_COURS
-  VALIDE
+  EN_COURS // comptage en cours par le magasinier/RPV (aussi : renvoyé après rejet admin)
+  SOUMIS // comptage terminé, en attente de validation par l'admin — aucun impact stock
+  VALIDE // validé par l'admin, écarts appliqués au StockSite
   ANNULE
 }
 
@@ -3446,6 +3447,11 @@ model InventaireSite {
   realisePar   User  @relation("RealisateurInventaire", fields: [realiseParId], references: [id])
   valideParId  Int?
   validePar    User? @relation("ValidateurInventaire", fields: [valideParId], references: [id])
+
+  // Workflow de validation admin : EN_COURS → SOUMIS (magasinier) → VALIDE | EN_COURS (rejet admin)
+  dateSoumission        DateTime?
+  dateValidation        DateTime?
+  commentaireValidation String? // motif du rejet ou remarque de l'admin à la validation
 
   pointDeVente PointDeVente          @relation(fields: [pointDeVenteId], references: [id])
   lignes       LigneInventaireSite[]
