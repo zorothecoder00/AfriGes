@@ -7,6 +7,7 @@ import { useApi } from '@/hooks/useApi';
 import { useMutation } from '@/hooks/useApi';
 import { useT } from '@/contexts/AppSettingsContext';
 
+import AppLoader from "@/components/AppLoader";
 interface MemberFormData {
   nom: string;
   prenom: string;
@@ -105,9 +106,7 @@ export default function EditMember({ memberId }: { memberId: string }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
-      </div>
+      <AppLoader />
     );
   }
 

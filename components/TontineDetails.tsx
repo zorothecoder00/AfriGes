@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
+import AppLoader from "@/components/AppLoader";
 
 interface ClientInfo {
   id: number;
@@ -163,12 +164,7 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
 
   if (loading && !tontine) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium">Chargement de la tontine...</p>
-        </div>
-      </div>
+      <AppLoader message="Chargement de la tontine…" />
     );
   }
 

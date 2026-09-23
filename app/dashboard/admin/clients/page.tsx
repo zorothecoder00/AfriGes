@@ -14,6 +14,7 @@ import { useT } from '@/contexts/AppSettingsContext';
 import ClienteleTabBar from '@/components/ClienteleTabBar';
 import { useTagModal } from '@/contexts/TagModalContext';
 
+import AppLoader from "@/components/AppLoader";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PDVOption { id: number; nom: string; code: string; type: string; }
@@ -671,12 +672,7 @@ export default function ClientsPage() {
 
   if (loading && !response) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
-          <p className="text-slate-500 font-medium">{t('clients_loading')}</p>
-        </div>
-      </div>
+      <AppLoader message={t('clients_loading')} />
     );
   }
 

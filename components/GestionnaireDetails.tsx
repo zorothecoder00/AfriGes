@@ -10,6 +10,7 @@ import {
   Users, TrendingUp, ShoppingBag, Layers, Search, Store, ExternalLink, AlertTriangle,
   UserPlus, UserMinus, X,
 } from 'lucide-react';
+import AppLoader from "@/components/AppLoader";
 
 interface GestionnaireDetailsProps {
   gestionnaireId: string;
@@ -216,12 +217,7 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
 
   if (loading && !gestionnaire) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600" />
-          <p className="text-slate-500 font-medium">Chargement du gestionnaire...</p>
-        </div>
-      </div>
+      <AppLoader message="Chargement du gestionnaire…" />
     );
   }
 

@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Loader2, Boxes, Pencil, Info, Tag, MapPin, DollarSign, History as HistoryIcon,
+  ArrowLeft, Boxes, Pencil, Info, Tag, MapPin, DollarSign, History as HistoryIcon,
   Package, Barcode, QrCode, Truck, PackageCheck, Repeat,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -19,6 +19,7 @@ import AnomaliesProduit from "@/components/catalogue/AnomaliesProduit";
 import HistoriqueMouvementsProduit from "@/components/catalogue/HistoriqueMouvementsProduit";
 import SideTabs from "@/components/ui/SideTabs";
 
+import AppLoader from "@/components/AppLoader";
 interface Ref { id: number; nom: string; symbole?: string }
 interface Fiche {
   id: number; codeProduit: string | null; reference: string | null; nom: string; nomCommercial: string | null;
@@ -126,7 +127,7 @@ function FicheProduitInner() {
   }, []);
 
   if (loading) {
-    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>;
+    return <AppLoader message="Chargement…" />;
   }
   if (!fiche) {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400">Produit introuvable.</div>;
@@ -417,7 +418,7 @@ function FicheProduitInner() {
 
 export default function FicheProduitPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>}>
+    <Suspense fallback={<AppLoader message="Chargement…" />}>
       <FicheProduitInner />
     </Suspense>
   );

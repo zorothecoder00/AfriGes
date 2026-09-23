@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Loader2, CheckCircle2, Send } from "lucide-react";
 import AfriSimeLogo from "@/components/AfriSimeLogo";
 
+import AppLoader from "@/components/AppLoader";
 interface ChampFormulaire {
   cle: string;
   label: string;
@@ -65,7 +66,7 @@ export default function LandingPagePublique() {
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
+  if (loading) return <AppLoader />;
   if (notFound || !data) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
       <p className="text-slate-400 text-center">Cette page n&apos;est plus disponible.</p>

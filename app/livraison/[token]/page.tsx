@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { PackageCheck, Loader2, CheckCircle2, AlertTriangle, MapPin } from "lucide-react";
 
+import AppLoader from "@/components/AppLoader";
 interface Ligne { produitId: number; produitNom: string; quantiteCommandee: number; quantiteLivree: number }
 interface LivraisonData {
   reference: string; statut: string;
@@ -76,7 +77,7 @@ export default function LivraisonConfirmationPage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
+    return <AppLoader />;
   }
   if (error || !data) {
     return (

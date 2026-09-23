@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2, Printer, Boxes } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { SOCIETE, SOCIETE_PIED } from "@/lib/societe";
 
+import AppLoader from "@/components/AppLoader";
 interface ProduitRow {
   id: number; codeProduit: string | null; reference: string | null; nom: string; nomCommercial: string | null;
   prixUnitaire: number; prixAchat: number | null; imagePrincipaleUrl: string | null;
@@ -117,7 +118,7 @@ function ImpressionInner() {
 
 export default function CatalogueImpressionPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin mr-2" /> Chargement…</div>}>
+    <Suspense fallback={<AppLoader message="Chargement…" />}>
       <ImpressionInner />
     </Suspense>
   );

@@ -9,6 +9,7 @@ import {
   AlertCircle, Loader2, Briefcase, Navigation,
   FileText, CreditCard, UserCheck, MessageCircle,
 } from 'lucide-react';
+import AppLoader from "@/components/AppLoader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -193,9 +194,7 @@ export default function ClientEdit({ clientId }: { clientId: string }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600" />
-      </div>
+      <AppLoader />
     );
   }
 

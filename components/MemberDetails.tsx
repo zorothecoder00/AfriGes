@@ -7,6 +7,7 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { getStatusLabel, getStatusStyle } from '@/lib/status';
 import { useT } from '@/contexts/AppSettingsContext';
 
+import AppLoader from "@/components/AppLoader";
 interface Member {
   id: number;
   uuid: string;
@@ -40,12 +41,7 @@ export default function MemberDetails({ memberId }: { memberId: string }) {
 
   if (loading && !member) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium">{t('md_chargement_membre')}</p>
-        </div>
-      </div>
+      <AppLoader message={t('md_chargement_membre')} />
     );
   }
 

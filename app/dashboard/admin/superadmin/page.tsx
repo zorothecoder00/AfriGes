@@ -22,6 +22,7 @@ import { PAGES_REGISTRY } from "@/lib/pagesRegistry";
 import { exportRowsToXlsx } from "@/lib/exportXlsx";
 import SideTabs from "@/components/ui/SideTabs";
 
+import AppLoader from "@/components/AppLoader";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type TabKey = "systeme" | "utilisateurs" | "parametres" | "modules" | "logs" | "acces";
@@ -324,12 +325,7 @@ export default function SuperAdminPage() {
   // ── Évite le "flash" d'erreur pendant l'hydratation de la session
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200/70 text-center">
-          <RefreshCw size={22} className="text-slate-400 mx-auto mb-3 animate-spin" />
-          <p className="text-sm text-slate-500">Vérification des autorisations…</p>
-        </div>
-      </div>
+      <AppLoader message="Vérification des autorisations…" />
     );
   }
 

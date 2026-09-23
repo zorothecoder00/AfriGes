@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { FileText, Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
 
+import AppLoader from "@/components/AppLoader";
 interface Ligne { produitNom: string; quantite: number; prixUnitaire: number; totalLigne: number }
 interface OffreData {
   reference: string; type: string; statut: string;
@@ -54,7 +55,7 @@ export default function OffreCommercialePage() {
     } finally { setSaving(false); }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
+  if (loading) return <AppLoader />;
   if (error || !data) return <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6"><p className="text-slate-500 text-sm text-center">{error ?? "Lien invalide"}</p></div>;
 
   const label = data.type === "PROFORMA" ? "Facture proforma" : "Devis";

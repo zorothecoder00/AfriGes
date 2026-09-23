@@ -10,6 +10,7 @@ import { getStatusStyle, getStatusLabel } from '@/lib/status';
 import { exportToXlsx } from '@/lib/exportXlsx';
 import { useT } from '@/contexts/AppSettingsContext';
 
+import AppLoader from "@/components/AppLoader";
 interface Member {
   id: number;
   nom: string;
@@ -100,12 +101,7 @@ export default function MembresPage() {
 
   if (loading && !response) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium">{t('membres_loading')}</p>
-        </div>
-      </div>
+      <AppLoader message={t('membres_loading')} />
     );
   }
 

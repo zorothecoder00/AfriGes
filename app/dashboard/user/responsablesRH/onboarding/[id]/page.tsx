@@ -12,6 +12,7 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 
+import AppLoader from "@/components/AppLoader";
 /* ─── Types ─────────────────────────────────────────────────── */
 type StatutOnboarding = "EN_COURS" | "TERMINE" | "SUSPENDU" | "ANNULE";
 type StatutEtape      = "EN_ATTENTE" | "FAIT" | "IGNORE";
@@ -280,9 +281,7 @@ export default function RHOnboardingDetailPage({ params }: { params: Promise<{ i
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
-      </div>
+      <AppLoader />
     );
   }
 

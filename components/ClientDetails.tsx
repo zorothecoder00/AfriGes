@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
+import AppLoader from "@/components/AppLoader";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SouscriptionPack {
@@ -314,12 +315,7 @@ export default function ClientDetails({
 
   if (loading && !client) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
-          <p className="text-slate-500 font-medium">Chargement du client…</p>
-        </div>
-      </div>
+      <AppLoader message="Chargement du client…" />
     );
   }
 

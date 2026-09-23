@@ -12,6 +12,7 @@ import { useApi } from '@/hooks/useApi';
 import { formatCurrency } from '@/lib/format';
 import type { MapClient, MapVisite } from '@/components/AgentMap';
 
+import AppLoader from "@/components/AppLoader";
 // Chargement dynamique (Leaflet incompatible avec SSR)
 const AgentMap = dynamic(() => import('@/components/AgentMap'), {
   ssr: false,
@@ -116,9 +117,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
   if (agentLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-      </div>
+      <AppLoader />
     );
   }
 
