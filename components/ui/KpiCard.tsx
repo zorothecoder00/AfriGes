@@ -51,17 +51,17 @@ export default function KpiCard({
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${c.gradient} to-white dark:to-slate-900 border ${c.border} shadow-sm p-5
+      className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${c.gradient} to-white dark:to-slate-900 border ${c.border} shadow-sm p-4 sm:p-5 min-w-0
         transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${c.hoverShadow} ${c.hoverBorder} ${className}`}
     >
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${c.accentBar}`} />
-      <div className="flex items-start justify-between">
-        <div className={`p-2.5 rounded-xl ${c.bg} transition-transform duration-300 ease-out group-hover:scale-110`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className={`shrink-0 p-2.5 rounded-xl ${c.bg} transition-transform duration-300 ease-out group-hover:scale-110`}>
           <span className={c.text}>{icon}</span>
         </div>
         {hasEvolution && (
           <span
-            className={`inline-flex items-center gap-1 text-xs font-medium rounded-lg px-2 py-0.5
+            className={`shrink-0 inline-flex items-center gap-1 text-xs font-medium rounded-lg px-2 py-0.5
               ${positif ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
                         : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"}`}
           >
@@ -70,7 +70,7 @@ export default function KpiCard({
           </span>
         )}
       </div>
-      <p className={`text-2xl font-bold mt-3 transition-transform duration-300 group-hover:scale-105 origin-left ${c.valueText}`}>
+      <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold mt-3 transition-transform duration-300 group-hover:scale-105 origin-left ${c.valueText}`}>
         <AnimatedNumber value={value} format={format} />
       </p>
       <p className={`text-xs font-medium mt-1 ${c.labelText}`}>

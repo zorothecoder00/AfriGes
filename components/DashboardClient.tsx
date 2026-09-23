@@ -426,7 +426,7 @@ export default function AfriGesDashboard() {
   // (AdminSidebar/AdminTopbar) — ce composant ne rend plus que le contenu du
   // tableau de bord lui-même.
   return (
-    <div className="relative isolate space-y-6">
+    <div className="@container relative isolate space-y-6">
 
       {/* Aurora décorative — halos flous animés, discrets, aux couleurs du logo */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
@@ -436,25 +436,26 @@ export default function AfriGesDashboard() {
       </div>
 
       {/* Titre */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-4xl font-bold text-slate-800 mb-2">{t('dash_title')}</h2>
-              <p className="text-slate-500">{t('dash_subtitle')}</p>
+          <div className="flex flex-col @2xl:flex-row @2xl:items-center @2xl:justify-between gap-4">
+            <div className="min-w-0">
+              <h2 className="text-2xl @xl:text-3xl @4xl:text-4xl font-bold text-slate-800 mb-1 sm:mb-2">{t('dash_title')}</h2>
+              <p className="text-sm sm:text-base text-slate-500">{t('dash_subtitle')}</p>
             </div>
-            <div className="flex gap-3">
-              <Button variant="secondary" icon={<Download size={18} />} onClick={handleExport}>
-                {t('action_export')}
+            <div className="flex gap-2 sm:gap-3 shrink-0">
+              <Button variant="secondary" icon={<Download size={18} />} onClick={handleExport} aria-label={t('action_export')} title={t('action_export')}>
+                <span className="hidden @2xl:inline">{t('action_export')}</span>
               </Button>
-              <div className="relative" ref={menuRef}>
+              <div className="relative flex-1 @2xl:flex-none" ref={menuRef}>
                 <Button
                   icon={<Plus size={18} />}
                   onClick={() => setShowMenu(!showMenu)}
+                  className="w-full whitespace-nowrap"
                 >
                   {t('action_new_op')}
-                  <ChevronDown size={16} className={`transition-transform ${showMenu ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={16} className={`shrink-0 transition-transform ${showMenu ? 'rotate-180' : ''}`} />
                 </Button>
                 {showMenu && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50">
+                  <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50">
                     <Link href="/dashboard/admin/packs"   onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Layers size={18} className="text-blue-500" /><span className="text-sm font-medium text-slate-700">{t('new_pack_subscription')}</span></Link>
                     <Link href="/dashboard/admin/ventes"  onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Package size={18} className="text-emerald-500" /><span className="text-sm font-medium text-slate-700">{t('new_sale_delivery')}</span></Link>
                     <Link href="/dashboard/admin/membres" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"><Users size={18} className="text-amber-500" /><span className="text-sm font-medium text-slate-700">{t('add_member')}</span></Link>
@@ -469,12 +470,12 @@ export default function AfriGesDashboard() {
             </div>
           </div>
 
-          <div className="overflow-y-auto max-h-[calc(100vh-14rem)] space-y-6 pr-2">
+          <div className="space-y-6 lg:overflow-y-auto lg:max-h-[calc(100vh-14rem)] lg:pr-2">
 
           {/* ── Vue d'ensemble : chiffres clés + tendance vs période précédente ── */}
           <div>
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('dash_overview')}</h3>
-            <div className="grid grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 @4xl:grid-cols-4 gap-3 sm:gap-5">
               {[
                 { label: t('dash_clients_actifs'), help: t('dash_help_clients_actifs'), raw: d?.clientsActifs, icon: Users, comp: d?.comparaisons?.clients, accent: 'primary' as const },
                 { label: t('dash_souscriptions_actives'), help: t('dash_help_souscriptions_actives'), raw: d?.souscriptionsActives, icon: Layers, comp: d?.comparaisons?.packs, accent: 'brand' as const },
@@ -499,10 +500,10 @@ export default function AfriGesDashboard() {
           <div className="space-y-4">
 
             {/* Ligne 1 : opérations du jour + modules + alertes */}
-            <div className="grid grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 @4xl:grid-cols-3 gap-4 sm:gap-5">
 
               {/* Activité du jour */}
-              <div className="col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+              <div className="@container @4xl:col-span-2 min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="bg-emerald-50 p-2 rounded-lg">
@@ -521,7 +522,7 @@ export default function AfriGesDashboard() {
                     <RefreshCw size={14} />
                   </button>
                 </div>
-                <div className="grid grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 @xs:grid-cols-3 @lg:grid-cols-5 gap-2 sm:gap-3">
                   {[
                     { label: t('dash_versements'), help: t('dash_help_act_versements'), value: act?.activiteJour.versements ?? '—', icon: Wallet,      color: 'text-purple-600', bg: 'bg-purple-50' },
                     { label: t('dash_souscription'), help: t('dash_help_act_souscription'), value: act?.activiteJour.souscriptions ?? '—', icon: Layers, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -533,14 +534,14 @@ export default function AfriGesDashboard() {
                     return (
                       <div key={item.label}
                         style={{ animationDelay: `${idx * 60}ms` }}
-                        className="group flex flex-col items-center gap-1.5 p-3 bg-slate-50 rounded-xl transition-all duration-300 hover:bg-white hover:shadow-md hover:-translate-y-0.5 animate-[fadeInUp_0.5s_ease-out_both]">
+                        className="group min-w-0 flex flex-col items-center gap-1.5 p-2 sm:p-3 bg-slate-50 rounded-xl transition-all duration-300 hover:bg-white hover:shadow-md hover:-translate-y-0.5 animate-[fadeInUp_0.5s_ease-out_both]">
                         <div className={`${item.bg} p-2 rounded-lg transition-transform duration-300 group-hover:scale-110`}>
                           <Icon size={16} className={item.color} />
                         </div>
-                        <span className="text-2xl font-bold text-slate-800 tabular-nums">
+                        <span className="text-xl sm:text-2xl font-bold text-slate-800 tabular-nums">
                           {typeof item.value === 'number' ? <AnimatedNumber value={item.value} /> : item.value}
                         </span>
-                        <span className="text-[10px] text-slate-500 text-center leading-tight">{item.label}<InfoTooltip text={item.help} /></span>
+                        <span className="w-full text-[10px] text-slate-500 text-center leading-tight [overflow-wrap:anywhere]">{item.label}<InfoTooltip text={item.help} /></span>
                       </div>
                     );
                   })}
@@ -548,7 +549,7 @@ export default function AfriGesDashboard() {
               </div>
 
               {/* Modules actifs / inactifs */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+              <div className="min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="bg-violet-50 p-2 rounded-lg">
                     <BarChart2 size={18} className="text-violet-600" />
@@ -590,10 +591,10 @@ export default function AfriGesDashboard() {
             </div>
 
             {/* Ligne 2 : alertes opérationnelles + rapports rapides */}
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-4 sm:gap-5">
 
               {/* Alertes opérationnelles */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+              <div className="min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="bg-amber-50 p-2 rounded-lg">
                     <AlertTriangle size={18} className="text-amber-600" />
@@ -624,7 +625,7 @@ export default function AfriGesDashboard() {
                           a.niveau === 'critique' ? 'text-red-500' :
                           a.niveau === 'warning'  ? 'text-amber-500' : 'text-blue-500'
                         }`} />
-                        <div>
+                        <div className="min-w-0 [overflow-wrap:anywhere]">
                           <p className={`font-medium text-xs ${
                             a.niveau === 'critique' ? 'text-red-700' :
                             a.niveau === 'warning'  ? 'text-amber-700' : 'text-blue-700'
@@ -638,7 +639,7 @@ export default function AfriGesDashboard() {
               </div>
 
               {/* Rapports rapides */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+              <div className="min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="bg-blue-50 p-2 rounded-lg">
                     <TrendingUp size={18} className="text-blue-600" />
@@ -648,7 +649,7 @@ export default function AfriGesDashboard() {
                     <p className="text-xs text-slate-400">{t('dash_indicateurs_jour')}</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 [&>div]:min-w-0 [&_p]:[overflow-wrap:anywhere] [&_span]:leading-tight">
                   {/* Caisse */}
                   <div className="p-3 bg-slate-50 rounded-xl">
                     <div className="flex items-center gap-1.5 mb-1.5">
@@ -692,13 +693,13 @@ export default function AfriGesDashboard() {
           </div>
 
           {/* Charts Section */}
-          <div className="grid grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 @4xl:grid-cols-3 gap-4 sm:gap-5">
 
             {/* ── Line chart : évolution des versements ─────────────────────── */}
-            <div className="col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-800">{t('dash_evolution_credits_ventes')}</h3>
+            <div className="@4xl:col-span-2 min-w-0 bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+              <div className="flex flex-wrap items-start sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+                <div className="min-w-0">
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-800">{t('dash_evolution_credits_ventes')}</h3>
                   <p className="text-xs text-slate-400 mt-0.5">{t('dash_montants_journaliers')}</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -706,7 +707,7 @@ export default function AfriGesDashboard() {
                   <select
                     value={selectedPeriod}
                     onChange={(e) => setSelectedPeriod(e.target.value as '7' | '30' | '90')}
-                    className="px-4 py-2 border border-slate-200 rounded-lg text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                    className="px-3 sm:px-4 py-2 border border-slate-200 rounded-lg text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
                   >
                     <option value="7">{t('dash_period_7')}</option>
                     <option value="30">{t('dash_period_30')}</option>
@@ -716,13 +717,13 @@ export default function AfriGesDashboard() {
               </div>
 
               {/* Légende */}
-              <div className="flex items-center gap-5 mb-4">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mb-4">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                  <div className="w-3 h-3 rounded-full bg-emerald-500 shrink-0" />
                   <span className="text-xs text-slate-500">{t('dash_credits_rembourses')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-blue-400" />
+                  <div className="w-3 h-3 rounded-full bg-blue-400 shrink-0" />
                   <span className="text-xs text-slate-500">{t('dash_legende_ventes_directes')}</span>
                 </div>
               </div>
@@ -804,7 +805,7 @@ export default function AfriGesDashboard() {
                         <span
                           key={xPct}
                           className="absolute text-[10px] text-slate-400 whitespace-nowrap select-none"
-                          style={{ left: `${xPct}%`, transform: 'translateX(-50%)' }}
+                          style={{ left: `${xPct}%`, transform: `translateX(${xPct === 0 ? '0' : xPct === 100 ? '-100%' : '-50%'})` }}
                         >
                           {label}
                         </span>
@@ -820,10 +821,10 @@ export default function AfriGesDashboard() {
             </div>
 
             {/* ── Donut : répartition des souscriptions ────────────────────── */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+            <div className="min-w-0 bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800">{t('dash_souscriptions')}</h3>
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-800">{t('dash_souscriptions')}</h3>
                   <p className="text-xs text-slate-400 mt-0.5">{t("dash_repartition_statut")}</p>
                 </div>
                 <button className="text-slate-400 hover:text-slate-600 transition-colors">
@@ -833,7 +834,7 @@ export default function AfriGesDashboard() {
 
               <div className="flex items-center justify-center my-4">
                 <div className="relative">
-                  <svg width="200" height="200" viewBox="0 0 220 220">
+                  <svg width="200" height="200" viewBox="0 0 220 220" className="max-w-full h-auto">
                     {donuts ? (
                       donuts.map((seg, i) => (
                         <circle
@@ -888,10 +889,10 @@ export default function AfriGesDashboard() {
           <div className="space-y-5">
 
             {/* En-tête section */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-1 h-8 bg-linear-to-b from-orange-500 to-red-500 rounded-full" />
-                <div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-1 h-8 bg-linear-to-b from-orange-500 to-red-500 rounded-full shrink-0" />
+                <div className="min-w-0">
                   <h3 className="text-lg font-bold text-slate-800">{t('dash_decisionnel_titre')}</h3>
                   <p className="text-xs text-slate-400">{t('dash_decisionnel_sous_titre')}</p>
                 </div>
@@ -906,7 +907,7 @@ export default function AfriGesDashboard() {
             </div>
 
             {/* 8.1 — KPIs créances & collecte */}
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 @3xl:grid-cols-4 gap-3 sm:gap-4">
               {[
                 {
                   label: t('dash_clients_debiteurs'),
@@ -947,13 +948,13 @@ export default function AfriGesDashboard() {
               ].map((kpi) => {
                 const Icon = kpi.icon;
                 return (
-                  <div key={kpi.label} className={`bg-white rounded-2xl p-5 shadow-sm border ${kpi.border}`}>
+                  <div key={kpi.label} className={`min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border ${kpi.border}`}>
                     <div className="flex items-start justify-between mb-3">
                       <div className={`${kpi.bg} p-2.5 rounded-xl`}>
                         <Icon size={18} className={kpi.color} />
                       </div>
                     </div>
-                    <p className="text-2xl font-bold text-slate-800 mb-0.5">{kpi.value}</p>
+                    <p className="text-lg sm:text-2xl font-bold text-slate-800 mb-0.5 leading-tight [overflow-wrap:anywhere]">{kpi.value}</p>
                     <p className="text-xs font-semibold text-slate-600">{kpi.label}<InfoTooltip text={kpi.help} /></p>
                   </div>
                 );
@@ -961,10 +962,10 @@ export default function AfriGesDashboard() {
             </div>
 
             {/* 8.1 — Taux + Classement agents */}
-            <div className="grid grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 @3xl:grid-cols-3 gap-4 sm:gap-5">
 
               {/* Taux de remboursement */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+              <div className="min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="bg-indigo-50 p-2 rounded-lg">
                     <Percent size={16} className="text-indigo-600" />
@@ -1000,7 +1001,7 @@ export default function AfriGesDashboard() {
               </div>
 
               {/* Classement agents */}
-              <div className="col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+              <div className="@3xl:col-span-2 min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="bg-amber-50 p-2 rounded-lg">
                     <Award size={16} className="text-amber-600" />
@@ -1054,7 +1055,7 @@ export default function AfriGesDashboard() {
             </div>
 
             {/* 8.2 — Dashboard Financier */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+            <div className="min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center gap-2 mb-5">
                 <div className="bg-blue-50 p-2 rounded-lg">
                   <DollarSign size={16} className="text-blue-600" />
@@ -1064,7 +1065,7 @@ export default function AfriGesDashboard() {
                   <p className="text-xs text-slate-400">{t('dash_financier_sous_titre')}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 @xl:grid-cols-3 @4xl:grid-cols-5 gap-2 sm:gap-4">
                 {[
                   {
                     label: t('dash_encours_global'),
@@ -1109,11 +1110,11 @@ export default function AfriGesDashboard() {
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className="p-4 bg-slate-50 rounded-xl">
+                    <div key={item.label} className="min-w-0 p-3 sm:p-4 bg-slate-50 rounded-xl">
                       <div className={`${item.bg} p-2 rounded-lg w-fit mb-3`}>
                         <Icon size={15} className={item.color} />
                       </div>
-                      <p className="text-xl font-bold text-slate-800">{item.value}</p>
+                      <p className="text-base sm:text-xl font-bold text-slate-800 leading-tight [overflow-wrap:anywhere]">{item.value}</p>
                       <p className="text-xs font-semibold text-slate-600 mt-0.5">{item.label}<InfoTooltip text={item.help} /></p>
                     </div>
                   );
@@ -1137,7 +1138,7 @@ export default function AfriGesDashboard() {
                       style={{ width: `${Math.min((dec.cashCollecte / dec.cashAttendu) * 100, 100)}%` }}
                     />
                   </div>
-                  <div className="flex justify-between mt-1.5">
+                  <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5 mt-1.5">
                     <span className="text-[10px] text-slate-400">
                       {t('dash_label_collecte')} : {formatCurrency(dec.cashCollecte)}
                     </span>

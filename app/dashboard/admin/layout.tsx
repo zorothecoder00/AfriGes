@@ -25,7 +25,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <AdminSidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
           <div className="flex-1 min-w-0 flex flex-col">
             <AdminTopbar avecSidebar onMenuClick={() => setMobileNavOpen(true)} />
-            <div className="px-5 md:px-8 py-6 flex-1 min-w-0">{children}</div>
+            <div className="px-4 sm:px-5 md:px-8 py-4 sm:py-6 flex-1 min-w-0 overflow-x-clip">{children}</div>
           </div>
         </div>
       ) : (
