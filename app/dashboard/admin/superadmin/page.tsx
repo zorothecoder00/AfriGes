@@ -93,13 +93,13 @@ function KpiCard({ label, value, sub, icon: Icon, color, bg }: {
   const hue = color.match(/text-([a-z]+)-\d+/)?.[1] ?? "slate";
   const h = HUE_CLASSES[hue] ?? HUE_CLASSES.slate;
   return (
-    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl p-5 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl p-4 sm:p-5 min-w-0 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
       <div className="flex items-start justify-between mb-3">
         <div className={`${bg} p-2.5 rounded-xl transition-transform duration-300 ease-out group-hover:scale-110`}><Icon className={`${color} w-5 h-5`} /></div>
       </div>
       <p className={`text-xs font-semibold mb-0.5 ${h.label}`}>{label}</p>
-      <p className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.value}`}>{value}</p>
+      <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.value}`}>{value}</p>
       {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
     </div>
   );
@@ -360,13 +360,13 @@ export default function SuperAdminPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-violet-50/20 to-slate-50">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard/admin" className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+        <div className="max-w-[1600px] mx-auto px-3 md:px-6 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <Link href="/dashboard/admin" className="shrink-0 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
               <ArrowLeft size={18} />
             </Link>
-            <div className="flex items-center gap-2">
-              <div className={`${isSuperAdmin ? "bg-violet-600" : "bg-blue-600"} p-2 rounded-xl`}>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className={`${isSuperAdmin ? "bg-violet-600" : "bg-blue-600"} p-2 rounded-xl shrink-0`}>
                 <Shield className="text-white w-4 h-4" />
               </div>
               <div>
@@ -384,12 +384,12 @@ export default function SuperAdminPage() {
               <RefreshCw size={16} />
             </button>
             <NotificationBell href="/dashboard/admin/notifications" />
-            <span className="text-sm font-medium text-slate-600">{session?.user?.prenom} {session?.user?.nom}</span>
+            <span className="hidden sm:inline text-sm font-medium text-slate-600">{session?.user?.prenom} {session?.user?.nom}</span>
                       </div>
         </div>
       </header>
 
-      <div className="max-w-[1600px] mx-auto px-6 py-6">
+      <div className="max-w-[1600px] mx-auto md:px-6 py-4 md:py-6">
 
         {/* ── Bandeau restrictions ADMIN simple ──────────────────────────── */}
         {isAdmin && (
@@ -443,7 +443,7 @@ export default function SuperAdminPage() {
               <KpiCard label="CA confirmé"         value={formatCurrency(statsRes?.operations.ventesCA ?? 0)} icon={Banknote} color="text-teal-600" bg="bg-teal-50" />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
               <KpiCard label="En rupture stock"      value={statsRes?.stock.rupture ?? "—"}            icon={Package}   color="text-red-500"    bg="bg-red-50" />
               <KpiCard label="Caisses ouvertes"      value={statsRes?.systeme.caissesOuvertes ?? "—"}  icon={Banknote}  color="text-amber-600"  bg="bg-amber-50" />
               <KpiCard label="Notifs non lues"       value={statsRes?.systeme.notificationsNonLues ?? "—"} icon={Bell} color="text-violet-600" bg="bg-violet-50" />
@@ -551,7 +551,7 @@ export default function SuperAdminPage() {
               <div className="flex items-center gap-2 flex-1 min-w-48 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200">
                 <Search size={15} className="text-slate-400" />
                 <input value={userSearch} onChange={(e) => { setUserSearch(e.target.value); setUserPage(1); }}
-                  placeholder={t('sa_search_ph_users')} className="flex-1 bg-transparent text-sm outline-none" />
+                  placeholder={t('sa_search_ph_users')} className="flex-1 bg-transparent text-sm outline-none min-w-0" />
               </div>
               <select value={userEtat} onChange={(e) => { setUserEtat(e.target.value); setUserPage(1); }}
                 className="px-3 py-2 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-500">
@@ -1041,7 +1041,7 @@ export default function SuperAdminPage() {
               <div className="flex items-center gap-2 flex-1 min-w-48 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200">
                 <Search size={15} className="text-slate-400" />
                 <input value={logSearch} onChange={(e) => { setLogSearch(e.target.value); setLogPage(1); }}
-                  placeholder={t('sa_search_logs_ph')} className="flex-1 bg-transparent text-sm outline-none" />
+                  placeholder={t('sa_search_logs_ph')} className="flex-1 bg-transparent text-sm outline-none min-w-0" />
                 {logSearch && <button onClick={() => setLogSearch("")}><X size={14} className="text-slate-400 hover:text-slate-600" /></button>}
               </div>
               <button onClick={refetchLogs} className="p-2.5 border border-slate-200 rounded-xl hover:bg-slate-50"><RefreshCw size={15} /></button>
@@ -1206,7 +1206,7 @@ export default function SuperAdminPage() {
               <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200 mb-3">
                 <Search size={14} className="text-slate-400" />
                 <input value={accesUserSearch} onChange={(e) => setAccesUserSearch(e.target.value)}
-                  placeholder={t('sa_search_gestionnaire_ph')} className="flex-1 bg-transparent text-sm outline-none" />
+                  placeholder={t('sa_search_gestionnaire_ph')} className="flex-1 bg-transparent text-sm outline-none min-w-0" />
                 {accesUserSearch && (
                   <button onClick={() => setAccesUserSearch("")}><X size={13} className="text-slate-400 hover:text-slate-600" /></button>
                 )}
@@ -1388,7 +1388,7 @@ export default function SuperAdminPage() {
       {/* Modal reset password */}
       {modalUser === "reset" && selectedUser && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-slate-200">
               <h2 className="font-bold text-slate-800 flex items-center gap-2"><Key size={18} className="text-amber-500" />{t('sa_title_reset_pwd')}</h2>
               <button onClick={() => { setModalUser(null); setTempPwd(""); setMotifAction(""); }} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -1435,7 +1435,7 @@ export default function SuperAdminPage() {
       {/* Modal confirmation suppression définitive */}
       {modalUser === "confirm_delete" && selectedUser && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-slate-200">
               <h2 className="font-bold text-red-700 flex items-center gap-2"><UserX size={18} />{t('sa_suppression_def_title')}</h2>
               <button onClick={() => setModalUser(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -1473,7 +1473,7 @@ export default function SuperAdminPage() {
       {/* Modal gestion permissions */}
       {modalUser === "permission" && selectedUser && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-slate-200">
               <h2 className="font-bold text-slate-800 flex items-center gap-2"><Shield size={18} className="text-violet-500" />{t('sa_permissions_prefix')} — {selectedUser.prenom} {selectedUser.nom}</h2>
               <button onClick={() => setModalUser("detail")} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
