@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { auditLog, notifyRoles } from "@/lib/notifications";
+import { auditLog, notifyRoles, notifyAdmins } from "@/lib/notifications";
 import { getSession } from "../../fournisseurs/route";
 import { getRequestMeta } from "@/lib/requestMeta";
 import { getSeuilVisaCGTBonCommande } from "@/lib/parametresDocuments";
@@ -192,6 +192,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
       const t = TRANSITIONS[body.action];
       if (!t) return NextResponse.json({ error: "Action invalide" }, { status: 400 });
+      // Séparation des tâches (Étape 2 du processus d'achat) : l'agent logistique prépare et
+      // soumet le bon, seule la Direction (ADMIN/SUPER_ADMIN) l'approuve ou le rejette —
+      // l'émetteur ne peut donc pas approuver son propre bon.
+      if ((body.action === "APPROUVER" || body.action === "REJETER")
+          && session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN") {
+        return NextResponse.json({ error: "Seule l'administration peut approuver ou rejeter un bon de commande" }, { status: 403 });
+      }
       if (!t.from.includes(bon.statut)) {
         return NextResponse.json({ error: `Impossible depuis le statut ${bon.statut}` }, { status: 422 });
       }
@@ -203,6 +210,14 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const updated = await prisma.$transaction(async (tx) => {
         const b = await tx.bonCommande.update({ where: { id: bonId }, data, include: INCLUDE });
         await auditLog(tx, userId, `PO_${body.action}`, "BonCommande", bonId, { avant: bon.statut, apres: t.to }, getRequestMeta(req));
+        if (body.action === "SOUMETTRE") {
+          await notifyAdmins(tx, {
+            titre:     `Bon de commande à approuver : ${b.reference}`,
+            message:   `${session.user.prenom ?? ""} ${session.user.nom ?? ""} a soumis le bon de commande ${b.reference} pour approbation.`.trim(),
+            priorite:  "HAUTE",
+            actionUrl: "/dashboard/admin/bons-commande-fournisseur",
+          });
+        }
         return b;
       });
       return NextResponse.json({ data: updated });

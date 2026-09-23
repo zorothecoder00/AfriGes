@@ -10,7 +10,7 @@ import { formatDate } from "@/lib/format";
 import RetourApprovisionnement from "@/components/RetourApprovisionnement";
 import {
   ClipboardList, Plus, X, RefreshCw, Save, Send,
-  CheckCircle, Ban, XCircle, FileText, PenTool, Truck,
+  CheckCircle, Ban, Clock, FileText, PenTool, Truck,
 } from "lucide-react";
 
 interface Ligne { id: number; produitId: number; quantite: number; prixUnitaire: number | string; quantiteRecue: number; produit: { id: number; nom: string; codeProduit: string | null } }
@@ -486,10 +486,9 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
               </>
             )}
             {b.statut === "PENDING_APPROVAL" && (
-              <>
-                <button onClick={() => doAction("REJETER")} disabled={busy} className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50"><XCircle className="w-4 h-4" /> Rejeter</button>
-                <button onClick={() => doAction("APPROUVER")} disabled={busy} className="flex items-center gap-1.5 px-3 py-2 text-sm text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"><CheckCircle className="w-4 h-4" /> Approuver</button>
-              </>
+              <p className="flex items-center gap-1.5 px-3 py-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg">
+                <Clock className="w-4 h-4" /> En attente d&apos;approbation par l&apos;administration
+              </p>
             )}
             {b.statut === "APPROVED" && (
               <>
