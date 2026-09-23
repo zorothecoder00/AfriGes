@@ -6,6 +6,7 @@ import { X, Loader2, Save, Image as ImageIcon, FileText, Tags, MapPin } from "lu
 import TarificationTab from "@/components/catalogue/TarificationTab";
 import DisponibiliteTab from "@/components/catalogue/DisponibiliteTab";
 
+import Portal from "@/components/ui/Portal";
 // ── Types des référentiels (chargés par la page parente) ────────────────────
 interface RefItem { id: number; nom: string; actif: boolean }
 interface FamilleRef extends RefItem { sousFamilles: RefItem[] }
@@ -117,7 +118,7 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
   const sousCategories = refs?.categories.find((c) => String(c.id) === form.categorieId)?.sousCategories ?? [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && onClose()}>
+    <Portal><div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && onClose()}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-gray-100 px-6 pt-4 z-10">
           <div className="flex items-center justify-between pb-3">
@@ -293,7 +294,7 @@ export default function ProduitFormModal({ produitId, refs, onClose, onSaved }:
           </div>
         )}
       </div>
-    </div>
+    </div></Portal>
   );
 }
 

@@ -77,15 +77,15 @@ export default function AdminBonsSortiePage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-4">
+    <div className="md:p-6 max-w-6xl mx-auto space-y-4">
       <RetourLien />
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900">Bons de sortie de marchandises</h1>
           <p className="text-sm text-slate-500 mt-1">Sorties de stock (livraison, perte, casse, don, consommation interne)</p>
           <p className="text-xs text-slate-400 mt-0.5">Cette liste ne contient que les bons émis : les ventes directes, livraisons packs et crédit n&apos;en génèrent pas.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link href="/dashboard/admin/stock/journal-sorties?from=sorties" className="text-xs font-medium text-primary-600 hover:underline whitespace-nowrap">
             Voir toutes les sorties de stock →
           </Link>

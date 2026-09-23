@@ -190,27 +190,27 @@ export default function CatalogueProduitsPage() {
               )}
             </div>
             <Link href="/dashboard/admin/catalogue/tableau-bord"
-              className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50">
+              className="w-[calc(50%-0.25rem)] sm:w-auto inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 whitespace-nowrap">
               <LayoutDashboard className="w-4 h-4" /> Tableau de bord
             </Link>
             <Link href="/dashboard/admin/catalogue/peremptions"
-              className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50">
+              className="w-[calc(50%-0.25rem)] sm:w-auto inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 whitespace-nowrap">
               <CalendarClock className="w-4 h-4" /> Péremptions
             </Link>
             <Link href="/dashboard/admin/catalogue/vues"
-              className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50">
+              className="w-[calc(50%-0.25rem)] sm:w-auto inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 whitespace-nowrap">
               <Users className="w-4 h-4" /> Vues
             </Link>
             <Link href="/dashboard/admin/catalogue/promotions"
-              className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50">
+              className="w-[calc(50%-0.25rem)] sm:w-auto inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 whitespace-nowrap">
               <Tag className="w-4 h-4" /> Promotions
             </Link>
             <Link href="/dashboard/admin/catalogue/prix-validation"
-              className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50">
+              className="w-[calc(50%-0.25rem)] sm:w-auto inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 whitespace-nowrap">
               <ShieldCheck className="w-4 h-4" /> Validation prix
             </Link>
             <Link href="/dashboard/admin/catalogue/referentiels"
-              className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50">
+              className="w-[calc(50%-0.25rem)] sm:w-auto inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 whitespace-nowrap">
               <Layers className="w-4 h-4" /> Référentiels
             </Link>
             <button onClick={() => { setEditId(null); setModalOpen(true); }}
@@ -221,8 +221,8 @@ export default function CatalogueProduitsPage() {
         </div>
 
         {/* Filtres */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          <div className="relative lg:col-span-2">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3">
+          <div className="relative col-span-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Nom, code produit, référence, code-barres…"

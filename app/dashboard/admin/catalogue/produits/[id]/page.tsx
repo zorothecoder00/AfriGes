@@ -153,14 +153,14 @@ function FicheProduitInner() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="p-6 max-w-6xl mx-auto space-y-5">
+      <div className="md:p-6 max-w-6xl mx-auto space-y-5">
         <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour au catalogue
         </Link>
 
         {/* En-tête produit */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-5 flex-wrap">
-          <div className="w-24 h-24 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 flex items-start gap-3 sm:gap-5 flex-wrap">
+          <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
             {fiche.imagePrincipaleUrl
               // eslint-disable-next-line @next/next/no-img-element
               ? <img src={fiche.imagePrincipaleUrl} alt="" className="w-full h-full object-cover" />
@@ -168,20 +168,20 @@ function FicheProduitInner() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-2xl font-bold text-slate-900">{fiche.nom}</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 [overflow-wrap:anywhere]">{fiche.nom}</h2>
               <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${STATUT_STYLE[fiche.statut] ?? ""}`}>{fiche.statut}</span>
             </div>
             {fiche.nomCommercial && <p className="text-sm text-slate-500">{fiche.nomCommercial}</p>}
             <p className="text-[11px] text-slate-400 font-mono mt-1">{fiche.codeProduit ?? "—"}{fiche.reference ? ` · ${fiche.reference}` : ""}</p>
             {classification && <p className="text-xs text-slate-500 mt-1">{classification}</p>}
           </div>
-          <div className="flex flex-col items-end gap-2">
+          <div className="w-full sm:w-auto flex flex-row-reverse sm:flex-col items-center sm:items-end justify-between gap-2">
             <button onClick={() => setEditOpen(true)}
               className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold shadow-sm">
               <Pencil className="w-4 h-4" /> Modifier
             </button>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-emerald-700">{formatCurrency(fiche.prixUnitaire)}</p>
+            <div className="min-w-0 sm:text-right">
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-700">{formatCurrency(fiche.prixUnitaire)}</p>
               {fiche.prixAchat != null && (
                 <p className="text-xs text-slate-400">Achat {formatCurrency(fiche.prixAchat)}
                   {marge != null && <span className={marge >= 0 ? "text-emerald-600" : "text-rose-500"}> · marge {formatCurrency(marge)}{margeTaux != null ? ` (${Math.round(margeTaux)}%)` : ""}</span>}

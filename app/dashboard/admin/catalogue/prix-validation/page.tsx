@@ -70,7 +70,7 @@ export default function PrixValidationPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="p-6 max-w-3xl mx-auto space-y-5">
+      <div className="md:p-6 max-w-3xl mx-auto space-y-5">
         <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour au catalogue
         </Link>
@@ -113,7 +113,7 @@ export default function PrixValidationPage() {
       {/* Modal validation (mot de passe) */}
       {valider && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !busy && setValider(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-emerald-600" /> Valider le changement</h4>
             <p className="text-xs text-slate-500 mb-4">{valider.produit.nom} · {valider.champ === "VENTE" ? "prix vente" : "prix achat"} → <b>{formatCurrency(valider.nouveauPrix)}</b></p>
             <label className="block">
@@ -134,7 +134,7 @@ export default function PrixValidationPage() {
       {/* Modal rejet */}
       {rejeter && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !busy && setRejeter(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><X className="w-5 h-5 text-rose-500" /> Rejeter la demande</h4>
             <label className="block">
               <span className="text-xs font-semibold text-slate-500">Motif du rejet</span>

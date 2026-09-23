@@ -14,7 +14,7 @@ import { formatDateTime } from "@/lib/format";
  * ceux qui ne produisent pas de bon de sortie (ventes directes, livraisons packs/crédit).
  */
 
-const inputCls = "px-3 py-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300";
+const inputCls = "max-w-full min-w-0 px-3 py-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300";
 
 const TYPE_LABEL: Record<string, string> = {
   VENTE_DIRECTE: "Vente directe",
@@ -86,13 +86,13 @@ function JournalSorties() {
   const filtre = <T,>(setter: (v: T) => void) => (v: T) => { setter(v); setPage(1); };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-4">
+    <div className="md:p-6 max-w-6xl mx-auto space-y-4">
       <Link href={retour.href} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
         <ArrowLeft className="w-4 h-4" /> {retour.label}
       </Link>
 
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Journal des sorties de stock</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Toutes les sorties : ventes directes, livraisons packs et crédit, pertes, casses, dons, transferts…
@@ -118,7 +118,7 @@ function JournalSorties() {
 
       <Card>
         <div className="flex items-center gap-3 flex-wrap">
-          <input value={q} onChange={(e) => filtre(setQ)(e.target.value)} placeholder="Produit, référence, motif…" className={`${inputCls} w-56`} />
+          <input value={q} onChange={(e) => filtre(setQ)(e.target.value)} placeholder="Produit, référence, motif…" className={`${inputCls} w-full sm:w-56`} />
           <select value={typeSortie} onChange={(e) => filtre(setTypeSortie)(e.target.value)} className={inputCls}>
             <option value="">Tous les types</option>
             {Object.entries(TYPE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}

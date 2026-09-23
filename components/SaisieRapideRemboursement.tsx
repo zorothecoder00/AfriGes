@@ -318,7 +318,7 @@ export default function SaisieRapideRemboursement({ apiBase, collecteursApi, acc
 
       {/* Récapitulatif détaillé */}
       {recap && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[130] bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h2 className="font-bold text-slate-900 flex items-center gap-2">

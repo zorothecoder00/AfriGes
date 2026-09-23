@@ -45,7 +45,7 @@ const STATUT_DEP_BADGE: Record<string, string> = { BROUILLON: "bg-amber-100 text
 export default function AdminDepotVentePage() {
   const [tab, setTab] = useState<Tab>("conventions");
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-4">
+    <div className="md:p-6 max-w-6xl mx-auto space-y-4">
       <RetourLien />
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Dépôt-vente</h1>
@@ -155,7 +155,7 @@ function FormConvention({ onClose, onDone }: { onClose: () => void; onDone: () =
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100"><h3 className="font-bold text-slate-800">Nouvelle convention</h3><button onClick={onClose}><X size={18} className="text-slate-400" /></button></div>
         <div className="px-6 py-4 space-y-3">
           <div>
@@ -433,7 +433,7 @@ function OngletEtat() {
 
       {reglementCible && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[210] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
               <h4 className="font-bold text-slate-800 text-sm">Règlement {reglementCible.reference}</h4>
               <button onClick={() => setReglementCible(null)}><X size={16} className="text-slate-400" /></button>

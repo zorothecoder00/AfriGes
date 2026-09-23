@@ -7,6 +7,7 @@ import { SOCIETE, SOCIETE_LEGAL, SOCIETE_SIEGE } from "@/lib/societe";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 
+import Portal from "@/components/ui/Portal";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface LigneFacture {
@@ -1173,19 +1174,19 @@ export default function FactureModal({
   // ── Loading ────────────────────────────────────────────────────────────────
   if (step === "loading") {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <Portal><div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40">
         <div className="bg-white rounded-2xl p-8 flex items-center gap-3 shadow-2xl">
           <Loader2 className="animate-spin text-emerald-600" size={24} />
           <span className="text-slate-700 font-medium">Génération de la facture…</span>
         </div>
-      </div>
+      </div></Portal>
     );
   }
 
   // ── Formulaire Pro-forma ───────────────────────────────────────────────────
   if (step === "form") {
     return (
-      <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <Portal><div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
 
           {/* Header */}
@@ -1372,7 +1373,7 @@ export default function FactureModal({
             </button>
           </div>
         </div>
-      </div>
+      </div></Portal>
     );
   }
 
@@ -1382,7 +1383,7 @@ export default function FactureModal({
   return (
     <>
       {/* Modal interactive */}
-      <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <Portal><div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col">
 
           {/* Header */}
@@ -1487,7 +1488,7 @@ export default function FactureModal({
             <InvoiceLayout f={facture} />
           </div>
         </div>
-      </div>
+      </div></Portal>
 
     </>
   );

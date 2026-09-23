@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
 
+import Portal from "@/components/ui/Portal";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Demande {
@@ -328,12 +329,12 @@ export default function AjustementsStockPage() {
 
       {/* Modal rejet */}
       {rejectId !== null && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        <Portal><div
+          className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4"
           onClick={() => setRejectId(null)}
         >
           <div
-            className="bg-white rounded-2xl w-full max-w-md shadow-xl"
+            className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 rounded-t-2xl">
@@ -366,7 +367,7 @@ export default function AjustementsStockPage() {
               </div>
             </div>
           </div>
-        </div>
+        </div></Portal>
       )}
       </div>
     </div>

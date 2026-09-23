@@ -12,6 +12,7 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 
+import Portal from "@/components/ui/Portal";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface LigneReception {
@@ -188,7 +189,7 @@ export default function AdminApprovisionnementsPage() {
 
   // ─ Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="relative isolate min-h-screen bg-gradient-to-br from-cream-100 via-primary-50/40 to-brand-50/50 p-6 space-y-6 overflow-hidden">
+    <div className="relative isolate min-h-screen bg-gradient-to-br from-cream-100 via-primary-50/40 to-brand-50/50 md:p-6 space-y-6 overflow-hidden">
       {/* Aurora décorative — halos flous, aux couleurs du logo */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
         <div className="absolute -top-40 -left-24 w-[34rem] h-[34rem] bg-primary-300/30 rounded-full blur-3xl" />
@@ -196,8 +197,8 @@ export default function AdminApprovisionnementsPage() {
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <RetourLien className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-2 transition-colors" />
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2.5">
             <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-brand-100 shrink-0">
@@ -205,11 +206,11 @@ export default function AdminApprovisionnementsPage() {
             </span>
             Approvisionnements
           </h1>
-          <p className="text-sm text-slate-500 mt-1 ml-12">
+          <p className="text-sm text-slate-500 mt-1 sm:ml-12">
             Approuvez les commandes d&apos;achat du responsable approvisionnement · vérifiez les prix et fournisseurs
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link href="/dashboard/user/logistiquesApprovisionnements/fournisseurs" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
             <Truck size={15} />Fournisseurs
           </Link>
@@ -238,15 +239,15 @@ export default function AdminApprovisionnementsPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className={`rounded-2xl border p-5 ${pendingApproval > 0 ? "bg-amber-50 border-amber-200" : "bg-white border-slate-200"}`}>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className={`rounded-2xl border p-4 sm:p-5 ${pendingApproval > 0 ? "bg-amber-50 border-amber-200" : "bg-white border-slate-200"}`}>
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${pendingApproval > 0 ? "bg-amber-100" : "bg-slate-100"}`}>
               <Clock size={20} className={pendingApproval > 0 ? "text-amber-600" : "text-slate-500"} />
             </div>
             <div>
               <p className="text-xs text-slate-500">En attente d&apos;approbation</p>
-              <p className={`text-2xl font-bold ${pendingApproval > 0 ? "text-amber-700" : "text-slate-700"}`}>{pendingApproval}</p>
+              <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${pendingApproval > 0 ? "text-amber-700" : "text-slate-700"}`}>{pendingApproval}</p>
             </div>
           </div>
           {pendingApproval > 0 && (
@@ -254,26 +255,26 @@ export default function AdminApprovisionnementsPage() {
           )}
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-5">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
               <Truck size={20} className="text-blue-600" />
             </div>
             <div>
               <p className="text-xs text-slate-500">Total réceptions</p>
-              <p className="text-2xl font-bold text-slate-700">{data?.meta?.total ?? 0}</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-700">{data?.meta?.total ?? 0}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-5">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
               <CheckCircle size={20} className="text-emerald-600" />
             </div>
             <div>
               <p className="text-xs text-slate-500">Validées</p>
-              <p className="text-2xl font-bold text-slate-700">
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-700">
                 {data?.stats?.totalValide ?? receptions.filter(r => r.statut === "VALIDE").length}
               </p>
             </div>
@@ -282,8 +283,8 @@ export default function AdminApprovisionnementsPage() {
       </div>
 
       {/* Filtres */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 flex gap-3 items-center">
-        <div className="relative flex-1">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap gap-3 items-center">
+        <div className="relative w-full sm:w-auto sm:flex-1 min-w-0">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
@@ -296,7 +297,7 @@ export default function AdminApprovisionnementsPage() {
         <select
           value={statutFilter}
           onChange={e => { setStatutFilter(e.target.value); setPage(1); }}
-          className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full sm:w-auto px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">Tous les statuts</option>
           <option value="BROUILLON">En attente d&apos;approbation</option>
@@ -509,7 +510,7 @@ export default function AdminApprovisionnementsPage() {
 
       {/* ── Modal Approbation ──────────────────────────────────────────── */}
       {approModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <Portal><div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-100">
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -604,13 +605,13 @@ export default function AdminApprovisionnementsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div></Portal>
       )}
 
       {/* ── Modal Rejet ────────────────────────────────────────────────── */}
       {rejetModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <Portal><div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-100">
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <XCircle size={20} className="text-red-600" />
@@ -649,12 +650,12 @@ export default function AdminApprovisionnementsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div></Portal>
       )}
 
       {/* ── Modal Validation (réception physique + mise en stock) ────────── */}
       {validerModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <Portal><div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-100">
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -671,7 +672,7 @@ export default function AdminApprovisionnementsPage() {
                 return (
                   <div key={l.id} className="p-3 border border-slate-200 rounded-xl">
                     <p className="font-medium text-slate-800 text-sm mb-2">{l.produit.nom} <span className="text-slate-400 font-normal">(attendu : {l.quantiteAttendue} {l.produit.unite ?? ""})</span></p>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <div>
                         <label className="block text-xs text-slate-500 mb-1">Qté reçue (bon état)</label>
                         <input type="number" min={0} value={v.quantiteRecue}
@@ -711,7 +712,7 @@ export default function AdminApprovisionnementsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div></Portal>
       )}
 
       {/* ── Modal Création (réception directe créée + validée en une fois) ── */}
@@ -776,7 +777,7 @@ function FormCreerReception({ onClose, onDone }: { onClose: () => void; onDone: 
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+    <Portal><div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl max-h-[92vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <h3 className="font-bold text-slate-800">Nouvelle réception directe</h3>
@@ -860,6 +861,6 @@ function FormCreerReception({ onClose, onDone }: { onClose: () => void; onDone: 
           </button>
         </div>
       </div>
-    </div>
+    </div></Portal>
   );
 }

@@ -74,7 +74,7 @@ export default function ReferentielsCataloguePage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="md:p-6 max-w-4xl mx-auto space-y-6">
         <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour
         </Link>
@@ -177,7 +177,7 @@ function HierarchieSection({ type, childType, parentKey, items, onCreate, onPatc
       <div className="flex gap-2">
         <input value={nouveau} onChange={(e) => setNouveau(e.target.value)}
           placeholder={`Nouvelle ${type === "familles" ? "famille" : "catégorie"}…`}
-          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0" />
         <button onClick={ajouterParent} disabled={busy}
           className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Ajouter
@@ -202,7 +202,7 @@ function HierarchieSection({ type, childType, parentKey, items, onCreate, onPatc
                   <div className="flex gap-2">
                     <input value={ajoutEnfant[it.id] ?? ""} onChange={(e) => setAjoutEnfant((a) => ({ ...a, [it.id]: e.target.value }))}
                       placeholder="Ajouter un sous-élément…"
-                      className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0" />
                     <button onClick={() => ajouterEnfant(it.id)} disabled={busy}
                       className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 disabled:opacity-50">
                       {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
@@ -237,7 +237,7 @@ function FlatSection({ type, items, extraLabel, extraKey, onCreate, onPatch, onR
     <div className="space-y-3">
       <div className="flex gap-2">
         <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder={`Nouvelle ${type === "marques" ? "marque" : "unité"}…`}
-          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0" />
         {extraKey && (
           <input value={extra} onChange={(e) => setExtra(e.target.value)} placeholder={extraLabel}
             className="w-28 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />

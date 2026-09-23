@@ -290,7 +290,7 @@ function DetailJourModal({ apiBase, date, onClose }: { apiBase: string; date: st
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[130] bg-black/50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-3xl shadow-xl max-h-[88vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="font-bold text-slate-900 flex items-center gap-2"><Calendar className="w-5 h-5 text-primary-600" /> {d?.label ?? date}</h2>

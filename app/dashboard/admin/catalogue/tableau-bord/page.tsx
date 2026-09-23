@@ -50,7 +50,7 @@ function Kpi({ icon, label, value, tone }: { icon: React.ReactNode; label: strin
     <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl border p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
       <div className={`inline-flex items-center justify-center w-9 h-9 rounded-lg mb-2 transition-transform duration-300 ease-out group-hover:scale-110 ${tone}`}>{icon}</div>
-      <p className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
+      <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
       <p className={`text-xs ${h.text}/70`}>{label}</p>
     </div>
   );
@@ -83,13 +83,13 @@ export default function CatalogueTableauBordPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="p-6 max-w-6xl mx-auto space-y-5">
+      <div className="md:p-6 max-w-6xl mx-auto space-y-5">
         <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour au catalogue
         </Link>
 
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><LayoutDashboard className="w-6 h-6 text-blue-600" /> Tableau de bord catalogue</h2>
             <p className="text-sm text-slate-400">Rotation, jours de stock, ruptures probables et suggestions de réapprovisionnement.</p>
           </div>

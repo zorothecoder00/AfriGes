@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { useT } from '@/contexts/AppSettingsContext';
 
+import Portal from "@/components/ui/Portal";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PDVUser { id: number; nom: string; prenom: string; }
@@ -223,7 +224,7 @@ export default function PDVPage() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="relative isolate min-h-screen bg-gradient-to-br from-cream-100 via-primary-50/40 to-brand-50/50 p-8 overflow-hidden">
+    <div className="relative isolate min-h-screen bg-gradient-to-br from-cream-100 via-primary-50/40 to-brand-50/50 md:p-8 overflow-hidden">
       {/* Aurora décorative — halos flous, aux couleurs du logo */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
         <div className="absolute -top-40 -left-24 w-[34rem] h-[34rem] bg-primary-300/30 rounded-full blur-3xl" />
@@ -233,16 +234,16 @@ export default function PDVPage() {
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* ── Header ────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors">
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
-            <span className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-brand-100 shrink-0">
+            <span className="hidden sm:inline-flex items-center justify-center w-12 h-12 rounded-xl bg-brand-100 shrink-0">
               <Store className="w-6 h-6 text-brand-700" />
             </span>
-            <div>
-              <h1 className="text-4xl font-bold text-slate-800 mb-2">{t('pdv_page_title')}</h1>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-2">{t('pdv_page_title')}</h1>
               <p className="text-slate-500">{t('pdv_page_subtitle')}</p>
             </div>
           </div>
@@ -253,7 +254,7 @@ export default function PDVPage() {
         </div>
 
         {/* ── Stats ─────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-4 gap-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
           {[
             { label: t('pdv_type_pdv'),   value: String(stats?.totalPDV ?? 0),    icon: Store,      color: 'bg-blue-500',   lightBg: 'bg-blue-100',    from: 'from-blue-50',    border: 'border-blue-100',    text: 'text-blue-700',    hoverShadow: 'hover:shadow-blue-200/60',    hoverBorder: 'hover:border-blue-300' },
             { label: t('pdv_type_depot'), value: String(stats?.totalDepot ?? 0),  icon: Building2, color: 'bg-purple-500', lightBg: 'bg-purple-100',  from: 'from-purple-50',  border: 'border-purple-100',  text: 'text-purple-700',  hoverShadow: 'hover:shadow-purple-200/60',  hoverBorder: 'hover:border-purple-300' },
@@ -268,7 +269,7 @@ export default function PDVPage() {
                   <Icon className={`${s.color.replace('bg-', 'text-')} w-6 h-6`} />
                 </div>
                 <h3 className={`${s.text}/80 text-sm font-semibold mb-1`}>{s.label}</h3>
-                <p className={`text-3xl font-bold ${s.text} transition-transform duration-300 group-hover:scale-105 origin-left`}>{s.value}</p>
+                <p className={`text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold ${s.text} transition-transform duration-300 group-hover:scale-105 origin-left`}>{s.value}</p>
               </div>
             );
           })}
@@ -276,22 +277,22 @@ export default function PDVPage() {
 
         {/* ── Filtres ───────────────────────────────────────────────────── */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
-          <div className="flex gap-3">
-            <div className="flex-1 relative">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative w-full sm:w-auto sm:flex-1 min-w-0">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input type="text" placeholder={t('pdv_search_ph')} value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1); }}
                 className="w-full pl-11 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-sm" />
             </div>
             <select value={filterType} onChange={e => { setFilterType(e.target.value); setPage(1); }}
-              className="px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+              className="flex-1 sm:flex-none min-w-0 px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
               <option value="">{t('pdv_all_types')}</option>
               <option value="POINT_DE_VENTE">{t('pdv_type_pdv')}</option>
               <option value="DEPOT_CENTRAL">{t('pdv_type_depot')}</option>
               <option value="PLATEFORME_REGIONALE">{t('pdv_type_plateforme')}</option>
             </select>
             <select value={filterActif} onChange={e => { setFilterActif(e.target.value); setPage(1); }}
-              className="px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+              className="flex-1 sm:flex-none min-w-0 px-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
               <option value="">{t('pdv_all_statuts')}</option>
               <option value="true">{t('text_actifs')}</option>
               <option value="false">{t('text_inactifs')}</option>
@@ -303,8 +304,8 @@ export default function PDVPage() {
             MODAL — Créer PDV
         ══════════════════════════════════════════════════════════════════ */}
         {createOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
+          <Portal><div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
+            <div className="bg-white rounded-2xl p-5 sm:p-8 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
               <button onClick={() => setCreateOpen(false)}
                 className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg">
                 <X size={18} />
@@ -478,15 +479,15 @@ export default function PDVPage() {
                 </button>
               </form>
             </div>
-          </div>
+          </div></Portal>
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
             MODAL — Éditer PDV
         ══════════════════════════════════════════════════════════════════ */}
         {editPdv && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
+          <Portal><div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
+            <div className="bg-white rounded-2xl p-5 sm:p-8 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
               <button onClick={() => setEditPdv(null)}
                 className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg">
                 <X size={18} />
@@ -641,15 +642,15 @@ export default function PDVPage() {
                 </button>
               </form>
             </div>
-          </div>
+          </div></Portal>
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
             MODAL — Toggle actif
         ══════════════════════════════════════════════════════════════════ */}
         {togglePdv && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-xl text-center">
+          <Portal><div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
+            <div className="bg-white rounded-2xl p-5 sm:p-8 w-full max-w-sm shadow-xl text-center max-h-[90vh] overflow-y-auto">
               <div className={`w-14 h-14 ${togglePdv.actif ? 'bg-red-100' : 'bg-emerald-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
                 {togglePdv.actif
                   ? <PowerOff className="text-red-600 w-7 h-7" />
@@ -673,7 +674,7 @@ export default function PDVPage() {
                 </button>
               </div>
             </div>
-          </div>
+          </div></Portal>
         )}
 
         {/* ── Table PDV ─────────────────────────────────────────────────── */}

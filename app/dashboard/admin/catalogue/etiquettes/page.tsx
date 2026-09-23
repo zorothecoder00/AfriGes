@@ -81,7 +81,7 @@ export default function EtiquettesPage() {
     return (
       <div className="min-h-screen bg-slate-50">
         <style>{PRINT_CSS}</style>
-        <div className="p-6 max-w-5xl mx-auto space-y-5">
+        <div className="md:p-6 max-w-5xl mx-auto space-y-5">
           <div className="flex items-center justify-between flex-wrap gap-3 no-print">
             <button onClick={() => setEtiquettes(null)} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
               <ArrowLeft className="w-4 h-4" /> Retour à la sélection
@@ -121,13 +121,13 @@ export default function EtiquettesPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="p-6 max-w-4xl mx-auto space-y-5">
+      <div className="md:p-6 max-w-4xl mx-auto space-y-5">
         <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour au catalogue
         </Link>
 
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><Tag className="w-6 h-6 text-blue-600" /> Étiquettes produits</h2>
             <p className="text-sm text-slate-400">Sélectionnez des produits pour générer leurs étiquettes (prix, code-barres, QR code).</p>
           </div>
