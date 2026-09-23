@@ -60,13 +60,13 @@ export default function AdminDemandesAchatPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+    <div className="md:p-6 max-w-6xl mx-auto space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900">Demandes d&apos;achat interne</h1>
           <p className="text-sm text-slate-500 mt-1">Formalise un besoin d&apos;achat avant RFQ/bon de commande</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" icon={<RefreshCw size={16} />} title="Rafraîchir" />
           <Button size="sm" icon={<Plus size={15} />} onClick={() => setShowCreate(true)}>Nouvelle demande</Button>
         </div>
@@ -120,7 +120,7 @@ export default function AdminDemandesAchatPage() {
       {showCreate && <FormDemande onClose={() => setShowCreate(false)} onDone={() => { setShowCreate(false); refetch(); }} />}
       {rejetDemande && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[210] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
               <h4 className="font-bold text-slate-800 text-sm">Rejeter la demande {rejetDemande.reference}</h4>
               <button onClick={() => setRejetDemande(null)}><X size={16} className="text-slate-400" /></button>

@@ -102,16 +102,16 @@ export default function AdminFacturesAchatPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-4">
+    <div className="md:p-6 max-w-5xl mx-auto space-y-4">
       <RetourLien />
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50 flex items-center gap-2">
             <FileText size={22} className="text-primary-600" /> Factures fournisseurs
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Suivi et rapprochement</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select value={statutFiltre} onChange={(e) => setStatutFiltre(e.target.value)} className={`${inputCls} w-auto`}>
             <option value="">Toutes</option>
             <option value="NON_RAPPROCHEE">Non rapprochées</option>

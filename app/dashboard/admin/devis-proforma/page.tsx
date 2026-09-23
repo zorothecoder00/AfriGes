@@ -53,14 +53,14 @@ export default function AdminDevisProformaPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-4">
+    <div className="md:p-6 max-w-6xl mx-auto space-y-4">
       <RetourLien />
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900">Devis / Proforma</h1>
           <p className="text-sm text-slate-500 mt-1">Proposition commerciale avant commande ferme</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200" icon={<RefreshCw size={16} />} title="Rafraîchir" />
           <Button size="sm" icon={<Plus size={15} />} onClick={() => setShowCreate(true)}>Nouveau devis</Button>
         </div>

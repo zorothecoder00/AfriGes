@@ -77,7 +77,7 @@ export default function MemberDetails({ memberId }: { memberId: string }) {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-7xl mx-auto md:px-6 lg:px-8 py-4 md:py-6">
           <div className="flex items-center gap-4 mb-6">
             <Link href="/dashboard/admin/membres" className="text-gray-500 hover:text-gray-700 transition-colors">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -87,9 +87,9 @@ export default function MemberDetails({ memberId }: { memberId: string }) {
             <h1 className="text-2xl font-bold text-gray-900">{t('md_profil_membre')}</h1>
           </div>
 
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-6">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-center gap-4 sm:gap-6 min-w-0">
+              <div className="w-16 h-16 sm:w-24 sm:h-24 shrink-0 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-lg">
                 {getInitials(member.nom, member.prenom)}
               </div>
               <div>
@@ -116,19 +116,19 @@ export default function MemberDetails({ memberId }: { memberId: string }) {
       </div>
 
       {/* Wallet Summary */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto md:px-6 lg:px-8 py-4 md:py-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <span className="text-sm font-medium text-gray-600">{t('md_solde_general')}</span>
-            <p className="text-3xl font-bold text-gray-900 mt-2">{formatCurrency(soldeGeneral)}</p>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-gray-900 mt-2">{formatCurrency(soldeGeneral)}</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <span className="text-sm font-medium text-gray-600">{t('md_solde_tontine')}</span>
-            <p className="text-3xl font-bold text-gray-900 mt-2">{formatCurrency(soldeTontine)}</p>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-gray-900 mt-2">{formatCurrency(soldeTontine)}</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <span className="text-sm font-medium text-gray-600">{t('md_solde_credit')}</span>
-            <p className="text-3xl font-bold text-gray-900 mt-2">{formatCurrency(soldeCredit)}</p>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-gray-900 mt-2">{formatCurrency(soldeCredit)}</p>
           </div>
         </div>
 
@@ -170,7 +170,7 @@ export default function MemberDetails({ memberId }: { memberId: string }) {
                 <div className="border-t border-gray-200 pt-6">
                   <h3 className="text-sm font-medium text-gray-500 mb-4">{t('md_stats_rapides')}</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div className="bg-gray-50 rounded-lg p-4"><p className="text-2xl font-bold text-emerald-600">{formatCurrency(soldeGeneral + soldeTontine + soldeCredit)}</p><p className="text-sm text-gray-600 mt-1">{t('md_solde_total')}</p>
+                    <div className="bg-gray-50 rounded-lg p-4"><p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-600">{formatCurrency(soldeGeneral + soldeTontine + soldeCredit)}</p><p className="text-sm text-gray-600 mt-1">{t('md_solde_total')}</p>
                     </div>
                   </div>
                 </div>

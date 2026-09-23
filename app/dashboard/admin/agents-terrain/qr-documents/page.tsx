@@ -37,7 +37,7 @@ export default function QrDocumentsPage() {
         <Link href="/dashboard/admin/agents-terrain" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour aux agents
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {data && (
             <select
               value={code}

@@ -92,9 +92,9 @@ export default function RetraitsAValiderPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
+      <div className="md:p-6 max-w-4xl mx-auto space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <Link href="/dashboard/admin/comptes-courants" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
               <ArrowLeft className="w-4 h-4" /> Comptes courants
             </Link>

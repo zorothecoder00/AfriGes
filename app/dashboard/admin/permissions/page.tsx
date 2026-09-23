@@ -34,7 +34,7 @@ export default function PermissionsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <div className="md:p-6 max-w-6xl mx-auto space-y-6">
         <div>
           <Link href="/dashboard/admin/droits-acces" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
             <ArrowLeft className="w-4 h-4" /> Droits d&apos;accès
@@ -349,8 +349,8 @@ function UserOverrides({ modules, actions }: { modules: { key: string; label: st
     <>
       {/* Recherche utilisateur */}
       <div className="bg-white rounded-xl border border-slate-200 p-4">
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-full sm:w-auto sm:flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doSearch(); }}
               placeholder="Rechercher un utilisateur (nom, prénom, email)…"

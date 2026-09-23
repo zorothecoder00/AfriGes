@@ -187,7 +187,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               <div className={`w-9 h-9 rounded-lg bg-${k.color}-50 flex items-center justify-center text-${k.color}-600 mb-3`}>
                 {k.icon}
               </div>
-              <p className="text-2xl font-bold text-gray-900">{k.value}</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-gray-900">{k.value}</p>
               <p className="text-xs text-gray-500 mt-0.5">{k.label}</p>
             </div>
           ))}

@@ -51,15 +51,15 @@ export default function TableauBordCCPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
-      <div className="p-6 max-w-screen-xl mx-auto space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
+      <div className="md:p-6 max-w-screen-xl mx-auto space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               <Activity className="w-6 h-6 text-emerald-600" /> Tableau de bord — Comptes Courants
             </h2>
             <p className="text-sm text-slate-500 mt-0.5">États consolidés du portefeuille interne clients</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Link href="/dashboard/admin/comptes-courants/etats"
               className="inline-flex items-center gap-1.5 text-sm px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 font-medium">
               <Scale className="w-4 h-4" /> États &amp; rapports

@@ -71,7 +71,7 @@ export default function TableauBordDecaissementsPage() {
   const maxMois = Math.max(1, ...(d?.parMois ?? []).map((m) => m.montant));
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-4">
+    <div className="md:p-6 max-w-6xl mx-auto space-y-4">
       <RetourLien />
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Tableau de bord des décaissements</h1>

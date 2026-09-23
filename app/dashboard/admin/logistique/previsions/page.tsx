@@ -75,7 +75,7 @@ function ModalCommande({ previsions, onClose, onConfirm, loading }: ModalCommand
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div className="flex items-center gap-3">
@@ -185,16 +185,16 @@ export default function PrevisionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-emerald-50/10 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-emerald-50/10 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
 
         {/* Header */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <Link href="/dashboard/admin/packs"
             className="p-2 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-colors">
             <ArrowLeft size={20} className="text-slate-600" />
           </Link>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-slate-800">Prévisions d&apos;approvisionnement</h1>
             <p className="text-sm text-slate-500">
               Agrégat des produits confirmés dans les souscriptions — par produit et point de vente
@@ -215,13 +215,13 @@ export default function PrevisionsPage() {
 
         {/* Stats */}
         {stats && (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center gap-4">
               <div className="w-11 h-11 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
                 <Package size={20} className="text-emerald-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-slate-800">{stats.totalProduits}</p>
+                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{stats.totalProduits}</p>
                 <p className="text-sm text-slate-500">Produits distincts</p>
               </div>
             </div>
@@ -230,7 +230,7 @@ export default function PrevisionsPage() {
                 <TrendingUp size={20} className="text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-slate-800">{stats.totalQuantite.toLocaleString("fr-FR")}</p>
+                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{stats.totalQuantite.toLocaleString("fr-FR")}</p>
                 <p className="text-sm text-slate-500">Quantité totale demandée</p>
               </div>
             </div>
@@ -239,7 +239,7 @@ export default function PrevisionsPage() {
                 <Store size={20} className="text-violet-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-slate-800">{stats.totalPdvs}</p>
+                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{stats.totalPdvs}</p>
                 <p className="text-sm text-slate-500">PDVs concernés</p>
               </div>
             </div>

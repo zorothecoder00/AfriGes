@@ -345,21 +345,21 @@ export default function ClientDetails({
   const creances = (client.souscriptionsPacks ?? []).filter((s) => Number(s.montantRestant) > 0 && s.statut !== 'ANNULE' && s.statut !== 'COMPLETE');
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 md:py-8 md:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto space-y-6">
 
         {/* En-tête */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <Link href={basePath} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
-            <div>
+            <div className="min-w-0">
               <h1 className="text-2xl font-bold text-slate-900">Fiche client</h1>
               {client.codeClient && <p className="text-sm text-slate-400 font-mono mt-0.5">{client.codeClient}</p>}
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <a href={`${relevePath}/${clientId}/releve`} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-2 text-slate-600 bg-white border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50 text-sm">
               <FileText className="w-4 h-4" /> Relevé de compte
@@ -381,8 +381,8 @@ export default function ClientDetails({
 
         {/* Modal suppression */}
         {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
+            <div className="bg-white rounded-2xl p-5 sm:p-8 w-full max-w-md shadow-lg max-h-[90vh] overflow-y-auto">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                   <AlertTriangle className="w-6 h-6 text-red-600" />
@@ -822,7 +822,7 @@ export default function ClientDetails({
             const totalRemboursements = groupes.reduce((s, g) => s + g.remboursements.length, 0);
             const st = creditsRes?.stats;
             return (
-              <div className="p-6 space-y-6">
+              <div className="p-4 md:p-6 space-y-6">
                 {/* Informations générales */}
                 <div>
                   <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2 uppercase tracking-wide mb-3">

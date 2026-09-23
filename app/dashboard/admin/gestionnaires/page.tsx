@@ -321,21 +321,21 @@ export default function GestionnairesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50/20 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50/20 md:p-8">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors">
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
-            <div>
-              <h1 className="text-4xl font-bold text-slate-800 mb-2">{t('gest_title')}</h1>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-2">{t('gest_title')}</h1>
               <p className="text-slate-500">{t('gest_subtitle')}</p>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Link href="/dashboard/admin/pdv"
               className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
               <Store size={18} /> {t('gest_manage_pdv')}
@@ -348,7 +348,7 @@ export default function GestionnairesPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-4 gap-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
           {stats.map((stat, index) => {
             const Icon = stat.icon;
             return (
@@ -358,7 +358,7 @@ export default function GestionnairesPage() {
                   <Icon className={`${stat.color.replace('bg-', 'text-')} w-6 h-6`} />
                 </div>
                 <h3 className={`${stat.text}/80 text-sm font-semibold mb-1`}>{stat.label}</h3>
-                <p className={`text-3xl font-bold ${stat.text} transition-transform duration-300 group-hover:scale-105 origin-left`}>{stat.value}</p>
+                <p className={`text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold ${stat.text} transition-transform duration-300 group-hover:scale-105 origin-left`}>{stat.value}</p>
               </div>
             );
           })}
@@ -366,8 +366,8 @@ export default function GestionnairesPage() {
 
         {/* Search and Filters */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative w-full sm:w-auto sm:flex-1 min-w-0">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
               <input type="text" placeholder={t('gest_search_ph')}
                 value={searchQuery}
@@ -376,7 +376,7 @@ export default function GestionnairesPage() {
             </div>
             <select value={roleFilter}
               onChange={e => { setRoleFilter(e.target.value); setPage(1); }}
-              className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50">
+              className="flex-1 sm:flex-none min-w-0 px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50">
               <option value="">{t('text_all_roles')}</option>
               <option value="RESPONSABLE_POINT_DE_VENTE">{t('role_responsable_pdv')}</option>
               <option value="CHEF_AGENCE">{t('role_chef_agence')}</option>
@@ -410,8 +410,8 @@ export default function GestionnairesPage() {
 
         {/* ══ MODAL — Ajout gestionnaire ═══════════════════════════════════ */}
         {modalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130]">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
+            <div className="bg-white rounded-2xl p-5 sm:p-8 w-full max-w-md shadow-lg relative max-h-[90vh] overflow-y-auto">
               <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                 <X size={20} />
               </button>
@@ -476,7 +476,7 @@ export default function GestionnairesPage() {
           const isChefAgence = ROLES_CHEF_AGENCE.has(affectModal.role);
           return (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
-              <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-xl relative">
+              <div className="bg-white rounded-2xl p-5 sm:p-8 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
                 <button onClick={() => setAffectModal(null)}
                   className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                   <X size={20} />
@@ -549,7 +549,7 @@ export default function GestionnairesPage() {
                         <select
                           value={selectedPdvId}
                           onChange={e => setSelectedPdvId(e.target.value)}
-                          className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0"
                         >
                           <option value="">{t('text_select_pdv')}</option>
                           {pdvOptions
@@ -639,8 +639,8 @@ export default function GestionnairesPage() {
 
         {/* ══ MODAL — Suppression ══════════════════════════════════════════ */}
         {deleteId && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130]">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg text-center">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
+            <div className="bg-white rounded-2xl p-5 sm:p-8 w-full max-w-sm shadow-lg text-center max-h-[90vh] overflow-y-auto">
               <h2 className="text-lg font-bold text-slate-800 mb-2">{t('text_confirm_delete')}</h2>
               <p className="text-slate-500 text-sm mb-6">{t('text_irreversible')}</p>
               <div className="flex gap-3">

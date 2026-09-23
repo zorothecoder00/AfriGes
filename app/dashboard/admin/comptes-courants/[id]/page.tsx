@@ -399,7 +399,7 @@ export default function CompteCourantDetailPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
-      <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <div className="md:p-6 max-w-5xl mx-auto space-y-6">
         <Link href="/dashboard/admin/comptes-courants" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour aux comptes courants
         </Link>
@@ -718,7 +718,7 @@ export default function CompteCourantDetailPage() {
       {/* Modal dépôt */}
       {depotOpen && c && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="font-bold text-slate-800 flex items-center gap-2"><Plus className="w-4 h-4 text-emerald-600" /> Faire un dépôt</h3>
               <button onClick={() => setDepotOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
@@ -791,7 +791,7 @@ export default function CompteCourantDetailPage() {
       {/* Modal changement de statut */}
       {statutOpen && c && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="font-bold text-slate-800 flex items-center gap-2"><ShieldAlert className="w-4 h-4 text-slate-600" /> Changer le statut</h3>
               <button onClick={() => setStatutOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
@@ -840,7 +840,7 @@ export default function CompteCourantDetailPage() {
       {/* Modal demande de retrait */}
       {retraitOpen && c && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="font-bold text-slate-800 flex items-center gap-2"><TrendingDown className="w-4 h-4 text-orange-600" /> Demander un retrait</h3>
               <button onClick={() => setRetraitOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
@@ -905,7 +905,7 @@ export default function CompteCourantDetailPage() {
       {/* Modal validation d'un retrait (ré-authentification) */}
       {valRetrait && c && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="font-bold text-slate-800 flex items-center gap-2"><ShieldAlert className="w-4 h-4 text-emerald-600" /> Valider le retrait</h3>
               <button onClick={() => setValRetrait(null)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
@@ -938,7 +938,7 @@ export default function CompteCourantDetailPage() {
       {/* Modal rejet d'un retrait */}
       {rejRetrait && c && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="font-bold text-slate-800 flex items-center gap-2"><X className="w-4 h-4 text-red-600" /> Rejeter le retrait</h3>
               <button onClick={() => setRejRetrait(null)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
@@ -966,7 +966,7 @@ export default function CompteCourantDetailPage() {
       {/* Modal relevé de compte (période) */}
       {releveOpen && c && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="font-bold text-slate-800 flex items-center gap-2"><FileText className="w-4 h-4 text-emerald-600" /> Relevé de compte</h3>
               <button onClick={() => setReleveOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
@@ -1000,7 +1000,7 @@ export default function CompteCourantDetailPage() {
       {/* Modal édition des informations du compte (admin) */}
       {editCompteOpen && c && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="font-bold text-slate-800 flex items-center gap-2"><Pencil className="w-4 h-4 text-slate-600" /> Modifier le compte</h3>
               <button onClick={() => setEditCompteOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
@@ -1047,7 +1047,7 @@ export default function CompteCourantDetailPage() {
       {/* Modal correction d'un mouvement (admin) */}
       {editMvt && c && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="font-bold text-slate-800 flex items-center gap-2"><Pencil className="w-4 h-4 text-indigo-600" /> Corriger le mouvement</h3>
               <button onClick={() => setEditMvt(null)} className="p-1.5 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
@@ -1468,8 +1468,8 @@ function EpargneSection({ compteId, canManage, compteActif }:
 
       {/* Modal création de plan */}
       {createOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setCreateOpen(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setCreateOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h4 className="font-bold text-slate-800 flex items-center gap-2"><PiggyBank className="w-5 h-5 text-pink-500" /> Nouveau plan d&apos;épargne</h4>
               <button onClick={() => setCreateOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
@@ -1515,8 +1515,8 @@ function EpargneSection({ compteId, canManage, compteActif }:
 
       {/* Modal cotisation */}
       {cotiser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !cotSaving && setCotiser(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4" onClick={() => !cotSaving && setCotiser(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
               <h4 className="font-bold text-slate-800 flex items-center gap-2"><Target className="w-5 h-5 text-pink-500" /> Cotiser</h4>
               <button onClick={() => setCotiser(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
@@ -1680,8 +1680,8 @@ function PrelevementsSection({ compteId, canManage, compteActif, creditsPayables
 
       {/* Modal création d'autorisation */}
       {createOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setCreateOpen(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setCreateOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h4 className="font-bold text-slate-800 flex items-center gap-2"><Repeat className="w-5 h-5 text-indigo-500" /> Autoriser un prélèvement</h4>
               <button onClick={() => setCreateOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
@@ -1859,8 +1859,8 @@ function FideliteSection({ compteId, canManage }: { compteId: number; canManage:
 
       {/* Modal attribution / utilisation */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setOpen(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h4 className="font-bold text-slate-800 flex items-center gap-2"><Sparkles className="w-5 h-5 text-yellow-500" /> Points de fidélité</h4>
               <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
@@ -2038,8 +2038,8 @@ function BlocageSection({ compteId, canManage, compteActif, onChanged }:
 
       {/* Modal blocage */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setOpen(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && setOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
               <h4 className="font-bold text-slate-800 flex items-center gap-2"><Lock className="w-5 h-5 text-indigo-500" /> Bloquer une épargne</h4>
               <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
