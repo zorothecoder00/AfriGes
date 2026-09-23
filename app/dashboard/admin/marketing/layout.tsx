@@ -48,7 +48,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   return (
     <div>
-      <div className="bg-white border-b border-slate-100 -mx-5 md:-mx-8 px-5 md:px-8 mb-6">
+      <div className="bg-white border-b border-slate-100 -mx-4 sm:-mx-5 md:-mx-8 px-4 sm:px-5 md:px-8 mb-6">
         <nav className="flex items-end gap-0.5 overflow-x-auto">
           {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => {
             const active = isActive(pathname, href, exact);

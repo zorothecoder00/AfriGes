@@ -36,12 +36,12 @@ export default function CampagnesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-2xl font-bold text-slate-800">Campagnes</h2>
           <p className="text-slate-500 text-sm mt-0.5">Campaign Manager — création, suivi, workflow d&apos;approbation.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select value={statutFiltre} onChange={(e) => setStatutFiltre(e.target.value)}
             className="px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white">
             <option value="">Tous les statuts</option>

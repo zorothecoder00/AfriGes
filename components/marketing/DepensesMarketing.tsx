@@ -45,8 +45,8 @@ function NouvelleDepenseModal({ campagnes, onClose, onCreated }: { campagnes: Ca
   const lbl = "text-xs font-semibold text-slate-500";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && onClose()}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && onClose()}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="font-bold text-gray-800 flex items-center gap-2"><Receipt className="w-5 h-5 text-fuchsia-600" /> Nouvelle dépense</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
@@ -115,8 +115,8 @@ export default function DepensesMarketing() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Receipt className="w-5 h-5 text-fuchsia-600" /> Dépenses</h2>
           <p className="text-sm text-slate-400">{rows.length} dépense(s) · {total.toLocaleString("fr-FR")} FCFA — comptabilisées automatiquement.</p>
         </div>

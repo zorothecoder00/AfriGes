@@ -41,12 +41,12 @@ export default function AudiencesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-2xl font-bold text-slate-800">Segmentation &amp; Audiences</h2>
           <p className="text-slate-500 text-sm mt-0.5">Construisez des audiences à partir des données CRM existantes — rien n&apos;est dupliqué.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex bg-slate-100 rounded-xl p-1">
             <button onClick={() => setVue("liste")} className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${vue === "liste" ? "bg-white shadow-sm" : "text-slate-500"}`}>Audiences</button>
             <button onClick={() => setVue("rfm")} className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${vue === "rfm" ? "bg-white shadow-sm" : "text-slate-500"}`}>RFM</button>

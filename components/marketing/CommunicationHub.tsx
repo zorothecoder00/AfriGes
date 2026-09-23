@@ -55,8 +55,8 @@ export default function CommunicationHub() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-2xl font-bold text-slate-800">Communication</h2>
           <p className="text-slate-500 text-sm mt-0.5">Interface unique — WhatsApp, SMS, Email, notifications, messages internes, réseaux sociaux.</p>
         </div>

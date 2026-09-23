@@ -45,7 +45,7 @@ export default function MessagesInternes() {
         <input value={texte} onChange={(e) => setTexte(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
           placeholder="Écrire un message à l'équipe…"
-          className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm" />
+          className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm min-w-0" />
         <button onClick={submit} disabled={envoi || !texte.trim()}
           className="p-2 bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50 text-white rounded-xl">
           {envoi ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

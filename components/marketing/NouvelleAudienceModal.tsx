@@ -82,7 +82,7 @@ export default function NouvelleAudienceModal({ onClose, onCreated }: { onClose:
             {regles.map((r, i) => (
               <div key={i} className="flex items-center gap-2">
                 <select value={r.champ} onChange={(e) => majRegle(i, { champ: e.target.value })}
-                  className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white">
+                  className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white min-w-0">
                   {CHAMPS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
                 <select value={r.operateur} onChange={(e) => majRegle(i, { operateur: e.target.value })}

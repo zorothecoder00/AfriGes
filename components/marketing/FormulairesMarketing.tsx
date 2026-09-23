@@ -56,7 +56,7 @@ function NouveauFormulaireModal({ campagnes, onClose, onCreated }: { campagnes: 
   const lbl = "text-xs font-semibold text-slate-500";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && onClose()}>
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && onClose()}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
           <h3 className="font-bold text-gray-800 flex items-center gap-2"><ClipboardList className="w-5 h-5 text-fuchsia-600" /> Nouveau formulaire</h3>
@@ -83,7 +83,7 @@ function NouveauFormulaireModal({ campagnes, onClose, onCreated }: { campagnes: 
                 <div key={i} className="bg-slate-50 rounded-xl p-2 space-y-1.5">
                   <div className="flex items-center gap-2">
                     <input value={c.cle} onChange={(e) => majChamp(i, { cle: e.target.value })} placeholder="cle" className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
-                    <input value={c.label} onChange={(e) => majChamp(i, { label: e.target.value })} placeholder="Libellé" className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs" />
+                    <input value={c.label} onChange={(e) => majChamp(i, { label: e.target.value })} placeholder="Libellé" className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs min-w-0" />
                     <select value={c.type} onChange={(e) => majChamp(i, { type: e.target.value as Champ["type"] })} className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs">
                       <option value="text">Texte</option>
                       <option value="tel">Téléphone</option>
@@ -154,8 +154,8 @@ export default function FormulairesMarketing() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><ClipboardList className="w-5 h-5 text-fuchsia-600" /> Formulaires</h2>
           <p className="text-sm text-slate-400">{rows.length} formulaire(s) — associés à une landing page ou un QR.</p>
         </div>

@@ -31,9 +31,9 @@ function Referentiel({ titre, sousTitre, apiBase, icon: Icon }: { titre: string;
 
       <div className="flex gap-2 mb-4">
         <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code (ex: RAMADAN)"
-          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm min-w-0" />
         <input value={libelle} onChange={(e) => setLibelle(e.target.value)} placeholder="Libellé"
-          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm min-w-0" />
         <button onClick={ajouter} disabled={creating || !code || !libelle}
           className="flex items-center gap-1.5 px-3 py-2 bg-fuchsia-600 text-white rounded-lg text-sm font-semibold hover:bg-fuchsia-700 disabled:opacity-50">
           {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Ajouter

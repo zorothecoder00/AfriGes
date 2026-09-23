@@ -95,8 +95,8 @@ function NouvelleRecompenseModal({ onClose, onCreated }: { onClose: () => void; 
   const lbl = "text-xs font-semibold text-slate-500";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && onClose()}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4" onClick={() => !saving && onClose()}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="font-bold text-gray-800 flex items-center gap-2"><Gift className="w-5 h-5 text-fuchsia-600" /> Nouvelle récompense</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
