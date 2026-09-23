@@ -18,6 +18,7 @@ import InfoTooltip from '@/components/ui/InfoTooltip';
 import KpiCard from '@/components/ui/KpiCard';
 import Button from '@/components/ui/Button';
 
+import AppLoader from '@/components/AppLoader';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface DayPoint { date: string; montant: number; }
@@ -394,14 +395,7 @@ export default function AfriGesDashboard() {
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading && !response) {
-    return (
-      <div className="min-h-screen bg-linear-to-br from-cream via-cream-100 to-brand-50 flex items-center justify-center">
-  <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
-          <p className="text-slate-500 font-medium">{t('loading_dashboard')}</p>
-        </div>
-      </div>
-    );
+    return <AppLoader message={t('loading_dashboard')} />;
   }
 
   if (error && !response) {

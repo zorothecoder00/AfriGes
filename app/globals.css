@@ -308,6 +308,17 @@ html[data-theme="light"] { color-scheme: light; }
   to   { opacity: 1; transform: scale(1); }
 }
 
+/* Écran de chargement (AppLoader) : logo qui « respire » + barre indéterminée */
+@keyframes logoBreath {
+  0%, 100% { transform: scale(1);    box-shadow: 0 10px 30px -10px rgba(21, 128, 61, 0.25); }
+  50%      { transform: scale(1.04); box-shadow: 0 16px 40px -8px rgba(21, 128, 61, 0.40); }
+}
+
+@keyframes loaderBar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
 /* Bande défilante horizontale sans scrollbar visible (ex. rangées de boutons/onglets
    qui débordent sur mobile) — le scroll reste utilisable, juste pas la barre elle-même. */
 .no-scrollbar {

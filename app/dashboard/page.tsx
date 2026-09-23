@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { RefreshCw } from "lucide-react";
+import AppLoader from "@/components/AppLoader";
 
 /**
  * Aiguillage racine du tableau de bord.
@@ -28,9 +28,5 @@ export default function DashboardRouter() {
     }
   }, [session, status, router]);
 
-  return (
-    <div className="h-screen flex items-center justify-center gap-2 text-slate-500">
-      <RefreshCw className="w-5 h-5 animate-spin" /> Redirection…
-    </div>
-  );
+  return <AppLoader message="Ouverture de votre espace…" />;
 }

@@ -3,8 +3,8 @@
 import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { RefreshCw } from "lucide-react";
 
+import AppLoader from "@/components/AppLoader";
 const ROLE_ROUTES: Record<string, string> = {
   RESPONSABLE_POINT_DE_VENTE:          "/dashboard/user/responsablesPointDeVente",
   CHEF_AGENCE:                          "/dashboard/user/chefAgence",
@@ -58,10 +58,5 @@ export default function UserDashboardRouter() {
     return () => { cancelled = true; };
   }, [session, status, router]);
 
-  return (
-    <div className="flex items-center justify-center min-h-screen text-slate-400">
-      <RefreshCw className="w-5 h-5 animate-spin mr-2" />
-      Redirection…
-    </div>
-  );
+  return <AppLoader message="Ouverture de votre espace…" />;
 }

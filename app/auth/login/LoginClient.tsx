@@ -9,6 +9,7 @@ import AfriSimeLogo from '@/components/AfriSimeLogo'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 
+import AppLoader from '@/components/AppLoader'
 // Définition du type pour nos erreurs
 type Errors = {
   email?: string
@@ -44,6 +45,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [infoMessage, setInfoMessage] = useState<{ text: string; warn?: boolean } | null>(null)
   const [isLoading, setIsLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [errors, setErrors] = useState<Errors>({}) // ✅ Typage;
 
@@ -105,6 +107,7 @@ export default function LoginPage() {
       }
 
       if(result?.ok){
+        setRedirecting(true)
         // Récupération session
         const sessionRes = await fetch('/api/auth/session')
         const sessionData = await sessionRes.json()
@@ -124,10 +127,12 @@ export default function LoginPage() {
         }else if(role === 'USER'){
           router.push('/dashboard/user')
         }else{
+          setRedirecting(false)
           setErrors({ general: 'Rôle non autorisé' })
         }
       }
     } catch (error) {
+      setRedirecting(false)
       setErrors({ general:'Une erreur est survenue. Veuillez réessayer.' });
       console.error('Login error:', error);
     } finally {
@@ -147,6 +152,8 @@ export default function LoginPage() {
     }
   };
    
+  if (redirecting) return <AppLoader message="Connexion réussie — ouverture de votre espace…" />;
+
   return (
     <div className="min-h-screen overflow-x-hidden flex items-center justify-center px-4 py-6 relative bg-gradient-to-br from-primary-600 via-primary-700 to-slate-900">
 
