@@ -198,7 +198,7 @@ export default function POPCPage() {
   const setField = (k: keyof FormState, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="md:p-6 max-w-7xl mx-auto space-y-6">
       {/* En-tête */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>

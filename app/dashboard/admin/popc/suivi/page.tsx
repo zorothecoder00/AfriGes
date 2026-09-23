@@ -26,7 +26,7 @@ export default function SuiviJournalierPage() {
   const taux = d?.tauxRealisation ?? 0;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="md:p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -49,7 +49,7 @@ export default function SuiviJournalierPage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-indigo-100 text-sm flex items-center gap-1.5"><TrendingUp className="w-4 h-4" /> Taux de réalisation (montant collecté)</p>
-            <p className="text-3xl font-bold mt-1">{taux}%</p>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold mt-1">{taux}%</p>
           </div>
         </div>
         <div className="mt-3 h-2.5 bg-white/20 rounded-full overflow-hidden">

@@ -38,7 +38,7 @@ export default function LivraisonsPage() {
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="md:p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -72,15 +72,15 @@ export default function LivraisonsPage() {
           </p>
           <div className="grid grid-cols-3 gap-4 mt-3">
             <div>
-              <p className="text-3xl font-bold">{fmt(r.cadenceQuinzaine)}</p>
+              <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold">{fmt(r.cadenceQuinzaine)}</p>
               <p className="text-xs text-indigo-100">Quinzaine / jour</p>
             </div>
             <div>
-              <p className="text-3xl font-bold">{fmt(r.cadenceTrentaine)}</p>
+              <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold">{fmt(r.cadenceTrentaine)}</p>
               <p className="text-xs text-indigo-100">Trentaine / jour</p>
             </div>
             <div>
-              <p className="text-3xl font-bold">{fmt(r.cadenceCarnets)}</p>
+              <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold">{fmt(r.cadenceCarnets)}</p>
               <p className="text-xs text-indigo-100">Carnets / jour</p>
             </div>
           </div>

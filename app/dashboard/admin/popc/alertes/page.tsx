@@ -40,7 +40,7 @@ export default function AlertesPage() {
   const compte = (s: Severite) => alertes.filter((a) => a.severite === s).length;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="md:p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">

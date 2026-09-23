@@ -36,7 +36,7 @@ export default function DirectionPage() {
   const d = data?.data;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="md:p-6 max-w-6xl mx-auto space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -65,7 +65,7 @@ export default function DirectionPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-white/80 text-sm">Bénéfice estimé (encaissé − charges)</p>
-            <p className="text-3xl font-bold mt-1">{d ? fmt(d.beneficeEstime) : "—"} FCFA</p>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold mt-1">{d ? fmt(d.beneficeEstime) : "—"} FCFA</p>
           </div>
           <div className="flex items-center gap-2 px-4 py-2 bg-white/15 rounded-xl text-sm font-medium">
             {d?.objectifAtteint ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
