@@ -9,7 +9,7 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import AfriSimeLogo from "@/components/AfriSimeLogo";
+import SidebarLogo from "@/components/SidebarLogo";
 import { usePathname } from "next/navigation";
 import {
   ShieldOff, ArrowLeft, Home, LayoutDashboard, PenSquare, BookOpen, BookMarked,
@@ -108,10 +108,8 @@ export default function ComptablesLayout({ children }: { children: ReactNode }) 
         }`}
       >
         {/* Logo centré — la sidebar occupe toute la hauteur de l'écran et porte le logo */}
-        <div className="flex-shrink-0 flex justify-center border-b border-white/10 px-3 py-3">
-          <div className="rounded-xl bg-white p-1 shadow-sm">
-            <AfriSimeLogo className="h-11 w-auto" />
-          </div>
+        <div className="flex-shrink-0 flex justify-center bg-white border-b border-white/10 py-2">
+          <SidebarLogo className="h-36" />
         </div>
         <div className="h-16 flex items-center justify-between gap-2 px-5 border-b border-white/10 flex-shrink-0">
           <div className="flex items-center gap-2 min-w-0">

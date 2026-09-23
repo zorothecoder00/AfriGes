@@ -14,6 +14,7 @@ import {
 import { useT } from "@/contexts/AppSettingsContext";
 import { useApi } from "@/hooks/useApi";
 import AfriSimeLogo from "@/components/AfriSimeLogo";
+import SidebarLogo from "@/components/SidebarLogo";
 
 const COLLAPSE_STORAGE_KEY = "admin-sidebar-collapsed";
 
@@ -198,14 +199,20 @@ export default function AdminSidebar({
       <aside className={`shrink-0 hidden md:block transition-[width] duration-200 ${collapsed ? "w-[68px]" : "w-64"}`}>
         {/* Pleine hauteur de l'écran, collée au bord gauche ; le logo fait partie de la sidebar */}
         <div className="sticky top-0 h-screen flex flex-col overflow-hidden bg-brand-700 border-r border-brand-800 shadow-sm">
-          <div className={`shrink-0 relative flex items-center justify-center gap-2 border-b border-brand-700/50 p-3 ${collapsed ? "flex-col" : ""}`}>
-            <Link href="/dashboard/admin" title="AfriSime" className="shrink-0 rounded-xl bg-white p-1">
-              <AfriSimeLogo className={collapsed ? "h-9 w-9 object-contain" : "h-11 w-auto"} priority />
-            </Link>
+          <div className={`shrink-0 relative flex items-center justify-center gap-2 border-b ${collapsed ? "flex-col p-3 border-brand-700/50" : "bg-white py-2 border-brand-800"}`}>
+            {collapsed ? (
+              <Link href="/dashboard/admin" title="AfriSime" className="shrink-0 rounded-xl bg-white p-1">
+                <AfriSimeLogo className="h-9 w-9 object-contain" priority />
+              </Link>
+            ) : (
+              <Link href="/dashboard/admin" title="AfriSime">
+                <SidebarLogo className="h-36" priority />
+              </Link>
+            )}
             <button
               onClick={toggleCollapsed}
               title={collapsed ? "Déplier la sidebar" : "Replier la sidebar"}
-              className={`p-1.5 rounded-lg text-brand-100/80 hover:bg-brand-600/60 hover:text-white transition-colors ${collapsed ? "" : "absolute right-2 top-2"}`}
+              className={`p-1.5 rounded-lg transition-colors ${collapsed ? "text-brand-100/80 hover:bg-brand-600/60 hover:text-white" : "absolute right-1.5 top-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"}`}
             >
               {collapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
             </button>

@@ -13,7 +13,7 @@ import AccountMenuButton from "@/components/AccountMenuButton";
 import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
 import UserPdvBadge from "@/components/UserPdvBadge";
-import AfriSimeLogo from "@/components/AfriSimeLogo";
+import SidebarLogo from "@/components/SidebarLogo";
 import KpiCard from "@/components/ui/KpiCard";
 import NouvelleCampagneModal from "@/components/marketing/NouvelleCampagneModal";
 import NouvelleAudienceModal from "@/components/marketing/NouvelleAudienceModal";
@@ -126,10 +126,8 @@ export default function ResponsableMarketingPage() {
     <div className="min-h-screen bg-slate-50 flex">
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-fuchsia-900 bg-gradient-to-b from-fuchsia-800 to-fuchsia-900 text-white transform transition-transform lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         {/* Logo centré — la sidebar occupe toute la hauteur de l'écran et porte le logo */}
-        <div className="flex-shrink-0 flex justify-center border-b border-white/10 px-3 py-3">
-          <div className="rounded-xl bg-white p-1 shadow-sm">
-            <AfriSimeLogo className="h-11 w-auto" />
-          </div>
+        <div className="flex-shrink-0 flex justify-center bg-white border-b border-white/10 py-2">
+          <SidebarLogo className="h-36" />
         </div>
         <div className="p-5 border-b border-white/10">
 

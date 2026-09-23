@@ -11,7 +11,7 @@ import AccountMenuButton from "@/components/AccountMenuButton";
 import CongesNavButton from "@/components/CongesNavButton";
 import MessagesLink from "@/components/MessagesLink";
 import DashboardBackButton from "@/components/DashboardBackButton";
-import AfriSimeLogo from "@/components/AfriSimeLogo";
+import SidebarLogo from "@/components/SidebarLogo";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 
@@ -134,10 +134,8 @@ export default function RevendeurPage() {
 
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-rose-950 bg-gradient-to-b from-rose-800 to-rose-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:z-auto lg:flex-shrink-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         {/* Logo centré — la sidebar occupe toute la hauteur de l'écran et porte le logo */}
-        <div className="flex-shrink-0 flex justify-center border-b border-white/10 px-3 py-3">
-          <div className="rounded-xl bg-white p-1 shadow-sm">
-            <AfriSimeLogo className="h-11 w-auto" />
-          </div>
+        <div className="flex-shrink-0 flex justify-center bg-white border-b border-white/10 py-2">
+          <SidebarLogo className="h-36" />
         </div>
         <div className="h-16 flex items-center justify-between gap-3 px-5 border-b border-white/10 flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0">
