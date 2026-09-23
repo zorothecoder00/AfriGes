@@ -931,17 +931,17 @@ export default function CreditsPage() {
     <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
 
-      <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
+      <div className="md:p-6 space-y-6 max-w-screen-xl mx-auto">
 
         <RetourLien />
 
         {/* ── En-tête ────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-slate-900">Crédits clients</h2>
             <p className="text-sm text-slate-500 mt-0.5">Ventes à crédit · validation · remboursements journaliers</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <a href="/dashboard/admin/credits/saisie-rapide"
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-blue-200 text-blue-700 rounded-xl hover:bg-blue-50 text-sm font-medium">
               <Banknote className="w-4 h-4" /> Saisie rapide
@@ -991,10 +991,10 @@ export default function CreditsPage() {
             const stat = meta?.statsParStatut?.[s.statut];
             return (
               <button key={s.label} onClick={() => { setStatut(s.statut); setPage(1); }}
-                className={`${s.bg} border rounded-2xl p-4 flex items-center gap-3 hover:opacity-90 transition text-left`}>
-                <div className="p-2.5 rounded-xl bg-white/60">{s.icon}</div>
+                className={`${s.bg} border rounded-2xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3 hover:opacity-90 transition text-left min-w-0`}>
+                <div className="shrink-0 p-2 sm:p-2.5 rounded-xl bg-white/60">{s.icon}</div>
                 <div className="min-w-0">
-                  <p className="text-xs text-slate-500 font-medium truncate">{s.label}</p>
+                  <p className="text-xs text-slate-500 font-medium leading-tight">{s.label}</p>
                   <p className={`text-2xl font-bold ${s.text} mt-0.5`}>{stat?.nb ?? 0}</p>
                   <p className={`text-xs font-semibold ${s.text} opacity-80 truncate`}>{formatCurrency(stat?.[s.montantCle] ?? 0)}</p>
                 </div>
@@ -1002,10 +1002,10 @@ export default function CreditsPage() {
             );
           })}
           <button onClick={() => { setStatut(''); setPage(1); }}
-            className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3 hover:opacity-90 transition text-left">
-            <div className="p-2.5 rounded-xl bg-slate-50"><CreditCard className="w-5 h-5 text-slate-500" /></div>
+            className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3 hover:opacity-90 transition text-left min-w-0">
+            <div className="shrink-0 p-2 sm:p-2.5 rounded-xl bg-slate-50"><CreditCard className="w-5 h-5 text-slate-500" /></div>
             <div className="min-w-0">
-              <p className="text-xs text-slate-500 font-medium truncate">Total (filtre actuel)</p>
+              <p className="text-xs text-slate-500 font-medium leading-tight">Total (filtre actuel)</p>
               <p className="text-2xl font-bold text-slate-700 mt-0.5">{meta?.total ?? 0}</p>
             </div>
           </button>

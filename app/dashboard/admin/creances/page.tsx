@@ -114,11 +114,11 @@ export default function CreancesPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
-      <div className="p-6 space-y-6">
+      <div className="md:p-6 space-y-6">
 
       {/* En-tête */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-2xl font-bold text-slate-900">Créances clients</h2>
           <p className="text-sm text-slate-500 mt-0.5">
             Souscriptions packs avec montant restant à percevoir

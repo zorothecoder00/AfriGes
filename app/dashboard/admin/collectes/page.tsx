@@ -154,11 +154,11 @@ export default function CollectesPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
-      <div className="p-6 space-y-6">
+      <div className="md:p-6 space-y-6">
 
       {/* En-tête */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-2xl font-bold text-slate-900">{t('collecte_title')}</h2>
           <p className="text-sm text-slate-500 mt-0.5">{t('collecte_subtitle')}</p>
         </div>
@@ -205,18 +205,18 @@ export default function CollectesPage() {
           ))}
         </select>
 
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-slate-400" />
+        <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
+          <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
           <input
             type="date" value={dateDebut}
             onChange={(e) => { setDateDebut(e.target.value); setPage(1); }}
-            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none"
+            className="flex-1 sm:flex-none min-w-0 px-2 sm:px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none"
           />
           <span className="text-slate-400 text-sm">→</span>
           <input
             type="date" value={dateFin}
             onChange={(e) => { setDateFin(e.target.value); setPage(1); }}
-            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none"
+            className="flex-1 sm:flex-none min-w-0 px-2 sm:px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none"
           />
         </div>
 

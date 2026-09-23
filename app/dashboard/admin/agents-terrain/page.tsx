@@ -162,15 +162,15 @@ export default function AgentsTerrainPage() {
     <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
 
-      <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
+      <div className="md:p-6 space-y-6 max-w-screen-xl mx-auto">
 
         {/* En-tête */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-slate-900">Supervision agents de terrain</h2>
             <p className="text-sm text-slate-500 mt-0.5">Performance, recouvrement et activité par agent</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link href="/dashboard/admin/agents-terrain/qr-planche"
               className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm">
               <QrCode className="w-4 h-4" /> QR tournée (sans connexion)

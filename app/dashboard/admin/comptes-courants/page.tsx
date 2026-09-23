@@ -93,16 +93,16 @@ export default function ComptesCourantsPage() {
   const nbAValider = pendingRes?.data?.length ?? 0;
 
   const pageContent = (
-    <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
+    <div className="md:p-6 space-y-6 max-w-screen-xl mx-auto">
         {/* En-tête */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               <Wallet className="w-6 h-6 text-emerald-600" /> Comptes Courants
             </h2>
             <p className="text-sm text-slate-500 mt-0.5">Portefeuilles internes clients · épargne AfriSime</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {canValidate && (
               <Link href="/dashboard/admin/comptes-courants/a-valider"
                 className="relative flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 text-sm font-medium shadow-sm">

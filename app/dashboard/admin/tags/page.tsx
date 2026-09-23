@@ -235,10 +235,10 @@ export default function TagsPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary-50/20 to-purple-50/10 ">
       <ClienteleTabBar>
 
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-5xl mx-auto md:px-6 md:py-8 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-slate-900">Tags clients</h2>
             <p className="text-sm text-slate-500 mt-0.5">
               {tags.length} tag{tags.length !== 1 ? "s" : ""}

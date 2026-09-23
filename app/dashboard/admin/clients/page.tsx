@@ -188,7 +188,7 @@ function TagsClientModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[150] p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div>
             <h2 className="text-base font-bold text-slate-800">Tags du client</h2>
@@ -696,15 +696,15 @@ export default function ClientsPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20"
       onClick={() => setQuickStatusClient(null)}>
       <ClienteleTabBar>
-      <div className="max-w-[1600px] mx-auto space-y-6 p-8">
+      <div className="max-w-[1600px] mx-auto space-y-6 md:p-8">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-slate-800">{t('clients_title')}</h2>
             <p className="text-slate-500 text-sm mt-0.5">{t('clients_subtitle')}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {isSuperAdmin && (
               <button onClick={handleExport} disabled={exporting}
                 className="px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 font-medium disabled:opacity-60">
@@ -724,7 +724,7 @@ export default function ClientsPage() {
         {/* ══ MODAL — Plafond crédit ════════════════════════════════════════ */}
         {plafondClient && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
-            <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+            <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-xl">
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
                 <div className="flex items-center gap-3">
@@ -822,7 +822,7 @@ export default function ClientsPage() {
                 {/* ─ Identité ─ */}
                 <section>
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Identité</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Nom <span className="text-red-500">*</span></label>
                       <input type="text" required value={formData.nom} onChange={e => setFormData({...formData, nom: e.target.value})}
@@ -878,8 +878,8 @@ export default function ClientsPage() {
                 {/* ─ Localisation ─ */}
                 <section>
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Localisation</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="col-span-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2">
                       <label className="block text-xs font-medium text-slate-600 mb-1">Adresse</label>
                       <input type="text" value={formData.adresse} onChange={e => setFormData({...formData, adresse: e.target.value})}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Rue, numéro…" />
@@ -899,7 +899,7 @@ export default function ClientsPage() {
                       <input type="text" value={formData.commune} onChange={e => setFormData({...formData, commune: e.target.value})}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Commune" />
                     </div>
-                    <div className="col-span-2">
+                    <div className="sm:col-span-2">
                       <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
                         <Navigation className="w-3 h-3" /> Localisation GPS
                       </label>
@@ -931,7 +931,7 @@ export default function ClientsPage() {
                 {/* ─ Activité & commerce ─ */}
                 <section>
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Activité & commerce</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Activité / Métier</label>
                       <input type="text" value={formData.activite} onChange={e => setFormData({...formData, activite: e.target.value})}
@@ -948,7 +948,7 @@ export default function ClientsPage() {
                 {/* ─ Documents ─ */}
                 <section>
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Documents (URLs)</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Photo client (URL)</label>
                       <input type="url" value={formData.photoUrl} onChange={e => setFormData({...formData, photoUrl: e.target.value})}
@@ -985,7 +985,7 @@ export default function ClientsPage() {
                 {/* ─ Type client & crédit ─ */}
                 <section>
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Type client & crédit</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Type client</label>
                       <select value={formData.typeClient} onChange={e => setFormData({...formData, typeClient: e.target.value})}
@@ -1000,7 +1000,7 @@ export default function ClientsPage() {
                       <input type="number" min={0} value={formData.limiteCredit} onChange={e => setFormData({...formData, limiteCredit: e.target.value})}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Laisser vide = aucun plafond" />
                     </div>
-                    <div className="col-span-2">
+                    <div className="sm:col-span-2">
                       <label className="block text-xs font-medium text-slate-600 mb-1">Code parrain (optionnel)</label>
                       <input value={formData.codeParrainageUtilise} onChange={e => setFormData({...formData, codeParrainageUtilise: e.target.value.toUpperCase()})}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="PAR-XXXXXX (code d'un client existant)" />
@@ -1215,38 +1215,38 @@ export default function ClientsPage() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-5">
-          <div className="group relative overflow-hidden bg-gradient-to-br from-primary-50 to-white rounded-2xl p-6 shadow-sm border border-primary-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-primary-200/60 hover:border-primary-300">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+          <div className="group relative overflow-hidden bg-gradient-to-br from-primary-50 to-white rounded-2xl p-4 sm:p-6 min-w-0 shadow-sm border border-primary-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-primary-200/60 hover:border-primary-300">
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary-500" />
             <span className="text-primary-700/80 text-sm font-semibold">{t('clients_total')}</span>
-            <p className="text-3xl font-bold text-primary-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{meta?.total ?? '—'}</p>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-primary-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{meta?.total ?? '—'}</p>
           </div>
-          <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-6 shadow-sm border border-emerald-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-200/60 hover:border-emerald-300">
+          <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-4 sm:p-6 min-w-0 shadow-sm border border-emerald-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-200/60 hover:border-emerald-300">
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500" />
             <span className="text-emerald-700/80 text-sm font-semibold">Avec PDV</span>
-            <p className="text-3xl font-bold text-emerald-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">
               {clients.filter(c => getClientPdvs(c).length > 0).length}
             </p>
           </div>
-          <div className="group relative overflow-hidden bg-gradient-to-br from-amber-50 to-white rounded-2xl p-6 shadow-sm border border-amber-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-amber-200/60 hover:border-amber-300">
+          <div className="group relative overflow-hidden bg-gradient-to-br from-amber-50 to-white rounded-2xl p-4 sm:p-6 min-w-0 shadow-sm border border-amber-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-amber-200/60 hover:border-amber-300">
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500" />
             <span className="text-amber-700/80 text-sm font-semibold">Sans PDV</span>
-            <p className="text-3xl font-bold text-amber-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-amber-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">
               {clients.filter(c => getClientPdvs(c).length === 0).length}
             </p>
           </div>
-          <div className="group relative overflow-hidden bg-gradient-to-br from-brand-50 to-white rounded-2xl p-6 shadow-sm border border-brand-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-200/60 hover:border-brand-300">
+          <div className="group relative overflow-hidden bg-gradient-to-br from-brand-50 to-white rounded-2xl p-4 sm:p-6 min-w-0 shadow-sm border border-brand-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-200/60 hover:border-brand-300">
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-500" />
             <span className="text-brand-700/80 text-sm font-semibold">Page</span>
-            <p className="text-3xl font-bold text-brand-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{meta?.page ?? '—'} / {meta?.totalPages ?? '—'}</p>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-brand-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{meta?.page ?? '—'} / {meta?.totalPages ?? '—'}</p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 space-y-3">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 space-y-3">
           {/* Ligne 1 : recherche + selects */}
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex-1 min-w-[220px] relative">
+            <div className="relative w-full sm:w-auto sm:flex-1 sm:min-w-[220px]">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input type="text"
                 placeholder="Nom, téléphone, code client, quartier…"
@@ -1255,7 +1255,7 @@ export default function ClientsPage() {
                 className="w-full pl-11 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50" />
             </div>
             <select value={filterEtat} onChange={e => { setFilterEtat(e.target.value); setFilterAvance(''); setPage(1); }}
-              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
+              className="flex-1 sm:flex-none min-w-[9rem] max-w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
               <option value="">Tous les statuts</option>
               <option value="ACTIF">Actif</option>
               <option value="SUSPENDU">Suspendu</option>
@@ -1263,28 +1263,28 @@ export default function ClientsPage() {
               <option value="INACTIF">Archivé</option>
             </select>
             <select value={filterPdvId} onChange={e => { setFilterPdvId(e.target.value); setPage(1); }}
-              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
+              className="flex-1 sm:flex-none min-w-[9rem] max-w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
               <option value="">{t('clients_all_pdv')}</option>
               {pdvOptions.map(p => (
                 <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>
               ))}
             </select>
             <select value={filterAgentId} onChange={e => { setFilterAgentId(e.target.value); setPage(1); }}
-              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
+              className="flex-1 sm:flex-none min-w-[9rem] max-w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
               <option value="">Tous les agents</option>
               {agentsTerrainOptions.map(a => (
                 <option key={a.id} value={String(a.member.id)}>{a.member.prenom} {a.member.nom}</option>
               ))}
             </select>
             <select value={filterSegment} onChange={e => { setFilterSegment(e.target.value); setPage(1); }}
-              className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
+              className="flex-1 sm:flex-none min-w-[9rem] max-w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
               <option value="">Tous segments</option>
               <option value="ORDINAIRE">Ordinaire</option>
               <option value="RIA">★ RIA</option>
             </select>
             {allTags.length > 0 && (
               <select value={filterTagId} onChange={e => { setFilterTagId(e.target.value); setPage(1); }}
-                className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
+                className="flex-1 sm:flex-none min-w-[9rem] max-w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50">
                 <option value="">Tous les tags</option>
                 {allTags.map(t => (
                   <option key={t.id} value={String(t.id)}>{t.nom}</option>
@@ -1324,7 +1324,7 @@ export default function ClientsPage() {
         {/* Clients Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[64rem]">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Client</th>
@@ -1343,7 +1343,7 @@ export default function ClientsPage() {
                   <tr key={client.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold shadow-md ${
+                        <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white font-semibold shadow-md ${
                           client.etat === 'BLOQUE' ? 'bg-gradient-to-br from-red-500 to-red-600'
                           : client.etat === 'SUSPENDU' ? 'bg-gradient-to-br from-amber-400 to-amber-500'
                           : client.etat === 'INACTIF' ? 'bg-gradient-to-br from-gray-400 to-gray-500'
@@ -1600,7 +1600,7 @@ export default function ClientsPage() {
       {/* ══ MODAL — Confirmation suppression ════════════════════════════ */}
       {deleteConfirmClient && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[160] p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-xl">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                 <AlertTriangle className="w-6 h-6 text-red-600" />
@@ -1644,7 +1644,7 @@ export default function ClientsPage() {
           <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[150] flex flex-col overflow-hidden">
 
             {/* Header drawer */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-amber-50 to-orange-50 shrink-0">
+            <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 bg-gradient-to-r from-amber-50 to-orange-50 shrink-0">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
                   {getInitials(histoClient.nom, histoClient.prenom)}
@@ -1677,7 +1677,7 @@ export default function ClientsPage() {
               {!histoLoading && histoData && (
                 <>
                   {/* ── Cartes résumé ── */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:gap-4">
                     <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
                       <div className="flex items-center gap-2 mb-1">
                         <TrendingUp size={16} className="text-emerald-600" />

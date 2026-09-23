@@ -120,7 +120,7 @@ export default function ClienteleTabBar({ children }: { children?: ReactNode }) 
 
   return (
     <div>
-      <div className="bg-white border-b border-slate-200 px-6 pt-4 pb-3 print:hidden">
+      <div className="bg-white border-b border-slate-200 px-4 md:px-6 pt-4 pb-3 print:hidden">
         {/* Breadcrumb — le retour vers /dashboard/admin n'a de sens que pour un admin */}
         {isAdmin && (
           <div className="flex items-center gap-2 mb-3">
@@ -139,7 +139,7 @@ export default function ClienteleTabBar({ children }: { children?: ReactNode }) 
         <h1 className="text-xl font-bold text-slate-900">Gestion de la clientèle</h1>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-3 md:gap-4 px-6 py-4 print:block print:p-0">
+      <div className="flex flex-col md:flex-row gap-3 md:gap-4 md:px-6 py-4 print:block print:p-0">
         <div className="print:hidden">
           <SideTabs accent="brand" items={items} />
         </div>

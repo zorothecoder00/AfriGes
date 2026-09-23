@@ -120,11 +120,11 @@ export default function AlertesImpayesPage() {
     <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
 
-      <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
+      <div className="md:p-6 space-y-6 max-w-screen-xl mx-auto">
 
         {/* En-tête */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-slate-900">{t('alertes_title')}</h2>
             <p className="text-sm text-slate-500 mt-0.5">
               {t('alertes_subtitle')}
@@ -137,22 +137,22 @@ export default function AlertesImpayesPage() {
 
         {/* Stats urgence */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-center gap-4">
-            <div className="bg-red-100 p-3 rounded-xl">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 sm:p-5 flex flex-col items-start sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0">
+            <div className="bg-red-100 p-2.5 sm:p-3 rounded-xl shrink-0">
               <AlertTriangle className="w-6 h-6 text-red-600" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs text-red-600 font-medium">{t('alertes_stat_creances')} (&gt; {jours}j)</p>
-              <p className="text-3xl font-bold text-red-700">{res?.stats.total ?? 0}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-red-700">{res?.stats.total ?? 0}</p>
             </div>
           </div>
-          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 flex items-center gap-4">
-            <div className="bg-orange-100 p-3 rounded-xl">
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 sm:p-5 flex flex-col items-start sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0">
+            <div className="bg-orange-100 p-2.5 sm:p-3 rounded-xl shrink-0">
               <Bell className="w-6 h-6 text-orange-600" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs text-orange-600 font-medium">{t('alertes_stat_montant')}</p>
-              <p className="text-2xl font-bold text-orange-700">{formatCurrency(res?.stats.montant ?? 0)}</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-orange-700">{formatCurrency(res?.stats.montant ?? 0)}</p>
             </div>
           </div>
         </div>

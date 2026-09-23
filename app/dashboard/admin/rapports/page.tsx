@@ -420,15 +420,15 @@ export default function RapportsPage() {
     <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
 
-      <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
+      <div className="md:p-6 space-y-6 max-w-screen-xl mx-auto">
 
         {/* En-tête */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-slate-900">{t('rapports_title')}</h2>
             <p className="text-sm text-slate-500 mt-0.5">{t('rapports_subtitle_detail')}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {exportButtons[tab]}
             <button onClick={refetchCurrent}
               className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm">
@@ -456,15 +456,15 @@ export default function RapportsPage() {
 
           {/* Filtres date (sauf créances et retards — snapshots) */}
           {tab !== 'creances' && tab !== 'retards' && (
-            <div className="px-6 py-4 flex items-center gap-4 bg-slate-50 border-b border-slate-100 flex-wrap">
-              <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
+            <div className="px-4 sm:px-6 py-4 flex items-center gap-2 sm:gap-4 bg-slate-50 border-b border-slate-100 flex-wrap">
+              <span className="w-full sm:w-auto text-xs font-medium text-slate-500 flex items-center gap-1">
                 <Calendar className="w-3 h-3" /> {t('rapports_period_label')}
               </span>
               <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)}
-                className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white" />
+                className="flex-1 sm:flex-none min-w-0 px-2 sm:px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white" />
               <span className="text-slate-400 text-sm">→</span>
               <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)}
-                className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white" />
+                className="flex-1 sm:flex-none min-w-0 px-2 sm:px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white" />
               {(dateDebut || dateFin) && (
                 <button onClick={() => { setDateDebut(''); setDateFin(''); }}
                   className="text-xs text-slate-400 hover:text-slate-600 underline">
@@ -847,11 +847,11 @@ function StatBox({ label, value, icon, bg }: {
   label: string; value: string; icon: React.ReactNode; bg: string;
 }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3 shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 flex flex-col items-start sm:flex-row sm:items-center gap-2 sm:gap-3 shadow-sm min-w-0">
       <div className={`${bg} p-2.5 rounded-xl shrink-0`}>{icon}</div>
-      <div>
+      <div className="min-w-0">
         <p className="text-xs text-slate-500">{label}</p>
-        <p className="font-bold text-slate-900 text-lg">{value}</p>
+        <p className="font-bold text-slate-900 text-base sm:text-lg leading-tight [overflow-wrap:anywhere]">{value}</p>
       </div>
     </div>
   );

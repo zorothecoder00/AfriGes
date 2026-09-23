@@ -135,11 +135,11 @@ export default function NotificationsClientelePage() {
         </div>
       </nav>
 
-      <div className="p-6 space-y-6 max-w-4xl mx-auto">
+      <div className="md:p-6 space-y-6 max-w-4xl mx-auto">
 
         {/* En-tête */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               <Bell className="w-6 h-6 text-blue-600" />
               Toutes les notifications
@@ -153,7 +153,7 @@ export default function NotificationsClientelePage() {
               Notifications générales de votre espace administrateur
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button onClick={handleMarkAll} disabled={marking || (res?.meta.nbNonLues ?? 0) === 0}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-40">
               <CheckCheck className="w-4 h-4" /> {t('notif_mark_all_read')}

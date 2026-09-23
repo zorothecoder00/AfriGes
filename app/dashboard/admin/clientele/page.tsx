@@ -94,11 +94,11 @@ export default function ClienteleDashboard() {
     <div className="min-h-screen bg-slate-50">
       <ClienteleTabBar>
 
-      <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
+      <div className="md:p-6 space-y-6 max-w-screen-xl mx-auto">
 
         {/* En-tête */}
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-slate-900">Tableau de bord</h2>
             <p className="text-sm text-slate-500 mt-0.5">Vue d&apos;ensemble en temps réel — ERP · CRM · Recouvrement · Contrôle financier</p>
           </div>
@@ -246,7 +246,7 @@ export default function ClienteleDashboard() {
 
           {/* Top agents */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="px-4 sm:px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <div className="flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-blue-600" />
                 <h3 className="text-sm font-semibold text-slate-800">Top agents de recouvrement</h3>
@@ -306,7 +306,7 @@ export default function ClienteleDashboard() {
 
           {/* Créances critiques */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="px-4 sm:px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-600" />
                 <h3 className="text-sm font-semibold text-slate-800">Créances critiques</h3>
