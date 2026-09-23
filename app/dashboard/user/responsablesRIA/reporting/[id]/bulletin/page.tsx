@@ -86,7 +86,7 @@ export default function BulletinRIAPage({ params }: { params: Promise<{ id: stri
           <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3 border-b border-slate-100 pb-1">
             Situation des Capitaux
           </h2>
-          <table className="w-full text-sm">
+          <table className="doc-table w-full text-sm">
             <tbody>
               {[
                 ["Capital investi total",   fmt(d.capitaux.capitalInvesti),    "font-semibold"],
@@ -109,7 +109,7 @@ export default function BulletinRIAPage({ params }: { params: Promise<{ id: stri
             <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3 border-b border-slate-100 pb-1">
               Bénéfices — {moisLabel(rapport.mois, rapport.annee)}
             </h2>
-            <table className="w-full text-sm">
+            <table className="doc-table w-full text-sm">
               <tbody>
                 {[
                   ["Base de calcul",           fmt(d.distribution.capitalBase),      "text-slate-600"],
@@ -155,7 +155,7 @@ export default function BulletinRIAPage({ params }: { params: Promise<{ id: stri
           <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3 border-b border-slate-100 pb-1">
             Flux du Mois
           </h2>
-          <table className="w-full text-sm">
+          <table className="doc-table w-full text-sm">
             <tbody>
               <tr className="border-b border-slate-50">
                 <td className="py-1.5 text-slate-500">Entrées</td>

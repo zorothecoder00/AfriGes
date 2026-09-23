@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# Journal local du serveur de dev (npm run dev > dev.log)
+dev.log

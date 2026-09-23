@@ -170,7 +170,7 @@ export function RapportContent({ d, genereA }: { d: DonneesRapport; genereA: str
         </div>
         {d.distributions.length > 0 && (
           <div className="mt-3 bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="doc-table w-full text-sm">
               <thead className="bg-slate-50 text-xs text-slate-500">
                 <tr>
                   <th className="px-3 py-2 text-left">Généré</th>
@@ -302,7 +302,7 @@ export function RapportContent({ d, genereA }: { d: DonneesRapport; genereA: str
             <XCircle className="w-4 h-4 text-slate-500" /> Détail des financements actifs
           </h2>
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="doc-table w-full text-sm">
               <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
                 <tr>
                   <th className="px-3 py-2 text-left">Réf.</th>

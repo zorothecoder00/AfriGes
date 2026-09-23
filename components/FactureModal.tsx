@@ -200,7 +200,7 @@ function InvoiceLayout({ f }: { f: FactureData }) {
       </div>
 
       {/* ── Tableau des lignes ───────────────────────────────────────────────── */}
-      <table className="w-full text-sm mb-6">
+      <table className="doc-table w-full text-sm mb-6">
         <thead>
           <tr className="border-b-2 border-slate-200 text-xs uppercase tracking-wide">
             <th className="text-left pb-2 text-slate-400 w-8">N°</th>
@@ -282,7 +282,7 @@ function InvoiceLayout({ f }: { f: FactureData }) {
       {f.type === "CREDIT" && f.echeancier && f.echeancier.length > 0 && (
         <div className="mb-6">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Échéancier</p>
-          <table className="w-full text-sm">
+          <table className="doc-table w-full text-sm">
             <thead>
               <tr className="border-b-2 border-slate-200 text-xs uppercase tracking-wide">
                 <th className="text-left pb-2 text-slate-400 w-10">N°</th>
@@ -320,7 +320,7 @@ function InvoiceLayout({ f }: { f: FactureData }) {
       {f.type === "CREDIT" && f.mouvementsCC && f.mouvementsCC.length > 0 && (
         <div className="mb-6">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Paiement par compte courant</p>
-          <table className="w-full text-sm">
+          <table className="doc-table w-full text-sm">
             <thead>
               <tr className="border-b-2 border-slate-200 text-xs uppercase tracking-wide">
                 <th className="text-left pb-2 text-slate-400">Date</th>
@@ -869,7 +869,7 @@ function printInvoice(f: FactureData, opts?: { mono?: boolean }) {
   </div>
 
   <!-- Tableau -->
-  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px">
+  <table className="doc-table" style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px">
     <thead>
       <tr style="border-bottom:2px solid ${c.headRule}">
         <th style="text-align:left;padding-bottom:8px;color:${c.faint};font-size:11px;letter-spacing:1px;text-transform:uppercase;width:32px">N°</th>
@@ -891,7 +891,7 @@ function printInvoice(f: FactureData, opts?: { mono?: boolean }) {
   <!-- Échéancier -->
   <div style="margin-bottom:24px">
     <p style="font-size:10px;font-weight:700;color:${c.faint};letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Échéancier</p>
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
+    <table className="doc-table" style="width:100%;border-collapse:collapse;font-size:12px">
       <thead>
         <tr style="border-bottom:2px solid ${c.headRule}">
           <th style="text-align:left;padding-bottom:6px;color:${c.faint};font-size:10px;letter-spacing:1px;text-transform:uppercase;width:32px">N°</th>
@@ -920,7 +920,7 @@ function printInvoice(f: FactureData, opts?: { mono?: boolean }) {
   <!-- Paiement par compte courant -->
   <div style="margin-bottom:24px">
     <p style="font-size:10px;font-weight:700;color:${c.faint};letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Paiement par compte courant</p>
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
+    <table className="doc-table" style="width:100%;border-collapse:collapse;font-size:12px">
       <thead>
         <tr style="border-bottom:2px solid ${c.headRule}">
           <th style="text-align:left;padding-bottom:6px;color:${c.faint};font-size:10px;letter-spacing:1px;text-transform:uppercase">Date</th>

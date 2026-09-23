@@ -71,7 +71,7 @@ export default function ReleveCompteFournisseur({ fournisseurId, apiBase }: Rele
           </div>
         </div>
 
-        <table className="w-full text-xs border-collapse">
+        <table className="doc-table w-full text-xs border-collapse">
           <thead>
             <tr className="border-b-2 border-slate-300">
               <th className="text-left py-2">Date</th>

@@ -77,7 +77,7 @@ function ImpressionInner() {
               </div>
             </div>
 
-            <table className="w-full text-sm border-collapse">
+            <table className="doc-table w-full text-sm border-collapse">
               <thead>
                 <tr className="text-left text-[11px] uppercase text-slate-500 border-b border-slate-300">
                   <th className="py-2 pr-2 font-semibold">Code</th>

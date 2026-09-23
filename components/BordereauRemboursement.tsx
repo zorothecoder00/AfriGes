@@ -182,7 +182,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
     <td style="padding:3px 8px;border:1px solid ${c.line};color:${c.muted};width:45%">${k}</td>
     <td style="padding:3px 8px;border:1px solid ${c.line};font-weight:600;color:${c.text}">${v}</td></tr>`;
   const sectionTitle = (t: string) => `<h2 style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:${c.headText};background:${c.headBg};padding:5px 10px;border-left:3px solid ${c.accent};margin:12px 0 6px;page-break-after:avoid">${t}</h2>`;
-  const table = (rows: string) => `<table style="width:100%;border-collapse:collapse;font-size:11.5px">${rows}</table>`;
+  const table = (rows: string) => `<table className="doc-table" style="width:100%;border-collapse:collapse;font-size:11.5px">${rows}</table>`;
   // Deux tables côte à côte sous un même titre (gain de hauteur).
   const twoCol = (left: string, right: string) => `<div style="display:flex;gap:16px;align-items:flex-start">
     <div style="flex:1;min-width:0">${table(left)}</div>
@@ -209,7 +209,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
       <p style="font-size:12px;color:${c.muted}">AFRISIME — Solutions de Crédit Alimentaire</p>
     </div>
     <div style="text-align:right;min-width:220px">
-      <table style="font-size:11px;border-collapse:collapse;margin-left:auto">
+      <table className="doc-table" style="font-size:11px;border-collapse:collapse;margin-left:auto">
         ${kv("N° du Bordereau", esc(noBordereau))}
         ${kv("N° du Crédit", esc(credit.reference))}
         ${kv("Date d'émission", fmtDate(today.toISOString()))}
@@ -279,7 +279,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
 
   <!-- E. Calendrier de remboursement journalier -->
   ${sectionTitle("E. Calendrier de remboursement journalier")}
-  <table style="width:100%;border-collapse:collapse;font-size:10px">
+  <table className="doc-table" style="width:100%;border-collapse:collapse;font-size:10px">
     <thead><tr style="background:${c.headBg};color:${c.headText}">
       <th style="padding:4px 6px;border:1px solid ${c.line}">Jour</th>
       <th style="padding:4px 6px;border:1px solid ${c.line}">Date échéance</th>
@@ -295,7 +295,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
 
   <!-- F. Historique des remboursements enregistrés (données réelles, traçables) -->
   ${sectionTitle("F. Historique des remboursements enregistrés")}
-  <table style="width:100%;border-collapse:collapse;font-size:10px">
+  <table className="doc-table" style="width:100%;border-collapse:collapse;font-size:10px">
     <thead><tr style="background:${c.headBg};color:${c.headText}">
       <th style="padding:4px 6px;border:1px solid ${c.line}">Date</th>
       <th style="padding:4px 6px;border:1px solid ${c.line}">Jour</th>
@@ -335,7 +335,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
     </p>
 
     ${sectionTitle("I. Signatures")}
-    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:10px">
+    <table className="doc-table" style="width:100%;border-collapse:collapse;font-size:11px;margin-top:10px">
       <tr>
         ${["Client", "Agent affecté", "Responsable crédit"].map((r) => `
           <td style="width:33%;text-align:center;padding:0 12px;vertical-align:top">
