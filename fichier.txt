@@ -1,33 +1,28 @@
 Identifiants sur Afriges en production : email = developpeurteste@gmail.com
                                          mot de passe = Di1234
 
--Pages user qu'il me reste à créer( types de gestionnaires [ COMMERCIAL, RESPONSABLE_VENTE_CREDIT, RESPONSABLE_ECONOMIQUE, RESPONSABLE_MARKETING ] )
-
 -Clés VAPID générées localement (aucun compte tiers requis), service worker minimal (public/sw.js) pour les notifications push/PWA
+-@xyflow/react librairie de graphe relationnel
 -exceljs est une lib pour styliser les exports
 -bibliothèque i18n (next-intl, i18next...)
 -extension PostgreSQL pg_trgm (similarite trigramme) pour tolerer fautes de frappe/variantes
 - Serwist pour le mode hors ligne
 La dictée vocale (ConversationalAssistantBar, client) — utilise directement l'API navigateur SpeechRecognition (Web Speech API, native Chrome/Edge,aucune clé requise). Pas supportée partout (Firefox notamment)
-
 -"test": "vitest run",
  11 +    "test:watch": "vitest",
-
 -Playwright pour les tests visuels
-
 -Chromium headless est une lib qui permet le rendu pdf
-
 -Print CSS et window.print() pour les export PDF/Excel
-
 -Resend est une lib permettant l'envoi d'email 
-   
 -jose pour le JWT, bcryptjs pour le hash
-    
+-BQuerry pour extraire les données et faire des analyses
+-Jitsi Meet (gratuit, intégrable    
+  en iframe, salle générée par réunion, aucun backend à héberger) — ce qui donne
+  une vraie réunion dans l'application — tout en gardant la possibilité de
+  coller un lien Meet/Zoom externe.
+-curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd
 -une petite dépendance (qrcode / bwip-js) pour QR scannable (et un vrai code-barres Code128) 
-
 -Ecrire toujours un script npm migrate:deploy:prod pour migrer via l'endpoint direct (host sans -pooler) pour éviter d'utiliser le pooler Neon et empêcher les locks
-  
-
 -On peut aussi utiliser du SVG pour les graphiques ( sans forcément dépendance externe)  
 -Ce code :      
  const a = document.createElement("a");
@@ -40,24 +35,12 @@ La dictée vocale (ConversationalAssistantBar, client) — utilise directement l
 -Prisma 7 est une breaking change majeure : url dans schema.prisma n'est plus
   supporté. La connexion doit passer par prisma.config.ts + un driver adapter.
 netsh wlan show profiles permet d'afficher les réseaux wifi enregistrés sur un pc
-netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriétés du wifi sélectionné (NomDuWifi par exemple) notamment le mot de passe  
-        
+netsh wlan show profile name="NomDuWifi" key=clear affiche toutes les propriétés du wifi sélectionné (NomDuWifi par exemple) notamment le mot de passe          
 -npm i -g @openai/codex permet d'installer le CLI de codex (agent ia d'openai qui permet d'interagir depuis le terminal)
 -Tip: Run /install-github-app to tag @claude right from your Github issues and PRs
--Tip: Use /permissions to pre-approve and pre-deny bash, edit, and MCP tools
-      
--curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd pour installer claude via le terminal cmd   
-
+-Tip: Use /permissions to pre-approve and pre-deny bash, edit, and MCP tools         
 -⎿ Tip: Working with HTML/CSS? Install the frontend-design plugin:  /plugin install frontend-design@claude-plugins-official
-
--BQuerry pour extraire les données et faire des analyses
-
--Jitsi Meet (gratuit, intégrable    
-  en iframe, salle générée par réunion, aucun backend à héberger) — ce qui donne
-  une vraie réunion dans l'application — tout en gardant la possibilité de
-  coller un lien Meet/Zoom externe.  
-
--@xyflow/react librairie de graphe relationnel
+  
 
 https://claude.ai/code/artifact/85ca1992-834f-491c-a227-0d0823885d85 ( un lien pour comprendre le module marketing d'afriges)
    
@@ -117,7 +100,6 @@ https://claude.ai/code/artifact/85ca1992-834f-491c-a227-0d0823885d85 ( un lien p
   (https://vercel.com/kb/guide/troubleshooting-vercel-cron-jobs)
 
 
-
   À ne pas oublier :
   - CRON_SECRET → une chaîne aléatoire pour sécuriser les endpoints cron (ex:
   génère avec openssl rand -hex 32)
@@ -126,86 +108,16 @@ https://claude.ai/code/artifact/85ca1992-834f-491c-a227-0d0823885d85 ( un lien p
   Les seuils d'alertes (retard, inactivité, etc.) sont tous optionnels — les
   valeurs par défaut commentées s'appliquent si tu ne les mets pas.
 
-  
 
-L'Inventaire doit se faire chez L'admin et le magasinier (validation inventaire et approvisionnement)
-
-créer un gestionnaire commercial (responsable marketing)
-
-l'admin et les responsables (chefagence , rpv,admin  ) doivent pouvoir modifier et supprimer(uniquement les admins, les autres gestionnaires ne peuvent pas) les factures
-
-erreur d'application et Exception côté client sur quasiment toutes les actions(post ou patch surtout et même get je crois) d'un de mes supérieurs sur l'app déployée (sur vercel) 
-
-
-
-Pour les archivages des crédits clients au niveau du dashboard admin/superadmin, je veux le montant total des impayés et des autres status
-
-On va revoir aussi les reçus dans les dashboards
-
-Permettre certaines notifications via mail (vu que maintenant j'ai implémenté l'authification par Google)
-
-Pour les connexion google , demander aussi un autre mot de passe pour empêcher les passant de pouvoir se connecter facilement avec le google d'un utilisateur
-
-
-Ajouter personne à prévenir ( lien familial et numéro) et la photo dans dashboard/admin/rh/collaborateurs/id
-
-
-Permettre d'envoyer les documents OGRH ( et tous les autres d'ailleurs) sur les emails
-
-
-Pour les rh/audit tu es sûr d'avoir fait 
-
-
-Pour la gestion des commissions et le paramètre des profils de de collaborateur on doit revoir ça
-
-
-Permettre d'avoir des rapports de recouvrement (taux de recouvrement, restant , payé etc etc ria par mois sur le dashboard admin ria et responsableRIA )
-
-
-Sur les factures de credit on veut voir aussi les mouvements de compte courant si utilisé ( avance , solde etc etc )
-
-Dans les crédits clients , on va essayer de faire des filtres par agent ( avec leur solde , retard , paiement etc etc)
+erreur d'application et Exception côté client sur quasiment toutes les actions(post ou patch surtout et même get je crois) sur l'app déployée (sur vercel) 
     
 
-Dans les dossiers des collaborateurs pour leurs informations, faut ajouter aussi personne à prévénir
-
-Pouvoir rajouter grossiste dans les types de fournisseur
-
-réussir les notifs par whatsapp 
-
-
-Vérifie si ces choses seront bénéfiques et rendront l'app plus puissantes SEO , Embed stream , Cache/ISR, TanStack Query, SSE ou polling . Tu me donnes juste la réponse après analyses poussées et après je te dirai quoi faire
-
-
-normalement le comptable doit recevoir les notifications quand le caissier fait ses enregistrements ( entrées , sorties que lui doit confirmer avec pièces justificatives) et même quand les agents font des collectes , quand le rvc ou celui concerné crée des dettes
-
-
-a u niveau de dashboard/user/caissiers , tu vois au niveau des souscritpions
-  dans l'onglet packs ; en fait lorsque la caissière supprime une
-  spouscription , elle voit toujours les versements dans l'onglet historique (
-  ce quu la mélange vu qu'elle a recréé une nouvelle souscription avec les
-  mêmes échéances et montant ; elle avait fait une erreur donc a supprimé et
-  recréé pour corriger) donc ça créé un petit problème pour savoir quel
-  versement manipuler . Elle voudrait donc que je lui donne la main pour
-  supprimer un versement directement dns l'onglet historique ( elle voudrait
-  aussi que logiquement quand elle supprime une souscription  dans l'onglet
-  packs , elle ne voit plus les versements liés dans historique ( pour lui
-  permettre de recréer la souscripotion et de suivre ses versement
-  transullement ). Et puis ça c'est une question , à chaque fois que je fais
-  un check , un lint ou un build , les post ou carrément tous les sites ne
-  fonctionnent plus correctement , ils bug même quand c'est pas le site que je
-  check ( c'est un comportement particulir de vercel ???)
-
-
-
-Créer un centre de commandement admin/superadmin et peut être aussi les rôles RPV et chef d'agence pour pouvoir centraliser tous les documents qu'on est entrain de créer ( je parle des documents digitalisés de cdcdigitalisattion.txt)
-
-
-Sur /dashboard/user/logistiquesApprovisionnements/bons-commande  , je ne comprends pas trop c'est quoi site de livraison et la ligne de commande est illisible ( aucun nom de produit ne s'affiche )
-
-Sur /api/magasinier/bons-sortie/1/pdf , c'est à dire quand on veut imprimer un bon de sortie , lorsque la sortie est une perte , est ce logique de mettre quantité demandée dans le tableau ?? Si c'est logique d'accord mais ça mérite d'être soulevé . Et puis je remarque que la signature électronique est automatique ( j'ai pas signé mais ça affiche que j'ai signé )
-
-je ne comprends pas trop le formulaire de /dashboard/user/agentsTerrain/devis-proforma aussi . Après le produit je pense que c'est la quantité , mais après la quantité , il y'a quoi ? Les input sont des chiffres mais je ne sais pas ce que s'est censé être comme donnée ; et puis la condition , c'est à l'agent terrain de la mettre en input libre ??
+-On va revoir aussi les reçus dans les dashboards
+-Permettre certaines notifications via mail (vu que maintenant j'ai implémenté l'authentification par Google)
+-Pour les connexion google , demander aussi un autre mot de passe pour empêcher les passant de pouvoir se connecter facilement avec le google d'un utilisateur
+-Permettre d'envoyer les documents OGRH ( et tous les autres d'ailleurs) sur les emails
+-Pour la gestion des commissions et le paramètre des profils de de collaborateur on doit revoir ça
+-réussir les notifs par whatsapp 
 
 
   #: 3
@@ -227,3 +139,53 @@ je ne comprends pas trop le formulaire de /dashboard/user/agentsTerrain/devis-pr
 
   Les points #3, #4, #5 sont des choix d'architecture assumés depuis le début du
   projet, pas des manques à combler à la marge.
+
+
+Reprendre le design de la sidebar du Module comptabilité sur la sidebar du dashboard/admin
+
+  Il reste seulement le compte à créditer du bordereau de remise de fonds, qui
+  attend un référentiel de comptes AfriGes. Dis-moi quand tu veux reprendre ce
+  point ou passer à autre chose.
+
+
+Modifier les identifiants — deux cas différents
+
+  Ton propre compte (admin) :
+  Page Paramètres (/dashboard/admin/parametres, via
+  components/settings/AccountSettings.tsx) → tu peux changer ton email, ta
+  photo, tes coordonnées, et ton mot de passe (/api/user/change-password, PATCH)
+  — il te demande l'ancien mot de passe + le nouveau (min. 8 caractères).
+
+  Les identifiants d'un autre utilisateur (ex. un agent terrain) :
+  - Changer son email de connexion : fiche du gestionnaire ou de membre → bouton « Modifier »
+    → /dashboard/admin/gestionnaires ou membres/[id]/edit, champ « Email de connexion ».
+    Il y a aussi une case « Connexion Google uniquement » qui désactive
+    complètement le mot de passe du compte (connexion via Google seulement).
+  - Réinitialiser son mot de passe : page /dashboard/admin/superadmin →
+    sélectionner l'utilisateur → action « Réinitialiser le mot de passe ». Ça
+    génère un mot de passe temporaire affiché à l'écran (à lui transmettre
+    toi-même) ; le compte est marqué mustChangePassword, donc il devra le
+    changer à sa prochaine connexion. Un ADMIN peut le faire pour n'importe qui
+    sauf un SUPER_ADMIN ; seul un SUPER_ADMIN peut réinitialiser un autre
+    SUPER_ADMIN.
+
+
+
+
+Que toutes les sidebars prennent toute la longueur verticale 
+
+
+Au niveau des tableaux de /dashboard/admin/clients ( et même les autres pages ), les tableaux ont plusieurs lignes donc quand on descend on a du mal à voir les head ( les titres ) donc ça devient illisble ; c'est possible d'avoir un moyen de fixer juste le head mais pouvoir défiler les données ?? Aussi bien séparer les lignes ( un séparateur ou je ne sais pas ce qui serait péférable) ; donner aussi des styles hover aux lignes de données
+
+Préférer les couleurs plus nettes au lieu des dégradés
+
+Donner plus de couleurs et plus d'effets aux différents blocs( tout est trop blanc ou trop gris) SUR LE dashboard/admin
+
+Design-er un peu le centre de commandement
+
+
+
+
+
+
+

@@ -103,6 +103,24 @@ interface DecisionalResponse {
 
 // ─── Helpers graphiques ───────────────────────────────────────────────────────
 
+// Surfaces colorées des blocs du tableau de bord : dégradé teinté, bande d'accent
+// en haut, pastille d'icône pleine et survol « soulevé » avec ombre colorée.
+const TONES = {
+  emerald: { card: "from-emerald-50 via-white to-teal-50/70 border-emerald-100 hover:border-emerald-200 hover:shadow-emerald-200/60", bar: "from-emerald-500 via-teal-400 to-emerald-300", icon: "from-emerald-500 to-teal-500 shadow-emerald-300/60" },
+  violet:  { card: "from-violet-50 via-white to-fuchsia-50/70 border-violet-100 hover:border-violet-200 hover:shadow-violet-200/60",   bar: "from-violet-500 via-fuchsia-400 to-violet-300",  icon: "from-violet-500 to-fuchsia-500 shadow-violet-300/60" },
+  amber:   { card: "from-amber-50 via-white to-orange-50/70 border-amber-100 hover:border-amber-200 hover:shadow-amber-200/60",       bar: "from-amber-500 via-orange-400 to-amber-300",    icon: "from-amber-500 to-orange-500 shadow-amber-300/60" },
+  blue:    { card: "from-blue-50 via-white to-sky-50/70 border-blue-100 hover:border-blue-200 hover:shadow-blue-200/60",               bar: "from-blue-500 via-sky-400 to-blue-300",         icon: "from-blue-500 to-sky-500 shadow-blue-300/60" },
+  indigo:  { card: "from-indigo-50 via-white to-violet-50/70 border-indigo-100 hover:border-indigo-200 hover:shadow-indigo-200/60",   bar: "from-indigo-500 via-violet-400 to-indigo-300",  icon: "from-indigo-500 to-violet-500 shadow-indigo-300/60" },
+  sky:     { card: "from-sky-50 via-white to-cyan-50/70 border-sky-100 hover:border-sky-200 hover:shadow-sky-200/60",                   bar: "from-sky-500 via-cyan-400 to-sky-300",          icon: "from-sky-500 to-cyan-500 shadow-sky-300/60" },
+} as const;
+type Tone = keyof typeof TONES;
+const blockCls = (tone: Tone, pad = "p-4 sm:p-5") =>
+  `relative overflow-hidden min-w-0 bg-gradient-to-br ${TONES[tone].card} rounded-2xl ${pad} shadow-sm border transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl`;
+const iconCls = (tone: Tone) => `p-2 rounded-xl bg-linear-to-br ${TONES[tone].icon} shadow-md text-white`;
+function AccentBar({ tone }: { tone: Tone }) {
+  return <span aria-hidden className={`pointer-events-none absolute inset-x-0 top-0 h-1 bg-linear-to-r ${TONES[tone].bar}`} />;
+}
+
 const VB_W = 1000;
 const VB_H = 200;
 
@@ -497,11 +515,12 @@ export default function AfriGesDashboard() {
             <div className="grid grid-cols-1 @4xl:grid-cols-3 gap-4 sm:gap-5">
 
               {/* Activité du jour */}
-              <div className="@container @4xl:col-span-2 min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+              <div className={`@container @4xl:col-span-2 ${blockCls("emerald")}`}>
+                <AccentBar tone="emerald" />
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <div className="bg-emerald-50 p-2 rounded-lg">
-                      <Activity size={18} className="text-emerald-600" />
+                    <div className={iconCls("emerald")}>
+                      <Activity size={18} />
                     </div>
                     <div>
                       <h3 className="text-sm font-bold text-slate-800">{t('dash_activity')}</h3>
@@ -518,17 +537,17 @@ export default function AfriGesDashboard() {
                 </div>
                 <div className="grid grid-cols-2 @xs:grid-cols-3 @lg:grid-cols-5 gap-2 sm:gap-3">
                   {[
-                    { label: t('dash_versements'), help: t('dash_help_act_versements'), value: act?.activiteJour.versements ?? '—', icon: Wallet,      color: 'text-purple-600', bg: 'bg-purple-50' },
-                    { label: t('dash_souscription'), help: t('dash_help_act_souscription'), value: act?.activiteJour.souscriptions ?? '—', icon: Layers, color: 'text-blue-600', bg: 'bg-blue-50' },
-                    { label: t('dash_vente_directe'), help: t('dash_help_act_vente_directe'), value: act?.activiteJour.ventes ?? '—', icon: ShoppingCart, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                    { label: t('dash_remboursements'), help: t('dash_help_act_remboursements'), value: act?.activiteJour.remboursements ?? '—', icon: CreditCard, color: 'text-rose-600', bg: 'bg-rose-50' },
-                    { label: t('dash_mouvements_stock'), help: t('dash_help_act_mouvements_stock'), value: act?.activiteJour.mouvementsStock ?? '—', icon: Package, color: 'text-amber-600', bg: 'bg-amber-50' },
+                    { label: t('dash_versements'), help: t('dash_help_act_versements'), value: act?.activiteJour.versements ?? '—', icon: Wallet,      color: 'text-purple-600', bg: 'bg-purple-100', tile: 'from-purple-50 to-purple-100/70 border-purple-100 hover:shadow-purple-200/70' },
+                    { label: t('dash_souscription'), help: t('dash_help_act_souscription'), value: act?.activiteJour.souscriptions ?? '—', icon: Layers, color: 'text-blue-600', bg: 'bg-blue-100', tile: 'from-blue-50 to-blue-100/70 border-blue-100 hover:shadow-blue-200/70' },
+                    { label: t('dash_vente_directe'), help: t('dash_help_act_vente_directe'), value: act?.activiteJour.ventes ?? '—', icon: ShoppingCart, color: 'text-emerald-600', bg: 'bg-emerald-100', tile: 'from-emerald-50 to-emerald-100/70 border-emerald-100 hover:shadow-emerald-200/70' },
+                    { label: t('dash_remboursements'), help: t('dash_help_act_remboursements'), value: act?.activiteJour.remboursements ?? '—', icon: CreditCard, color: 'text-rose-600', bg: 'bg-rose-100', tile: 'from-rose-50 to-rose-100/70 border-rose-100 hover:shadow-rose-200/70' },
+                    { label: t('dash_mouvements_stock'), help: t('dash_help_act_mouvements_stock'), value: act?.activiteJour.mouvementsStock ?? '—', icon: Package, color: 'text-amber-600', bg: 'bg-amber-100', tile: 'from-amber-50 to-amber-100/70 border-amber-100 hover:shadow-amber-200/70' },
                   ].map((item, idx) => {
                     const Icon = item.icon;
                     return (
                       <div key={item.label}
                         style={{ animationDelay: `${idx * 60}ms` }}
-                        className="group min-w-0 flex flex-col items-center gap-1.5 p-2 sm:p-3 bg-slate-50 rounded-xl transition-all duration-300 hover:bg-white hover:shadow-md hover:-translate-y-0.5 animate-[fadeInUp_0.5s_ease-out_both]">
+                        className={`group min-w-0 flex flex-col items-center gap-1.5 p-2 sm:p-3 bg-gradient-to-br ${item.tile} border rounded-xl transition-all duration-300 hover:shadow-lg hover:-translate-y-1 animate-[fadeInUp_0.5s_ease-out_both]`}>
                         <div className={`${item.bg} p-2 rounded-lg transition-transform duration-300 group-hover:scale-110`}>
                           <Icon size={16} className={item.color} />
                         </div>
@@ -543,10 +562,11 @@ export default function AfriGesDashboard() {
               </div>
 
               {/* Modules actifs / inactifs */}
-              <div className="min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+              <div className={blockCls("violet")}>
+                <AccentBar tone="violet" />
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="bg-violet-50 p-2 rounded-lg">
-                    <BarChart2 size={18} className="text-violet-600" />
+                  <div className={iconCls("violet")}>
+                    <BarChart2 size={18} />
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-800">{t('dash_modules')}</h3>
@@ -554,11 +574,11 @@ export default function AfriGesDashboard() {
                   </div>
                 </div>
                 <div className="flex gap-3 mb-3">
-                  <div className="flex-1 bg-emerald-50 rounded-xl p-3 text-center">
+                  <div className="flex-1 bg-gradient-to-br from-emerald-100 to-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
                     <p className="text-2xl font-bold text-emerald-700">{act?.modules.actifs ?? '—'}</p>
                     <p className="text-[10px] text-emerald-600 font-medium mt-0.5">{t('dash_actifs')}</p>
                   </div>
-                  <div className="flex-1 bg-slate-100 rounded-xl p-3 text-center">
+                  <div className="flex-1 bg-gradient-to-br from-slate-100 to-slate-50 border border-slate-200 rounded-xl p-3 text-center">
                     <p className="text-2xl font-bold text-slate-500">{act?.modules.inactifs ?? '—'}</p>
                     <p className="text-[10px] text-slate-500 font-medium mt-0.5">{t('dash_inactifs')}</p>
                   </div>
@@ -588,10 +608,11 @@ export default function AfriGesDashboard() {
             <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-4 sm:gap-5">
 
               {/* Alertes opérationnelles */}
-              <div className="min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+              <div className={blockCls("amber")}>
+                <AccentBar tone="amber" />
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="bg-amber-50 p-2 rounded-lg">
-                    <AlertTriangle size={18} className="text-amber-600" />
+                  <div className={iconCls("amber")}>
+                    <AlertTriangle size={18} />
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-800">{t('dash_alerts')}</h3>
@@ -610,9 +631,9 @@ export default function AfriGesDashboard() {
                       <div
                         key={i}
                         className={`flex items-start gap-2.5 p-3 rounded-xl text-sm ${
-                          a.niveau === 'critique' ? 'bg-red-50 border border-red-100' :
-                          a.niveau === 'warning'  ? 'bg-amber-50 border border-amber-100' :
-                                                    'bg-blue-50 border border-blue-100'
+                          a.niveau === 'critique' ? 'bg-red-50 border border-red-200 border-l-4 border-l-red-500' :
+                          a.niveau === 'warning'  ? 'bg-amber-50 border border-amber-200 border-l-4 border-l-amber-500' :
+                                                    'bg-blue-50 border border-blue-200 border-l-4 border-l-blue-500'
                         }`}
                       >
                         <AlertTriangle size={14} className={`shrink-0 mt-0.5 ${
@@ -633,10 +654,11 @@ export default function AfriGesDashboard() {
               </div>
 
               {/* Rapports rapides */}
-              <div className="min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+              <div className={blockCls("blue")}>
+                <AccentBar tone="blue" />
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="bg-blue-50 p-2 rounded-lg">
-                    <TrendingUp size={18} className="text-blue-600" />
+                  <div className={iconCls("blue")}>
+                    <TrendingUp size={18} />
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-800">{t('dash_reports')}</h3>
@@ -645,7 +667,7 @@ export default function AfriGesDashboard() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:gap-3 [&>div]:min-w-0 [&_p]:[overflow-wrap:anywhere] [&_span]:leading-tight">
                   {/* Caisse */}
-                  <div className="p-3 bg-slate-50 rounded-xl">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100/60 border border-purple-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-purple-200/60">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Wallet size={13} className="text-purple-500" />
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_encaisse_jour')}</span>
@@ -654,7 +676,7 @@ export default function AfriGesDashboard() {
                     <p className="text-[10px] text-slate-400">{act?.rapports.caisse.sessionsOuvertes ?? '—'} {t('admin_sessions_open')}</p>
                   </div>
                   {/* Stock */}
-                  <div className="p-3 bg-slate-50 rounded-xl">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100/60 border border-amber-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-amber-200/60">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Package size={13} className="text-amber-500" />
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_stock')}</span>
@@ -663,7 +685,7 @@ export default function AfriGesDashboard() {
                     <p className="text-[10px] text-slate-400">{t('admin_low_stock')}</p>
                   </div>
                   {/* Ventes */}
-                  <div className="p-3 bg-slate-50 rounded-xl">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/60 border border-emerald-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-emerald-200/60">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <ShoppingCart size={13} className="text-emerald-500" />
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_ventes')}</span>
@@ -672,7 +694,7 @@ export default function AfriGesDashboard() {
                     <p className="text-[10px] text-slate-400">{act?.rapports.ventes.count ?? '—'} {t('admin_direct_sales')}</p>
                   </div>
                   {/* Approvisionnement */}
-                  <div className="p-3 bg-slate-50 rounded-xl">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/60 border border-blue-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-blue-200/60">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Truck size={13} className="text-blue-500" />
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_appro')}</span>
@@ -690,7 +712,8 @@ export default function AfriGesDashboard() {
           <div className="grid grid-cols-1 @4xl:grid-cols-3 gap-4 sm:gap-5">
 
             {/* ── Line chart : évolution des versements ─────────────────────── */}
-            <div className="@4xl:col-span-2 min-w-0 bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+            <div className={`@4xl:col-span-2 ${blockCls("emerald", "p-4 sm:p-6")}`}>
+              <AccentBar tone="emerald" />
               <div className="flex flex-wrap items-start sm:items-center justify-between gap-3 mb-4 sm:mb-6">
                 <div className="min-w-0">
                   <h3 className="text-lg sm:text-xl font-bold text-slate-800">{t('dash_evolution_credits_ventes')}</h3>
@@ -815,7 +838,8 @@ export default function AfriGesDashboard() {
             </div>
 
             {/* ── Donut : répartition des souscriptions ────────────────────── */}
-            <div className="min-w-0 bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+            <div className={blockCls("indigo", "p-4 sm:p-6")}>
+              <AccentBar tone="indigo" />
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-800">{t('dash_souscriptions')}</h3>
@@ -909,8 +933,10 @@ export default function AfriGesDashboard() {
                   value: dec?.clientsDebiteurs ?? '—',
                   icon: Users,
                   color: 'text-orange-600',
-                  bg: 'bg-orange-50',
-                  border: 'border-orange-100',
+                  bg: 'bg-orange-100',
+                  border: 'border-orange-200',
+                  grad: 'from-orange-50 via-white to-orange-100/50 hover:shadow-orange-200/60',
+                  bar: 'bg-orange-500',
                 },
                 {
                   label: t('dash_creances_totales'),
@@ -918,8 +944,10 @@ export default function AfriGesDashboard() {
                   value: dec ? formatCurrency(dec.creancesTotales) : '—',
                   icon: CreditCard,
                   color: 'text-red-600',
-                  bg: 'bg-red-50',
-                  border: 'border-red-100',
+                  bg: 'bg-red-100',
+                  border: 'border-red-200',
+                  grad: 'from-red-50 via-white to-red-100/50 hover:shadow-red-200/60',
+                  bar: 'bg-red-500',
                 },
                 {
                   label: t('dash_retards_critiques'),
@@ -927,8 +955,10 @@ export default function AfriGesDashboard() {
                   value: dec?.retardsCritiques ?? '—',
                   icon: AlertTriangle,
                   color: 'text-amber-600',
-                  bg: 'bg-amber-50',
-                  border: 'border-amber-100',
+                  bg: 'bg-amber-100',
+                  border: 'border-amber-200',
+                  grad: 'from-amber-50 via-white to-amber-100/50 hover:shadow-amber-200/60',
+                  bar: 'bg-amber-500',
                 },
                 {
                   label: t('dash_collecte_jour'),
@@ -936,13 +966,16 @@ export default function AfriGesDashboard() {
                   value: dec ? formatCurrency(dec.montantCollecteJour) : '—',
                   icon: Wallet,
                   color: 'text-emerald-600',
-                  bg: 'bg-emerald-50',
-                  border: 'border-emerald-100',
+                  bg: 'bg-emerald-100',
+                  border: 'border-emerald-200',
+                  grad: 'from-emerald-50 via-white to-emerald-100/50 hover:shadow-emerald-200/60',
+                  bar: 'bg-emerald-500',
                 },
               ].map((kpi) => {
                 const Icon = kpi.icon;
                 return (
-                  <div key={kpi.label} className={`min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border ${kpi.border}`}>
+                  <div key={kpi.label} className={`relative overflow-hidden min-w-0 bg-gradient-to-br ${kpi.grad} rounded-2xl p-4 sm:p-5 shadow-sm border ${kpi.border} transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}>
+                    <span aria-hidden className={`absolute left-0 top-0 bottom-0 w-1.5 ${kpi.bar}`} />
                     <div className="flex items-start justify-between mb-3">
                       <div className={`${kpi.bg} p-2.5 rounded-xl`}>
                         <Icon size={18} className={kpi.color} />
@@ -959,10 +992,11 @@ export default function AfriGesDashboard() {
             <div className="grid grid-cols-1 @3xl:grid-cols-3 gap-4 sm:gap-5">
 
               {/* Taux de remboursement */}
-              <div className="min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+              <div className={blockCls("indigo")}>
+                <AccentBar tone="indigo" />
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="bg-indigo-50 p-2 rounded-lg">
-                    <Percent size={16} className="text-indigo-600" />
+                  <div className={iconCls("indigo")}>
+                    <Percent size={16} />
                   </div>
                   <div>
                     <h4 className="text-sm font-bold text-slate-800">{t('dash_taux_remboursement')}<InfoTooltip text={t('dash_help_taux_remboursement')} /></h4>
@@ -970,13 +1004,13 @@ export default function AfriGesDashboard() {
                   </div>
                 </div>
                 <div className="flex items-end gap-2 mb-3">
-                  <span className="text-4xl font-bold text-slate-800">
+                  <span className="text-4xl font-bold bg-linear-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
                     {dec?.tauxRemboursement ?? '—'}
                   </span>
                   {dec && <span className="text-xl font-semibold text-slate-400 mb-1">%</span>}
                 </div>
                 {dec && (
-                  <div className="w-full bg-slate-100 rounded-full h-2.5">
+                  <div className="w-full bg-indigo-100 rounded-full h-2.5">
                     <div
                       className={`h-2.5 rounded-full transition-all ${
                         dec.tauxRemboursement >= 80 ? 'bg-emerald-500' :
@@ -995,10 +1029,11 @@ export default function AfriGesDashboard() {
               </div>
 
               {/* Classement agents */}
-              <div className="@3xl:col-span-2 min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+              <div className={`@3xl:col-span-2 ${blockCls("amber")}`}>
+                <AccentBar tone="amber" />
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="bg-amber-50 p-2 rounded-lg">
-                    <Award size={16} className="text-amber-600" />
+                  <div className={iconCls("amber")}>
+                    <Award size={16} />
                   </div>
                   <div>
                     <h4 className="text-sm font-bold text-slate-800">{t('dash_classement_agents')}<InfoTooltip text={t('dash_help_classement_agents')} /></h4>
@@ -1029,7 +1064,7 @@ export default function AfriGesDashboard() {
                                 {formatCurrency(agent.montantCollecte)}
                               </span>
                             </div>
-                            <div className="w-full bg-slate-100 rounded-full h-1.5">
+                            <div className="w-full bg-amber-100/70 rounded-full h-1.5">
                               <div
                                 className={`h-1.5 rounded-full ${
                                   agent.rank === 1 ? 'bg-amber-500' :
@@ -1049,10 +1084,11 @@ export default function AfriGesDashboard() {
             </div>
 
             {/* 8.2 — Dashboard Financier */}
-            <div className="min-w-0 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200">
+            <div className={blockCls("sky")}>
+              <AccentBar tone="sky" />
               <div className="flex items-center gap-2 mb-5">
-                <div className="bg-blue-50 p-2 rounded-lg">
-                  <DollarSign size={16} className="text-blue-600" />
+                <div className={iconCls("sky")}>
+                  <DollarSign size={16} />
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-slate-800">{t('dash_financier_titre')}</h4>
@@ -1067,7 +1103,8 @@ export default function AfriGesDashboard() {
                     value: dec ? formatCurrency(dec.encoursGlobal) : '—',
                     icon: CreditCard,
                     color: 'text-blue-600',
-                    bg: 'bg-blue-50',
+                    bg: 'bg-blue-100',
+                    tile: 'from-blue-50 to-blue-100/60 border-blue-100 hover:shadow-blue-200/60',
                   },
                   {
                     label: t('dash_cash_attendu'),
@@ -1075,7 +1112,8 @@ export default function AfriGesDashboard() {
                     value: dec ? formatCurrency(dec.cashAttendu) : '—',
                     icon: Clock,
                     color: 'text-indigo-600',
-                    bg: 'bg-indigo-50',
+                    bg: 'bg-indigo-100',
+                    tile: 'from-indigo-50 to-indigo-100/60 border-indigo-100 hover:shadow-indigo-200/60',
                   },
                   {
                     label: t('dash_cash_collecte'),
@@ -1083,7 +1121,8 @@ export default function AfriGesDashboard() {
                     value: dec ? formatCurrency(dec.cashCollecte) : '—',
                     icon: CheckCircle,
                     color: 'text-emerald-600',
-                    bg: 'bg-emerald-50',
+                    bg: 'bg-emerald-100',
+                    tile: 'from-emerald-50 to-emerald-100/60 border-emerald-100 hover:shadow-emerald-200/60',
                   },
                   {
                     label: t('dash_pertes_potentielles'),
@@ -1091,7 +1130,8 @@ export default function AfriGesDashboard() {
                     value: dec ? formatCurrency(dec.pertesPoentielles) : '—',
                     icon: TrendingDown,
                     color: 'text-red-600',
-                    bg: 'bg-red-50',
+                    bg: 'bg-red-100',
+                    tile: 'from-red-50 to-red-100/60 border-red-100 hover:shadow-red-200/60',
                   },
                   {
                     label: t('dash_creances_a_risque'),
@@ -1099,12 +1139,13 @@ export default function AfriGesDashboard() {
                     value: dec?.creancesARisque ?? '—',
                     icon: AlertTriangle,
                     color: 'text-amber-600',
-                    bg: 'bg-amber-50',
+                    bg: 'bg-amber-100',
+                    tile: 'from-amber-50 to-amber-100/60 border-amber-100 hover:shadow-amber-200/60',
                   },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className="min-w-0 p-3 sm:p-4 bg-slate-50 rounded-xl">
+                    <div key={item.label} className={`min-w-0 p-3 sm:p-4 bg-gradient-to-br ${item.tile} border rounded-xl transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg`}>
                       <div className={`${item.bg} p-2 rounded-lg w-fit mb-3`}>
                         <Icon size={15} className={item.color} />
                       </div>
@@ -1117,7 +1158,7 @@ export default function AfriGesDashboard() {
 
               {/* Barre de progression cash attendu vs collecté */}
               {dec && dec.cashAttendu > 0 && (
-                <div className="mt-4 p-4 bg-slate-50 rounded-xl">
+                <div className="mt-4 p-4 rounded-xl bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50 border border-emerald-100">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-semibold text-slate-600">
                       {t('dash_taux_collecte_jour')}
@@ -1126,7 +1167,7 @@ export default function AfriGesDashboard() {
                       {Math.min(Math.round((dec.cashCollecte / dec.cashAttendu) * 100), 100)}%
                     </span>
                   </div>
-                  <div className="w-full bg-slate-200 rounded-full h-2">
+                  <div className="w-full bg-emerald-100 rounded-full h-2">
                     <div
                       className="h-2 rounded-full bg-linear-to-r from-emerald-500 to-emerald-400 transition-all"
                       style={{ width: `${Math.min((dec.cashCollecte / dec.cashAttendu) * 100, 100)}%` }}
