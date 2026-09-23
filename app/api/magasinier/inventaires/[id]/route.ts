@@ -11,7 +11,7 @@ async function getSession() {
   return (await getMagasinierSession()) ?? (await getRPVSession());
 }
 
-function isAdminRole(role?: string) {
+function isAdminRole(role?: string | null) {
   return role === "ADMIN" || role === "SUPER_ADMIN";
 }
 
