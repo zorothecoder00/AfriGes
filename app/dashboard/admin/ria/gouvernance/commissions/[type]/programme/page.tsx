@@ -32,9 +32,9 @@ export default function ProgrammePage() {
   const tenues     = items.filter(r => r.statut === "TENUE").length;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Programme d&apos;Audit</h1>
           <p className="text-sm text-slate-500">Planification et suivi des sessions d&apos;audit</p>
         </div>
@@ -47,17 +47,17 @@ export default function ProgrammePage() {
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
           <ClipboardList className="w-5 h-5 text-amber-500 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-slate-800">{items.length}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{items.length}</p>
           <p className="text-xs text-slate-500">Sessions totales</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
           <Calendar className="w-5 h-5 text-blue-500 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-blue-700">{planifiees}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-blue-700">{planifiees}</p>
           <p className="text-xs text-slate-500">Planifiées</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
           <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-emerald-700">{tenues}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-700">{tenues}</p>
           <p className="text-xs text-slate-500">Tenues</p>
         </div>
       </div>

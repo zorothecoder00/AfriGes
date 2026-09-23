@@ -36,9 +36,9 @@ export default function ReportingPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-800">Rapports Mensuels RIA</h1>
           <p className="text-sm text-slate-500 mt-0.5">Snapshots financiers par portefeuille, imprimables</p>
         </div>
@@ -49,7 +49,7 @@ export default function ReportingPage() {
 
       {/* Sélecteur + génération */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="text-sm text-slate-600">Mois</label>
           <select value={mois} onChange={(e) => setMois(parseInt(e.target.value))}
             className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-300">

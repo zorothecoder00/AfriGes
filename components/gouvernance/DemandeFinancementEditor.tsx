@@ -243,7 +243,7 @@ export function DemandeFinancementEditor({
             <div key={i} className="flex items-center gap-2">
               <input value={url} disabled={disabled} onChange={e => set("piecesJointesUrls", pieces.map((u, idx) => idx === i ? e.target.value : u))}
                 placeholder="https://… (lien du document)"
-                className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:bg-slate-50" />
+                className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:bg-slate-50 min-w-0" />
               {!disabled && <button type="button" onClick={() => set("piecesJointesUrls", pieces.filter((_, idx) => idx !== i))} className="text-rose-500 hover:text-rose-700"><Trash2 className="w-4 h-4" /></button>}
             </div>
           ))}
@@ -278,7 +278,7 @@ export function DemandeFinancementEditor({
                   <div key={pi} className="flex items-center gap-2 text-xs">
                     <input placeholder="Produit" value={p.nom} disabled={disabled}
                       onChange={e => updClient(ci, { produits: (c.produits ?? []).map((x, j) => j === pi ? { ...x, nom: e.target.value } : x) })}
-                      className="flex-1 border border-slate-200 rounded px-2 py-1 disabled:bg-slate-50" />
+                      className="flex-1 border border-slate-200 rounded px-2 py-1 disabled:bg-slate-50 min-w-0" />
                     <input type="number" placeholder="Qté" value={p.quantite} disabled={disabled}
                       onChange={e => updClient(ci, { produits: (c.produits ?? []).map((x, j) => j === pi ? { ...x, quantite: Number(e.target.value) || 0 } : x) })}
                       className="w-16 border border-slate-200 rounded px-2 py-1 disabled:bg-slate-50" />

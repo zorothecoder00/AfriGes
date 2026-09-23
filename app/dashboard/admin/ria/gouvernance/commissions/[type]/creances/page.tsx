@@ -42,9 +42,9 @@ export default function CreancesPage() {
   const aging    = creances?.aging ?? [];
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Analyse des Créances</h1>
           <p className="text-sm text-slate-500">Financements en retard — aging et plan de recouvrement</p>
         </div>
@@ -56,15 +56,15 @@ export default function CreancesPage() {
 
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-rose-700">{creances?.count ?? 0}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-rose-700">{creances?.count ?? 0}</p>
           <p className="text-xs text-rose-600">Créances en retard</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-rose-700">{formatCurrency(creances?.totalCreance ?? 0)}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-rose-700">{formatCurrency(creances?.totalCreance ?? 0)}</p>
           <p className="text-xs text-slate-500">Capital restant dû</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{creances?.retardMoyen ?? 0}j</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{creances?.retardMoyen ?? 0}j</p>
           <p className="text-xs text-slate-500">Retard moyen</p>
         </div>
       </div>
@@ -75,7 +75,7 @@ export default function CreancesPage() {
           <Clock className="w-4 h-4 text-amber-500" />
           <h2 className="font-semibold text-slate-800">Analyse de l&apos;ancienneté (aging)</h2>
         </div>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {aging.map(tr => (
             <div key={tr.label} className="border border-slate-200 rounded-xl p-4">
               <div className={`w-3 h-3 rounded-full ${AGING_COLOR[tr.label] ?? "bg-slate-300"} mb-2`} />

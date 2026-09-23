@@ -42,9 +42,9 @@ export default function InvestissementsPage() {
   const retard    = stats?.retardCount ?? 0;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Contrôle des Investissements</h1>
           <p className="text-sm text-slate-500">Suivi des financements et taux de recouvrement</p>
         </div>
@@ -54,21 +54,21 @@ export default function InvestissementsPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{stats?.total ?? 0}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{stats?.total ?? 0}</p>
           <p className="text-xs text-slate-500">Financements total</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-blue-700">{formatCurrency(total)}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-blue-700">{formatCurrency(total)}</p>
           <p className="text-xs text-slate-500">Montant total financé</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-600">{formatCurrency(rembourse)}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-600">{formatCurrency(rembourse)}</p>
           <p className="text-xs text-slate-500">Montant recouvré</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className={`text-2xl font-bold ${retard > 0 ? "text-rose-600" : "text-emerald-600"}`}>{retard}</p>
+          <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${retard > 0 ? "text-rose-600" : "text-emerald-600"}`}>{retard}</p>
           <p className="text-xs text-slate-500">En retard</p>
         </div>
       </div>

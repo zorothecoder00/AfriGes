@@ -61,8 +61,8 @@ function AddPortefeuilleModal({ profilRIAId, onClose, onSuccess }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+    <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
           <h3 className="font-semibold text-slate-900">Nouveau portefeuille</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
@@ -207,7 +207,7 @@ export default function FicheInvestisseurPage() {
   const totalFondSec    = portefeuilles.reduce((s, p) => s + toNum(p.fondSecurite),      0);
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
+    <div className="md:p-6 space-y-6 max-w-5xl mx-auto">
 
       {/* Header */}
       <div className="flex items-center gap-4">

@@ -63,8 +63,8 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[130] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
             <Calendar className="w-4 h-4 text-blue-500" /> Planifier une réunion
@@ -162,10 +162,10 @@ export default function ReunionsPage() {
   function done() { setShowCreate(false); setRefresh(r => r + 1); }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <Calendar className="w-5 h-5 text-blue-600" /> Réunions de Gouvernance
           </h1>

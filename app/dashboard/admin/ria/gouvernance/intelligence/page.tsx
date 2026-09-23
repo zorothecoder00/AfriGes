@@ -58,9 +58,9 @@ export default function IntelligencePage() {
   const fmtC = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(n);
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <Brain className="w-5 h-5 text-violet-600" /> Centre d&apos;Intelligence Décisionnelle
           </h1>

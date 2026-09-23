@@ -61,7 +61,7 @@ export default function RapportDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Rapport */}
-      <div className="p-6 max-w-5xl mx-auto print:p-8 print:max-w-none">
+      <div className="md:p-6 max-w-5xl mx-auto print:p-8 print:max-w-none">
         <RapportContent d={d} genereA={d.genereA ?? r.createdAt} />
       </div>
 

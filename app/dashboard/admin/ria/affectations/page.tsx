@@ -155,7 +155,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-200 flex justify-between">
           <h3 className="font-semibold text-slate-900">Nouvelle affectation client</h3>
@@ -451,8 +451,8 @@ function EditModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+    <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
           <div>
             <h3 className="font-semibold text-slate-900">Modifier l&apos;affectation</h3>
@@ -492,7 +492,7 @@ function EditModal({
             <div className="flex items-center gap-3">
               <input type="number" min={0} value={valeurSaisie}
                 onChange={e => handleValeurSaisie(e.target.value)}
-                className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+                className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent min-w-0" />
               <span className="text-sm font-semibold text-slate-500 shrink-0">
                 {saisieMode === "pourcentage" ? "%" : "FCFA"}
               </span>
@@ -573,13 +573,13 @@ export default function AffectationsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900">Affectations Clients</h1>
           <p className="text-sm text-slate-500 mt-0.5">{res?.meta.total ?? 0} affectation(s)</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button onClick={refetch} className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
@@ -591,7 +591,7 @@ export default function AffectationsPage() {
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl max-w-full overflow-x-auto scrollbar-hide [&>button]:shrink-0 [&>button]:whitespace-nowrap">
           {[["true", "Actives"], ["false", "Inactives"], ["", "Toutes"]].map(([val, lbl]) => (
             <button key={val} onClick={() => setActif(val)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${actif === val ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
@@ -599,10 +599,10 @@ export default function AffectationsPage() {
             </button>
           ))}
         </div>
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Investisseur ou client…"
-            className="pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm w-52 focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+            className="pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm w-full sm:w-52 focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
         </div>
       </div>
 

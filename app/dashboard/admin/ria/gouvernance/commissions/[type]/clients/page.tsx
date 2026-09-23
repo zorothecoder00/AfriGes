@@ -45,9 +45,9 @@ export default function ClientsAuditPage() {
   ).length;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Contrôle des Clients</h1>
           <p className="text-sm text-slate-500">Vérification des profils et comportements de remboursement</p>
         </div>
@@ -59,15 +59,15 @@ export default function ClientsAuditPage() {
 
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{stats?.total ?? 0}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{stats?.total ?? 0}</p>
           <p className="text-xs text-slate-500">Clients total</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-600">{stats?.actifs ?? 0}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-600">{stats?.actifs ?? 0}</p>
           <p className="text-xs text-slate-500">Actifs</p>
         </div>
         <div className={`border rounded-xl p-4 text-center ${anomalies > 0 ? "bg-rose-50 border-rose-200" : "bg-white border-slate-200"}`}>
-          <p className={`text-2xl font-bold ${anomalies > 0 ? "text-rose-700" : "text-emerald-600"}`}>{anomalies}</p>
+          <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${anomalies > 0 ? "text-rose-700" : "text-emerald-600"}`}>{anomalies}</p>
           <p className={`text-xs ${anomalies > 0 ? "text-rose-600" : "text-slate-500"}`}>Anomalies détectées</p>
         </div>
       </div>

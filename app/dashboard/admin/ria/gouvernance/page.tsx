@@ -57,7 +57,7 @@ function StatCard({ label, value, sub, color, icon }: {
       </div>
       <div>
         <p className="text-xs text-slate-500 mb-0.5">{label}</p>
-        <p className="text-2xl font-bold text-slate-800">{value}</p>
+        <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{value}</p>
         {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
       </div>
     </div>
@@ -73,17 +73,17 @@ export default function GouvernanceDashboardPage() {
   const mesTypes = new Set((d?.mesCommissions ?? []).map((c) => c.type));
 
   return (
-    <div className="p-6 space-y-8 max-w-7xl mx-auto">
+    <div className="md:p-6 space-y-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Shield className="w-6 h-6 text-emerald-600" />
             Gouvernance RIA — Tableau de Bord Général
           </h1>
           <p className="text-sm text-slate-500 mt-1">Vue consolidée de toutes les commissions de gouvernance</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link href="/dashboard/admin/ria/gouvernance/intelligence"
             className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700 transition-colors">
             <Brain className="w-4 h-4" /> Intelligence

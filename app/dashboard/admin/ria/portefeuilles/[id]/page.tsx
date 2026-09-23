@@ -253,7 +253,7 @@ function AnalyseTab({ analyseData: a, loading, onRefresh }: {
                 <span className="text-slate-400">{k.icon}</span>
                 <p className="text-xs text-slate-500">{k.label}</p>
               </div>
-              <p className={`text-2xl font-bold tabular-nums ${k.color}`}>
+              <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold tabular-nums ${k.color}`}>
                 {k.value}<span className="text-sm font-medium ml-0.5">{k.suffix}</span>
               </p>
               <p className="text-xs text-slate-300 mt-0.5">{k.sub}</p>
@@ -278,7 +278,7 @@ function AnalyseTab({ analyseData: a, loading, onRefresh }: {
           ].map((k) => (
             <div key={k.label} className={`${k.bg} rounded-xl p-4 flex flex-col gap-2`}>
               <div className="flex items-center gap-1.5">{k.icon}<p className="text-xs text-slate-500">{k.label}</p></div>
-              <p className={`text-3xl font-bold tabular-nums ${k.color}`}>{k.value}</p>
+              <p className={`text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold tabular-nums ${k.color}`}>{k.value}</p>
             </div>
           ))}
         </div>
@@ -496,11 +496,11 @@ export default function PortefeuilleDetailPage({ params }: { params: Promise<{ i
   ] as const;
 
   return (
-    <div className="p-6 space-y-6 max-w-screen-2xl">
+    <div className="md:p-6 space-y-6 max-w-screen-2xl">
 
       {/* En-tête */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
+        <div className="flex items-start gap-3 sm:gap-4 min-w-0">
           <Link href="/dashboard/admin/ria/portefeuilles"
             className="mt-1 p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500">
             <ArrowLeft className="w-4 h-4" />

@@ -97,7 +97,7 @@ export default function CommissionLayout({ children }: { children: ReactNode }) 
   return (
     <div>
       {/* Breadcrumb + titre */}
-      <div className={`${config.bg} border-b border-slate-200 px-6 pt-3 pb-3 flex items-center gap-1.5 text-xs text-slate-400`}>
+      <div className={`${config.bg} border-b border-slate-200 px-4 md:px-6 pt-3 pb-3 flex items-center gap-1.5 text-xs text-slate-400`}>
         <Link href="/dashboard/admin/ria/gouvernance" className="flex items-center gap-1 hover:text-slate-600">
           <Home className="w-3 h-3" /> Gouvernance RIA
         </Link>

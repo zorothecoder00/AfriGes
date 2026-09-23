@@ -118,7 +118,7 @@ export default function ResolutionDetailPage() {
   const termines = plans.filter(p => p.statut === "TERMINE").length;
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+    <div className="md:p-6 space-y-6 max-w-4xl mx-auto">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-slate-500">
         <button onClick={() => router.push("/dashboard/admin/ria/gouvernance/resolutions")}

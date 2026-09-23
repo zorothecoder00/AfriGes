@@ -86,7 +86,7 @@ export default function ComptabiliteRIAPage() {
   ];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="md:p-6 max-w-7xl mx-auto space-y-6">
       {/* En-tête */}
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Comptabilité RIA</h1>

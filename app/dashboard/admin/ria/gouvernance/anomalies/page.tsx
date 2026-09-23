@@ -56,8 +56,8 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[130] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-rose-500" /> Signaler une anomalie
@@ -77,7 +77,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
               rows={3} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 resize-none"
               placeholder="Contexte, impact, éléments observés..." />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Commission</label>
               <select value={form.typeCommission} onChange={e => setForm(f => ({ ...f, typeCommission: e.target.value }))}
@@ -159,9 +159,9 @@ export default function AnomaliesPage() {
   function done() { setShowCreate(false); setRefresh(r => r + 1); }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-rose-600" /> Anomalies de gouvernance
           </h1>
@@ -175,28 +175,28 @@ export default function AnomaliesPage() {
 
       {/* Stats */}
       {data?.stats && (
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className="text-2xl font-bold text-slate-800">{data.stats.total}</p>
+            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{data.stats.total}</p>
             <p className="text-xs text-slate-500">Total</p>
           </div>
           <div className={`rounded-xl p-4 text-center border ${data.stats.actives > 0 ? "border-rose-200 bg-rose-50" : "bg-white border-slate-200"}`}>
-            <p className={`text-2xl font-bold ${data.stats.actives > 0 ? "text-rose-700" : "text-slate-800"}`}>{data.stats.actives}</p>
+            <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${data.stats.actives > 0 ? "text-rose-700" : "text-slate-800"}`}>{data.stats.actives}</p>
             <p className="text-xs text-slate-500">Actives</p>
           </div>
           <div className={`rounded-xl p-4 text-center border cursor-pointer transition-all ${filterNiveau === "CRITIQUE" ? "border-rose-400 bg-rose-50" : "bg-white border-slate-200 hover:border-rose-300"}`}
             onClick={() => setFilterNiveau(filterNiveau === "CRITIQUE" ? "" : "CRITIQUE")}>
-            <p className={`text-2xl font-bold ${data.stats.critique > 0 ? "text-rose-700" : "text-slate-400"}`}>{data.stats.critique}</p>
+            <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${data.stats.critique > 0 ? "text-rose-700" : "text-slate-400"}`}>{data.stats.critique}</p>
             <p className="text-xs text-slate-500">Critiques</p>
           </div>
           <div className={`rounded-xl p-4 text-center border cursor-pointer transition-all ${filterNiveau === "MAJEURE" ? "border-orange-400 bg-orange-50" : "bg-white border-slate-200 hover:border-orange-300"}`}
             onClick={() => setFilterNiveau(filterNiveau === "MAJEURE" ? "" : "MAJEURE")}>
-            <p className="text-2xl font-bold text-orange-600">{data.stats.majeure}</p>
+            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-orange-600">{data.stats.majeure}</p>
             <p className="text-xs text-slate-500">Majeures</p>
           </div>
           <div className={`rounded-xl p-4 text-center border cursor-pointer transition-all ${filterNiveau === "MINEURE" ? "border-amber-400 bg-amber-50" : "bg-white border-slate-200 hover:border-amber-300"}`}
             onClick={() => setFilterNiveau(filterNiveau === "MINEURE" ? "" : "MINEURE")}>
-            <p className="text-2xl font-bold text-amber-600">{data.stats.mineure}</p>
+            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-amber-600">{data.stats.mineure}</p>
             <p className="text-xs text-slate-500">Mineures</p>
           </div>
         </div>

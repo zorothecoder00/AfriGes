@@ -44,9 +44,9 @@ export default function PreviisionsPage() {
   }));
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Prévisions Financières</h1>
           <p className="text-sm text-slate-500">Projections basées sur les indicateurs actuels</p>
         </div>

@@ -65,11 +65,11 @@ export default function RapportsPage() {
   );
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="md:p-6 max-w-6xl mx-auto space-y-6">
 
       {/* En-tête */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-800">Rapports Mensuels Investisseurs</h1>
           <p className="text-sm text-slate-500 mt-0.5">Générer et consulter les rapports par portefeuille</p>
         </div>
@@ -222,8 +222,8 @@ function GenererModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center gap-2">
           <Calendar className="w-5 h-5 text-emerald-600" />
           <h2 className="text-lg font-bold text-slate-800">Générer un rapport mensuel</h2>

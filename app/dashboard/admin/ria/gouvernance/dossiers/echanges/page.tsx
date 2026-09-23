@@ -33,7 +33,7 @@ export default function HistoriqueEchangesPage() {
   const { data, loading } = useApi<Data>(`/api/admin/ria/commissions/gouvernance/dossiers/echanges?${params.toString()}`);
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
+    <div className="md:p-6 space-y-6 max-w-5xl mx-auto">
       <button onClick={() => router.push("/dashboard/admin/ria/gouvernance/dossiers")}
         className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
         <ChevronLeft className="w-4 h-4" /> Retour aux dossiers

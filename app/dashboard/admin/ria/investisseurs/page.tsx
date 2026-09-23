@@ -136,8 +136,8 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   // ── Écran succès avec credentials ──
   if (credentials) {
     return (
-      <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
+      <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5 max-h-[90vh] overflow-y-auto">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-emerald-50 rounded-xl"><KeyRound className="w-5 h-5 text-emerald-600" /></div>
             <div>
@@ -174,7 +174,7 @@ function CreateModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900">Nouvel investisseur RIA</h2>
@@ -400,15 +400,15 @@ export default function RIAInvestisseursPage() {
   const investisseurs = res?.data ?? [];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="md:p-6 space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900">Investisseurs RIA</h1>
           <p className="text-sm text-slate-500 mt-0.5">{res?.meta.total ?? 0} investisseur(s) enregistré(s)</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button onClick={refetch}
             className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />

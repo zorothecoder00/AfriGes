@@ -34,9 +34,9 @@ export default function PerformancePage() {
   const ranking = statsRes?.data.portefeuilles ?? [];
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Performance Commerciale</h1>
           <p className="text-sm text-slate-500">Indicateurs de performance réseau & terrain</p>
         </div>

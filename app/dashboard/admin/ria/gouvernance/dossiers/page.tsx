@@ -111,7 +111,7 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[130] p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white">
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
@@ -216,15 +216,15 @@ export default function DossiersPage() {
   function done() { setShowCreate(false); setRefresh(r => r + 1); }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <GitBranch className="w-5 h-5 text-violet-600" /> Dossiers Inter-Commissions
           </h1>
           <p className="text-sm text-slate-500">Workflow de transmission et collaboration inter-commissions</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link href="/dashboard/admin/ria/gouvernance/dossiers/echanges"
             className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
             <History className="w-4 h-4" /> Historique des échanges

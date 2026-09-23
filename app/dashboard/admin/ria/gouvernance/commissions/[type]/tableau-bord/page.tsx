@@ -50,9 +50,9 @@ export default function TableauBordFinancePage() {
   const santeColor = sante >= 75 ? "text-emerald-600" : sante >= 50 ? "text-amber-600" : "text-rose-600";
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Tableau de Bord Financier</h1>
           <p className="text-sm text-slate-500">Vue consolidée des indicateurs financiers RIA</p>
         </div>
@@ -89,7 +89,7 @@ export default function TableauBordFinancePage() {
           ].map(({ label, value, suffix, color }) => (
             <div key={label}>
               <p className="text-xs text-slate-500 mb-1">{label}</p>
-              <p className={`text-2xl font-bold ${color}`}>{value.toFixed(1)}{suffix}</p>
+              <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${color}`}>{value.toFixed(1)}{suffix}</p>
               <div className="mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                 <div className={`h-full rounded-full ${color.includes("emerald") ? "bg-emerald-400" : color.includes("rose") ? "bg-rose-400" : "bg-amber-400"}`}
                   style={{ width: `${Math.min(100, value)}%` }} />

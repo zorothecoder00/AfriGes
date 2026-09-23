@@ -461,15 +461,15 @@ function TabSolvabilite() {
       <div className="flex items-start justify-between gap-4">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 flex-1">
           <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-            <p className={`text-3xl font-bold ${scoreColor(data.scoreMoyen)}`}>{data.scoreMoyen}</p>
+            <p className={`text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold ${scoreColor(data.scoreMoyen)}`}>{data.scoreMoyen}</p>
             <p className="text-xs text-slate-500 mt-0.5">Score moyen / 100</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-            <p className="text-3xl font-bold text-slate-700">{data.total}</p>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-700">{data.total}</p>
             <p className="text-xs text-slate-500 mt-0.5">Clients scorés</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-            <p className="text-3xl font-bold text-emerald-600">{data.repartition["Excellent"] ?? 0}</p>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-600">{data.repartition["Excellent"] ?? 0}</p>
             <p className="text-xs text-slate-500 mt-0.5">Profils Excellents</p>
           </div>
         </div>
@@ -653,7 +653,7 @@ export default function ScoringPage() {
   const [tab, setTab] = useState<"risque" | "solvabilite">("risque");
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="md:p-6 max-w-7xl mx-auto space-y-6">
 
       {/* En-tête */}
       <div>

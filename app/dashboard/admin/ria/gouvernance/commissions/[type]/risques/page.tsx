@@ -50,9 +50,9 @@ export default function RisquesPage() {
   }));
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Gestion des Risques Terrain</h1>
           <p className="text-sm text-slate-500">Classification des clients par niveau de risque</p>
         </div>
@@ -69,7 +69,7 @@ export default function RisquesPage() {
           return (
             <div key={key} className={`${cfg.bg} border border-slate-200 rounded-xl p-4 text-center`}>
               <div className={`w-3 h-3 rounded-full ${cfg.dot} mx-auto mb-2`} />
-              <p className={`text-2xl font-bold ${cfg.color}`}>{count}</p>
+              <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${cfg.color}`}>{count}</p>
               <p className="text-xs text-slate-600 mt-0.5">{cfg.label}</p>
               <p className="text-xs text-slate-500">{formatCurrency(montant)}</p>
             </div>

@@ -539,10 +539,10 @@ export default function FinancementsPage() {
   const stats = creditRes?.stats;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="md:p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Activity className="w-6 h-6 text-blue-600" /> Financement des Clients — RIA
           </h1>
@@ -550,7 +550,7 @@ export default function FinancementsPage() {
             Crédits financés par les investisseurs · Connexion automatique Module Crédit
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button onClick={refetchAll}
             className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg">
             <RefreshCw className={`w-4 h-4 ${(finLoading || creditLoading) ? "animate-spin" : ""}`} />
@@ -613,14 +613,14 @@ export default function FinancementsPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-200">
+      <div className="flex gap-1 border-b border-slate-200 overflow-x-auto scrollbar-hide">
         <button onClick={() => setTab("financements")}
-          className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === "financements" ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
+          className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === "financements" ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
           <Activity className="w-4 h-4" /> Financements RIA
           <span className="ml-1 px-1.5 py-0.5 bg-slate-100 rounded text-xs text-slate-600">{finRes?.meta.total ?? 0}</span>
         </button>
         <button onClick={() => setTab("credits")}
-          className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === "credits" ? "border-purple-600 text-purple-700" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
+          className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === "credits" ? "border-purple-600 text-purple-700" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
           <Users className="w-4 h-4" /> Crédits Clients
           <span className="ml-1 px-1.5 py-0.5 bg-slate-100 rounded text-xs text-slate-600">{stats?.totalCredits ?? 0}</span>
         </button>
@@ -630,7 +630,7 @@ export default function FinancementsPage() {
       {tab === "financements" && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl max-w-full overflow-x-auto scrollbar-hide [&>button]:shrink-0 [&>button]:whitespace-nowrap">
               {["", "ACTIF", "EN_RETARD", "DEFAUT", "REMBOURSE", "ANNULE"].map((s) => (
                 <button key={s} onClick={() => setStatutFin(s)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${statutFin === s ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>

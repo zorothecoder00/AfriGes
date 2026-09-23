@@ -115,7 +115,7 @@ export default function OrdrePaiementPage() {
         {/* Montant */}
         <div className="mt-8 rounded-xl bg-rose-50 border border-rose-100 p-6 text-center">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-rose-400">Montant à payer</p>
-          <p className="text-3xl font-bold text-rose-700 mt-1 tabular-nums">{fmt(r.montant)} FCFA</p>
+          <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-rose-700 mt-1 tabular-nums">{fmt(r.montant)} FCFA</p>
           <p className="text-sm text-rose-500 mt-1 italic">{montantEnLettres(Number(r.montant))}</p>
         </div>
 

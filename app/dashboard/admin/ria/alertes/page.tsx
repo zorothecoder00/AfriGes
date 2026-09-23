@@ -132,10 +132,10 @@ export default function AlertesRIAPage() {
   ];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="md:p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <AlertTriangle className="w-6 h-6 text-amber-500" />
             Alertes Automatiques RIA
@@ -152,13 +152,13 @@ export default function AlertesRIAPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className={`rounded-xl border p-4 ${r.nbAlertesCritiques > 0 ? "bg-red-50 border-red-200" : "bg-white border-slate-200"}`}>
             <p className="text-xs text-slate-500">Alertes critiques</p>
-            <p className={`text-2xl font-bold mt-1 ${r.nbAlertesCritiques > 0 ? "text-red-600" : "text-emerald-600"}`}>
+            <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold mt-1 ${r.nbAlertesCritiques > 0 ? "text-red-600" : "text-emerald-600"}`}>
               {r.nbAlertesCritiques}
             </p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <p className="text-xs text-slate-500">Alertes totales</p>
-            <p className={`text-2xl font-bold mt-1 ${r.nbAlertesTotal > 0 ? "text-amber-600" : "text-emerald-600"}`}>{r.nbAlertesTotal}</p>
+            <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold mt-1 ${r.nbAlertesTotal > 0 ? "text-amber-600" : "text-emerald-600"}`}>{r.nbAlertesTotal}</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <p className="text-xs text-slate-500">Encours à risque</p>
@@ -166,7 +166,7 @@ export default function AlertesRIAPage() {
           </div>
           <div className={`rounded-xl border p-4 ${r.tauxDefaut >= (d?.seuils.TAUX_DEFAUT_SEUIL ?? 10) ? "bg-red-50 border-red-200" : "bg-white border-slate-200"}`}>
             <p className="text-xs text-slate-500">Taux de défaut</p>
-            <p className={`text-2xl font-bold mt-1 ${r.tauxDefaut >= (d?.seuils.TAUX_DEFAUT_SEUIL ?? 10) ? "text-red-600" : "text-emerald-600"}`}>
+            <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold mt-1 ${r.tauxDefaut >= (d?.seuils.TAUX_DEFAUT_SEUIL ?? 10) ? "text-red-600" : "text-emerald-600"}`}>
               {r.tauxDefaut}%
             </p>
           </div>
@@ -435,7 +435,7 @@ export default function AlertesRIAPage() {
                     min={0}
                     value={seuils[item.cle] ?? item.valeur}
                     onChange={(e) => setSeuils((prev) => ({ ...prev, [item.cle]: parseFloat(e.target.value) || 0 }))}
-                    className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                    className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-300 min-w-0"
                   />
                   <span className="text-xs text-slate-400">
                     {item.cle === "IMPAYES_MONTANT_SEUIL" ? "FCFA" : "%"}
@@ -553,7 +553,7 @@ function AlerteBadge({ active, label, value, sub, icon }: { active: boolean; lab
       </div>
       <div>
         <p className="text-xs text-slate-500 font-medium">{label}</p>
-        <p className={`text-2xl font-bold mt-0.5 ${active ? "text-red-600" : "text-emerald-600"}`}>{value}</p>
+        <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold mt-0.5 ${active ? "text-red-600" : "text-emerald-600"}`}>{value}</p>
         <p className="text-xs text-slate-400 mt-1">{sub}</p>
       </div>
       <div className="ml-auto">

@@ -32,9 +32,9 @@ export default function ActivitesPage() {
   const byCommune = stats?.byCommune ?? [];
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Activités Terrain</h1>
           <p className="text-sm text-slate-500">Suivi des affectations clients par zone géographique</p>
         </div>
@@ -46,15 +46,15 @@ export default function ActivitesPage() {
 
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{stats?.total ?? 0}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{stats?.total ?? 0}</p>
           <p className="text-xs text-slate-500">Affectations totales</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-600">{stats?.actifs ?? 0}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-600">{stats?.actifs ?? 0}</p>
           <p className="text-xs text-slate-500">Actives</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-blue-600">{byCommune.length}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-blue-600">{byCommune.length}</p>
           <p className="text-xs text-slate-500">Communes couvertes</p>
         </div>
       </div>

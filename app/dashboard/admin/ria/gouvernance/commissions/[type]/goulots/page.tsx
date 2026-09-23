@@ -100,9 +100,9 @@ export default function GoulotsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Goulots d&apos;Étranglement</h1>
           <p className="text-sm text-slate-500">Identification des freins opérationnels et recommandations</p>
         </div>
@@ -119,7 +119,7 @@ export default function GoulotsPage() {
       )}
 
       {dash && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
             <p className="text-xl font-bold text-violet-700">{toNum(dash.scoreGlobalSante)}/100</p>
             <p className="text-xs text-slate-500">Score santé</p>

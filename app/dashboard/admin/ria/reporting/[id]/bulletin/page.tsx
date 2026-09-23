@@ -171,7 +171,7 @@ export default function BulletinRIAPage({ params }: { params: Promise<{ id: stri
               { label: "Soldés",    value: d.financementsRembourses, color: "text-emerald-600" },
             ].map((s) => (
               <div key={s.label} className="bg-slate-50 rounded-lg p-3">
-                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${s.color}`}>{s.value}</p>
                 <p className="text-xs text-slate-500 mt-0.5">{s.label}</p>
               </div>
             ))}

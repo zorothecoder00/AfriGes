@@ -38,9 +38,9 @@ export default function AnomaliesPage() {
   const hautes    = stats?.hautes ?? 0;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Gestion des Anomalies</h1>
           <p className="text-sm text-slate-500">Détection automatique des irrégularités dans les financements</p>
         </div>
@@ -53,17 +53,17 @@ export default function AnomaliesPage() {
       <div className="grid grid-cols-3 gap-4">
         <div className={`border rounded-xl p-4 text-center ${critiques > 0 ? "bg-rose-50 border-rose-200" : "bg-white border-slate-200"}`}>
           <ShieldAlert className={`w-5 h-5 mx-auto mb-1 ${critiques > 0 ? "text-rose-500" : "text-slate-300"}`} />
-          <p className={`text-2xl font-bold ${critiques > 0 ? "text-rose-700" : "text-slate-400"}`}>{critiques}</p>
+          <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${critiques > 0 ? "text-rose-700" : "text-slate-400"}`}>{critiques}</p>
           <p className="text-xs text-slate-500">Anomalies critiques</p>
         </div>
         <div className={`border rounded-xl p-4 text-center ${hautes > 0 ? "bg-orange-50 border-orange-200" : "bg-white border-slate-200"}`}>
           <AlertTriangle className={`w-5 h-5 mx-auto mb-1 ${hautes > 0 ? "text-orange-500" : "text-slate-300"}`} />
-          <p className={`text-2xl font-bold ${hautes > 0 ? "text-orange-700" : "text-slate-400"}`}>{hautes}</p>
+          <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${hautes > 0 ? "text-orange-700" : "text-slate-400"}`}>{hautes}</p>
           <p className="text-xs text-slate-500">Hautes</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
           <CheckCircle2 className={`w-5 h-5 mx-auto mb-1 ${(stats?.total ?? 0) === 0 ? "text-emerald-500" : "text-slate-300"}`} />
-          <p className={`text-2xl font-bold ${(stats?.total ?? 0) === 0 ? "text-emerald-600" : "text-slate-800"}`}>{stats?.total ?? 0}</p>
+          <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${(stats?.total ?? 0) === 0 ? "text-emerald-600" : "text-slate-800"}`}>{stats?.total ?? 0}</p>
           <p className="text-xs text-slate-500">Total anomalies</p>
         </div>
       </div>

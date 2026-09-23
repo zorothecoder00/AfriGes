@@ -166,11 +166,11 @@ export default function BIPage() {
   const maxRecouvre  = Math.max(...topAgents.map((a) => a.totalRecouvre), 1);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="md:p-6 max-w-7xl mx-auto space-y-6">
 
       {/* En-tête */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-800">Business Intelligence — RIA</h1>
           <p className="text-sm text-slate-500 mt-0.5">Analyse avancée · Tops · Prévisions</p>
         </div>
@@ -522,7 +522,7 @@ export default function BIPage() {
         <div className="lg:col-span-2">
           <SectionCard title="Prévisions trésorerie" icon={<Wallet className="w-4 h-4 text-blue-600" />}>
             <div className="p-5">
-              <div className="grid grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 {previsionsTresorerie.map(({ jours, montantAttendu }) => {
                   const pct = maxPrevision > 0 ? (montantAttendu / maxPrevision) * 100 : 0;
                   return (

@@ -30,9 +30,9 @@ export default function CartographiePage() {
   const maxCommune = byCommune[0]?.count ?? 1;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Cartographie des Portefeuilles</h1>
           <p className="text-sm text-slate-500">Répartition géographique des clients et financements</p>
         </div>

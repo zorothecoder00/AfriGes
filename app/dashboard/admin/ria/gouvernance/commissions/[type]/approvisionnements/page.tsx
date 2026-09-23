@@ -41,9 +41,9 @@ export default function ApprovisionnmentsPage() {
   const totalAttente = depotsStats.EN_ATTENTE?.montant ?? 0;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Approvisionnements</h1>
           <p className="text-sm text-slate-500">Flux de fonds entrants — dépôts investisseurs</p>
         </div>
@@ -53,10 +53,10 @@ export default function ApprovisionnmentsPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
           <Truck className="w-5 h-5 text-emerald-500 mx-auto mb-2" />
-          <p className="text-2xl font-bold text-slate-800">{totalDepots}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{totalDepots}</p>
           <p className="text-xs text-slate-500">Dépôts total</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">

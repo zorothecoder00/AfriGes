@@ -192,10 +192,10 @@ function ModalAction({ financement, onClose, onSaved }: ModalActionProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div>
+    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b">
+          <div className="min-w-0">
             <h2 className="text-base font-semibold text-slate-800">Nouvelle action</h2>
             <p className="text-xs text-slate-400 mt-0.5">{financement.reference} — {financement.client}</p>
           </div>
@@ -411,7 +411,7 @@ export default function RecouvrementPage() {
   const { stats, statsParPortefeuille } = data;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="md:p-6 max-w-7xl mx-auto space-y-6">
 
       {/* ── En-tête ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -498,12 +498,12 @@ export default function RecouvrementPage() {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex gap-1 border-b border-slate-200">
+      <div className="flex gap-1 border-b border-slate-200 overflow-x-auto scrollbar-hide">
         {(["globale", "clients", "alertes", "actions", "risques"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            className={`shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               tab === t
                 ? "border-emerald-600 text-emerald-700"
                 : "border-transparent text-slate-500 hover:text-slate-700"
@@ -925,7 +925,7 @@ function RisquesTab({ periodes, risques, totalEncours }: { periodes: Periodes; r
               <p className="text-xs text-slate-500">Taux d&apos;impayés</p>
               <Percent className="w-4 h-4 text-amber-400" />
             </div>
-            <p className="text-2xl font-bold text-amber-600 mt-1">{pct(risques.tauxImpayes)}</p>
+            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-amber-600 mt-1">{pct(risques.tauxImpayes)}</p>
             <p className="text-xs text-slate-400 mt-0.5">{fmt(risques.encoursRetard)} en retard</p>
             <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.min(100, risques.tauxImpayes)}%` }} />
@@ -936,7 +936,7 @@ function RisquesTab({ periodes, risques, totalEncours }: { periodes: Periodes; r
               <p className="text-xs text-slate-500">Créances douteuses</p>
               <AlertTriangle className="w-4 h-4 text-red-400" />
             </div>
-            <p className="text-2xl font-bold text-red-600 mt-1">{fmt(risques.creancesDouteuses)}</p>
+            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-red-600 mt-1">{fmt(risques.creancesDouteuses)}</p>
             <p className="text-xs text-slate-400 mt-0.5">
               {totalEncours > 0 ? pct((risques.creancesDouteuses / totalEncours) * 100) : "0%"} de l&apos;encours · retard ≥ 30 j / défaut
             </p>
@@ -946,7 +946,7 @@ function RisquesTab({ periodes, risques, totalEncours }: { periodes: Periodes; r
               <p className="text-xs text-slate-500">Perte probable</p>
               <TrendingDown className="w-4 h-4 text-red-400" />
             </div>
-            <p className="text-2xl font-bold text-red-700 mt-1">{fmt(risques.perteProbable)}</p>
+            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-red-700 mt-1">{fmt(risques.perteProbable)}</p>
             <p className="text-xs text-slate-400 mt-0.5">Provision pondérée par ancienneté</p>
           </div>
         </div>

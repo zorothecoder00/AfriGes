@@ -46,7 +46,7 @@ export function ActionsCREditor({
               onChange={(e) => maj(i, { titre: e.target.value })}
               disabled={disabled}
               placeholder="Ex. Réduire les impayés de 15 %"
-              className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 disabled:bg-slate-100"
+              className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 disabled:bg-slate-100 min-w-0"
             />
             {!disabled && (
               <button type="button" onClick={() => retirer(i)}

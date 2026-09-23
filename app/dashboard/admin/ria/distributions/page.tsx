@@ -83,8 +83,8 @@ function PlanifierModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-200 flex justify-between">
           <h3 className="font-semibold text-slate-900">Planifier une distribution</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
@@ -193,9 +193,9 @@ export default function DistributionsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900">Distributions de Bénéfices</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             {res?.meta.total ?? 0} distribution(s) ·
@@ -204,7 +204,7 @@ export default function DistributionsPage() {
             {totalPlanifie > 0 && <span className="ml-2 text-amber-600 font-semibold">({totalPlanifie} à traiter)</span>}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button onClick={refetch} className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
@@ -226,7 +226,7 @@ export default function DistributionsPage() {
           <input type="number" value={annee} onChange={(e) => setAnnee(e.target.value)} placeholder="Année"
             className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-24 focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
         </div>
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl max-w-full overflow-x-auto scrollbar-hide [&>button]:shrink-0 [&>button]:whitespace-nowrap">
           {["", "PLANIFIE", "DISTRIBUE"].map((s) => (
             <button key={s} onClick={() => setStatut(s)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${statut === s ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>

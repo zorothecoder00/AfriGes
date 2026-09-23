@@ -69,8 +69,8 @@ function DepotModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-200 flex justify-between">
           <h3 className="font-semibold text-slate-900">Nouveau dépôt</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
@@ -185,8 +185,8 @@ function RetraitModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-200 flex justify-between">
           <h3 className="font-semibold text-slate-900">Demande de retrait</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
@@ -261,8 +261,8 @@ function EditDepotModal({ depot, onClose, onSuccess }: { depot: DepotItem; onClo
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-200 flex justify-between">
           <h3 className="font-semibold text-slate-900">Modifier le dépôt — {depot.reference}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
@@ -337,8 +337,8 @@ function EditRetraitModal({ retrait, onClose, onSuccess }: { retrait: RetraitIte
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-200 flex justify-between">
           <h3 className="font-semibold text-slate-900">Modifier le retrait — {retrait.reference}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
@@ -426,8 +426,8 @@ function DepotsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {["", "EN_ATTENTE", "VALIDE", "REJETE"].map((s) => (
             <button key={s} onClick={() => setStatut(s)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${statut === s ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
@@ -535,8 +535,8 @@ function RetraitsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {["", "EN_ATTENTE", "VALIDE", "PAYE", "REJETE"].map((s) => (
             <button key={s} onClick={() => setStatut(s)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${statut === s ? "bg-rose-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
@@ -719,7 +719,7 @@ export default function RIAFondsPage() {
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="md:p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Fonds RIA</h1>
         <p className="text-sm text-slate-500 mt-0.5">Gestion des dépôts, retraits et journal des mouvements</p>

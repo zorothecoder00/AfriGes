@@ -42,9 +42,9 @@ export default function SuggestionsPage() {
   const enCours      = items.filter(r => ["APPROUVEE", "EN_APPLICATION"].includes(r.statut)).length;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Suggestions d&apos;Amélioration</h1>
           <p className="text-sm text-slate-500">Recommandations d&apos;optimisation des processus RIA</p>
         </div>
@@ -56,15 +56,15 @@ export default function SuggestionsPage() {
 
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{items.length}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{items.length}</p>
           <p className="text-xs text-slate-500">Suggestions total</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-violet-700">{enCours}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-violet-700">{enCours}</p>
           <p className="text-xs text-slate-500">En cours d&apos;implémentation</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-700">{implementees}</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-700">{implementees}</p>
           <p className="text-xs text-slate-500">Implémentées</p>
         </div>
       </div>

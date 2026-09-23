@@ -83,9 +83,9 @@ export default function RIAConfigPage() {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-3xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900">Configuration RIA</h1>
           <p className="text-sm text-slate-500 mt-0.5">Taux de génération et répartition des bénéfices</p>
         </div>
@@ -96,7 +96,7 @@ export default function RIAConfigPage() {
 
       {/* Formulaire de configuration */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="p-2 bg-emerald-50 rounded-xl"><Settings className="w-5 h-5 text-emerald-600" /></div>
           <div>
             <h2 className="font-semibold text-slate-900">Taux actifs</h2>

@@ -70,12 +70,12 @@ function KpiCard({ icon, label, value, sub, color = "slate", alert = false }: {
   };
   const c = card[color];
   return (
-    <div className={`group relative overflow-hidden bg-gradient-to-br ${c.wrap} to-white rounded-2xl border p-5 flex items-start gap-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${alert ? "!border-red-200 !from-red-50" : ""}`}>
+    <div className={`group relative overflow-hidden bg-gradient-to-br ${c.wrap} to-white rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-4 min-w-0 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${alert ? "!border-red-200 !from-red-50" : ""}`}>
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${alert ? "bg-red-500" : c.bar}`} />
       <div className={`p-3 rounded-xl flex-shrink-0 transition-transform duration-300 ease-out group-hover:scale-110 ${ring[color]}`}>{icon}</div>
       <div className="min-w-0">
-        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
-        <p className={`text-xl font-bold mt-0.5 truncate transition-transform duration-300 group-hover:scale-105 origin-left ${alert ? "text-red-700" : c.text}`}>{value}</p>
+        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider [overflow-wrap:anywhere]">{label}</p>
+        <p className={`text-lg sm:text-xl leading-tight [overflow-wrap:anywhere] font-bold mt-0.5 transition-transform duration-300 group-hover:scale-105 origin-left ${alert ? "text-red-700" : c.text}`}>{value}</p>
         {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
       </div>
     </div>
@@ -92,9 +92,9 @@ function RatioCard({ label, value, icon, color = "blue", sub }: {
     <div className="bg-white rounded-2xl border border-slate-200 p-5">
       <div className="flex items-center gap-2 mb-3">
         <div className="text-slate-400">{icon}</div>
-        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
+        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider [overflow-wrap:anywhere]">{label}</p>
       </div>
-      <p className={`text-2xl font-bold ${textColor[color]}`}>{pct(value)}</p>
+      <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${textColor[color]}`}>{pct(value)}</p>
       <div className="mt-3 h-2 bg-slate-100 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${barColor[color]}`}
           style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
@@ -252,14 +252,14 @@ export default function RIADashboardPage() {
   const totalRisque = d ? Object.values(d.repartitionRisque).reduce((s, v) => s + v, 0) : 0;
 
   return (
-    <div className="p-6 space-y-8 max-w-screen-2xl">
+    <div className="md:p-6 space-y-8 max-w-screen-2xl">
 
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900">RIA — Réseau des Investisseurs AfriSime</h1>
           <p className="text-sm text-slate-500 mt-0.5">Tableau de bord temps réel</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button onClick={refetch}
             className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Actualiser

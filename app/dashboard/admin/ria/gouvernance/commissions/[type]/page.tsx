@@ -269,8 +269,8 @@ function AddMembreModal({ typeCommission, onClose, onDone }: {
   // Écran de confirmation des identifiants générés
   if (cred) {
     return (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[130] p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
             <h2 className="font-semibold text-slate-800">Compte membre créé</h2>
@@ -305,7 +305,7 @@ function AddMembreModal({ typeCommission, onClose, onDone }: {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[130] p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
@@ -457,8 +457,8 @@ function AddObservationModal({ typeCommission, onClose, onDone }: {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[130] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
             <MessageSquare className="w-4 h-4" /> Nouvelle observation
@@ -548,8 +548,8 @@ function ReunionModal({ typeEnum, initial, onClose, onDone }: {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[130] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
             <Calendar className="w-4 h-4 text-blue-500" /> {isEdit ? "Modifier la réunion" : "Planifier une réunion"}
@@ -635,7 +635,7 @@ function ResolutionModal({ typeEnum, initial, membres, reunions, onClose, onDone
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[130] p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
@@ -736,7 +736,7 @@ function PlanModal({ typeEnum, initial, membres, resolutions, onClose, onDone }:
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[130] p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
@@ -854,7 +854,7 @@ export default function CommissionTypePage({ params }: { params: Promise<PagePar
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div>
         <Link href="/dashboard/admin/ria/gouvernance"

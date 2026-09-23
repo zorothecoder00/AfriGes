@@ -80,9 +80,9 @@ export default function ProductivitePage() {
   ] : [];
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800">Productivité</h1>
           <p className="text-sm text-slate-500">Indicateurs de productivité et benchmarks cibles RIA</p>
         </div>
@@ -108,7 +108,7 @@ export default function ProductivitePage() {
                 {k.ok ? "Atteint" : "Non atteint"}
               </span>
             </div>
-            <p className={`text-2xl font-bold ${k.color}`}>{k.value}</p>
+            <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${k.color}`}>{k.value}</p>
             <p className="text-xs text-slate-400 mt-0.5">{k.sub}</p>
             <p className="text-xs text-slate-300 mt-1">{k.benchmark}</p>
           </div>

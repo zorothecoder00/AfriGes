@@ -56,8 +56,8 @@ function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[130] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-amber-500" /> Nouveau rapport
@@ -156,9 +156,9 @@ export default function RapportsPage() {
   function done() { setShowCreate(false); setRefresh(r => r + 1); }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-amber-600" /> Rapports & Archives
           </h1>
@@ -172,7 +172,7 @@ export default function RapportsPage() {
 
       {/* Stats */}
       {!loading && data && (
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {Object.entries(STATUTS).map(([k, s]) => (
             <button key={k} onClick={() => setFilterStatut(filterStatut === k ? "" : k)}
               className={`p-3 rounded-xl border text-center transition-all ${filterStatut === k ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>

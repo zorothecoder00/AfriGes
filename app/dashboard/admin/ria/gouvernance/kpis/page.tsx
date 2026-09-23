@@ -67,9 +67,9 @@ export default function KpisPage() {
   const scoreColor = (v: number) => v >= 75 ? "text-emerald-600" : v >= 50 ? "text-amber-600" : "text-rose-600";
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-indigo-600" /> Indicateurs de Performance (KPIs)
           </h1>
@@ -140,7 +140,7 @@ export default function KpisPage() {
 
                   <div className="p-5 space-y-4">
                     {/* Compteurs */}
-                    <div className="grid grid-cols-4 gap-3 text-center">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-center">
                       <div>
                         <div className="flex items-center justify-center gap-1">
                           <Users className="w-3.5 h-3.5 text-slate-400" />
