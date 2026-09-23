@@ -27,6 +27,7 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { useT } from "@/contexts/AppSettingsContext";
 import { getStatCardHue } from "@/components/ui/statCardTheme";
 
+import AppLoader from "@/components/AppLoader";
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -838,12 +839,7 @@ export default function MagasinierPage() {
 
   if (stockLoading && !stockResponse) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/20 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium" suppressHydrationWarning>{t("store_loading_inventory")}</p>
-        </div>
-      </div>
+      <AppLoader message={t("store_loading_inventory")} />
     );
   }
 

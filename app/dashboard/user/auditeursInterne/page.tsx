@@ -22,6 +22,7 @@ import { getStatCardHue } from "@/components/ui/statCardTheme";
 import { exportToXlsx } from "@/lib/exportXlsx";
 import { useT } from "@/contexts/AppSettingsContext";
 
+import AppLoader from "@/components/AppLoader";
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -572,12 +573,7 @@ export default function AuditeurInternePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-amber-50/30 to-orange-50/20 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin" />
-          <p className="text-slate-500 font-medium">Chargement du tableau de bord...</p>
-        </div>
-      </div>
+      <AppLoader message="Chargement du tableau de bord…" />
     );
   }  
 

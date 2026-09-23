@@ -24,6 +24,7 @@ import { getStatCardHue } from "@/components/ui/statCardTheme";
 import AideComptable from "@/components/AideComptable";
 import { AIDE_COMPTABLE } from "@/lib/aideComptableContenu";
 
+import AppLoader from "@/components/AppLoader";
 // ── Types (miroir de lib/comptabilite/dashboardComptable.ts) ───────────────
 
 interface KpisDashboard {
@@ -342,12 +343,7 @@ export default function ComptableTableauBordPage() {
 
   if (loading && !data) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-violet-50/30 to-indigo-50/20 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin" />
-          <p className="text-slate-500 font-medium">Chargement du tableau de bord comptable…</p>
-        </div>
-      </div>
+      <AppLoader message="Chargement du tableau de bord comptable…" />
     );
   }
 

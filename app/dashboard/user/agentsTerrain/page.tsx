@@ -30,6 +30,7 @@ import { useT } from "@/contexts/AppSettingsContext";
 import { usePageAccess } from "@/hooks/usePageAccess";
 import { toast } from 'sonner'; 
 
+import AppLoader from "@/components/AppLoader";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type TypePack = "ALIMENTAIRE" | "REVENDEUR" | "FAMILIAL" | "URGENCE" | "EPARGNE_PRODUIT" | "FIDELITE";
@@ -2029,12 +2030,7 @@ export default function AgentTerrainPage() {
 
   if (clientsLoading && !clientsResponse && !packsResponse) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50/30 to-emerald-50/20 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
-          <p className="text-slate-500 font-medium">Chargement…</p>
-        </div>
-      </div>
+      <AppLoader message="Chargement…" />
     );
   }
 
