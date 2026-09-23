@@ -67,9 +67,9 @@ export default function SideTabs({
   // de largeur.
   if (items.length <= 3) {
     return (
-      <div className={`inline-flex flex-wrap gap-1 self-start w-fit rounded-xl border ${c.containerBg} ${c.containerBorder} shadow-sm p-1.5 ${className}`}>
+      <div className={`inline-flex gap-1 self-start w-fit max-w-full overflow-x-auto scrollbar-hide rounded-xl border ${c.containerBg} ${c.containerBorder} shadow-sm p-1.5 ${className}`}>
         {items.map((item) => {
-          const cls = `flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors rounded-lg
+          const cls = `shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors rounded-lg
             ${item.active ? `bg-white shadow-sm ${c.activeText}` : `${c.inactiveText} ${c.inactiveHover}`}`;
           const content = <>{item.icon}{item.label}</>;
 

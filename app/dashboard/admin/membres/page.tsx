@@ -122,22 +122,22 @@ export default function MembresPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 md:p-8">
       <div className="max-w-[1600px] mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors shrink-0">
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
-            <div>
-              <h1 className="text-4xl font-bold text-slate-800 mb-2">{t('membres_title')}</h1>
-              <p className="text-slate-500">{t('membres_subtitle')}</p>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-1 sm:mb-2">{t('membres_title')}</h1>
+              <p className="text-sm sm:text-base text-slate-500">{t('membres_subtitle')}</p>
             </div>
           </div>
           <button
             onClick={() => setModalOpen(true)}
-            className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 flex items-center gap-2 font-medium"
+            className="shrink-0 justify-center whitespace-nowrap px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 flex items-center gap-2 font-medium"
           >
             <Plus size={20} />
             {t('membres_add_btn')}
@@ -146,8 +146,8 @@ export default function MembresPage() {
 
         {/* Modal pour ajouter membre */}
         {modalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130]">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
+            <div className="bg-white rounded-2xl p-5 sm:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-lg relative">
               <button
                 onClick={() => setModalOpen(false)}
                 className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold"
@@ -156,7 +156,7 @@ export default function MembresPage() {
               <p className="text-sm text-slate-500 mb-4">{t('text_required_fields')}</p>
               {addError && <p className="text-red-500 text-sm mb-3">{addError}</p>}
               <form onSubmit={handleSubmit} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
                     type="text" placeholder={`${t('label_nom')} *`} required
                     value={formData.nom}
@@ -182,7 +182,7 @@ export default function MembresPage() {
                   onChange={e => setFormData({ ...formData, password: e.target.value })}
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
                     type="text" placeholder={t('label_telephone')}
                     value={formData.telephone}
@@ -259,8 +259,8 @@ export default function MembresPage() {
 
         {/* Modal Confirmation Suppression */}
         {deleteId && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130]">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg text-center">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-sm shadow-lg text-center">
               <h2 className="text-lg font-bold text-slate-800 mb-2">{t('text_confirm_delete')}</h2>
               <p className="text-slate-500 text-sm mb-6">{t('membres_confirm_del')} {t('text_irreversible')}</p>
               <div className="flex gap-3">
@@ -276,33 +276,33 @@ export default function MembresPage() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-5">
-          <div className="group relative overflow-hidden bg-gradient-to-br from-primary-50 to-white rounded-2xl p-6 shadow-sm border border-primary-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-primary-200/60 hover:border-primary-300">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+          <div className="group relative overflow-hidden bg-gradient-to-br from-primary-50 to-white rounded-2xl p-4 sm:p-6 min-w-0 shadow-sm border border-primary-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-primary-200/60 hover:border-primary-300">
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary-500" />
             <span className="text-primary-700/80 text-sm font-semibold">{t('membres_total')}</span>
-            <p className="text-3xl font-bold text-primary-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{meta?.total ?? '—'}</p>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-primary-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{meta?.total ?? '—'}</p>
           </div>
-          <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-6 shadow-sm border border-emerald-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-200/60 hover:border-emerald-300">
+          <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-4 sm:p-6 min-w-0 shadow-sm border border-emerald-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-200/60 hover:border-emerald-300">
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500" />
             <span className="text-emerald-700/80 text-sm font-semibold">{t('membres_current_page')}</span>
-            <p className="text-3xl font-bold text-emerald-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{meta?.page ?? '—'} / {meta?.totalPages ?? '—'}</p>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{meta?.page ?? '—'} / {meta?.totalPages ?? '—'}</p>
           </div>
-          <div className="group relative overflow-hidden bg-gradient-to-br from-amber-50 to-white rounded-2xl p-6 shadow-sm border border-amber-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-amber-200/60 hover:border-amber-300">
+          <div className="group relative overflow-hidden bg-gradient-to-br from-amber-50 to-white rounded-2xl p-4 sm:p-6 min-w-0 shadow-sm border border-amber-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-amber-200/60 hover:border-amber-300">
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500" />
             <span className="text-amber-700/80 text-sm font-semibold">{t('membres_display')}</span>
-            <p className="text-3xl font-bold text-amber-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{membres.length} {t('membres_title').toLowerCase()}</p>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-amber-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{membres.length} {t('membres_title').toLowerCase()}</p>
           </div>
-          <div className="group relative overflow-hidden bg-gradient-to-br from-brand-50 to-white rounded-2xl p-6 shadow-sm border border-brand-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-200/60 hover:border-brand-300">
+          <div className="group relative overflow-hidden bg-gradient-to-br from-brand-50 to-white rounded-2xl p-4 sm:p-6 min-w-0 shadow-sm border border-brand-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-200/60 hover:border-brand-300">
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-500" />
             <span className="text-brand-700/80 text-sm font-semibold">{t('label_search')}</span>
-            <p className="text-3xl font-bold text-brand-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{debouncedSearch || t('membres_none')}</p>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-brand-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{debouncedSearch || t('membres_none')}</p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
+        <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/60">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <div className="relative w-full sm:w-auto sm:flex-1 min-w-0">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
               <input
                 type="text"
@@ -321,18 +321,18 @@ export default function MembresPage() {
                 setRoleFilter(e.target.value);
                 setPage(1);
               }}
-              className="px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50"
+              className="w-full sm:w-auto px-4 py-3 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50"
             >
               <option value="">{t('membres_all_roles')}</option>
               <option value="USER">{t('role_user')}</option>
               <option value="ADMIN">{t('role_admin')}</option>
               <option value="SUPER_ADMIN">{t('role_superadmin')}</option>
             </select>
-            <button className="px-5 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-200 transition-all flex items-center gap-2 font-medium">
+            <button className="flex-1 sm:flex-none justify-center px-5 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-200 transition-all flex items-center gap-2 font-medium">
               <Filter size={18} />
               {t('btn_filters')}
             </button>
-            <button onClick={handleExport} className="px-5 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-200 transition-all flex items-center gap-2 font-medium">
+            <button onClick={handleExport} className="flex-1 sm:flex-none justify-center px-5 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-200 transition-all flex items-center gap-2 font-medium">
               <Download size={18} />
               {t('btn_export')}
             </button>
@@ -345,50 +345,53 @@ export default function MembresPage() {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('col_member')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('col_contact')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('col_role')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('membres_col_inscription')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('col_actions')}</th>
+                  <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('col_member')}</th>
+                  <th className="hidden md:table-cell px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('col_contact')}</th>
+                  <th className="hidden sm:table-cell px-3 sm:px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('col_role')}</th>
+                  <th className="hidden md:table-cell px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('membres_col_inscription')}</th>
+                  <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{t('col_actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {membres.map((membre) => (
                   <tr key={membre.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
+                    <td className="px-3 sm:px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold shadow-md">
+                        <div className="w-10 h-10 shrink-0 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold shadow-md">
                           {getInitials(membre.nom, membre.prenom)}
                         </div>
                         <div>
                           <p className="font-semibold text-slate-800">{membre.prenom} {membre.nom}</p>
-                          <p className="text-sm text-slate-500">{membre.email}</p>
+                          <p className="text-sm text-slate-500 break-all">{membre.email}</p>
+                          <span className={`sm:hidden mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${getStatusStyle(membre.role)}`}>
+                            {getStatusLabel(membre.role)}
+                          </span>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="hidden md:table-cell px-6 py-4">
                       <div className="flex items-center gap-2 text-sm text-slate-600">
                         <Mail size={14} className="text-slate-400" />
                         {membre.email}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(membre.role)}`}>
+                    <td className="hidden sm:table-cell px-3 sm:px-6 py-4">
+                      <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${getStatusStyle(membre.role)}`}>
                         {getStatusLabel(membre.role)}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="hidden md:table-cell px-6 py-4">
                       <span className="text-sm text-slate-600">{formatDate(membre.createdAt)}</span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Link href={`/dashboard/admin/membres/${membre.id}`} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                    <td className="px-3 sm:px-6 py-4">
+                      <div className="flex items-center gap-0.5 sm:gap-2">
+                        <Link href={`/dashboard/admin/membres/${membre.id}`} className="p-1.5 sm:p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                           <Eye size={16} />
                         </Link>
-                        <Link href={`/dashboard/admin/membres/${membre.id}/edit`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        <Link href={`/dashboard/admin/membres/${membre.id}/edit`} className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                           <Edit size={16} />
                         </Link>
-                        <button onClick={() => setDeleteId(membre.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <button onClick={() => setDeleteId(membre.id)} className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -406,7 +409,7 @@ export default function MembresPage() {
 
           {/* Pagination */}
           {meta && (
-            <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+            <div className="px-4 sm:px-6 py-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-slate-600">
                 {t('page')} <span className="font-semibold">{meta.page}</span> / <span className="font-semibold">{meta.totalPages}</span> ({meta.total} {t('membres_title').toLowerCase()})
               </p>

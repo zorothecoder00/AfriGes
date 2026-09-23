@@ -191,19 +191,19 @@ export default function PacksAdminPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-emerald-50/10 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-emerald-50/10 md:p-8">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors shrink-0">
             <ArrowLeft className="w-5 h-5 text-slate-600" />
           </Link>
-          <div className="flex-1">
-            <h1 className="text-4xl font-bold text-slate-800 mb-1">{t('packs_title')}</h1>
-            <p className="text-slate-500">Gérez les souscriptions, versements et livraisons par pack</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-1">{t('packs_title')}</h1>
+            <p className="text-sm sm:text-base text-slate-500">Gérez les souscriptions, versements et livraisons par pack</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto [&>a]:flex-1 sm:[&>a]:flex-none [&>a]:justify-center [&>a]:whitespace-nowrap">
             <Link href="/dashboard/admin/souscriptions/lignes"
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-amber-200 hover:bg-amber-50 text-amber-700 rounded-xl text-sm font-medium transition-colors shadow-sm">
               <ClipboardList className="w-4 h-4" />
@@ -218,12 +218,12 @@ export default function PacksAdminPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex flex-wrap gap-1 bg-white rounded-2xl border border-slate-200 p-1.5 w-fit shadow-sm">
+        <div className="flex gap-1 bg-white rounded-2xl border border-slate-200 p-1.5 w-fit max-w-full overflow-x-auto scrollbar-hide shadow-sm">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              className={`shrink-0 whitespace-nowrap flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 tab === t.id
                   ? "bg-primary-600 text-white shadow-md shadow-primary-200"
                   : "text-slate-600 hover:bg-slate-50"
@@ -336,27 +336,27 @@ function TabSouscriptions() {
   return (
     <>
       {/* Stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
           { label: t('dash_actives'), val: totalActifs, cls: "text-blue-700", bar: "bg-blue-500", from: "from-blue-50", border: "border-blue-100", badge: "bg-blue-100", hoverShadow: "hover:shadow-blue-200/60", hoverBorder: "hover:border-blue-300", icon: <RefreshCw className="w-5 h-5" /> },
           { label: t('status_en_attente'), val: totalEnAtt, cls: "text-amber-700", bar: "bg-amber-500", from: "from-amber-50", border: "border-amber-100", badge: "bg-amber-100", hoverShadow: "hover:shadow-amber-200/60", hoverBorder: "hover:border-amber-300", icon: <Clock className="w-5 h-5" /> },
           { label: t('dash_completes'), val: totalComplet, cls: "text-green-700", bar: "bg-green-500", from: "from-green-50", border: "border-green-100", badge: "bg-green-100", hoverShadow: "hover:shadow-green-200/60", hoverBorder: "hover:border-green-300", icon: <CheckCircle className="w-5 h-5" /> },
           { label: t('packs_col_verse'), val: formatCurrency(totalVerse), cls: "text-emerald-700", bar: "bg-emerald-500", from: "from-emerald-50", border: "border-emerald-100", badge: "bg-emerald-100", hoverShadow: "hover:shadow-emerald-200/60", hoverBorder: "hover:border-emerald-300", icon: <TrendingUp className="w-5 h-5" /> },
         ].map((s) => (
-          <div key={s.label} className={`group relative overflow-hidden bg-gradient-to-br ${s.from} to-white rounded-2xl p-5 shadow-sm border ${s.border} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${s.hoverShadow} ${s.hoverBorder}`}>
+          <div key={s.label} className={`group relative overflow-hidden bg-gradient-to-br ${s.from} to-white rounded-2xl p-4 sm:p-5 min-w-0 shadow-sm border ${s.border} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${s.hoverShadow} ${s.hoverBorder}`}>
             <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${s.bar}`} />
             <div className="flex items-center gap-3 mb-2">
-              <div className={`p-2 ${s.badge} rounded-xl ${s.cls} transition-transform duration-300 ease-out group-hover:scale-110`}>{s.icon}</div>
-              <span className={`text-sm font-semibold ${s.cls}/80`}>{s.label}</span>
+              <div className={`shrink-0 p-2 ${s.badge} rounded-xl ${s.cls} transition-transform duration-300 ease-out group-hover:scale-110`}>{s.icon}</div>
+              <span className={`min-w-0 text-sm font-semibold leading-tight ${s.cls}/80`}>{s.label}</span>
             </div>
-            <p className={`text-2xl font-bold ${s.cls} transition-transform duration-300 group-hover:scale-105 origin-left`}>{s.val}</p>
+            <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${s.cls} transition-transform duration-300 group-hover:scale-105 origin-left`}>{s.val}</p>
           </div>
         ))}
       </div>
 
       {/* Filtres */}
       <div className="flex flex-wrap gap-3">
-        <div className="flex-1 min-w-48 relative">
+        <div className="relative w-full sm:w-auto sm:flex-1 sm:min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             value={search}
@@ -366,14 +366,14 @@ function TabSouscriptions() {
           />
         </div>
         <select value={filterStatut} onChange={(e) => setFilterStatut(e.target.value)}
-          className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+          className="flex-1 sm:flex-none min-w-0 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
           <option value="">Tous statuts</option>
           {(["EN_ATTENTE","ACTIF","SUSPENDU","COMPLETE","ANNULE"] as StatutSouscription[]).map((s) => (
             <option key={s} value={s}>{STATUT_CFG[s].label}</option>
           ))}
         </select>
         <select value={filterType} onChange={(e) => setFilterType(e.target.value)}
-          className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+          className="flex-1 sm:flex-none min-w-0 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
           <option value="">Tous types</option>
           {(Object.keys(PACK_LABELS) as TypePack[]).map((t) => (
             <option key={t} value={t}>{PACK_LABELS[t]}</option>
@@ -381,7 +381,7 @@ function TabSouscriptions() {
         </select>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 text-sm font-medium transition-all shadow-md shadow-primary-200"
+          className="w-full sm:w-auto justify-center whitespace-nowrap flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 text-sm font-medium transition-all shadow-md shadow-primary-200"
         >
           <Plus className="w-4 h-4" /> {t('packs_new_btn')}
         </button>
@@ -417,7 +417,7 @@ function TabSouscriptions() {
                   {/* ── En-tête de mois ── */}
                   <button
                     onClick={toggleMonth}
-                    className="w-full flex items-center gap-3 px-6 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 sm:px-6 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
                   >
                     {isMonthOpen
                       ? <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
@@ -445,7 +445,7 @@ function TabSouscriptions() {
 
               return (
                 <div key={s.id} className="hover:bg-slate-50/50 transition-colors">
-                  <div className="px-6 py-4 flex items-center gap-4">
+                  <div className="px-4 sm:px-6 py-4 flex flex-wrap items-center gap-3 sm:gap-4">
                     {/* Avatar */}
                     <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0">
                       {initials(s.client?.nom ?? s.user?.nom ?? "?", s.client?.prenom ?? s.user?.prenom ?? "")}
@@ -490,7 +490,7 @@ function TabSouscriptions() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 w-full md:w-auto md:shrink-0">
                       <button
                         onClick={() => setReadTarget(s)}
                         className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-200 transition-colors"
@@ -546,7 +546,7 @@ function TabSouscriptions() {
 
                   {/* Expand: détails */}
                   {isExpanded && (
-                    <div className="px-6 pb-4 pt-0 border-t border-slate-100 bg-slate-50/50">
+                    <div className="px-4 sm:px-6 pb-4 pt-0 border-t border-slate-100 bg-slate-50/50">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
                         <div>
                           <p className="text-xs text-slate-400">Restant à payer</p>
@@ -649,7 +649,7 @@ function TabSouscriptions() {
 
        {alerteTarget && (
         <div className="fixed inset-0 z-[130] bg-black/40 backdrop-blur-[1px] flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-200 p-5 space-y-4">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-xl border border-slate-200 p-5 space-y-4">
             <h3 className="text-lg font-bold text-slate-800">Alerte urgence</h3>
             <p className="text-sm text-slate-600">
               Souscription <strong>#{alerteTarget.id}</strong> — {nom(alerteTarget)}
@@ -724,13 +724,13 @@ function TabEcheances() {
       )}
 
       <div className="flex flex-wrap gap-3">
-        <div className="flex-1 min-w-48 relative">
+        <div className="relative w-full sm:w-auto sm:flex-1 sm:min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher client…"
             className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white" />
         </div>
         <select value={filterStatut} onChange={(e) => setFilterStatut(e.target.value)}
-          className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+          className="flex-1 sm:flex-none min-w-0 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
           <option value="EN_ATTENTE,EN_RETARD">En attente + En retard</option>
           <option value="EN_RETARD">En retard seulement</option>
           <option value="EN_ATTENTE">En attente seulement</option>
@@ -768,7 +768,7 @@ function TabEcheances() {
             </p>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[46rem]">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 {["Client", "Pack", "Éch. N°", "Montant", "Date prévue", "Statut", "Action"].map((h) => (
@@ -827,7 +827,7 @@ function TabEcheances() {
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 
@@ -908,8 +908,8 @@ function TabLivraisons() {
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-lg font-bold text-slate-800">Livraisons produits</h2>
           <p className="text-sm text-slate-500 mt-0.5">Planifiez, suivez et facturez les livraisons vers les clients</p>
         </div>
@@ -952,7 +952,7 @@ function TabLivraisons() {
                 : "—";
               const clientTelR = rec.souscription.client?.telephone ?? "—";
               return (
-                <div key={rec.id} className={`bg-white rounded-2xl border ${colors.border} p-5 shadow-sm flex items-center justify-between gap-4`}>
+                <div key={rec.id} className={`bg-white rounded-2xl border ${colors.border} p-4 sm:p-5 shadow-sm flex flex-wrap items-center justify-between gap-3 sm:gap-4`}>
                   <div className="flex items-center gap-4 min-w-0">
                     <div className={`p-3 ${colors.bg} rounded-xl shrink-0`}>
                       <Truck className={`w-5 h-5 ${colors.text}`} />
@@ -1019,7 +1019,7 @@ function TabLivraisons() {
             {aLivrer.map((s) => {
               const colors = PACK_COLORS[s.pack.type];
               return (
-                <div key={s.id} className={`bg-white rounded-2xl border ${colors.border} p-5 shadow-sm flex items-center justify-between gap-4`}>
+                <div key={s.id} className={`bg-white rounded-2xl border ${colors.border} p-4 sm:p-5 shadow-sm flex flex-wrap items-center justify-between gap-3 sm:gap-4`}>
                   <div className="flex items-center gap-4">
                     <div className={`p-3 ${colors.bg} rounded-xl`}>
                       <Package className={`w-6 h-6 ${colors.text}`} />
@@ -1059,7 +1059,7 @@ function TabLivraisons() {
 
       {/* ── Section 3 : Historique des livraisons livrées ── */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
             <History className="w-4 h-4 text-blue-500" />
             Historique des livraisons
@@ -1092,7 +1092,7 @@ function TabLivraisons() {
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm min-w-[36rem]">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Client</th>
@@ -1148,11 +1148,11 @@ function TabLivraisons() {
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
 
             {/* Pagination */}
             {livreesMeta && livreesMeta.totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-slate-100 bg-slate-50">
                 <p className="text-xs text-slate-500">
                   Page {livreesMeta.page} / {livreesMeta.totalPages} · {livreesMeta.total} livraison{livreesMeta.total > 1 ? "s" : ""}
                 </p>
@@ -1248,8 +1248,8 @@ function TabModeles() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-lg font-bold text-slate-800">Modèles de packs</h2>
           <p className="text-sm text-slate-500 mt-0.5">Configurez les types de packs disponibles</p>
         </div>
@@ -1373,7 +1373,7 @@ function TabModeles() {
 
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full">
+          <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
                 <Trash2 className="w-5 h-5 text-red-600" />
@@ -1523,14 +1523,14 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-bold text-slate-800 mb-5">
           {isEdit ? "Modifier le pack" : "Créer un pack"}
         </h2>
 
         <form onSubmit={submit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">Nom *</label>
               <input required {...f("nom")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Ex : Pack Alimentaire Mensuel" />
             </div>
@@ -1589,7 +1589,7 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
             <textarea {...f("description")} rows={2} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Durée (jours)</label>
               {form.type === "REVENDEUR" && form.formuleRevendeur === "FORMULE_2" ? (
@@ -1763,7 +1763,7 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
           )}
 
           {form.type === "FIDELITE" && (
-            <div className="grid grid-cols-2 gap-4 p-4 bg-pink-50 rounded-xl border border-pink-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-pink-50 rounded-xl border border-pink-200">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Points par tranche</label>
                 <input type="number" min="1" {...f("pointsParTranche")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="Ex : 10" />
@@ -1772,7 +1772,7 @@ function ModalCreerPack({ pack, onClose, onSuccess }: { pack: Pack | null; onClo
                 <label className="block text-sm font-medium text-slate-700 mb-1">Montant tranche (FCFA)</label>
                 <input type="number" min="1" {...f("montantTranche")} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="Ex : 5000" />
               </div>
-              <p className="col-span-2 text-xs text-pink-700 bg-pink-100 rounded-lg px-3 py-2">
+              <p className="sm:col-span-2 text-xs text-pink-700 bg-pink-100 rounded-lg px-3 py-2">
                 Ex : 10 points tous les 5 000 FCFA d&apos;achat
               </p>
             </div>
@@ -1835,7 +1835,7 @@ function ModalEditSouscription({
 
   return (
     <div className="fixed inset-0 bg-black/40 z-[130] flex items-center justify-center p-4">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 space-y-4">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4">
         <h3 className="text-xl font-bold text-slate-800">Modifier la souscription #{souscription.id}</h3>
         <p className="text-sm text-slate-500">{nom(souscription)} — {souscription.pack.nom}</p>
 
@@ -1962,7 +1962,7 @@ function ModalReadSouscription({ souscription, onClose }: { souscription: Souscr
 
   return (
     <div className="fixed inset-0 bg-black/40 z-[130] flex items-center justify-center p-4">
-      <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl p-6 space-y-4">
+      <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4">
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-xl font-bold text-slate-800">Lecture souscription #{souscription.id}</h3>
@@ -2016,7 +2016,7 @@ function ModalConfirmDeleteSouscription({
 }) {
   return (
     <div className="fixed inset-0 bg-black/40 z-[130] flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 space-y-4">
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4">
         <h3 className="text-lg font-bold text-slate-800">Supprimer cette souscription ?</h3>
         <p className="text-sm text-slate-600">
           Cette action est irréversible. Souscription <strong>#{souscription.id}</strong> — {nom(souscription)}.
@@ -2185,7 +2185,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg transition-colors">×</button>
 
         <h2 className="text-xl font-bold text-slate-800 mb-1">{t('packs_new_btn')}</h2>
@@ -2367,7 +2367,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Montant total *</label>
                   <input type="number" min="1" required value={montantTotal} onChange={(e) => setMontantTotal(e.target.value)}
@@ -2553,7 +2553,7 @@ function ModalVersement({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold text-slate-800 mb-4">Enregistrer un versement</h2>
         <form onSubmit={submit} className="space-y-4">
           <div>
@@ -2744,7 +2744,7 @@ function ModalPlanifierLivraison({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
           <Truck className="w-5 h-5 text-emerald-600" /> Planifier une livraison
         </h2>
@@ -2785,7 +2785,7 @@ function ModalPlanifierLivraison({
         {/* Budget de la souscription */}
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 mb-4 space-y-2">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Budget souscription</p>
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="grid grid-cols-3 gap-2 text-center [&_p]:[overflow-wrap:anywhere]">
             <div className="bg-white rounded-lg px-2 py-1.5 border border-slate-200">
               <p className="text-xs text-slate-400">Total pack</p>
               <p className="text-sm font-bold text-slate-700">{formatCurrency(montantTotal)}</p>

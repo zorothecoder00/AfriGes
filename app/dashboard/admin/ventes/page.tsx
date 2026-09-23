@@ -609,39 +609,39 @@ export default function VentesPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-blue-50/20 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-blue-50/20 md:p-8">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* ─── Header ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <RetourLien iconOnly className="p-2 hover:bg-white rounded-lg transition-colors" />
-            <div>
-              <h1 className="text-4xl font-bold text-slate-800 mb-2">{t('ventes_title')}</h1>
-              <p className="text-slate-500">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <RetourLien iconOnly className="p-2 hover:bg-white rounded-lg transition-colors shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-1 sm:mb-2">{t('ventes_title')}</h1>
+              <p className="text-sm sm:text-base text-slate-500">
                 {isVentesTab ? 'Ventes directes produits — tous points de vente' : 'Livraisons de produits aux clients via pack'}
               </p>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3 [&>button]:justify-center [&>button]:whitespace-nowrap">
             {isVentesTab ? (
               <>
                 <button onClick={handleExportVentes}
-                  className="px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
+                  className="flex-1 sm:flex-none px-4 sm:px-5 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-medium">
                   <Download size={18} /> {t('btn_export')}
                 </button>
                 <button onClick={() => setShowProForma(true)}
-                  className="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl hover:bg-amber-100 transition-all flex items-center gap-2 font-medium">
+                  className="flex-1 sm:flex-none px-4 py-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl hover:bg-amber-100 transition-all flex items-center gap-2 font-medium">
                   <Receipt size={18} /> Pro-forma
                 </button>
                 <button onClick={() => setVenteModalOpen(true)}
-                  className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 flex items-center gap-2 font-medium">
+                  className="w-full sm:w-auto px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 flex items-center gap-2 font-medium">
                   <Plus size={20} /> {t('ventes_new_btn')}
                 </button>
               </>
             ) : (
               <button onClick={() => setPackModalOpen(true)}
-                className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 flex items-center gap-2 font-medium">
+                className="w-full sm:w-auto px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 flex items-center gap-2 font-medium">
                 <Plus size={20} /> Planifier une livraison
               </button>
             )}
@@ -657,7 +657,7 @@ export default function VentesPage() {
         ══════════════════════════════════════════════════════════════════ */}
         {venteModalOpen && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-2xl p-5 sm:p-8 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
               <button onClick={closeVenteModal}
                 className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">
                 ×
@@ -768,7 +768,7 @@ export default function VentesPage() {
                     )}
 
                     {clientType === 'walkin' && (
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <input type="text" placeholder="Nom (optionnel)" value={clientNomManuel}
                           onChange={e => setClientNomManuel(e.target.value)}
                           className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
@@ -1049,7 +1049,7 @@ export default function VentesPage() {
         ══════════════════════════════════════════════════════════════════ */}
         {packModalOpen && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[130] p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-2xl p-5 sm:p-6 w-full max-w-lg shadow-xl relative max-h-[90vh] overflow-y-auto">
               <button onClick={closePackModal}
                 className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg font-bold text-lg">
                 ×
@@ -1223,7 +1223,7 @@ export default function VentesPage() {
                     return (
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Budget de la souscription</p>
-                        <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="grid grid-cols-3 gap-2 text-center [&_p]:[overflow-wrap:anywhere]">
                           <div className="bg-white rounded-lg px-2 py-1.5 border border-slate-200">
                             <p className="text-xs text-slate-400">Total pack</p>
                             <p className="text-sm font-bold text-slate-700">{formatCurrency(mTotal)}</p>
@@ -1381,7 +1381,7 @@ export default function VentesPage() {
         {isVentesTab && (
           <>
             {/* Stats */}
-            <div className="grid grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
               {[
                 { label: t('ventes_total'),   value: String(ventesStats?.total ?? 0),               icon: ShoppingCart, color: 'bg-emerald-500', lightBg: 'bg-emerald-100', from: 'from-emerald-50', border: 'border-emerald-100', text: 'text-emerald-700', hoverShadow: 'hover:shadow-emerald-200/60', hoverBorder: 'hover:border-emerald-300' },
                 { label: 'Confirmées',     value: String(ventesStats?.nbConfirmees ?? 0),         icon: CheckCircle,  color: 'bg-blue-500',    lightBg: 'bg-blue-100',    from: 'from-blue-50',    border: 'border-blue-100',    text: 'text-blue-700',    hoverShadow: 'hover:shadow-blue-200/60',    hoverBorder: 'hover:border-blue-300' },
@@ -1390,22 +1390,22 @@ export default function VentesPage() {
               ].map((stat, i) => {
                 const Icon = stat.icon;
                 return (
-                  <div key={i} className={`group relative overflow-hidden bg-gradient-to-br ${stat.from} to-white rounded-2xl p-6 shadow-sm border ${stat.border} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${stat.hoverShadow} ${stat.hoverBorder}`}>
+                  <div key={i} className={`group relative overflow-hidden bg-gradient-to-br ${stat.from} to-white rounded-2xl p-4 sm:p-6 min-w-0 shadow-sm border ${stat.border} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${stat.hoverShadow} ${stat.hoverBorder}`}>
                     <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${stat.color}`} />
-                    <div className={`${stat.lightBg} p-3 rounded-xl inline-block mb-4 transition-transform duration-300 ease-out group-hover:scale-110`}>
+                    <div className={`${stat.lightBg} p-2.5 sm:p-3 rounded-xl inline-block mb-3 sm:mb-4 transition-transform duration-300 ease-out group-hover:scale-110`}>
                       <Icon className={`${stat.color.replace('bg-', 'text-')} w-6 h-6`} />
                     </div>
                     <h3 className={`${stat.text}/80 text-sm font-semibold mb-1`}>{stat.label}</h3>
-                    <p className={`text-3xl font-bold ${stat.text} transition-transform duration-300 group-hover:scale-105 origin-left`}>{stat.value}</p>
+                    <p className={`text-xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold ${stat.text} transition-transform duration-300 group-hover:scale-105 origin-left`}>{stat.value}</p>
                   </div>
                 );
               })}
             </div>
 
             {/* Filtres */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                <div className="lg:col-span-2 relative">
+            <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 [&>*]:min-w-0">
+                <div className="sm:col-span-2 relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input type="text" placeholder="Référence, client…" value={searchVentes}
                     onChange={e => { setSearchVentes(e.target.value); setPageVentes(1); }}
@@ -1423,20 +1423,20 @@ export default function VentesPage() {
                   <option value="BROUILLON">Brouillon</option>
                   <option value="ANNULEE">Annulées</option>
                 </select>
-                <div className="flex gap-2">
+                <div className="flex gap-2 sm:col-span-2 lg:col-span-1">
                   <input type="date" value={filterDateDebut} onChange={e => setFilterDateDebut(e.target.value)}
                     title="Date de début"
-                    className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs" />
+                    className="flex-1 min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs" />
                   <input type="date" value={filterDateFin} onChange={e => setFilterDateFin(e.target.value)}
                     title="Date de fin"
-                    className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs" />
+                    className="flex-1 min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs" />
                 </div>
               </div>
             </div>
 
             {/* Table ventes */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-semibold text-slate-800">Ventes directes</h3>
                 {ventesMeta && (
                   <span className="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">
@@ -1450,7 +1450,7 @@ export default function VentesPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full min-w-[56rem]">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
                         {['Référence', 'Client', 'PDV', 'Produits', 'Montant', 'Mode', 'Statut', 'Date', ''].map(h => (
@@ -1568,7 +1568,7 @@ export default function VentesPage() {
                 </div>
               )}
               {ventesMeta && ventesMeta.totalPages > 1 && (
-                <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+                <div className="px-4 sm:px-6 py-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-slate-600">
                     Page <span className="font-semibold">{ventesMeta.page}</span> sur <span className="font-semibold">{ventesMeta.totalPages}</span>
                   </p>
@@ -1595,7 +1595,7 @@ export default function VentesPage() {
         {!isVentesTab && (
           <>
             {/* Stats packs */}
-            <div className="grid grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
               {[
                 { label: 'Livrées',        value: String(packsStats?.totalLivraisons ?? 0),       icon: CheckCircle, color: 'bg-emerald-500', lightBg: 'bg-emerald-100', from: 'from-emerald-50', border: 'border-emerald-100', text: 'text-emerald-700', hoverShadow: 'hover:shadow-emerald-200/60', hoverBorder: 'hover:border-emerald-300' },
                 { label: 'En attente',     value: String(packsStats?.totalPlanifiees  ?? 0),       icon: Truck,       color: 'bg-orange-500',  lightBg: 'bg-orange-100',  from: 'from-orange-50',  border: 'border-orange-100',  text: 'text-orange-700',  hoverShadow: 'hover:shadow-orange-200/60',  hoverBorder: 'hover:border-orange-300' },
@@ -1604,22 +1604,22 @@ export default function VentesPage() {
               ].map((stat, i) => {
                 const Icon = stat.icon;
                 return (
-                  <div key={i} className={`group relative overflow-hidden bg-gradient-to-br ${stat.from} to-white rounded-2xl p-6 shadow-sm border ${stat.border} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${stat.hoverShadow} ${stat.hoverBorder}`}>
+                  <div key={i} className={`group relative overflow-hidden bg-gradient-to-br ${stat.from} to-white rounded-2xl p-4 sm:p-6 min-w-0 shadow-sm border ${stat.border} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${stat.hoverShadow} ${stat.hoverBorder}`}>
                     <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${stat.color}`} />
-                    <div className={`${stat.lightBg} p-3 rounded-xl inline-block mb-4 transition-transform duration-300 ease-out group-hover:scale-110`}>
+                    <div className={`${stat.lightBg} p-2.5 sm:p-3 rounded-xl inline-block mb-3 sm:mb-4 transition-transform duration-300 ease-out group-hover:scale-110`}>
                       <Icon className={`${stat.color.replace('bg-', 'text-')} w-6 h-6`} />
                     </div>
                     <h3 className={`${stat.text}/80 text-sm font-semibold mb-1`}>{stat.label}</h3>
-                    <p className={`text-3xl font-bold ${stat.text} transition-transform duration-300 group-hover:scale-105 origin-left`}>{stat.value}</p>
+                    <p className={`text-xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold ${stat.text} transition-transform duration-300 group-hover:scale-105 origin-left`}>{stat.value}</p>
                   </div>
                 );
               })}
             </div>
 
             {/* Bannière packs */}
-            <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+            <div className="flex flex-wrap items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
               <Layers className="w-5 h-5 text-emerald-600 shrink-0" />
-              <p className="text-sm text-emerald-800">
+              <p className="flex-1 min-w-[12rem] text-sm text-emerald-800">
                 Pour créer des packs, gérer les souscriptions et suivre les cycles de paiement, rendez-vous sur la page <strong>Packs clients</strong>.
               </p>
               <Link href="/dashboard/admin/packs"
@@ -1629,7 +1629,7 @@ export default function VentesPage() {
             </div>
 
             {/* Recherche packs */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
+            <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input type="text" placeholder="Rechercher par client…" value={searchPacks}
@@ -1640,7 +1640,7 @@ export default function VentesPage() {
 
             {/* Table packs */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-semibold text-slate-800">Livraisons planifiées &amp; effectuées</h3>
                 {packsMeta && (
                   <span className="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">
@@ -1654,7 +1654,7 @@ export default function VentesPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full min-w-[56rem]">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
                         {['Client', 'Pack', 'Produits', 'Montant', 'Date prévue / livrée', 'Statut'].map(h => (
@@ -1753,7 +1753,7 @@ export default function VentesPage() {
                 </div>
               )}
               {packsMeta && packsMeta.totalPages > 1 && (
-                <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+                <div className="px-4 sm:px-6 py-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-slate-600">
                     Page <span className="font-semibold">{packsMeta.page}</span> sur <span className="font-semibold">{packsMeta.totalPages}</span>
                   </p>
@@ -1780,7 +1780,7 @@ export default function VentesPage() {
       {/* ── Modal Annuler Vente directe ── */}
       {annulVenteTarget && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-xl">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <div className="bg-red-50 p-2.5 rounded-xl"><XCircle className="text-red-600 w-5 h-5" /></div>

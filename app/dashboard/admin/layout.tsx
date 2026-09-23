@@ -31,7 +31,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       ) : (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
           <AdminTopbar />
-          <div className="max-w-[1800px] mx-auto px-5 md:px-8 py-6">
+          <div className="max-w-[1800px] mx-auto px-4 sm:px-5 md:px-8 py-4 sm:py-6">
             <div className="flex-1 min-w-0">{children}</div>
           </div>
         </div>
