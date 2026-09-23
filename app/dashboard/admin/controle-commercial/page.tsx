@@ -106,14 +106,14 @@ export default function ControleCommercialPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-4">
+    <div className="md:p-6 max-w-6xl mx-auto space-y-4">
       <RetourLien />
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Contrôle commercial & reporting</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Pilotage de l&apos;activité commerciale : ventes, encaissements, crédits, impayés, retours et réclamations</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" size="sm" icon={<FileSpreadsheet size={15} />} onClick={exporterExcel} disabled={!dataPret} title="Exporter la vue affichée en Excel">Excel</Button>
           <Button variant="secondary" size="sm" icon={<FileText size={15} />} onClick={exporterPdf} disabled={!dataPret} title="Exporter la vue affichée en PDF">PDF</Button>
           <Button variant="ghost" size="sm" onClick={refetch} loading={loading} className="!p-2.5 border border-slate-200 dark:border-slate-700" icon={<RefreshCw size={16} />} title="Rafraîchir" />
@@ -133,7 +133,7 @@ export default function ControleCommercialPage() {
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
             className="px-3 py-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 rounded-lg text-sm" />
           <select value={pointDeVenteId} onChange={(e) => setPointDeVenteId(e.target.value)}
-            className="px-3 py-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 rounded-lg text-sm">
+            className="max-w-full min-w-0 px-3 py-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 rounded-lg text-sm">
             <option value="">Toutes les agences</option>
             {pdvs.map((p) => <option key={p.id} value={p.id}>{p.nom} ({p.code})</option>)}
           </select>

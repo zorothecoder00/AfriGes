@@ -131,10 +131,10 @@ function AdminReclamationsPageInner() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-rose-50/20 to-white font-['DM_Sans',sans-serif]">
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="max-w-[1400px] mx-auto md:px-6 lg:px-8 md:py-8 space-y-6">
         <RetourLien />
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-slate-800">Réclamations clients</h2>
             <p className="text-sm text-slate-500">Réclamations, retours, remplacements, incidents</p>
           </div>
@@ -350,7 +350,7 @@ function DetailReclamation({ id, onClose, onChanged }: {
   if (loading || !r) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
-        <div className="bg-white rounded-2xl p-8"><Loader2 className="animate-spin text-slate-400" /></div>
+        <div className="bg-white rounded-2xl p-5 sm:p-8 max-h-[90vh] overflow-y-auto"><Loader2 className="animate-spin text-slate-400" /></div>
       </div>
     );
   }
@@ -597,7 +597,7 @@ function MiniModal({ title, children, onClose, onConfirm, confirmLabel, confirmC
 }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[210] p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
           <h4 className="font-bold text-slate-800 text-sm">{title}</h4>
           <button onClick={onClose}><X size={16} className="text-slate-400" /></button>
