@@ -23,16 +23,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className="overflow-x-hidden">
+    <html lang="fr" className="overflow-x-clip">
       <body
-        // overflow-x-hidden (html + body) : garde-fou contre le débordement
+        // overflow-x-clip (html + body) : garde-fou contre le débordement
         // horizontal (ex. les halos "aurora" décoratifs de
         // app/dashboard/layout.tsx, position:fixed + animés, positionnés
         // relativement à la racine — leur propre overflow-hidden ne suffit pas
         // à empêcher document.documentElement.scrollWidth de s'élargir sur
         // mobile ; il faut le garde-fou sur html ET body — cf. session
         // responsive agent terrain).
-        className={`${inter.variable} antialiased overflow-x-hidden`}
+        // `clip` et non `hidden` : overflow-x:hidden fait de <body> un conteneur de
+        // défilement, ce qui casse position:sticky (les sidebars des portails
+        // remontaient avec la page en laissant un vide) ; clip coupe le
+        // débordement sans créer de conteneur de défilement.
+        className={`${inter.variable} antialiased overflow-x-clip`}
       >
         <SessionWrapper>
           <AppSettingsProvider>
