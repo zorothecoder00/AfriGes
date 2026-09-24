@@ -7,7 +7,7 @@ import { estAutoriseMessagerie } from "@/lib/messagerie";
 type Ctx = { params: Promise<{ id: string }> };
 
 /**
- * GET  — messages d'une conversation (50 derniers, plus anciens via ?before=<messageId>),
+ * GET  — messages d'une conversation, paginés (?before / ?after / ?around, voir plus bas),
  *        marque comme lus les messages reçus par l'appelant.
  * POST — envoie un message dans une conversation existante.
  * Accès : réservé aux deux participants de la conversation, et à la messagerie
@@ -34,21 +34,50 @@ export async function GET(req: Request, { params }: Ctx) {
   const conversation = await verifierParticipant(conversationId, userId);
   if (!conversation) return NextResponse.json({ message: "Conversation introuvable" }, { status: 404 });
 
+  // Pagination par id (auto-incrément = ordre chronologique), une page de PAGE messages :
+  //   (aucun)       → les plus récents ;
+  //   ?before=<id>  → les plus anciens avant <id> (remontée dans l'historique) ;
+  //   ?after=<id>   → les suivants après <id> (redescente après un saut dans l'historique) ;
+  //   ?around=<id>  → le message <id> entouré de son contexte (ouverture d'un résultat de recherche).
+  // Toujours renvoyés du plus ancien au plus récent, avec hasOlder/hasNewer.
   const { searchParams } = new URL(req.url);
-  const before = searchParams.get("before");
+  const before = Number(searchParams.get("before")) || null;
+  const after = Number(searchParams.get("after")) || null;
+  const around = Number(searchParams.get("around")) || null;
+  const PAGE = 50;
+  const CONTEXTE = 25;
 
-  const messages = await prisma.messageChat.findMany({
-    where: { conversationId, ...(before ? { id: { lt: Number(before) } } : {}) },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
+  let data;
+  let hasOlder = false;
+  let hasNewer = false;
+  if (around) {
+    const [avant, apres] = await Promise.all([
+      prisma.messageChat.findMany({ where: { conversationId, id: { lte: around } }, orderBy: { id: "desc" }, take: CONTEXTE + 1 }),
+      prisma.messageChat.findMany({ where: { conversationId, id: { gt: around } }, orderBy: { id: "asc" }, take: CONTEXTE + 1 }),
+    ]);
+    hasOlder = avant.length > CONTEXTE;
+    hasNewer = apres.length > CONTEXTE;
+    data = [...avant.slice(0, CONTEXTE).reverse(), ...apres.slice(0, CONTEXTE)];
+  } else if (after) {
+    const rows = await prisma.messageChat.findMany({ where: { conversationId, id: { gt: after } }, orderBy: { id: "asc" }, take: PAGE + 1 });
+    hasNewer = rows.length > PAGE;
+    data = rows.slice(0, PAGE);
+  } else {
+    const rows = await prisma.messageChat.findMany({
+      where: { conversationId, ...(before ? { id: { lt: before } } : {}) },
+      orderBy: { id: "desc" },
+      take: PAGE + 1,
+    });
+    hasOlder = rows.length > PAGE;
+    data = rows.slice(0, PAGE).reverse();
+  }
 
   await prisma.messageChat.updateMany({
     where: { conversationId, expediteurId: { not: userId }, lu: false },
     data: { lu: true, dateLecture: new Date() },
   });
 
-  return NextResponse.json({ data: messages.reverse() });
+  return NextResponse.json({ data, hasOlder, hasNewer });
 }
 
 export async function POST(req: Request, { params }: Ctx) {

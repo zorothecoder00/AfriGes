@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useLayoutEffect, useState, useCallback, useRef, Fragment } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { generateUploadButton } from "@uploadthing/react";
 import {
   ArrowLeft, Search, X, Send, MessageSquarePlus, Loader2, MessageSquare,
-  Smile, Paperclip, FileText, Download, Pencil, Trash2, Check,
+  Smile, Paperclip, FileText, Download, Pencil, Trash2, Check, ArrowDown,
 } from "lucide-react";
-import { formatDate } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
 
 const UploadButton = generateUploadButton<OurFileRouter>();
@@ -32,6 +32,73 @@ interface MessageRow {
   lu: boolean; dateLecture: string | null; createdAt: string;
   pieceJointeUrl: string | null; pieceJointeNom: string | null; pieceJointeType: string | null; pieceJointeTaille: number | null;
   modifie: boolean; supprime: boolean;
+}
+
+interface ResultatRecherche {
+  id: number; conversationId: number; expediteurId: number; contenu: string; createdAt: string;
+  autreParticipant: Personne;
+}
+interface PageMessages { data: MessageRow[]; hasOlder: boolean; hasNewer: boolean }
+
+// ─── Dates (séparateurs de jour, heure des bulles, liste des conversations) ───
+
+function memeJour(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+function hier(): Date {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d;
+}
+/** Séparateur du fil : « Aujourd'hui », « Hier », sinon « Lundi 22 septembre » (+ année si autre année). */
+function libelleJour(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  if (memeJour(d, now)) return "Aujourd'hui";
+  if (memeJour(d, hier())) return "Hier";
+  const s = d.toLocaleDateString("fr-FR", {
+    weekday: "long", day: "numeric", month: "long",
+    ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+  });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function heure(iso: string): string {
+  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+/** Date compacte de la liste : heure aujourd'hui, « Hier », jour de la semaine, sinon jj/mm/aa. */
+function dateCompacte(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  if (memeJour(d, now)) return heure(iso);
+  if (memeJour(d, hier())) return "Hier";
+  if (now.getTime() - d.getTime() < 6 * 24 * 3600 * 1000) {
+    const j = d.toLocaleDateString("fr-FR", { weekday: "long" });
+    return j.charAt(0).toUpperCase() + j.slice(1);
+  }
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+}
+
+// ─── Recherche ────────────────────────────────────────────────────────────────
+
+/** Minuscules sans accents, pour comparer « Hélène » et « helene ». */
+function normaliser(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+/** Extrait centré sur la première occurrence, occurrence(s) surlignée(s). */
+function ExtraitSurligne({ texte, q }: { texte: string; q: string }) {
+  const idx = normaliser(texte).indexOf(normaliser(q));
+  const debut = idx > 30 ? idx - 30 : 0;
+  const extrait = (debut > 0 ? "…" : "") + texte.slice(debut, debut + 120);
+  if (!q) return <>{extrait}</>;
+  const echappe = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const morceaux = extrait.split(new RegExp(`(${echappe})`, "gi"));
+  return (
+    <>
+      {morceaux.map((m, i) =>
+        i % 2 === 1 ? <mark key={i} className="bg-amber-200 text-slate-900 rounded px-0.5">{m}</mark> : <Fragment key={i}>{m}</Fragment>,
+      )}
+    </>
+  );
 }
 
 const EMOJIS = ["👋","😊","✅","❌","⚠️","📦","💰","📝","🔔","👍","👎","🎉","📊","🤝","💬","📞","✉️","🕐","🔍","📋","💡","🚀","✨","🙏","😅","🤔","👏","🎯","📈","📉"];
@@ -143,7 +210,35 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
   const [editTexte, setEditTexte] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Pagination du fil : hasOlder = historique plus ancien à charger en remontant ;
+  // hasNewer = on a sauté dans l'historique (résultat de recherche), des messages plus
+  // récents restent à charger en redescendant. Doublés en refs pour les callbacks/intervalles.
+  const [hasOlder, setHasOlder] = useState(false);
+  const [hasNewer, setHasNewer] = useState(false);
+  const hasOlderRef = useRef(false);
+  const hasNewerRef = useRef(false);
+  const [chargementPage, setChargementPage] = useState(false);
+  const chargementPageRef = useRef(false);
+  const [auFond, setAuFond] = useState(true);
+  const [nouveauxEnAttente, setNouveauxEnAttente] = useState(false);
+  const [surligneId, setSurligneId] = useState<number | null>(null);
+
+  // Défilement : le fil ne redescend tout seul que si l'utilisateur est déjà en bas
+  // (ou vient d'envoyer un message) — sinon on ne touche pas à sa position de lecture.
+  const threadRef = useRef<HTMLDivElement>(null);
+  const activeIdRef = useRef<number | null>(activeId);
+  const presDuFondRef = useRef(true);
+  const allerAuFondRef = useRef(false);          // prochain rendu : sauter tout en bas
+  const distanceFondAvantRef = useRef<number | null>(null); // prochain rendu : garder la position (ajout en haut)
+  const focusMessageRef = useRef<number | null>(null);      // prochain rendu : centrer ce message
+  const focusEnAttenteRef = useRef<number | null>(null);    // conversation à ouvrir directement sur ce message
+  const dernierIdRef = useRef(0);
+
+  // Recherche (conversations par nom + messages par contenu)
+  const [recherche, setRecherche] = useState("");
+  const [resultats, setResultats] = useState<ResultatRecherche[]>([]);
+  const [rechercheEnCours, setRechercheEnCours] = useState(false);
 
   const loadConversations = useCallback(async (silencieux = false) => {
     if (!silencieux) setLoadingList(true);
@@ -156,16 +251,117 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
     finally { if (!silencieux) setLoadingList(false); }
   }, []);
 
-  const loadMessages = useCallback(async (conversationId: number, silencieux = false) => {
+  const majPagination = useCallback((older: boolean | null, newer: boolean | null) => {
+    if (older !== null) { hasOlderRef.current = older; setHasOlder(older); }
+    if (newer !== null) { hasNewerRef.current = newer; setHasNewer(newer); }
+  }, []);
+
+  const fetchPage = useCallback(async (conversationId: number, qs = ""): Promise<PageMessages> => {
+    const r = await fetch(`/api/messages/conversations/${conversationId}${qs}`);
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message ?? "Erreur");
+    return { data: j.data ?? [], hasOlder: !!j.hasOlder, hasNewer: !!j.hasNewer };
+  }, []);
+
+  /** Ouvre le fil sur ses derniers messages, défilé tout en bas. */
+  const chargerDerniers = useCallback(async (conversationId: number, silencieux = false) => {
     if (!silencieux) setLoadingThread(true);
     try {
-      const r = await fetch(`/api/messages/conversations/${conversationId}`);
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.message ?? "Erreur");
-      setMessages(j.data ?? []);
+      const page = await fetchPage(conversationId);
+      if (activeIdRef.current !== conversationId) return;
+      allerAuFondRef.current = true;
+      setNouveauxEnAttente(false);
+      setMessages(page.data);
+      majPagination(page.hasOlder, false);
     } catch (e) { if (!silencieux) toast.error(e instanceof Error ? e.message : "Erreur"); }
     finally { if (!silencieux) setLoadingThread(false); }
-  }, []);
+  }, [fetchPage, majPagination]);
+
+  /** Ouvre le fil centré sur un message (résultat de recherche), avec son contexte. */
+  const chargerAutour = useCallback(async (conversationId: number, messageId: number) => {
+    setLoadingThread(true);
+    try {
+      const page = await fetchPage(conversationId, `?around=${messageId}`);
+      if (activeIdRef.current !== conversationId) return;
+      focusMessageRef.current = messageId;
+      setSurligneId(messageId);
+      setTimeout(() => setSurligneId((id) => (id === messageId ? null : id)), 3000);
+      setMessages(page.data);
+      majPagination(page.hasOlder, page.hasNewer);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { setLoadingThread(false); }
+  }, [fetchPage, majPagination]);
+
+  /** Rafraîchissement périodique : fusionne les derniers messages (nouveaux + modifiés/supprimés)
+   *  sans remplacer l'historique déjà chargé ni bouger la position de lecture. */
+  const rafraichir = useCallback(async (conversationId: number) => {
+    if (hasNewerRef.current) return; // dans l'historique : les derniers seront chargés en redescendant
+    try {
+      const page = await fetchPage(conversationId);
+      if (activeIdRef.current !== conversationId || hasNewerRef.current) return;
+      setMessages((prev) => {
+        const recus = new Map(page.data.map((m) => [m.id, m]));
+        const majs = prev.map((m) => recus.get(m.id) ?? m);
+        const dernierId = prev.length ? prev[prev.length - 1].id : 0;
+        const nouveaux = page.data.filter((m) => m.id > dernierId);
+        return nouveaux.length ? [...majs, ...nouveaux] : majs;
+      });
+    } catch { /* silencieux */ }
+  }, [fetchPage]);
+
+  /** Remontée dans l'historique : page précédente ajoutée en haut, position conservée. */
+  const chargerPlusAnciens = useCallback(async () => {
+    const conversationId = activeIdRef.current;
+    const premier = messages[0];
+    if (!conversationId || conversationId < 0 || !premier || chargementPageRef.current || !hasOlderRef.current) return;
+    chargementPageRef.current = true;
+    setChargementPage(true);
+    try {
+      const page = await fetchPage(conversationId, `?before=${premier.id}`);
+      if (activeIdRef.current !== conversationId) return;
+      const el = threadRef.current;
+      if (el) distanceFondAvantRef.current = el.scrollHeight - el.scrollTop;
+      setMessages((prev) => [...page.data.filter((m) => m.id < (prev[0]?.id ?? Infinity)), ...prev]);
+      majPagination(page.hasOlder, null);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { chargementPageRef.current = false; setChargementPage(false); }
+  }, [messages, fetchPage, majPagination]);
+
+  /** Redescente après un saut dans l'historique : page suivante ajoutée en bas. */
+  const chargerPlusRecents = useCallback(async () => {
+    const conversationId = activeIdRef.current;
+    const dernier = messages[messages.length - 1];
+    if (!conversationId || conversationId < 0 || !dernier || chargementPageRef.current || !hasNewerRef.current) return;
+    chargementPageRef.current = true;
+    setChargementPage(true);
+    try {
+      const page = await fetchPage(conversationId, `?after=${dernier.id}`);
+      if (activeIdRef.current !== conversationId) return;
+      dernierIdRef.current = page.data.length ? page.data[page.data.length - 1].id : dernierIdRef.current; // pas d'auto-défilement
+      setMessages((prev) => [...prev, ...page.data.filter((m) => m.id > (prev[prev.length - 1]?.id ?? 0))]);
+      majPagination(null, page.hasNewer);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+    finally { chargementPageRef.current = false; setChargementPage(false); }
+  }, [messages, fetchPage, majPagination]);
+
+  const onScrollFil = () => {
+    const el = threadRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    presDuFondRef.current = distance < 80;
+    setAuFond(distance < 200);
+    if (presDuFondRef.current) setNouveauxEnAttente(false);
+    if (el.scrollTop < 80) chargerPlusAnciens();
+    if (distance < 80) chargerPlusRecents();
+  };
+
+  const revenirAuxDerniers = () => {
+    if (!activeId || activeId < 0) return;
+    if (hasNewerRef.current) { chargerDerniers(activeId); return; }
+    const el = threadRef.current;
+    el?.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    setNouveauxEnAttente(false);
+  };
 
   // Liste des conversations : chargement + rafraîchissement périodique
   useEffect(() => {
@@ -174,20 +370,74 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
     return () => clearInterval(id);
   }, [loadConversations]);
 
-  // Fil actif : chargement + rafraîchissement périodique + marquage lu
+  // Fil actif : chargement (derniers messages, ou directement sur un résultat de recherche)
+  // + rafraîchissement périodique + marquage lu
   useEffect(() => {
+    activeIdRef.current = activeId;
     setEditingId(null);
     setEditTexte("");
+    setNouveauxEnAttente(false);
+    dernierIdRef.current = 0;
+    presDuFondRef.current = true;
     if (!activeId) return;
-    if (activeId < 0) { setMessages([]); return; } // conversation virtuelle (nouveau contact) : pas encore créée côté serveur
-    loadMessages(activeId);
-    const id = setInterval(() => loadMessages(activeId, true), 5_000);
+    if (activeId < 0) { setMessages([]); majPagination(false, false); return; } // conversation virtuelle (nouveau contact) : pas encore créée côté serveur
+    const focus = focusEnAttenteRef.current;
+    focusEnAttenteRef.current = null;
+    if (focus) chargerAutour(activeId, focus);
+    else chargerDerniers(activeId);
+    const id = setInterval(() => rafraichir(activeId), 5_000);
     return () => clearInterval(id);
-  }, [activeId, loadMessages]);
+  }, [activeId, chargerDerniers, chargerAutour, rafraichir, majPagination]);
 
+  // Position de défilement après chaque mise à jour du fil (avant affichage, pas de saut visible)
+  useLayoutEffect(() => {
+    const el = threadRef.current;
+    const dernier = messages[messages.length - 1];
+    const dernierId = dernier?.id ?? 0;
+    if (!el) { dernierIdRef.current = dernierId; return; }
+    if (distanceFondAvantRef.current !== null) {
+      // Messages plus anciens ajoutés en haut : on garde le même message sous les yeux
+      el.scrollTop = el.scrollHeight - distanceFondAvantRef.current;
+      distanceFondAvantRef.current = null;
+    } else if (focusMessageRef.current !== null) {
+      el.querySelector(`[data-mid="${focusMessageRef.current}"]`)?.scrollIntoView({ block: "center" });
+      focusMessageRef.current = null;
+    } else if (allerAuFondRef.current) {
+      el.scrollTop = el.scrollHeight;
+      allerAuFondRef.current = false;
+      presDuFondRef.current = true;
+      setAuFond(true);
+    } else if (dernier && dernierId > dernierIdRef.current && dernierIdRef.current !== 0) {
+      // Nouveau message : on suit si l'utilisateur était en bas ou si c'est le sien
+      if (presDuFondRef.current || dernier.expediteurId === meId) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      else setNouveauxEnAttente(true);
+    }
+    dernierIdRef.current = dernierId;
+  }, [messages, meId]);
+
+  // Recherche de messages (le filtrage des conversations par nom est fait localement)
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, activeId]);
+    const q = recherche.trim();
+    if (q.length < 2) { setResultats([]); setRechercheEnCours(false); return; }
+    setRechercheEnCours(true);
+    const timer = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/messages/recherche?q=${encodeURIComponent(q)}`);
+        const j = await r.json();
+        if (r.ok) setResultats(j.data ?? []);
+      } catch { /* silencieux */ }
+      finally { setRechercheEnCours(false); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [recherche]);
+
+  const ouvrirResultat = (res: ResultatRecherche) => {
+    setMobileShowThread(true);
+    setConversations((prev) => prev.map((c) => (c.id === res.conversationId ? { ...c, nonLus: 0 } : c)));
+    if (activeId === res.conversationId) { chargerAutour(res.conversationId, res.id); return; }
+    focusEnAttenteRef.current = res.id;
+    setActiveId(res.conversationId);
+  };
 
   // Recherche de contacts pour démarrer une nouvelle conversation
   useEffect(() => {
@@ -232,12 +482,11 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
         });
         const j = await r.json();
         if (!r.ok) throw new Error(j.message ?? "Erreur");
-        setActiveId(j.data.conversationId);
+        setActiveId(j.data.conversationId); // l'effet du fil actif charge ses messages
         setContactCible(null);
         setTexte("");
         setPieceJointeEnAttente(null);
         await loadConversations(true);
-        await loadMessages(j.data.conversationId, true);
       } else {
         const r = await fetch(`/api/messages/conversations/${activeId}`, {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -247,7 +496,10 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
         if (!r.ok) throw new Error(j.message ?? "Erreur");
         setTexte("");
         setPieceJointeEnAttente(null);
-        await loadMessages(activeId, true);
+        // Envoi depuis l'historique : retour aux derniers messages ; sinon simple fusion
+        // (le nouveau message étant le nôtre, le fil descend dessus).
+        if (hasNewerRef.current) await chargerDerniers(activeId, true);
+        else await rafraichir(activeId);
         await loadConversations(true);
       }
     } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
@@ -296,6 +548,38 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
     finally { setDeletingId(null); }
   };
 
+  const rechercheTexte = recherche.trim();
+  const rechercheActive = rechercheTexte.length > 0;
+  const conversationsFiltrees = rechercheActive
+    ? conversations.filter((c) => normaliser(`${c.autreParticipant.prenom} ${c.autreParticipant.nom}`).includes(normaliser(rechercheTexte)))
+    : conversations;
+
+  const ligneConversation = (c: ConversationRow) => (
+    <button key={c.id} onClick={() => ouvrirConversation(c.id)}
+      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 ${activeId === c.id ? "bg-primary-50/60" : ""}`}>
+      <Avatar p={c.autreParticipant} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-slate-800 truncate">{c.autreParticipant.prenom} {c.autreParticipant.nom}</p>
+          <span className="text-[10px] text-slate-400 shrink-0" title={formatDateTime(c.dernierMessageAt)}>{dateCompacte(c.dernierMessageAt)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-slate-500 truncate">
+            {c.dernierMessage
+              ? (c.dernierMessage.expediteurId === meId ? "Vous : " : "") +
+                (c.dernierMessage.supprime ? "Message supprimé" : (c.dernierMessage.contenu || (c.dernierMessage.pieceJointeNom ? `📎 ${c.dernierMessage.pieceJointeNom}` : "")))
+              : roleLabel(c.autreParticipant)}
+          </p>
+          {c.nonLus > 0 && (
+            <span className="text-[10px] bg-primary-500 text-white font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center shrink-0">
+              {c.nonLus > 99 ? "99+" : c.nonLus}
+            </span>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+
   const conversationActive = conversations.find((c) => c.id === activeId);
   const autreActuel = conversationActive?.autreParticipant ?? contactCible;
 
@@ -340,39 +624,61 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
             </div>
           </div>
         ) : (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Recherche : conversations par nom + messages par contenu */}
+            <div className="p-3 border-b border-slate-100">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <input value={recherche} onChange={(e) => setRecherche(e.target.value)}
+                  placeholder="Rechercher une conversation ou un message…"
+                  className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                {recherche && (
+                  <button onClick={() => setRecherche("")} title="Effacer"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
           <div className="flex-1 overflow-y-auto">
             {loadingList ? (
               <div className="flex items-center justify-center py-10 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /></div>
+            ) : rechercheActive ? (
+              <>
+                {conversationsFiltrees.length > 0 && (
+                  <p className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Conversations</p>
+                )}
+                {conversationsFiltrees.map((c) => ligneConversation(c))}
+                <p className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-2">
+                  Messages {rechercheEnCours && <Loader2 className="w-3 h-3 animate-spin" />}
+                </p>
+                {rechercheTexte.length < 2 ? (
+                  <p className="px-4 py-2 text-xs text-slate-400">Tapez au moins 2 caractères pour chercher dans les messages.</p>
+                ) : !rechercheEnCours && resultats.length === 0 ? (
+                  <p className="px-4 py-2 text-xs text-slate-400">Aucun message trouvé.</p>
+                ) : resultats.map((res) => (
+                  <button key={res.id} onClick={() => ouvrirResultat(res)}
+                    className="w-full flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-50">
+                    <Avatar p={res.autreParticipant} size={36} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{res.autreParticipant.prenom} {res.autreParticipant.nom}</p>
+                        <span className="text-[10px] text-slate-400 shrink-0" title={formatDateTime(res.createdAt)}>{dateCompacte(res.createdAt)}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 line-clamp-2 break-words">
+                        {res.expediteurId === meId ? "Vous : " : ""}<ExtraitSurligne texte={res.contenu} q={rechercheTexte} />
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </>
             ) : conversations.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-12 text-slate-400 px-6 text-center">
                 <MessageSquare className="w-8 h-8 opacity-40" />
                 <p className="text-sm">Aucune conversation. Cliquez sur + pour écrire à quelqu&apos;un.</p>
               </div>
-            ) : conversations.map((c) => (
-              <button key={c.id} onClick={() => ouvrirConversation(c.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 ${activeId === c.id ? "bg-primary-50/60" : ""}`}>
-                <Avatar p={c.autreParticipant} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-slate-800 truncate">{c.autreParticipant.prenom} {c.autreParticipant.nom}</p>
-                    <span className="text-[10px] text-slate-400 shrink-0">{formatDate(c.dernierMessageAt)}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-slate-500 truncate">
-                      {c.dernierMessage
-                        ? (c.dernierMessage.expediteurId === meId ? "Vous : " : "") +
-                          (c.dernierMessage.supprime ? "Message supprimé" : (c.dernierMessage.contenu || (c.dernierMessage.pieceJointeNom ? `📎 ${c.dernierMessage.pieceJointeNom}` : "")))
-                        : roleLabel(c.autreParticipant)}
-                    </p>
-                    {c.nonLus > 0 && (
-                      <span className="text-[10px] bg-primary-500 text-white font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center shrink-0">
-                        {c.nonLus > 99 ? "99+" : c.nonLus}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </button>
-            ))}
+            ) : conversations.map((c) => ligneConversation(c))}
+          </div>
           </div>
         )}
       </div>
@@ -397,16 +703,34 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50/50">
+            <div className="relative flex-1 min-h-0 flex flex-col">
+            <div ref={threadRef} onScroll={onScrollFil} className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50/50">
+              {!loadingThread && hasOlder && (
+                <div className="flex justify-center py-1">
+                  <button onClick={chargerPlusAnciens} disabled={chargementPage}
+                    className="flex items-center gap-1.5 px-3 py-1 text-xs text-slate-500 bg-white border border-slate-200 rounded-full hover:bg-slate-100 disabled:opacity-60">
+                    {chargementPage && <Loader2 className="w-3 h-3 animate-spin" />} Messages précédents
+                  </button>
+                </div>
+              )}
               {loadingThread ? (
                 <div className="flex items-center justify-center py-10 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /></div>
               ) : messages.length === 0 ? (
                 <p className="text-center text-sm text-slate-400 py-10">Aucun message. Dites bonjour 👋</p>
-              ) : messages.map((m) => {
+              ) : messages.map((m, i) => {
                 const mine = m.expediteurId === meId;
                 const editionEnCours = editingId === m.id;
+                const nouveauJour = i === 0 || !memeJour(new Date(messages[i - 1].createdAt), new Date(m.createdAt));
                 return (
-                  <div key={m.id} className={`group flex items-end gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
+                  <Fragment key={m.id}>
+                  {nouveauJour && (
+                    <div className="flex justify-center pt-2 pb-1">
+                      <span className="px-3 py-1 text-[11px] font-medium text-slate-600 bg-white border border-slate-200 rounded-full shadow-sm">
+                        {libelleJour(m.createdAt)}
+                      </span>
+                    </div>
+                  )}
+                  <div data-mid={m.id} className={`group flex items-end gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
                     {mine && !m.supprime && !editionEnCours && (
                       <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 mb-0.5">
                         <button onClick={() => commencerEdition(m)} title="Modifier"
@@ -419,7 +743,9 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
                         </button>
                       </div>
                     )}
-                    <div className={`max-w-[70%] px-3.5 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
+                    <div className={`max-w-[70%] px-3.5 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words transition-shadow ${
+                      surligneId === m.id ? "ring-4 ring-amber-300" : ""
+                    } ${
                       m.supprime ? "bg-slate-100 border border-slate-200 text-slate-400 italic rounded-bl-sm"
                         : mine ? "bg-primary-600 text-white rounded-br-sm" : "bg-white border border-slate-200 text-slate-800 rounded-bl-sm"
                     }`}>
@@ -455,15 +781,31 @@ export default function MessagerieApp({ initialConversationId }: { initialConver
                         </>
                       )}
                       {!editionEnCours && (
-                        <div className={`text-[10px] mt-1 ${m.supprime ? "text-slate-400" : mine ? "text-primary-100" : "text-slate-400"}`}>
-                          {formatDate(m.createdAt)}{m.modifie && !m.supprime ? " · modifié" : ""}
+                        <div title={formatDateTime(m.createdAt)}
+                          className={`text-[10px] mt-1 text-right ${m.supprime ? "text-slate-400" : mine ? "text-primary-100" : "text-slate-400"}`}>
+                          {heure(m.createdAt)}{m.modifie && !m.supprime ? " · modifié" : ""}
                         </div>
                       )}
                     </div>
                   </div>
+                  </Fragment>
                 );
               })}
-              <div ref={bottomRef} />
+              {!loadingThread && hasNewer && (
+                <div className="flex justify-center py-1">
+                  <Loader2 className={`w-4 h-4 text-slate-400 ${chargementPage ? "animate-spin" : "opacity-0"}`} />
+                </div>
+              )}
+            </div>
+            {/* Retour aux derniers messages (après avoir remonté l'historique ou sauté sur un résultat) */}
+            {!loadingThread && (hasNewer || !auFond) && (
+              <button onClick={revenirAuxDerniers} title="Derniers messages"
+                className="absolute bottom-3 right-4 flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-full shadow-lg text-xs font-medium text-slate-600 hover:bg-slate-50">
+                {nouveauxEnAttente && <span className="w-2 h-2 rounded-full bg-primary-500" />}
+                {nouveauxEnAttente ? "Nouveaux messages" : ""}
+                <ArrowDown className="w-4 h-4" />
+              </button>
+            )}
             </div>
 
             <div className="border-t border-slate-100">
