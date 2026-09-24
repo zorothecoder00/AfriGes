@@ -11,6 +11,8 @@ import { useApi, useMutation } from '@/hooks/useApi';
 import { useT } from '@/contexts/AppSettingsContext';
 
 import Portal from "@/components/ui/Portal";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PDVUser { id: number; nom: string; prenom: string; }
@@ -257,13 +259,12 @@ export default function PDVPage() {
           ].map((s, i) => {
             const Icon = s.icon;
             return (
-              <div key={i} className={`group relative overflow-hidden bg-gradient-to-br ${s.from} to-white rounded-2xl p-6 shadow-sm border ${s.border} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${s.hoverShadow} ${s.hoverBorder}`}>
-                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${s.color}`} />
-                <div className={`${s.lightBg} p-3 rounded-xl inline-block mb-4 transition-transform duration-300 ease-out group-hover:scale-110`}>
-                  <Icon className={`${s.color.replace('bg-', 'text-')} w-6 h-6`} />
+              <div key={i} className={`group relative overflow-hidden ${getStatCardHue(s.color).solid} rounded-2xl p-6 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+                <div className={`bg-white/20 text-white [&_svg]:text-white p-3 rounded-xl inline-block mb-4 transition-transform duration-300 ease-out group-hover:scale-110`}>
+                  <Icon className="text-white w-6 h-6" />
                 </div>
-                <h3 className={`${s.text}/80 text-sm font-semibold mb-1`}>{s.label}</h3>
-                <p className={`text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold ${s.text} transition-transform duration-300 group-hover:scale-105 origin-left`}>{s.value}</p>
+                <h3 className={`text-white/85 text-sm font-semibold mb-1`}>{s.label}</h3>
+                <p className={`text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-white transition-transform duration-300 group-hover:scale-105 origin-left`}>{s.value}</p>
               </div>
             );
           })}

@@ -25,6 +25,7 @@ import { MonthGroupHeaderRow, useCollapsedMonths } from '@/components/MonthGroup
 import { CreditRappelInfo } from '@/components/CreditRappelInfo';
 import BordereauRemboursement, { type BordereauCredit, type BordereauClient } from '@/components/BordereauRemboursement';
 import RecouvrementCreditPanel from '@/components/RecouvrementCreditPanel';
+import { STAT_CARD_HUES, getStatCardHue } from '@/components/ui/statCardTheme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -991,22 +992,22 @@ export default function CreditsPage() {
             const stat = meta?.statsParStatut?.[s.statut];
             return (
               <button key={s.label} onClick={() => { setStatut(s.statut); setPage(1); }}
-                className={`${s.bg} border rounded-2xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3 hover:opacity-90 transition text-left min-w-0`}>
-                <div className="shrink-0 p-2 sm:p-2.5 rounded-xl bg-white/60">{s.icon}</div>
+                className={`${getStatCardHue(s.text).solid} border rounded-2xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 text-left min-w-0`}>
+                <div className="shrink-0 p-2 sm:p-2.5 rounded-xl bg-white/20 text-white [&_svg]:text-white">{s.icon}</div>
                 <div className="min-w-0">
-                  <p className="text-xs text-slate-500 font-medium leading-tight">{s.label}</p>
-                  <p className={`text-2xl font-bold ${s.text} mt-0.5`}>{stat?.nb ?? 0}</p>
-                  <p className={`text-xs font-semibold ${s.text} opacity-80 truncate`}>{formatCurrency(stat?.[s.montantCle] ?? 0)}</p>
+                  <p className="text-xs text-white/80 font-medium leading-tight">{s.label}</p>
+                  <p className="text-2xl font-bold text-white mt-0.5">{stat?.nb ?? 0}</p>
+                  <p className="text-xs font-semibold text-white/85 truncate">{formatCurrency(stat?.[s.montantCle] ?? 0)}</p>
                 </div>
               </button>
             );
           })}
           <button onClick={() => { setStatut(''); setPage(1); }}
-            className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3 hover:opacity-90 transition text-left min-w-0">
-            <div className="shrink-0 p-2 sm:p-2.5 rounded-xl bg-slate-50"><CreditCard className="w-5 h-5 text-slate-500" /></div>
+            className={`${STAT_CARD_HUES.indigo.solid} border rounded-2xl p-3 sm:p-4 flex items-center gap-2 sm:gap-3 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 text-left min-w-0`}>
+            <div className="shrink-0 p-2 sm:p-2.5 rounded-xl bg-white/20 text-white [&_svg]:text-white"><CreditCard className="w-5 h-5" /></div>
             <div className="min-w-0">
-              <p className="text-xs text-slate-500 font-medium leading-tight">Total (filtre actuel)</p>
-              <p className="text-2xl font-bold text-slate-700 mt-0.5">{meta?.total ?? 0}</p>
+              <p className="text-xs text-white/80 font-medium leading-tight">Total (filtre actuel)</p>
+              <p className="text-2xl font-bold text-white mt-0.5">{meta?.total ?? 0}</p>
             </div>
           </button>
         </div>

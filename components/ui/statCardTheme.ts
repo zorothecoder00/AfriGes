@@ -34,6 +34,7 @@ export const STAT_CARD_HUES: Record<string, StatCardHue> = {
   gray:    { wrap: "from-gray-50 border-gray-200 hover:shadow-gray-200/60 hover:border-gray-300",         bar: "bg-gray-400",    text: "text-gray-700",    labelText: "text-gray-600/90", solid: "bg-gray-700 border-gray-800 hover:shadow-gray-300/60" },
   brand:   { wrap: "from-brand-50 border-brand-100 hover:shadow-brand-200/60 hover:border-brand-300",     bar: "bg-brand-500",   text: "text-brand-700",   labelText: "text-brand-700/80", solid: "bg-brand-700 border-brand-800 hover:shadow-brand-300/60" },
   primary: { wrap: "from-primary-50 border-primary-100 hover:shadow-primary-200/60 hover:border-primary-300", bar: "bg-primary-500", text: "text-primary-700", labelText: "text-primary-700/80", solid: "bg-primary-700 border-primary-800 hover:shadow-primary-300/60" },
+  accent:  { wrap: "from-accent-50 border-accent-100 hover:shadow-accent-200/60 hover:border-accent-300", bar: "bg-accent-500", text: "text-accent-700", labelText: "text-accent-700/80", solid: "bg-accent-700 border-accent-700 hover:shadow-accent-300/60" },
 };
 
 /** Extrait le nom de teinte Tailwind d'une classe (`text-blue-600`, `bg-blue-50`…). */

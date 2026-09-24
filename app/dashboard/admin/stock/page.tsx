@@ -16,6 +16,8 @@ import { toast } from 'sonner';
 
 import Portal from "@/components/ui/Portal";
 import AppLoader from "@/components/AppLoader";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PDVOption { id: number; nom: string; code: string; type: string; }
@@ -504,14 +506,13 @@ export default function GestionStockPage() {
           ].map((stat, i) => {
             const Icon = stat.icon;
             return (
-              <div key={i} className={`group relative overflow-hidden bg-gradient-to-br ${stat.from} to-white rounded-2xl p-5 shadow-sm border ${stat.border} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${stat.hoverShadow} ${stat.hoverBorder}`}>
-                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${stat.color}`} />
-                <div className={`${stat.lightBg} p-3 rounded-xl inline-block mb-3 transition-transform duration-300 ease-out group-hover:scale-110`}>
-                  <Icon className={`${stat.color.replace('bg-', 'text-')} w-5 h-5`} />
+              <div key={i} className={`group relative overflow-hidden ${getStatCardHue(stat.color).solid} rounded-2xl p-5 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+                <div className={`bg-white/20 text-white [&_svg]:text-white p-3 rounded-xl inline-block mb-3 transition-transform duration-300 ease-out group-hover:scale-110`}>
+                  <Icon className="text-white w-5 h-5" />
                 </div>
-                <h3 className={`${stat.text}/80 text-xs font-semibold mb-1`}>{stat.label}</h3>
-                <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${stat.text} transition-transform duration-300 group-hover:scale-105 origin-left`}>{stat.value}</p>
-                {stat.sub && <p className="text-xs text-slate-400 mt-1">{stat.sub}</p>}
+                <h3 className={`text-white/85 text-xs font-semibold mb-1`}>{stat.label}</h3>
+                <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white transition-transform duration-300 group-hover:scale-105 origin-left`}>{stat.value}</p>
+                {stat.sub && <p className="text-xs text-white/70 mt-1">{stat.sub}</p>}
               </div>
             );
           })}

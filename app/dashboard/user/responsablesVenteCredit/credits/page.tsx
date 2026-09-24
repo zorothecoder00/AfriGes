@@ -7,6 +7,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, User,
   PackageCheck, ArrowLeftRight, XCircle, Receipt, Edit3, Trash2, FolderTree, FileText, Ban, Menu, Printer,
 } from "lucide-react";
+import { STAT_CARD_HUES } from "@/components/ui/statCardTheme";
 import NotificationBell from "@/components/NotificationBell";
 import AccountMenuButton from "@/components/AccountMenuButton";
 import MessagesLink from "@/components/MessagesLink";
@@ -1130,19 +1131,19 @@ export default function RVCCreditsPage() {
         {/* Stats par statut — se recalculent selon l'agent sélectionné */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {([
-            { statut: 'EN_ATTENTE_VALIDATION', label: 'En attente',  montantCle: 'soldeRestant' as const },
-            { statut: 'ACTIF',                 label: 'Actifs',      montantCle: 'soldeRestant' as const },
-            { statut: 'EN_RETARD',             label: 'Impayés',     montantCle: 'soldeRestant' as const },
-            { statut: 'SOLDE',                 label: 'Soldés',      montantCle: 'montantTotal' as const },
-            { statut: 'ANNULE',                label: 'Annulés',     montantCle: 'montantTotal' as const },
+            { statut: 'EN_ATTENTE_VALIDATION', label: 'En attente',  montantCle: 'soldeRestant' as const, hue: 'amber' },
+            { statut: 'ACTIF',                 label: 'Actifs',      montantCle: 'soldeRestant' as const, hue: 'emerald' },
+            { statut: 'EN_RETARD',             label: 'Impayés',     montantCle: 'soldeRestant' as const, hue: 'red' },
+            { statut: 'SOLDE',                 label: 'Soldés',      montantCle: 'montantTotal' as const, hue: 'blue' },
+            { statut: 'ANNULE',                label: 'Annulés',     montantCle: 'montantTotal' as const, hue: 'slate' },
           ]).map((s) => {
             const stat = meta?.statsParStatut?.[s.statut];
             return (
               <button key={s.label} onClick={() => { setStatut(s.statut); setPage(1); }}
-                className="bg-white border border-gray-200 rounded-xl p-3 text-left hover:border-indigo-300 transition">
-                <p className="text-xs text-gray-500 font-medium">{s.label}{agentId ? " · agent" : ""}</p>
-                <p className="text-xl font-bold text-gray-800 mt-0.5">{stat?.nb ?? 0}</p>
-                <p className="text-xs font-semibold text-indigo-600 truncate">{formatCurrency(stat?.[s.montantCle] ?? 0)}</p>
+                className={`${STAT_CARD_HUES[s.hue].solid} border rounded-xl p-3 text-left shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300`}>
+                <p className="text-xs text-white/80 font-medium">{s.label}{agentId ? " · agent" : ""}</p>
+                <p className="text-xl font-bold text-white mt-0.5">{stat?.nb ?? 0}</p>
+                <p className="text-xs font-semibold text-white/85 truncate">{formatCurrency(stat?.[s.montantCle] ?? 0)}</p>
               </button>
             );
           })}

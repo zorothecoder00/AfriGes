@@ -13,6 +13,7 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { formatCurrency } from "@/lib/format";
 import { useT } from "@/contexts/AppSettingsContext";
 import FactureModal from "@/components/FactureModal";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -343,13 +344,12 @@ function TabSouscriptions() {
           { label: t('dash_completes'), val: totalComplet, cls: "text-green-700", bar: "bg-green-500", from: "from-green-50", border: "border-green-100", badge: "bg-green-100", hoverShadow: "hover:shadow-green-200/60", hoverBorder: "hover:border-green-300", icon: <CheckCircle className="w-5 h-5" /> },
           { label: t('packs_col_verse'), val: formatCurrency(totalVerse), cls: "text-emerald-700", bar: "bg-emerald-500", from: "from-emerald-50", border: "border-emerald-100", badge: "bg-emerald-100", hoverShadow: "hover:shadow-emerald-200/60", hoverBorder: "hover:border-emerald-300", icon: <TrendingUp className="w-5 h-5" /> },
         ].map((s) => (
-          <div key={s.label} className={`group relative overflow-hidden bg-gradient-to-br ${s.from} to-white rounded-2xl p-4 sm:p-5 min-w-0 shadow-sm border ${s.border} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${s.hoverShadow} ${s.hoverBorder}`}>
-            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${s.bar}`} />
+          <div key={s.label} className={`group relative overflow-hidden ${getStatCardHue(s.bar).solid} rounded-2xl p-4 sm:p-5 min-w-0 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
             <div className="flex items-center gap-3 mb-2">
-              <div className={`shrink-0 p-2 ${s.badge} rounded-xl ${s.cls} transition-transform duration-300 ease-out group-hover:scale-110`}>{s.icon}</div>
-              <span className={`min-w-0 text-sm font-semibold leading-tight ${s.cls}/80`}>{s.label}</span>
+              <div className={`shrink-0 p-2 bg-white/20 text-white [&_svg]:text-white rounded-xl transition-transform duration-300 ease-out group-hover:scale-110`}>{s.icon}</div>
+              <span className={`min-w-0 text-sm font-semibold leading-tight text-white/85`}>{s.label}</span>
             </div>
-            <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${s.cls} transition-transform duration-300 group-hover:scale-105 origin-left`}>{s.val}</p>
+            <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white transition-transform duration-300 group-hover:scale-105 origin-left`}>{s.val}</p>
           </div>
         ))}
       </div>

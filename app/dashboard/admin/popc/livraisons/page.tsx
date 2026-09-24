@@ -5,6 +5,7 @@ import { useApi } from "@/hooks/useApi";
 import {
   PackagePlus, AlertTriangle, CheckCircle2, TrendingUp, CalendarDays,
 } from "lucide-react";
+import { STAT_CARD_HUES } from "@/components/ui/statCardTheme";
 
 interface LigneLivraison { date: string; quinzaine: number; trentaine: number; carnets: number; total: number }
 interface PlanResp {
@@ -174,17 +175,16 @@ function RecapCard({ label, reste, objectif, deja }: { label: string; reste: num
   const pct = objectif > 0 ? Math.min(100, Math.round((deja / objectif) * 100)) : 0;
   const atteint = objectif > 0 && deja >= objectif;
   return (
-    <div className={`group relative overflow-hidden bg-gradient-to-br to-white rounded-2xl p-4 border shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${atteint ? "from-emerald-50 border-emerald-100 hover:shadow-emerald-200/60 hover:border-emerald-300" : "from-indigo-50 border-indigo-100 hover:shadow-indigo-200/60 hover:border-indigo-300"}`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${atteint ? "bg-emerald-500" : "bg-indigo-500"}`} />
-      <div className={`text-xs ${atteint ? "text-emerald-700/70" : "text-indigo-700/70"}`}>{label}</div>
+    <div className={`group relative overflow-hidden rounded-2xl p-4 border shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${atteint ? STAT_CARD_HUES.emerald.solid : STAT_CARD_HUES.indigo.solid}`}>
+      <div className="text-xs text-white/80">{label}</div>
       <div className="flex items-baseline gap-1.5 mt-1">
-        <span className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${atteint ? "text-emerald-700" : "text-indigo-700"}`}>{fmt(reste)}</span>
-        <span className="text-xs text-gray-400">reste</span>
+        <span className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left text-white`}>{fmt(reste)}</span>
+        <span className="text-xs text-white/70">reste</span>
       </div>
-      <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${atteint ? "bg-emerald-500" : "bg-indigo-500"}`} style={{ width: `${pct}%` }} />
+      <div className="mt-2 h-1.5 bg-white/25 rounded-full overflow-hidden">
+        <div className="h-full rounded-full bg-white" style={{ width: `${pct}%` }} />
       </div>
-      <p className="text-xs text-gray-400 mt-1">{fmt(deja)} / {fmt(objectif)} réalisés ({pct}%)</p>
+      <p className="text-xs text-white/70 mt-1">{fmt(deja)} / {fmt(objectif)} réalisés ({pct}%)</p>
     </div>
   );
 }

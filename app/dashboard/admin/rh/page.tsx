@@ -13,6 +13,7 @@ import {
 import { exportMultiSheetXlsx } from "@/lib/exportXlsx";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import { STAT_CARD_HUES, getStatCardHue } from "@/components/ui/statCardTheme";
 
 /* ─── Accents sémantiques (mêmes tokens que KpiCard.tsx) ──── */
 const ACCENT = {
@@ -111,16 +112,15 @@ function StatCard({
   return (
     <Link
       href={href}
-      className={`group relative overflow-hidden bg-gradient-to-br ${c.wrap} to-white dark:from-slate-800 dark:to-slate-800 dark:border-slate-700 rounded-2xl border shadow-sm p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${alert ? "!border-red-200 !from-red-50 dark:!border-red-800 dark:!from-red-900/10" : ""}`}
+      className={`group relative overflow-hidden ${alert ? STAT_CARD_HUES.red.solid : getStatCardHue(c.bar).solid} rounded-2xl border shadow-sm p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-2 sm:gap-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}
     >
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${alert ? "bg-red-500" : c.bar}`} />
-      <div className={`p-2.5 rounded-xl flex-shrink-0 transition-transform duration-300 ease-out group-hover:scale-110 ${ACCENT[accent]}`}>{icon}</div>
+      <div className={`p-2.5 rounded-xl flex-shrink-0 transition-transform duration-300 ease-out group-hover:scale-110 bg-white/20 text-white [&_svg]:text-white`}>{icon}</div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{title}</p>
-        <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold mt-0.5 transition-transform duration-300 group-hover:scale-105 origin-left ${alert ? "text-red-600 dark:text-red-400" : c.value}`}>{value}</p>
-        {sub && <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{sub}</p>}
+        <p className="text-xs text-white/80 font-medium">{title}</p>
+        <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold mt-0.5 transition-transform duration-300 group-hover:scale-105 origin-left text-white`}>{value}</p>
+        {sub && <p className="text-xs text-white/70 mt-0.5">{sub}</p>}
       </div>
-      <ArrowRight size={16} className="absolute top-4 right-4 sm:static text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 flex-shrink-0 mt-1 transition-colors" />
+      <ArrowRight size={16} className="absolute top-4 right-4 sm:static text-white/60 group-hover:text-white flex-shrink-0 mt-1 transition-colors" />
     </Link>
   );
 }
