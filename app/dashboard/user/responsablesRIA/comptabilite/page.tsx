@@ -152,14 +152,14 @@ function KpiCard({ label, value, icon, color }: { label: string; value: string; 
     blue: "bg-blue-100 text-blue-600", emerald: "bg-emerald-100 text-emerald-600",
     amber: "bg-amber-100 text-amber-600", green: "bg-green-100 text-green-600", red: "bg-red-100 text-red-600",
   };
-  const h = getStatCardHue(color);
+  // `color` est un nom simple ("blue"…) : la teinte se lit via la classe de la table.
+  const h = getStatCardHue(bg[color] ?? bg.blue);
   return (
-    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-xl border p-4 flex items-center gap-3 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
-      <div className={`p-2.5 rounded-xl transition-transform duration-300 ease-out group-hover:scale-110 ${bg[color] ?? bg.blue}`}>{icon}</div>
+    <div className={`group relative overflow-hidden ${h.solid} rounded-xl border p-4 flex items-center gap-3 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className={`p-2.5 rounded-xl transition-transform duration-300 ease-out group-hover:scale-110 bg-white/20 text-white [&_svg]:text-white`}>{icon}</div>
       <div>
-        <p className={`text-xs font-medium uppercase tracking-wide ${h.labelText}`}>{label}</p>
-        <p className={`text-lg font-bold mt-0.5 transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
+        <p className={`text-xs font-medium uppercase tracking-wide text-white/85`}>{label}</p>
+        <p className={`text-lg font-bold mt-0.5 transition-transform duration-300 group-hover:scale-105 origin-left text-white`}>{value}</p>
       </div>
     </div>
   );

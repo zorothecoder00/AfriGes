@@ -588,14 +588,13 @@ function KpiCard({ icon, label, value, color, href }: {
 }) {
   const h = getStatCardHue(color);
   return (
-    <Link href={href} className={`group relative overflow-hidden flex items-center gap-3 p-4 bg-gradient-to-br ${h.wrap} to-white rounded-2xl border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
-      <div className={`p-2.5 rounded-xl ${color} flex-shrink-0 transition-transform duration-300 ease-out group-hover:scale-110`}>{icon}</div>
+    <Link href={href} className={`group relative overflow-hidden flex items-center gap-3 p-4 ${h.solid} rounded-2xl border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className={`p-2.5 rounded-xl bg-white/20 text-white [&_svg]:text-white flex-shrink-0 transition-transform duration-300 ease-out group-hover:scale-110`}>{icon}</div>
       <div className="flex-1 min-w-0">
-        <p className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
-        <p className="text-xs text-slate-500 mt-0.5 leading-snug">{label}</p>
+        <p className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left text-white`}>{value}</p>
+        <p className="text-xs text-white/75 mt-0.5 leading-snug">{label}</p>
       </div>
-      <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 flex-shrink-0" />
+      <ArrowRight className="w-4 h-4 text-white/60 group-hover:text-white flex-shrink-0" />
     </Link>
   );
 }

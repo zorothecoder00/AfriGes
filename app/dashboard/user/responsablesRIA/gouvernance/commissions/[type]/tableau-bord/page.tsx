@@ -20,14 +20,13 @@ function KpiCard({ label, value, sub, color = "text-slate-800", icon: Icon }: {
 }) {
   const h = getStatCardHue(color);
   return (
-    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white border rounded-xl p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
+    <div className={`group relative overflow-hidden ${h.solid} border rounded-xl p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
       <div className="flex items-start justify-between mb-2">
-        <p className={`text-xs ${h.labelText}`}>{label}</p>
-        <Icon className="w-4 h-4 text-slate-300 transition-transform duration-300 group-hover:scale-110" />
+        <p className={`text-xs text-white/85`}>{label}</p>
+        <Icon className="w-4 h-4 text-white/70 transition-transform duration-300 group-hover:scale-110" />
       </div>
-      <p className={`text-xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${color}`}>{value}</p>
-      {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+      <p className={`text-xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left text-white`}>{value}</p>
+      {sub && <p className="text-xs text-white/70 mt-0.5">{sub}</p>}
     </div>
   );
 }

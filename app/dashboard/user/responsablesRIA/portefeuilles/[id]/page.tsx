@@ -116,12 +116,11 @@ function KpiCard({ label, value, color = "text-slate-900", icon }: {
 }) {
   const h = getStatCardHue(color);
   return (
-    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-xl border p-4 flex items-start gap-3 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
-      <div className="p-2 bg-white rounded-lg flex-shrink-0 shadow-sm transition-transform duration-300 ease-out group-hover:scale-110">{icon}</div>
+    <div className={`group relative overflow-hidden ${h.solid} rounded-xl border p-4 flex items-start gap-3 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className="p-2 bg-white/20 text-white [&_svg]:text-white rounded-lg flex-shrink-0 transition-transform duration-300 ease-out group-hover:scale-110">{icon}</div>
       <div className="min-w-0">
-        <p className={`text-xs font-medium truncate ${h.labelText}`}>{label}</p>
-        <p className={`text-base font-bold mt-0.5 transition-transform duration-300 group-hover:scale-105 origin-left ${color}`}>{value}</p>
+        <p className={`text-xs font-medium truncate text-white/85`}>{label}</p>
+        <p className={`text-base font-bold mt-0.5 transition-transform duration-300 group-hover:scale-105 origin-left text-white`}>{value}</p>
       </div>
     </div>
   );

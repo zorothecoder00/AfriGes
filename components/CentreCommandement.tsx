@@ -9,6 +9,7 @@ import { useApi } from "@/hooks/useApi";
 import { avecRetour } from "@/components/RetourLien";
 import { formatDateTime } from "@/lib/format";
 import { CATALOGUE_DOCUMENTS } from "@/lib/centreCommandementCatalogue";
+import { inclinerCarte, redresserCarte, teinteCarte, CLASSES_CARTE_3D } from "@/lib/carte3d";
 
 type Lien = { label: string; url: string };
 type Resultat = {
@@ -160,15 +161,17 @@ export default function CentreCommandement() {
           Annuaire par module
         </h2>
         <div className="grid sm:grid-cols-2 gap-3">
-          {catalogueVisible.map((item) => (
+          {catalogueVisible.map((item, i) => (
             <Link
               key={item.id}
               href={avecRetour(resoudreUrl(item), pathname)}
-              className="block bg-white rounded-xl border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm transition-all"
+              onMouseMove={inclinerCarte}
+              onMouseLeave={redresserCarte}
+              className={`block rounded-xl p-4 ${CLASSES_CARTE_3D} ${teinteCarte(i)}`}
             >
-              <p className="text-sm font-semibold text-slate-800">{item.titre}</p>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">{item.description}</p>
-              <p className="text-[11px] text-slate-400 mt-2">{item.roles.join(" · ")}</p>
+              <p className="text-sm font-semibold text-white">{item.titre}</p>
+              <p className="text-xs text-white/80 mt-1 leading-relaxed">{item.description}</p>
+              <p className="text-[11px] text-white/60 mt-2">{item.roles.join(" · ")}</p>
             </Link>
           ))}
         </div>

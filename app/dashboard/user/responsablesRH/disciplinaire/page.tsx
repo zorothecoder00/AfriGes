@@ -480,12 +480,11 @@ export default function DisciplinairePage() {
               <button
                 key={key}
                 onClick={() => setStatut(statut === key ? "" : key)}
-                className={`group relative overflow-hidden text-left rounded-2xl p-4 shadow-sm border bg-gradient-to-br ${h.wrap} to-white transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${statut === key ? "ring-2 ring-red-200 !border-red-300" : ""}`}
+                className={`group relative overflow-hidden text-left rounded-2xl p-4 shadow-sm border ${h.solid} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${statut === key ? "ring-2 ring-red-200 !border-red-300" : ""}`}
               >
-                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
-                <div className={`p-2 rounded-lg w-fit transition-transform duration-300 ease-out group-hover:scale-110 ${color}`}>{icon}</div>
-                <div className={`mt-2 text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{data?.stats?.[key] ?? 0}</div>
-                <div className={`text-xs mt-0.5 ${h.labelText}`}>{label}</div>
+                <div className={`p-2 rounded-lg w-fit transition-transform duration-300 ease-out group-hover:scale-110 bg-white/20 text-white [&_svg]:text-white`}>{icon}</div>
+                <div className={`mt-2 text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left text-white`}>{data?.stats?.[key] ?? 0}</div>
+                <div className={`text-xs mt-0.5 text-white/85`}>{label}</div>
               </button>
             );
           })}

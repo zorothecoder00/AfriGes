@@ -78,20 +78,17 @@ export default function PeremptionsPage() {
         ) : (
           <>
             <div className="grid grid-cols-3 gap-3">
-              <div className="group relative overflow-hidden bg-gradient-to-br from-rose-50 to-white rounded-2xl border border-rose-100 p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-rose-200/60 hover:border-rose-300">
-                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500" />
-                <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-rose-100 text-rose-600 mb-2 transition-transform duration-300 ease-out group-hover:scale-110"><PackageX className="w-5 h-5" /></div>
-                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-rose-700 transition-transform duration-300 group-hover:scale-105 origin-left">{data.resume.perimes}</p><p className="text-xs text-rose-700/70">Périmés</p>
+              <div className="group relative overflow-hidden bg-rose-700 border-rose-800 rounded-2xl border p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-rose-300/60">
+                <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white/20 text-white mb-2 transition-transform duration-300 ease-out group-hover:scale-110"><PackageX className="w-5 h-5" /></div>
+                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white transition-transform duration-300 group-hover:scale-105 origin-left">{data.resume.perimes}</p><p className="text-xs text-white/85">Périmés</p>
               </div>
-              <div className="group relative overflow-hidden bg-gradient-to-br from-amber-50 to-white rounded-2xl border border-amber-100 p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-amber-200/60 hover:border-amber-300">
-                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500" />
-                <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-amber-100 text-amber-600 mb-2 transition-transform duration-300 ease-out group-hover:scale-110"><AlertTriangle className="w-5 h-5" /></div>
-                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-amber-700 transition-transform duration-300 group-hover:scale-105 origin-left">{data.resume.bientot}</p><p className="text-xs text-amber-700/70">Bientôt périmés (≤ {data.seuil} j)</p>
+              <div className="group relative overflow-hidden bg-amber-600 border-amber-700 rounded-2xl border p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-amber-300/60">
+                <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white/20 text-white mb-2 transition-transform duration-300 ease-out group-hover:scale-110"><AlertTriangle className="w-5 h-5" /></div>
+                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white transition-transform duration-300 group-hover:scale-105 origin-left">{data.resume.bientot}</p><p className="text-xs text-white/85">Bientôt périmés (≤ {data.seuil} j)</p>
               </div>
-              <div className="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-white rounded-2xl border border-blue-100 p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-200/60 hover:border-blue-300">
-                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500" />
-                <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-100 text-blue-600 mb-2 transition-transform duration-300 ease-out group-hover:scale-110"><CalendarClock className="w-5 h-5" /></div>
-                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-blue-700 transition-transform duration-300 group-hover:scale-105 origin-left">{data.resume.total}</p><p className="text-xs text-blue-700/70">Lots à surveiller</p>
+              <div className="group relative overflow-hidden bg-blue-700 border-blue-800 rounded-2xl border p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-300/60">
+                <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white/20 text-white mb-2 transition-transform duration-300 ease-out group-hover:scale-110"><CalendarClock className="w-5 h-5" /></div>
+                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white transition-transform duration-300 group-hover:scale-105 origin-left">{data.resume.total}</p><p className="text-xs text-white/85">Lots à surveiller</p>
               </div>
             </div>
 

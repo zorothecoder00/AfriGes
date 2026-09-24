@@ -595,11 +595,11 @@ function InfoLine({ label, value }: { label: string; value: string | null }) {
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="group relative overflow-hidden bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 rounded-xl p-3 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:shadow-indigo-200/60 hover:border-indigo-300">
+    <div className="group relative overflow-hidden bg-indigo-700 border-indigo-800 border rounded-xl p-3 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:shadow-indigo-300/60">
       <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />
-      <p className="text-xs text-indigo-700/70">{label}</p>
-      <p className="text-lg font-bold text-indigo-700 transition-transform duration-300 group-hover:scale-105 origin-left">{value}</p>
-      {sub && <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>}
+      <p className="text-xs text-white/85">{label}</p>
+      <p className="text-lg font-bold text-white transition-transform duration-300 group-hover:scale-105 origin-left">{value}</p>
+      {sub && <p className="text-[10px] text-white/70 mt-0.5">{sub}</p>}
     </div>
   );
 }

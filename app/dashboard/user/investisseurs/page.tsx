@@ -78,15 +78,15 @@ function KpiCard({ icon, label, value, sub, color = "emerald" }: {
     amber:   "bg-amber-100 text-amber-600",
     violet:  "bg-violet-100 text-violet-600",
   };
-  const h = getStatCardHue(color);
+  // `color` est un nom simple ("emerald"…) : la teinte se lit via la classe de la table.
+  const h = getStatCardHue(ring[color] ?? ring.emerald);
   return (
-    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl border p-5 flex items-start gap-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
-      <div className={`p-3 rounded-xl transition-transform duration-300 ease-out group-hover:scale-110 ${ring[color] ?? ring.emerald}`}>{icon}</div>
+    <div className={`group relative overflow-hidden ${h.solid} rounded-2xl border p-5 flex items-start gap-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className={`p-3 rounded-xl transition-transform duration-300 ease-out group-hover:scale-110 bg-white/20 text-white [&_svg]:text-white`}>{icon}</div>
       <div className="min-w-0">
-        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
-        <p className={`text-xl font-bold mt-0.5 truncate transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
-        {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+        <p className="text-xs text-white/75 font-medium uppercase tracking-wider">{label}</p>
+        <p className={`text-xl font-bold mt-0.5 truncate transition-transform duration-300 group-hover:scale-105 origin-left text-white`}>{value}</p>
+        {sub && <p className="text-xs text-white/70 mt-0.5">{sub}</p>}
       </div>
     </div>
   );

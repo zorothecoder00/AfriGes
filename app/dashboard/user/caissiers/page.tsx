@@ -465,16 +465,15 @@ function KpiCard({ label, value, sub, icon: Icon, color, bg }: {
 }) {
   const h = getStatCardHue(color, bg);
   return (
-    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl p-5 shadow-sm border transition-all duration-300 hover:shadow-[0_14px_32px_-10px_rgba(15,23,42,0.18)] hover:-translate-y-1 animate-[fadeInUp_0.5s_ease-out_both]`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
+    <div className={`group relative overflow-hidden ${h.solid} rounded-2xl p-5 shadow-sm border transition-all duration-300 hover:shadow-[0_14px_32px_-10px_rgba(15,23,42,0.18)] hover:-translate-y-1 animate-[fadeInUp_0.5s_ease-out_both]`}>
       <div className="flex items-start justify-between mb-3">
-        <div className={`${bg} p-2.5 rounded-xl group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
-          <Icon className={`${color} w-5 h-5`} />
+        <div className={`bg-white/20 text-white [&_svg]:text-white p-2.5 rounded-xl group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
+          <Icon className="text-white w-5 h-5" />
         </div>
       </div>
-      <p className={`text-xs font-semibold mb-1 ${h.labelText}`}>{label}</p>
-      <p className={`text-2xl font-bold leading-tight tabular-nums transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
-      {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
+      <p className={`text-xs font-semibold mb-1 text-white/85`}>{label}</p>
+      <p className={`text-2xl font-bold leading-tight tabular-nums transition-transform duration-300 group-hover:scale-105 origin-left text-white`}>{value}</p>
+      {sub && <p className="text-xs text-white/70 mt-1">{sub}</p>}
     </div>
   );
 }

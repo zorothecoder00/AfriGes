@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, FileText, ShoppingCart, Banknote, Wallet, PackageCheck, Plus, List, Printer, QrCode } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
+import { inclinerCarte, redresserCarte, teinteCarte, CLASSES_CARTE_3D } from "@/lib/carte3d";
 
 /**
  * Documents commerciaux de l'agent terrain : tous les documents qu'il crée, remplit et soumet, au même
@@ -56,48 +57,52 @@ export default function DocumentsCommerciauxPage() {
         )}
 
         <div className="grid md:grid-cols-2 gap-4">
-          {DOCS.map((d) => {
+          {DOCS.map((d, i) => {
             const qr = qrParCode.get(d.code);
             return (
-              <div key={d.code} className="bg-white border border-slate-200 rounded-2xl p-5 flex gap-4 break-inside-avoid">
+              <div key={d.code} onMouseMove={inclinerCarte} onMouseLeave={redresserCarte}
+                className={`carte-doc rounded-2xl p-5 flex gap-4 break-inside-avoid text-white ${CLASSES_CARTE_3D} ${teinteCarte(i)}`}>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 text-slate-800">
-                    <span className="text-emerald-600">{d.icon}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-white/90">{d.icon}</span>
                     <h2 className="font-semibold">{d.titre}</h2>
                   </div>
-                  <p className="text-sm text-slate-500 mt-1.5">{d.description}</p>
+                  <p className="text-sm text-white/80 mt-1.5">{d.description}</p>
                   <div className="no-print flex items-center gap-2 mt-3 flex-wrap">
-                    <Link href={d.nouveau} className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium"><Plus className="w-4 h-4" /> Nouveau</Link>
-                    <Link href={d.liste} className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-sm font-medium"><List className="w-4 h-4" /> Mes documents</Link>
+                    <Link href={d.nouveau} className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-white/90 text-slate-800 rounded-lg text-sm font-semibold"><Plus className="w-4 h-4" /> Nouveau</Link>
+                    <Link href={d.liste} className="inline-flex items-center gap-1.5 px-3 py-2 border border-white/40 text-white hover:bg-white/15 rounded-lg text-sm font-medium"><List className="w-4 h-4" /> Mes documents</Link>
                   </div>
                 </div>
                 {qr && (
                   <div className="shrink-0 text-center">
+                    {/* QR sur fond blanc : reste scannable sur la carte colorée */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={qr.qr} alt={`QR ${d.titre}`} className="w-28 h-28" />
-                    <p className="text-[10px] text-slate-400 mt-0.5">Scanner pour remplir</p>
+                    <img src={qr.qr} alt={`QR ${d.titre}`} className="w-28 h-28 bg-white rounded-lg p-1" />
+                    <p className="text-[10px] text-white/70 mt-0.5">Scanner pour remplir</p>
                   </div>
                 )}
               </div>
             );
           })}
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 md:col-span-2 no-print">
-            <div className="flex items-center gap-2 text-slate-800">
-              <span className="text-emerald-600"><Banknote className="w-5 h-5" /></span>
+          <div onMouseMove={inclinerCarte} onMouseLeave={redresserCarte}
+            className={`rounded-2xl p-5 md:col-span-2 no-print text-white ${CLASSES_CARTE_3D} ${teinteCarte(DOCS.length)}`}>
+            <div className="flex items-center gap-2">
+              <span className="text-white/90"><Banknote className="w-5 h-5" /></span>
               <h2 className="font-semibold">Mes fonds collectés</h2>
             </div>
-            <p className="text-sm text-slate-500 mt-1.5">Consultez ce que vous avez collecté sur une période (3 mois maximum), ce que vous avez déjà remis par bordereau et ce qui reste à remettre.</p>
-            <Link href="/dashboard/user/agentsTerrain/fonds-collectes" className="inline-flex items-center gap-1.5 mt-3 px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-sm font-medium"><List className="w-4 h-4" /> Voir mes fonds collectés</Link>
+            <p className="text-sm text-white/80 mt-1.5">Consultez ce que vous avez collecté sur une période (3 mois maximum), ce que vous avez déjà remis par bordereau et ce qui reste à remettre.</p>
+            <Link href="/dashboard/user/agentsTerrain/fonds-collectes" className="inline-flex items-center gap-1.5 mt-3 px-3 py-2 border border-white/40 text-white hover:bg-white/15 rounded-lg text-sm font-medium"><List className="w-4 h-4" /> Voir mes fonds collectés</Link>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 md:col-span-2 no-print">
-            <div className="flex items-center gap-2 text-slate-800">
-              <span className="text-emerald-600"><PackageCheck className="w-5 h-5" /></span>
+          <div onMouseMove={inclinerCarte} onMouseLeave={redresserCarte}
+            className={`rounded-2xl p-5 md:col-span-2 no-print text-white ${CLASSES_CARTE_3D} ${teinteCarte(DOCS.length + 1)}`}>
+            <div className="flex items-center gap-2">
+              <span className="text-white/90"><PackageCheck className="w-5 h-5" /></span>
               <h2 className="font-semibold">Bon de réception client</h2>
             </div>
-            <p className="text-sm text-slate-500 mt-1.5">Généré automatiquement à l&apos;expédition d&apos;une commande. Le client l&apos;atteste avec son propre lien — suivez l&apos;état de vos réceptions depuis vos commandes.</p>
-            <Link href="/dashboard/user/agentsTerrain/commandes-client" className="inline-flex items-center gap-1.5 mt-3 px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-sm font-medium"><List className="w-4 h-4" /> Voir mes commandes</Link>
+            <p className="text-sm text-white/80 mt-1.5">Généré automatiquement à l&apos;expédition d&apos;une commande. Le client l&apos;atteste avec son propre lien — suivez l&apos;état de vos réceptions depuis vos commandes.</p>
+            <Link href="/dashboard/user/agentsTerrain/commandes-client" className="inline-flex items-center gap-1.5 mt-3 px-3 py-2 border border-white/40 text-white hover:bg-white/15 rounded-lg text-sm font-medium"><List className="w-4 h-4" /> Voir mes commandes</Link>
           </div>
         </div>
 
@@ -108,6 +113,9 @@ export default function DocumentsCommerciauxPage() {
         @media print {
           .no-print { display: none !important; }
           body { background: white; }
+          /* Planche de QR imprimée : cartes sur fond blanc, texte noir, sans inclinaison */
+          .carte-doc { background: white !important; border-color: #e2e8f0 !important; box-shadow: none !important; transform: none !important; }
+          .carte-doc, .carte-doc * { color: #0f172a !important; }
         }
       `}</style>
     </div>

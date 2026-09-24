@@ -392,17 +392,16 @@ const StatCard = ({
 }) => {
   const h = getStatCardHue(color, lightBg);
   return (
-    <div className={`group relative overflow-hidden bg-gradient-to-br ${alert ? "from-red-50 border-red-200" : `${h.wrap}`} to-white rounded-2xl p-6 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${alert ? "bg-red-500" : h.bar}`} />
+    <div className={`group relative overflow-hidden ${alert ? "bg-red-700 border-red-800" : h.solid} rounded-2xl p-6 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
       <div className="flex items-start justify-between mb-4">
-        <div className={`${lightBg} p-3 rounded-xl group-hover:scale-110 transition-transform duration-300 ease-out`}>
-          <Icon className={`${color} w-6 h-6`} />
+        <div className={`bg-white/20 text-white [&_svg]:text-white p-3 rounded-xl group-hover:scale-110 transition-transform duration-300 ease-out`}>
+          <Icon className="text-white w-6 h-6" />
         </div>
-        {alert && <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Alerte</span>}
+        {alert && <span className="text-xs font-bold text-red-700 bg-white px-2 py-0.5 rounded-full">Alerte</span>}
       </div>
-      <h3 className={`text-sm font-semibold mb-1 ${alert ? "text-red-700/80" : h.labelText}`}>{label}</h3>
-      <p className={`text-3xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${alert ? "text-red-700" : h.text}`}>{value}</p>
-      {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
+      <h3 className={`text-sm font-semibold mb-1 text-white/85`}>{label}</h3>
+      <p className={`text-3xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left text-white`}>{value}</p>
+      {subtitle && <p className="text-xs text-white/75 mt-1">{subtitle}</p>}
     </div>
   );
 };

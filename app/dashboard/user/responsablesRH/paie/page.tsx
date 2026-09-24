@@ -1886,14 +1886,13 @@ function BreakdownBars({ rows, emptyLabel }: { rows: { label: string; montant: n
 function KpiCard({ title, value, sub, color, icon }: { title: string; value: string; sub: string; color: string; icon: React.ReactNode }) {
   const h = getStatCardHue(color);
   return (
-    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-xl border p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
+    <div className={`group relative overflow-hidden ${h.solid} rounded-xl border p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
       <div className="flex items-center gap-2 mb-2">
-        <span className={`p-2 rounded-lg transition-transform duration-300 ease-out group-hover:scale-110 ${color}`}>{icon}</span>
+        <span className={`p-2 rounded-lg transition-transform duration-300 ease-out group-hover:scale-110 bg-white/20 text-white [&_svg]:text-white`}>{icon}</span>
       </div>
-      <p className={`text-lg font-bold leading-tight transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
-      <p className={`text-xs font-medium mt-0.5 ${h.labelText}`}>{title}</p>
-      <p className="text-xs text-slate-400">{sub}</p>
+      <p className={`text-lg font-bold leading-tight transition-transform duration-300 group-hover:scale-105 origin-left text-white`}>{value}</p>
+      <p className={`text-xs font-medium mt-0.5 text-white/85`}>{title}</p>
+      <p className="text-xs text-white/70">{sub}</p>
     </div>
   );
 }

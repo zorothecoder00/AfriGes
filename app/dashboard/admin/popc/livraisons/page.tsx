@@ -99,16 +99,14 @@ export default function LivraisonsPage() {
             <RecapCard label="Carnets à vendre" reste={r.resteCarnets} objectif={r.objectifCarnets} deja={r.dejaCarnets} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="group relative overflow-hidden bg-gradient-to-br from-teal-50 to-white rounded-2xl p-4 border border-teal-100 shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-teal-200/60 hover:border-teal-300">
-              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-teal-500" />
-              <div className="flex items-center gap-1.5 text-teal-700/70 text-xs"><CalendarDays className="w-4 h-4" /> Crédits arrivant à échéance</div>
-              <div className="text-lg font-bold text-teal-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{fmt(r.seiziemesAttendus + r.trentiemesAttendus)}</div>
-              <p className="text-xs text-teal-700/60 mt-0.5">{r.seiziemesAttendus} × 16e · {r.trentiemesAttendus} × 31e</p>
+            <div className="group relative overflow-hidden bg-teal-700 border-teal-800 rounded-2xl p-4 border shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-teal-300/60">
+              <div className="flex items-center gap-1.5 text-white/85 text-xs"><CalendarDays className="w-4 h-4" /> Crédits arrivant à échéance</div>
+              <div className="text-lg font-bold text-white mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{fmt(r.seiziemesAttendus + r.trentiemesAttendus)}</div>
+              <p className="text-xs text-white/60 mt-0.5">{r.seiziemesAttendus} × 16e · {r.trentiemesAttendus} × 31e</p>
             </div>
-            <div className="group relative overflow-hidden bg-gradient-to-br from-indigo-50 to-white rounded-2xl p-4 border border-indigo-100 shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-200/60 hover:border-indigo-300">
-              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-500" />
-              <div className="flex items-center gap-1.5 text-indigo-500 text-xs"><TrendingUp className="w-4 h-4" /> Revenus attendus</div>
-              <div className="text-lg font-bold text-indigo-700 mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{fmt(r.revenusAttendus)} F</div>
+            <div className="group relative overflow-hidden bg-indigo-700 border-indigo-800 rounded-2xl p-4 border shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-300/60">
+              <div className="flex items-center gap-1.5 text-white text-xs"><TrendingUp className="w-4 h-4" /> Revenus attendus</div>
+              <div className="text-lg font-bold text-white mt-1 transition-transform duration-300 group-hover:scale-105 origin-left">{fmt(r.revenusAttendus)} F</div>
               <p className="text-xs text-indigo-400 mt-0.5">encaissé : {fmt(r.revenusEncaisses)} F</p>
             </div>
           </div>

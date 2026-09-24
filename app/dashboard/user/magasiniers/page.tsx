@@ -202,16 +202,15 @@ const StatCard = ({ label, value, icon: Icon, color, lightBg, sub }: {
 }) => {
   const h = getStatCardHue(color, lightBg);
   return (
-    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl p-4 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${h.bar}`} />
+    <div className={`group relative overflow-hidden ${h.solid} rounded-2xl p-4 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
       <div className="flex items-start justify-between mb-3">
-        <div className={`${lightBg} p-2.5 rounded-xl group-hover:scale-110 transition-transform duration-300 ease-out`}>
-          <Icon className={`${color} w-5 h-5`} />
+        <div className={`bg-white/20 text-white [&_svg]:text-white p-2.5 rounded-xl group-hover:scale-110 transition-transform duration-300 ease-out`}>
+          <Icon className="text-white w-5 h-5" />
         </div>
       </div>
-      <h3 className={`text-xs font-semibold mb-1 ${h.labelText}`}>{label}</h3>
-      <p className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
-      {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
+      <h3 className={`text-xs font-semibold mb-1 text-white/85`}>{label}</h3>
+      <p className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left text-white`}>{value}</p>
+      {sub && <p className="text-xs text-white/70 mt-1">{sub}</p>}
     </div>
   );
 };

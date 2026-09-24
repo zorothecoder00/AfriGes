@@ -100,14 +100,13 @@ function KpiCard({ label, value, sub, icon: Icon, color, bg, alerte }: {
 }) {
   const h = getStatCardHue(color, bg);
   return (
-    <div className={`group relative overflow-hidden bg-gradient-to-br ${h.wrap} to-white rounded-2xl p-4 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${alerte ? "bg-red-400" : h.bar}`} />
-      <div className={`${bg} p-2 rounded-xl inline-flex mb-2.5 group-hover:scale-110 transition-transform duration-300 ease-out`}>
-        <Icon className={`${color} w-4 h-4`} />
+    <div className={`group relative overflow-hidden ${alerte ? "bg-red-700 border-red-800" : h.solid} rounded-2xl p-4 shadow-sm border transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl`}>
+      <div className={`bg-white/20 text-white [&_svg]:text-white p-2 rounded-xl inline-flex mb-2.5 group-hover:scale-110 transition-transform duration-300 ease-out`}>
+        <Icon className="text-white w-4 h-4" />
       </div>
-      <p className={`text-xs font-semibold mb-1 ${h.labelText}`}>{label}</p>
-      <p className={`text-xl font-bold leading-tight ${h.text}`}>{value}</p>
-      {sub && <p className="text-[11px] text-slate-400 mt-1">{sub}</p>}
+      <p className={`text-xs font-semibold mb-1 text-white/85`}>{label}</p>
+      <p className={`text-xl font-bold leading-tight text-white`}>{value}</p>
+      {sub && <p className="text-[11px] text-white/70 mt-1">{sub}</p>}
     </div>
   );
 }

@@ -530,24 +530,24 @@ export default function AfriGesDashboard() {
                 </div>
                 <div className="grid grid-cols-2 @xs:grid-cols-3 @lg:grid-cols-5 gap-2 sm:gap-3">
                   {[
-                    { label: t('dash_versements'), help: t('dash_help_act_versements'), value: act?.activiteJour.versements ?? '—', icon: Wallet,      color: 'text-purple-600', bg: 'bg-purple-100', tile: 'from-purple-50 to-purple-100/70 border-purple-100 hover:shadow-purple-200/70' },
-                    { label: t('dash_souscription'), help: t('dash_help_act_souscription'), value: act?.activiteJour.souscriptions ?? '—', icon: Layers, color: 'text-blue-600', bg: 'bg-blue-100', tile: 'from-blue-50 to-blue-100/70 border-blue-100 hover:shadow-blue-200/70' },
-                    { label: t('dash_vente_directe'), help: t('dash_help_act_vente_directe'), value: act?.activiteJour.ventes ?? '—', icon: ShoppingCart, color: 'text-emerald-600', bg: 'bg-emerald-100', tile: 'from-emerald-50 to-emerald-100/70 border-emerald-100 hover:shadow-emerald-200/70' },
-                    { label: t('dash_remboursements'), help: t('dash_help_act_remboursements'), value: act?.activiteJour.remboursements ?? '—', icon: CreditCard, color: 'text-rose-600', bg: 'bg-rose-100', tile: 'from-rose-50 to-rose-100/70 border-rose-100 hover:shadow-rose-200/70' },
-                    { label: t('dash_mouvements_stock'), help: t('dash_help_act_mouvements_stock'), value: act?.activiteJour.mouvementsStock ?? '—', icon: Package, color: 'text-amber-600', bg: 'bg-amber-100', tile: 'from-amber-50 to-amber-100/70 border-amber-100 hover:shadow-amber-200/70' },
+                    { label: t('dash_versements'), help: t('dash_help_act_versements'), value: act?.activiteJour.versements ?? '—', icon: Wallet,      tile: 'bg-purple-700 border-purple-800 hover:shadow-purple-300/70' },
+                    { label: t('dash_souscription'), help: t('dash_help_act_souscription'), value: act?.activiteJour.souscriptions ?? '—', icon: Layers, tile: 'bg-blue-700 border-blue-800 hover:shadow-blue-300/70' },
+                    { label: t('dash_vente_directe'), help: t('dash_help_act_vente_directe'), value: act?.activiteJour.ventes ?? '—', icon: ShoppingCart, tile: 'bg-emerald-700 border-emerald-800 hover:shadow-emerald-300/70' },
+                    { label: t('dash_remboursements'), help: t('dash_help_act_remboursements'), value: act?.activiteJour.remboursements ?? '—', icon: CreditCard, tile: 'bg-rose-700 border-rose-800 hover:shadow-rose-300/70' },
+                    { label: t('dash_mouvements_stock'), help: t('dash_help_act_mouvements_stock'), value: act?.activiteJour.mouvementsStock ?? '—', icon: Package, tile: 'bg-amber-600 border-amber-700 hover:shadow-amber-300/70' },
                   ].map((item, idx) => {
                     const Icon = item.icon;
                     return (
                       <div key={item.label}
                         style={{ animationDelay: `${idx * 60}ms` }}
-                        className={`group min-w-0 flex flex-col items-center gap-1.5 p-2 sm:p-3 bg-gradient-to-br ${item.tile} border rounded-xl transition-all duration-300 hover:shadow-lg hover:-translate-y-1 animate-[fadeInUp_0.5s_ease-out_both]`}>
-                        <div className={`${item.bg} p-2 rounded-lg transition-transform duration-300 group-hover:scale-110`}>
-                          <Icon size={16} className={item.color} />
+                        className={`group min-w-0 flex flex-col items-center gap-1.5 p-2 sm:p-3 ${item.tile} border rounded-xl shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 animate-[fadeInUp_0.5s_ease-out_both]`}>
+                        <div className="bg-white/20 p-2 rounded-lg transition-transform duration-300 group-hover:scale-110">
+                          <Icon size={16} className="text-white" />
                         </div>
-                        <span className="text-xl sm:text-2xl font-bold text-slate-800 tabular-nums">
+                        <span className="text-xl sm:text-2xl font-bold text-white tabular-nums">
                           {typeof item.value === 'number' ? <AnimatedNumber value={item.value} /> : item.value}
                         </span>
-                        <span className="w-full text-[10px] text-slate-500 text-center leading-tight [overflow-wrap:anywhere]">{item.label}<InfoTooltip text={item.help} /></span>
+                        <span className="w-full text-[10px] text-white/85 text-center leading-tight [overflow-wrap:anywhere]">{item.label}<InfoTooltip text={item.help} /></span>
                       </div>
                     );
                   })}
@@ -660,40 +660,40 @@ export default function AfriGesDashboard() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:gap-3 [&>div]:min-w-0 [&_p]:[overflow-wrap:anywhere] [&_span]:leading-tight">
                   {/* Caisse */}
-                  <div className="p-3 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100/60 border border-purple-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-purple-200/60">
+                  <div className="p-3 rounded-xl bg-purple-700 border border-purple-800 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-purple-300/60">
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <Wallet size={13} className="text-purple-500" />
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_encaisse_jour')}</span>
+                      <Wallet size={13} className="text-white/90" />
+                      <span className="text-[10px] font-semibold text-white/80 uppercase tracking-wide">{t('dash_encaisse_jour')}</span>
                     </div>
-                    <p className="text-sm font-bold text-slate-800">{act ? formatCurrency(act.rapports.caisse.versementsMontant) : '—'}</p>
-                    <p className="text-[10px] text-slate-400">{act?.rapports.caisse.sessionsOuvertes ?? '—'} {t('admin_sessions_open')}</p>
+                    <p className="text-sm font-bold text-white">{act ? formatCurrency(act.rapports.caisse.versementsMontant) : '—'}</p>
+                    <p className="text-[10px] text-white/70">{act?.rapports.caisse.sessionsOuvertes ?? '—'} {t('admin_sessions_open')}</p>
                   </div>
                   {/* Stock */}
-                  <div className="p-3 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100/60 border border-amber-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-amber-200/60">
+                  <div className="p-3 rounded-xl bg-amber-600 border border-amber-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-amber-300/60">
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <Package size={13} className="text-amber-500" />
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_stock')}</span>
+                      <Package size={13} className="text-white/90" />
+                      <span className="text-[10px] font-semibold text-white/80 uppercase tracking-wide">{t('dash_stock')}</span>
                     </div>
-                    <p className="text-sm font-bold text-slate-800">{act?.rapports.stock.alertes ?? '—'} {t('admin_alerts_count')}</p>
-                    <p className="text-[10px] text-slate-400">{t('admin_low_stock')}</p>
+                    <p className="text-sm font-bold text-white">{act?.rapports.stock.alertes ?? '—'} {t('admin_alerts_count')}</p>
+                    <p className="text-[10px] text-white/70">{t('admin_low_stock')}</p>
                   </div>
                   {/* Ventes */}
-                  <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/60 border border-emerald-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-emerald-200/60">
+                  <div className="p-3 rounded-xl bg-emerald-700 border border-emerald-800 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-emerald-300/60">
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <ShoppingCart size={13} className="text-emerald-500" />
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_ventes')}</span>
+                      <ShoppingCart size={13} className="text-white/90" />
+                      <span className="text-[10px] font-semibold text-white/80 uppercase tracking-wide">{t('dash_ventes')}</span>
                     </div>
-                    <p className="text-sm font-bold text-slate-800">{act ? formatCurrency(act.rapports.ventes.montant) : '—'}</p>
-                    <p className="text-[10px] text-slate-400">{act?.rapports.ventes.count ?? '—'} {t('admin_direct_sales')}</p>
+                    <p className="text-sm font-bold text-white">{act ? formatCurrency(act.rapports.ventes.montant) : '—'}</p>
+                    <p className="text-[10px] text-white/70">{act?.rapports.ventes.count ?? '—'} {t('admin_direct_sales')}</p>
                   </div>
                   {/* Approvisionnement */}
-                  <div className="p-3 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/60 border border-blue-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-blue-200/60">
+                  <div className="p-3 rounded-xl bg-blue-700 border border-blue-800 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-blue-300/60">
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <Truck size={13} className="text-blue-500" />
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('dash_appro')}</span>
+                      <Truck size={13} className="text-white/90" />
+                      <span className="text-[10px] font-semibold text-white/80 uppercase tracking-wide">{t('dash_appro')}</span>
                     </div>
-                    <p className="text-sm font-bold text-slate-800">{act?.rapports.approvisionnement.enAttente ?? '—'} {t('admin_pending_supply')}</p>
-                    <p className="text-[10px] text-slate-400">{t('dash_receptions_valider')}</p>
+                    <p className="text-sm font-bold text-white">{act?.rapports.approvisionnement.enAttente ?? '—'} {t('admin_pending_supply')}</p>
+                    <p className="text-[10px] text-white/70">{t('dash_receptions_valider')}</p>
                   </div>
                 </div>
               </div>
@@ -925,57 +925,44 @@ export default function AfriGesDashboard() {
                   help: t('dash_help_clients_debiteurs'),
                   value: dec?.clientsDebiteurs ?? '—',
                   icon: Users,
-                  color: 'text-orange-600',
-                  bg: 'bg-orange-100',
-                  border: 'border-orange-200',
-                  grad: 'from-orange-50 via-white to-orange-100/50 hover:shadow-orange-200/60',
-                  bar: 'bg-orange-500',
+                  border: 'border-orange-800',
+                  grad: 'bg-orange-700 hover:shadow-orange-300/60',
                 },
                 {
                   label: t('dash_creances_totales'),
                   help: t('dash_help_creances_totales'),
                   value: dec ? formatCurrency(dec.creancesTotales) : '—',
                   icon: CreditCard,
-                  color: 'text-red-600',
-                  bg: 'bg-red-100',
-                  border: 'border-red-200',
-                  grad: 'from-red-50 via-white to-red-100/50 hover:shadow-red-200/60',
-                  bar: 'bg-red-500',
+                  border: 'border-red-800',
+                  grad: 'bg-red-700 hover:shadow-red-300/60',
                 },
                 {
                   label: t('dash_retards_critiques'),
                   help: t('dash_help_retards_critiques'),
                   value: dec?.retardsCritiques ?? '—',
                   icon: AlertTriangle,
-                  color: 'text-amber-600',
-                  bg: 'bg-amber-100',
-                  border: 'border-amber-200',
-                  grad: 'from-amber-50 via-white to-amber-100/50 hover:shadow-amber-200/60',
-                  bar: 'bg-amber-500',
+                  border: 'border-amber-700',
+                  grad: 'bg-amber-600 hover:shadow-amber-300/60',
                 },
                 {
                   label: t('dash_collecte_jour'),
                   help: t('dash_help_collecte_jour'),
                   value: dec ? formatCurrency(dec.montantCollecteJour) : '—',
                   icon: Wallet,
-                  color: 'text-emerald-600',
-                  bg: 'bg-emerald-100',
-                  border: 'border-emerald-200',
-                  grad: 'from-emerald-50 via-white to-emerald-100/50 hover:shadow-emerald-200/60',
-                  bar: 'bg-emerald-500',
+                  border: 'border-emerald-800',
+                  grad: 'bg-emerald-700 hover:shadow-emerald-300/60',
                 },
               ].map((kpi) => {
                 const Icon = kpi.icon;
                 return (
-                  <div key={kpi.label} className={`relative overflow-hidden min-w-0 bg-gradient-to-br ${kpi.grad} rounded-2xl p-4 sm:p-5 shadow-sm border ${kpi.border} transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}>
-                    <span aria-hidden className={`absolute left-0 top-0 bottom-0 w-1.5 ${kpi.bar}`} />
+                  <div key={kpi.label} className={`relative overflow-hidden min-w-0 ${kpi.grad} rounded-2xl p-4 sm:p-5 shadow-sm border ${kpi.border} transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}>
                     <div className="flex items-start justify-between mb-3">
-                      <div className={`${kpi.bg} p-2.5 rounded-xl`}>
-                        <Icon size={18} className={kpi.color} />
+                      <div className="bg-white/20 p-2.5 rounded-xl">
+                        <Icon size={18} className="text-white" />
                       </div>
                     </div>
-                    <p className="text-lg sm:text-2xl font-bold text-slate-800 mb-0.5 leading-tight [overflow-wrap:anywhere]">{kpi.value}</p>
-                    <p className="text-xs font-semibold text-slate-600">{kpi.label}<InfoTooltip text={kpi.help} /></p>
+                    <p className="text-lg sm:text-2xl font-bold text-white mb-0.5 leading-tight [overflow-wrap:anywhere]">{kpi.value}</p>
+                    <p className="text-xs font-semibold text-white/85">{kpi.label}<InfoTooltip text={kpi.help} /></p>
                   </div>
                 );
               })}
@@ -1095,55 +1082,45 @@ export default function AfriGesDashboard() {
                     help: t('dash_help_encours_global'),
                     value: dec ? formatCurrency(dec.encoursGlobal) : '—',
                     icon: CreditCard,
-                    color: 'text-blue-600',
-                    bg: 'bg-blue-100',
-                    tile: 'from-blue-50 to-blue-100/60 border-blue-100 hover:shadow-blue-200/60',
+                    tile: 'bg-blue-700 border-blue-800 hover:shadow-blue-300/60',
                   },
                   {
                     label: t('dash_cash_attendu'),
                     help: t('dash_help_cash_attendu'),
                     value: dec ? formatCurrency(dec.cashAttendu) : '—',
                     icon: Clock,
-                    color: 'text-indigo-600',
-                    bg: 'bg-indigo-100',
-                    tile: 'from-indigo-50 to-indigo-100/60 border-indigo-100 hover:shadow-indigo-200/60',
+                    tile: 'bg-indigo-700 border-indigo-800 hover:shadow-indigo-300/60',
                   },
                   {
                     label: t('dash_cash_collecte'),
                     help: t('dash_help_cash_collecte'),
                     value: dec ? formatCurrency(dec.cashCollecte) : '—',
                     icon: CheckCircle,
-                    color: 'text-emerald-600',
-                    bg: 'bg-emerald-100',
-                    tile: 'from-emerald-50 to-emerald-100/60 border-emerald-100 hover:shadow-emerald-200/60',
+                    tile: 'bg-emerald-700 border-emerald-800 hover:shadow-emerald-300/60',
                   },
                   {
                     label: t('dash_pertes_potentielles'),
                     help: t('dash_help_pertes_potentielles'),
                     value: dec ? formatCurrency(dec.pertesPoentielles) : '—',
                     icon: TrendingDown,
-                    color: 'text-red-600',
-                    bg: 'bg-red-100',
-                    tile: 'from-red-50 to-red-100/60 border-red-100 hover:shadow-red-200/60',
+                    tile: 'bg-red-700 border-red-800 hover:shadow-red-300/60',
                   },
                   {
                     label: t('dash_creances_a_risque'),
                     help: t('dash_help_creances_a_risque'),
                     value: dec?.creancesARisque ?? '—',
                     icon: AlertTriangle,
-                    color: 'text-amber-600',
-                    bg: 'bg-amber-100',
-                    tile: 'from-amber-50 to-amber-100/60 border-amber-100 hover:shadow-amber-200/60',
+                    tile: 'bg-amber-600 border-amber-700 hover:shadow-amber-300/60',
                   },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className={`min-w-0 p-3 sm:p-4 bg-gradient-to-br ${item.tile} border rounded-xl transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg`}>
-                      <div className={`${item.bg} p-2 rounded-lg w-fit mb-3`}>
-                        <Icon size={15} className={item.color} />
+                    <div key={item.label} className={`min-w-0 p-3 sm:p-4 ${item.tile} border rounded-xl shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg`}>
+                      <div className="bg-white/20 p-2 rounded-lg w-fit mb-3">
+                        <Icon size={15} className="text-white" />
                       </div>
-                      <p className="text-base sm:text-xl font-bold text-slate-800 leading-tight [overflow-wrap:anywhere]">{item.value}</p>
-                      <p className="text-xs font-semibold text-slate-600 mt-0.5">{item.label}<InfoTooltip text={item.help} /></p>
+                      <p className="text-base sm:text-xl font-bold text-white leading-tight [overflow-wrap:anywhere]">{item.value}</p>
+                      <p className="text-xs font-semibold text-white/85 mt-0.5">{item.label}<InfoTooltip text={item.help} /></p>
                     </div>
                   );
                 })}

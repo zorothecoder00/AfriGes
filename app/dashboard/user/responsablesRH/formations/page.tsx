@@ -806,22 +806,22 @@ function NewPlanFormationModal({ onClose, onCreated }: { onClose: () => void; on
 function KpiCard({ icon, label, value, sub, color, pct }: { icon: React.ReactNode; label: string; value: string; sub: string; color: string; pct?: number }) {
   const h = getStatCardHue(color);
   return (
-    <div className={`group rounded-xl border p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${color}`}>
+    <div className={`group rounded-xl border p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl ${h.solid}`}>
       <div className="flex items-center justify-between mb-2">
-        <div className="p-1.5 bg-white rounded-lg shadow-sm transition-transform duration-300 ease-out group-hover:scale-110">{icon}</div>
+        <div className="p-1.5 bg-white/20 text-white [&_svg]:text-white rounded-lg transition-transform duration-300 ease-out group-hover:scale-110">{icon}</div>
         {pct !== undefined && (
-          <span className={`text-xs font-bold ${pct >= 70 ? "text-emerald-700" : pct >= 50 ? "text-amber-700" : "text-red-600"}`}>{pct}%</span>
+          <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md bg-white/90 ${pct >= 70 ? "text-emerald-700" : pct >= 50 ? "text-amber-700" : "text-red-600"}`}>{pct}%</span>
         )}
       </div>
-      <p className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left ${h.text}`}>{value}</p>
-      <p className="text-xs text-slate-500 mt-0.5">{sub}</p>
+      <p className={`text-2xl font-bold transition-transform duration-300 group-hover:scale-105 origin-left text-white`}>{value}</p>
+      <p className="text-xs text-white/75 mt-0.5">{sub}</p>
       {pct !== undefined && (
-        <div className="mt-2 h-1.5 bg-white/60 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full ${pct >= 70 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-red-400"}`}
+        <div className="mt-2 h-1.5 bg-white/25 rounded-full overflow-hidden">
+          <div className={`h-full rounded-full ${pct >= 70 ? "bg-emerald-300" : pct >= 50 ? "bg-amber-300" : "bg-red-300"}`}
             style={{ width: `${pct}%` }} />
         </div>
       )}
-      <p className="text-xs font-medium text-slate-700 mt-1">{label}</p>
+      <p className="text-xs font-medium text-white mt-1">{label}</p>
     </div>
   );
 }
