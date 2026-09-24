@@ -7,6 +7,7 @@ import { getComptableSession } from "@/lib/authComptable";
 import { getRPVSession } from "@/lib/authRPV";
 import { auditLog, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
+import { signatureTracee } from "@/lib/signature";
 
 /**
  * Bordereau de Remise de Fonds (CDC digitalisation §3.1) — remise d'espèces
@@ -32,12 +33,6 @@ const INCLUDE = {
 function texteLibre(v: unknown, max = 120): string | null {
   const t = typeof v === "string" ? v.trim() : "";
   return t ? t.slice(0, max) : null;
-}
-
-/** Signature tracée : PNG en data URL, taille bornée (≈ 300 Ko) ; null si absente ou invalide. */
-function signatureTracee(v: unknown): string | null {
-  if (typeof v !== "string" || !v.startsWith("data:image/png;base64,")) return null;
-  return v.length <= 400_000 ? v : null;
 }
 
 async function getSession() {
@@ -283,4 +278,4 @@ export async function POST(req: Request) {
 }
 
 // Exporté pour les sous-routes ([id], [id]/pdf) — évite de redéfinir la même logique.
-export { getSession, INCLUDE, signatureTracee, estRpvDuPdv };
+export { getSession, INCLUDE, estRpvDuPdv };

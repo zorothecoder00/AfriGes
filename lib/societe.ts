@@ -28,3 +28,19 @@ export const SOCIETE_SIEGE = `Siège : ${SOCIETE.adresse} | Tél : ${SOCIETE.tel
 
 /** Pied de document standard (sans la date) : « AFRISIME — baseline · RCCM … | NIF … ». */
 export const SOCIETE_PIED = `${SOCIETE.nom} — ${SOCIETE.baseline} · ${SOCIETE_LEGAL}`;
+
+/**
+ * Coordonnées imprimées sur les formulaires papier AfriSime reproduits à l'identique
+ * (fiche de décaissement) — libellés exigés tels quels par la Direction, distincts des
+ * coordonnées officielles de SOCIETE ci-dessus.
+ */
+export const SOCIETE_FORMULAIRES = {
+  raisonSociale: "AFRISIME SARL",
+  adresse:       "Lomé – Adidogomé",
+  telephone:     "+228 93245764/98404545/90880604",
+  email:         "afrisimea@gmail.com",
+} as const;
+
+/** Mentions légales imprimées en pied des formulaires papier (reprises telles quelles). */
+export const MENTIONS_LEGALES_FORMULAIRES =
+  "Cette facture pro-forma n'a pas valeur de facture définitive. Les prix indiqués sont sujets à modification en fonction des conditions du marché ou des volumes commandés.";

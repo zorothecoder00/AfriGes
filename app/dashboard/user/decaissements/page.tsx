@@ -9,6 +9,7 @@ import FicheDecaissementModal from "@/components/FicheDecaissementModal";
 import PiecesDecaissement from "@/components/PiecesDecaissement";
 import { toast } from "sonner";
 import { Wallet2, Plus, X, RefreshCw, FileText, CheckCircle, XCircle, Banknote } from "lucide-react";
+import SignaturePad from "@/components/SignaturePad";
 
 
 interface PersonRef { id: number; nom: string; prenom: string }
@@ -135,6 +136,10 @@ function DetailModal({ id, onClose, onUpdated, isComptableOuAdmin, role, gRole }
   const [modePaiement, setModePaiement] = useState("ESPECES");
   const [referencePaiement, setReferencePaiement] = useState("");
   const [beneficiaireConfirmationNom, setBeneficiaireConfirmationNom] = useState("");
+  const [beneficiaireConfirmationPiece, setBeneficiaireConfirmationPiece] = useState("");
+  const [signatureVisa, setSignatureVisa] = useState<string | null>(null);
+  const [signatureExecutant, setSignatureExecutant] = useState<string | null>(null);
+  const [signatureBeneficiaire, setSignatureBeneficiaire] = useState<string | null>(null);
   const f = data?.data;
   const seuilN2 = data?.seuilN2 ?? Infinity;
   const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
@@ -154,7 +159,11 @@ function DetailModal({ id, onClose, onUpdated, isComptableOuAdmin, role, gRole }
 
   const executer = () => {
     if (!referencePaiement.trim() || !beneficiaireConfirmationNom.trim()) { toast.error("Référence de paiement et confirmation du bénéficiaire requises"); return; }
-    doAction("EXECUTER", { modePaiement, referencePaiement, beneficiaireConfirmationNom });
+    doAction("EXECUTER", {
+      modePaiement, referencePaiement, beneficiaireConfirmationNom,
+      beneficiaireConfirmationPiece: beneficiaireConfirmationPiece || undefined,
+      signatureExecutant: signatureExecutant ?? undefined, signatureBeneficiaire: signatureBeneficiaire ?? undefined,
+    });
   };
 
   return (
@@ -189,6 +198,7 @@ function DetailModal({ id, onClose, onUpdated, isComptableOuAdmin, role, gRole }
 
         {f && isComptableOuAdmin && attenteN1 && (
           <div className="px-6 py-4 border-t border-slate-200 space-y-2">
+            {!showRejet && <SignaturePad label="Votre signature — visa N1 (facultative)" onChange={setSignatureVisa} hauteur={100} />}
             {showRejet && <input value={motifRejet} onChange={(e) => setMotifRejet(e.target.value)} placeholder="Motif de rejet" className={inputCls} />}
             <div className="flex justify-end gap-2">
               {showRejet ? (
@@ -196,14 +206,17 @@ function DetailModal({ id, onClose, onUpdated, isComptableOuAdmin, role, gRole }
               ) : (
                 <button onClick={() => setShowRejet(true)} className="flex items-center gap-1.5 px-4 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50"><XCircle className="w-4 h-4" /> Rejeter</button>
               )}
-              <button onClick={() => doAction("APPROUVER_N1")} disabled={busy} className="flex items-center gap-1.5 px-4 py-2 text-sm text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50"><CheckCircle className="w-4 h-4" /> Approuver (N1)</button>
+              <button onClick={() => doAction("APPROUVER_N1", { signatureN1: signatureVisa ?? undefined })} disabled={busy} className="flex items-center gap-1.5 px-4 py-2 text-sm text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50"><CheckCircle className="w-4 h-4" /> Approuver (N1)</button>
             </div>
           </div>
         )}
 
         {f && isAdmin && attenteN2 && (
-          <div className="px-6 py-4 border-t border-slate-200 flex justify-end">
-            <button onClick={() => doAction("APPROUVER_N2")} disabled={busy} className="flex items-center gap-1.5 px-4 py-2 text-sm text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50"><CheckCircle className="w-4 h-4" /> Approuver (Direction — N2)</button>
+          <div className="px-6 py-4 border-t border-slate-200 space-y-2">
+            <SignaturePad label="Votre signature — visa Direction (facultative)" onChange={setSignatureVisa} hauteur={100} />
+            <div className="flex justify-end">
+            <button onClick={() => doAction("APPROUVER_N2", { signatureN2: signatureVisa ?? undefined })} disabled={busy} className="flex items-center gap-1.5 px-4 py-2 text-sm text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50"><CheckCircle className="w-4 h-4" /> Approuver (Direction — N2)</button>
+            </div>
           </div>
         )}
 
@@ -215,6 +228,9 @@ function DetailModal({ id, onClose, onUpdated, isComptableOuAdmin, role, gRole }
             </select>
             <input placeholder="Référence de paiement" value={referencePaiement} onChange={(e) => setReferencePaiement(e.target.value)} className={inputCls} />
             <input placeholder="Nom du bénéficiaire (confirmation de réception)" value={beneficiaireConfirmationNom} onChange={(e) => setBeneficiaireConfirmationNom(e.target.value)} className={inputCls} />
+            <input placeholder="Pièce d'identité du bénéficiaire (type & N°)" value={beneficiaireConfirmationPiece} onChange={(e) => setBeneficiaireConfirmationPiece(e.target.value)} className={inputCls} />
+            <SignaturePad label="Signature du bénéficiaire (recommandée)" onChange={setSignatureBeneficiaire} hauteur={100} />
+            <SignaturePad label="Votre signature — caissier / comptable (facultative)" onChange={setSignatureExecutant} hauteur={100} />
             <button onClick={executer} disabled={busy} className="w-full flex items-center justify-center gap-1.5 px-4 py-2 text-sm text-white bg-violet-600 rounded-lg hover:bg-violet-700 disabled:opacity-50"><Banknote className="w-4 h-4" /> Exécuter le paiement</button>
           </div>
         )}

@@ -9,6 +9,7 @@ import { getRequestMeta } from "@/lib/requestMeta";
 import { getSeuilApprobationN2Decaissement } from "@/lib/parametresDocuments";
 import { ecritureDecaissement, ecripturePaiementFournisseur, assurerEcritureOperationCaisse } from "@/lib/comptabilite/moteur";
 import { INCLUDE } from "../route";
+import { signatureTracee } from "@/lib/signature";
 
 /** Catégorie de sortie de caisse correspondant au type de dépense de la fiche. */
 const CATEGORIE_CAISSE: Record<string, "SALAIRE" | "AVANCE" | "FOURNISSEUR" | "CARBURANT" | "AUTRE"> = {
@@ -128,6 +129,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           where: { id: ficheId },
           data: {
             approbateurN1Id: userId, dateApprobationN1: new Date(),
+            signatureN1: signatureTracee(body.signatureN1),
             montantApprouve, motifEcartMontant,
             statut: besoinN2 ? "SOUMISE" : "APPROUVEE",
           },
@@ -191,7 +193,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const updated = await prisma.$transaction(async (tx) => {
         const f = await tx.ficheDecaissement.update({
           where: { id: ficheId },
-          data: { approbateurN2Id: userId, dateApprobationN2: new Date(), montantApprouve, motifEcartMontant, statut: "APPROUVEE" },
+          data: { approbateurN2Id: userId, dateApprobationN2: new Date(), signatureN2: signatureTracee(body.signatureN2), montantApprouve, motifEcartMontant, statut: "APPROUVEE" },
           include: INCLUDE,
         });
         await auditLog(tx, userId, "FD_APPROUVEE_N2", "FicheDecaissement", ficheId, undefined, getRequestMeta(req));
@@ -309,6 +311,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
             modePaiement, referencePaiement,
             beneficiaireConfirmationNom, beneficiaireConfirmationPiece: body.beneficiaireConfirmationPiece || null,
             dateConfirmationBeneficiaire: new Date(),
+            signatureExecutant: signatureTracee(body.signatureExecutant),
+            signatureBeneficiaire: signatureTracee(body.signatureBeneficiaire),
             ecritureId,
           },
           include: INCLUDE,

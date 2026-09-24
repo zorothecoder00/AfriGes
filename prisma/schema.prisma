@@ -4054,6 +4054,19 @@ model FicheDecaissement {
   motifRejet String?
   ecritureId Int? // écriture comptable générée à l'exécution (best-effort, brouillon)
 
+  // ── Champs du formulaire papier AfriSime (lib/decaissementHtml.ts) ──
+  serviceDepartement String?
+  typeDepenseAutre   String? // précision « Autres : … » (type AUTRES)
+
+  // Signatures tracées (PNG en data URL). La validation horodatée de chaque acteur vaut
+  // signature électronique ; le tracé est imprimé sur la fiche — obligatoire pour le
+  // demandeur, facultatif pour les visas et l'exécution, recommandé pour le bénéficiaire.
+  signatureDemandeur    String? @db.Text
+  signatureN1           String? @db.Text
+  signatureN2           String? @db.Text
+  signatureExecutant    String? @db.Text
+  signatureBeneficiaire String? @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

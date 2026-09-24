@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import { X, Loader2, Plus, Search, Printer, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import SortieCaissePicker from "@/components/SortieCaissePicker";
+import SignaturePad from "@/components/SignaturePad";
+import { PIECES_FORMULAIRE } from "@/lib/decaissementHtml";
 
 /**
  * Création d'une fiche de décaissement (CDC §3.6).
@@ -70,7 +72,18 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
   const [fournisseurQuery, setFournisseurQuery] = useState("");
   const [fournisseurOptions, setFournisseurOptions] = useState<FournisseurOption[]>([]);
   const [fournisseur, setFournisseur] = useState<FournisseurOption | null>(null);
-  const [piecesJustificatives, setPiecesJustificatives] = useState("");
+  // Formulaire papier : service/département, précision « Autres », pièces à cocher, signatures.
+  const [serviceDepartement, setServiceDepartement] = useState("");
+  const [typeDepenseAutre, setTypeDepenseAutre] = useState("");
+  const [piecesCochees, setPiecesCochees] = useState<string[]>([]);
+  const [autresDocuments, setAutresDocuments] = useState("");
+  const [signatureDemandeur, setSignatureDemandeur] = useState<string | null>(null);
+  const [reception, setReception] = useState({ nom: "", piece: "" });
+  const [signatureBeneficiaire, setSignatureBeneficiaire] = useState<string | null>(null);
+  const { data: aff } = useApi<{ pdv: { nom: string } | null }>("/api/me/affectation");
+  useEffect(() => {
+    if (aff?.pdv?.nom) setServiceDepartement((s) => s || aff.pdv!.nom);
+  }, [aff]);
   const [submitting, setSubmitting] = useState(false);
   const [creee, setCreee] = useState<{ id: number; reference: string } | null>(null);
   // Justificatifs manquants d'une fiche payée précédente : bloque une NOUVELLE demande (pas la justification d'une sortie de caisse)
@@ -95,8 +108,9 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
       if (motif.trim().length < 10) { toast.error("Motif : 10 caractères minimum"); return; }
     }
     if (!beneficiaireNom.trim()) { toast.error("Bénéficiaire obligatoire"); return; }
-    const pieces = piecesJustificatives.split(",").map((s) => s.trim()).filter(Boolean);
+    const pieces = [...piecesCochees, ...autresDocuments.split(",").map((s) => s.trim()).filter(Boolean)];
     if (requiertPieces && pieces.length === 0) { toast.error("Au moins une pièce justificative est requise pour ce type de dépense"); return; }
+    if (!signatureDemandeur) { toast.error("Signature du demandeur obligatoire"); return; }
     setSubmitting(true);
     try {
       const res = await fetch("/api/decaissements", {
@@ -108,6 +122,12 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
           motif: motif.trim() || undefined,
           beneficiaireNom, beneficiaireContact: beneficiaireContact || undefined, typeDepense,
           fournisseurId: fournisseur?.id, piecesJustificatives: pieces,
+          serviceDepartement: serviceDepartement.trim() || undefined,
+          typeDepenseAutre: typeDepense === "AUTRES" ? typeDepenseAutre.trim() || undefined : undefined,
+          signatureDemandeur,
+          ...(modeJustificatif && reception.nom.trim()
+            ? { beneficiaireConfirmationNom: reception.nom.trim(), beneficiaireConfirmationPiece: reception.piece.trim() || undefined, signatureBeneficiaire: signatureBeneficiaire ?? undefined }
+            : {}),
         }),
       });
       const j = await res.json();
@@ -221,6 +241,10 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
                 </>
               )}
               <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Service / Département</label>
+                <input value={serviceDepartement} onChange={(e) => setServiceDepartement(e.target.value)} className={inputCls} />
+              </div>
+              <div>
                 <label className="text-xs font-medium text-slate-500 mb-1 block">
                   Bénéficiaire * {membre && <span className="text-emerald-600 font-normal">(membre désigné à la sortie de caisse)</span>}
                 </label>
@@ -237,6 +261,9 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
                 <select value={typeDepense} onChange={(e) => setTypeDepense(e.target.value)} className={inputCls}>
                   {Object.entries(TYPE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                 </select>
+                {typeDepense === "AUTRES" && (
+                  <input value={typeDepenseAutre} onChange={(e) => setTypeDepenseAutre(e.target.value)} className={inputCls + " mt-1"} placeholder="Précisez (Autres : …)" />
+                )}
               </div>
               {(typeDepense === "PAIEMENT_FOURNISSEUR" || typeDepense === "ACHAT_MARCHANDISES") && (
                 <div>
@@ -261,10 +288,31 @@ export default function FicheDecaissementModal({ operationInitiale, onClose, onD
                 </div>
               )}
               <div>
-                <label className="text-xs font-medium text-slate-500 mb-1 block">
-                  Pièces justificatives {requiertPieces && "*"} <span className="text-slate-400 font-normal">(séparées par des virgules)</span>
-                </label>
-                <input value={piecesJustificatives} onChange={(e) => setPiecesJustificatives(e.target.value)} className={inputCls} placeholder="Facture, Bon de commande…" />
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Pièces justificatives {requiertPieces && "*"}</label>
+                <div className="grid grid-cols-2 gap-1.5 text-sm text-slate-700">
+                  {PIECES_FORMULAIRE.map((p) => (
+                    <label key={p} className="flex items-center gap-2">
+                      <input type="checkbox" checked={piecesCochees.includes(p)}
+                        onChange={(e) => setPiecesCochees((prev) => e.target.checked ? [...prev, p] : prev.filter((x) => x !== p))} />
+                      {p}
+                    </label>
+                  ))}
+                </div>
+                <input value={autresDocuments} onChange={(e) => setAutresDocuments(e.target.value)} className={inputCls + " mt-1.5"} placeholder="Autres documents (séparés par des virgules)" />
+              </div>
+              {modeJustificatif && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase">Réception par le bénéficiaire <span className="normal-case font-normal">(s&apos;il est présent)</span></p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input value={reception.nom} onChange={(e) => setReception({ ...reception, nom: e.target.value })} className={inputCls} placeholder="Nom du bénéficiaire" />
+                    <input value={reception.piece} onChange={(e) => setReception({ ...reception, piece: e.target.value })} className={inputCls} placeholder="Pièce d'identité (type & N°)" />
+                  </div>
+                  {reception.nom.trim() && <SignaturePad label="Signature du bénéficiaire" onChange={setSignatureBeneficiaire} hauteur={110} />}
+                </div>
+              )}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <SignaturePad label="Signature du demandeur *" onChange={setSignatureDemandeur} hauteur={120} />
+                <p className="text-[11px] text-slate-400 mt-1">La création vaut signature électronique (nom, date et heure enregistrés). Les approbateurs et le caissier signent lors de leur validation.</p>
               </div>
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100 shrink-0">

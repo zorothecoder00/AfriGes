@@ -11,6 +11,8 @@ import Card from "@/components/ui/Card";
 import Pagination from "@/components/ui/Pagination";
 import FicheDecaissementModal, { type OperationCaisseDispo } from "@/components/FicheDecaissementModal";
 import { formatCurrency, formatDateTime } from "@/lib/format";
+import SignaturePad from "@/components/SignaturePad";
+import ConfirmerSignatureModal from "@/components/ConfirmerSignatureModal";
 
 /** Fiche de décaissement (CDC digitalisation §3.6) — page admin native. */
 
@@ -45,6 +47,7 @@ export default function AdminDecaissementsPage() {
   const [rejetFiche, setRejetFiche] = useState<Fiche | null>(null);
   const [motifRejet, setMotifRejet] = useState("");
   const [executerFiche, setExecuterFiche] = useState<Fiche | null>(null);
+  const [visa, setVisa] = useState<{ fiche: Fiche; niveau: "N1" | "N2" } | null>(null);
 
   const params = new URLSearchParams();
   if (statut) params.set("statut", statut);
@@ -60,14 +63,15 @@ export default function AdminDecaissementsPage() {
   const sortiesSansFiche = opsData?.data ?? [];
   const totalSorties = opsData?.meta?.total ?? 0;
 
-  async function action(id: number, body: Record<string, unknown>, successMsg: string) {
+  async function action(id: number, body: Record<string, unknown>, successMsg: string): Promise<boolean> {
     try {
       const res = await fetch(`/api/decaissements/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const j = await res.json();
-      if (!res.ok) { toast.error(j.error || "Erreur"); return; }
+      if (!res.ok) { toast.error(j.error || "Erreur"); return false; }
       toast.success(successMsg);
       refetch();
-    } catch { toast.error("Erreur réseau"); }
+      return true;
+    } catch { toast.error("Erreur réseau"); return false; }
   }
 
   async function rejeter() {
@@ -178,12 +182,12 @@ export default function AdminDecaissementsPage() {
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {enAttenteN1 && (
                     <>
-                      <button onClick={() => action(f.id, { action: "APPROUVER_N1" }, "Approuvée (N1)")} className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-200"><Stamp size={13} /> Approuver N1</button>
+                      <button onClick={() => setVisa({ fiche: f, niveau: "N1" })} className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-200"><Stamp size={13} /> Approuver N1</button>
                       <button onClick={() => { setRejetFiche(f); setMotifRejet(""); }} className="flex items-center gap-1 px-2.5 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100"><XCircle size={13} /> Rejeter</button>
                     </>
                   )}
                   {f.statut === "SOUMISE" && !enAttenteN1 && (
-                    <button onClick={() => action(f.id, { action: "APPROUVER_N2" }, "Approuvée (N2 — Direction)")} className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-200"><Stamp size={13} /> Approuver N2</button>
+                    <button onClick={() => setVisa({ fiche: f, niveau: "N2" })} className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-200"><Stamp size={13} /> Approuver N2</button>
                   )}
                   {f.statut === "APPROUVEE" && !f.operationCaisse && !f.operationCaissePDV && (
                     <button onClick={() => setExecuterFiche(f)} className="flex items-center gap-1 px-2.5 py-1.5 bg-teal-100 text-teal-700 rounded-lg text-xs font-medium hover:bg-teal-200"><Wallet size={13} /> Exécuter</button>
@@ -218,6 +222,20 @@ export default function AdminDecaissementsPage() {
           </div>
         </div>
       )}
+      {visa && (
+        <ConfirmerSignatureModal
+          titre={`${visa.niveau === "N1" ? "Visa N1 — Responsable hiérarchique" : "Visa N2 — Directeur Général / Finance"} · ${visa.fiche.reference}`}
+          libelleBouton={visa.niveau === "N1" ? "Approuver (N1)" : "Approuver (N2)"}
+          onConfirm={(signature) => action(
+            visa.fiche.id,
+            visa.niveau === "N1"
+              ? { action: "APPROUVER_N1", signatureN1: signature ?? undefined }
+              : { action: "APPROUVER_N2", signatureN2: signature ?? undefined },
+            visa.niveau === "N1" ? "Approuvée (N1)" : "Approuvée (N2 — Direction)",
+          )}
+          onClose={() => setVisa(null)}
+        />
+      )}
       {executerFiche && (
         <FormExecuter fiche={executerFiche} onClose={() => setExecuterFiche(null)} onDone={() => { setExecuterFiche(null); refetch(); }} />
       )}
@@ -229,6 +247,9 @@ function FormExecuter({ fiche, onClose, onDone }: { fiche: Fiche; onClose: () =>
   const [modePaiement, setModePaiement] = useState("ESPECES");
   const [referencePaiement, setReferencePaiement] = useState("");
   const [beneficiaireConfirmationNom, setBeneficiaireConfirmationNom] = useState("");
+  const [beneficiaireConfirmationPiece, setBeneficiaireConfirmationPiece] = useState("");
+  const [signatureExecutant, setSignatureExecutant] = useState<string | null>(null);
+  const [signatureBeneficiaire, setSignatureBeneficiaire] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function submit() {
@@ -238,7 +259,11 @@ function FormExecuter({ fiche, onClose, onDone }: { fiche: Fiche; onClose: () =>
     try {
       const res = await fetch(`/api/decaissements/${fiche.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "EXECUTER", modePaiement, referencePaiement, beneficiaireConfirmationNom }),
+        body: JSON.stringify({
+          action: "EXECUTER", modePaiement, referencePaiement, beneficiaireConfirmationNom,
+          beneficiaireConfirmationPiece: beneficiaireConfirmationPiece || undefined,
+          signatureExecutant: signatureExecutant ?? undefined, signatureBeneficiaire: signatureBeneficiaire ?? undefined,
+        }),
       });
       const j = await res.json();
       if (!res.ok) { toast.error(j.error || "Erreur"); return; }
@@ -264,6 +289,9 @@ function FormExecuter({ fiche, onClose, onDone }: { fiche: Fiche; onClose: () =>
           </select>
           <input value={referencePaiement} onChange={(e) => setReferencePaiement(e.target.value)} className={inputCls} placeholder="Référence de paiement *" />
           <input value={beneficiaireConfirmationNom} onChange={(e) => setBeneficiaireConfirmationNom(e.target.value)} className={inputCls} placeholder="Nom du bénéficiaire confirmant réception *" />
+          <input value={beneficiaireConfirmationPiece} onChange={(e) => setBeneficiaireConfirmationPiece(e.target.value)} className={inputCls} placeholder="Pièce d'identité du bénéficiaire (type & N°)" />
+          <SignaturePad label="Signature du bénéficiaire (recommandée)" onChange={setSignatureBeneficiaire} hauteur={100} />
+          <SignaturePad label="Votre signature — caissier / comptable (facultative)" onChange={setSignatureExecutant} hauteur={100} />
         </div>
         <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-100">
           <button onClick={onClose} className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 rounded-lg">Annuler</button>

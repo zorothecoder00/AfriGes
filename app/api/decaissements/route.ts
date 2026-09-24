@@ -6,6 +6,7 @@ import { getComptableSession } from "@/lib/authComptable";
 import { auditLog, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 import { chargerSortieCaisse, fichesSansJustificatifs, type SortieCaisse } from "@/lib/ficheDecaissementServer";
+import { signatureTracee } from "@/lib/signature";
 
 /**
  * Fiche de Décaissement (CDC digitalisation §3.6) — sortie de fonds avec
@@ -56,7 +57,11 @@ export async function GET(req: Request) {
     }
 
     const [fiches, statsRaw] = await Promise.all([
-      prisma.ficheDecaissement.findMany({ where, orderBy: { createdAt: "desc" }, include: INCLUDE }),
+      prisma.ficheDecaissement.findMany({
+        where, orderBy: { createdAt: "desc" }, include: INCLUDE,
+        // Les tracés de signature (images) ne servent qu'au détail et au PDF.
+        omit: { signatureDemandeur: true, signatureN1: true, signatureN2: true, signatureExecutant: true, signatureBeneficiaire: true },
+      }),
       prisma.ficheDecaissement.groupBy({ by: ["statut"], where: isComptableOuAdmin ? {} : { demandeurId: parseInt(session.user.id) }, _count: { id: true } }),
     ]);
 
@@ -77,7 +82,10 @@ export async function GET(req: Request) {
  * Variante « justificatif » : operationCaisseId | operationCaissePDVId référence une sortie de caisse
  * déjà effectuée (montant/mode/opérateur repris, non modifiables) → contrôle N1/N2 a posteriori.
  * Body : { montantDemande?, modePaiement?, operationCaisseId?, operationCaissePDVId?, beneficiaireNom,
- *   beneficiaireContact?, fournisseurId?, motif, typeDepense, bonCommandeFournisseurId?, piecesJustificatives?: string[] }
+ *   beneficiaireContact?, fournisseurId?, motif, typeDepense, bonCommandeFournisseurId?, piecesJustificatives?: string[],
+ *   serviceDepartement?, typeDepenseAutre?, signatureDemandeur: "data:image/png;base64,…",
+ *   // réception immédiate par le bénéficiaire (fiche justificative d'une sortie déjà faite) :
+ *   beneficiaireConfirmationNom?, beneficiaireConfirmationPiece?, signatureBeneficiaire? }
  */
 export async function POST(req: Request) {
   try {
@@ -152,6 +160,21 @@ export async function POST(req: Request) {
     if (!beneficiaireNom) return NextResponse.json({ error: "Bénéficiaire obligatoire" }, { status: 400 });
     if (!TYPES_DEPENSE.includes(typeDepense)) return NextResponse.json({ error: `Type de dépense invalide. Valeurs acceptées : ${TYPES_DEPENSE.join(", ")}` }, { status: 400 });
 
+    // Formulaire papier : signature tracée du demandeur obligatoire (sa soumission vaut signature
+    // électronique horodatée) ; service/département et précision « Autres » facultatifs.
+    const signatureDemandeur = signatureTracee(body.signatureDemandeur);
+    if (!signatureDemandeur) return NextResponse.json({ error: "Signature du demandeur obligatoire" }, { status: 400 });
+    const serviceDepartement = String(body.serviceDepartement || "").trim().slice(0, 120) || null;
+    const typeDepenseAutre = typeDepense === "AUTRES" ? (String(body.typeDepenseAutre || "").trim().slice(0, 120) || null) : null;
+    // Fiche justificative (argent déjà sorti) : le bénéficiaire peut confirmer la réception sur place.
+    const receptionNom = liee ? String(body.beneficiaireConfirmationNom || "").trim().slice(0, 120) : "";
+    const reception = receptionNom ? {
+      beneficiaireConfirmationNom: receptionNom,
+      beneficiaireConfirmationPiece: String(body.beneficiaireConfirmationPiece || "").trim().slice(0, 120) || null,
+      signatureBeneficiaire: signatureTracee(body.signatureBeneficiaire),
+      dateConfirmationBeneficiaire: new Date(),
+    } : {};
+
     const piecesJustificatives = Array.isArray(body.piecesJustificatives) ? body.piecesJustificatives.map(String) : [];
     if (TYPES_AVEC_PIECES.includes(typeDepense) && piecesJustificatives.length === 0) {
       return NextResponse.json({ error: "Au moins une pièce justificative est requise pour ce type de dépense" }, { status: 400 });
@@ -193,6 +216,10 @@ export async function POST(req: Request) {
               operationCaissePDVId,
               bonCommandeFournisseurId,
               piecesJustificatives,
+              serviceDepartement,
+              typeDepenseAutre,
+              signatureDemandeur,
+              ...reception,
             },
             include: INCLUDE,
           });

@@ -8,7 +8,8 @@ import { getRequestMeta } from "@/lib/requestMeta";
 import { getSeuilVisaCGTBordereauRemise } from "@/lib/parametresDocuments";
 import { ecritureBordereauRemiseFonds } from "@/lib/comptabilite/moteur";
 import { getRPVSession } from "@/lib/authRPV";
-import { getSession, INCLUDE, signatureTracee, estRpvDuPdv } from "../route";
+import { signatureTracee } from "@/lib/signature";
+import { getSession, INCLUDE, estRpvDuPdv } from "../route";
 
 type Ctx = { params: Promise<{ id: string }> };
 
