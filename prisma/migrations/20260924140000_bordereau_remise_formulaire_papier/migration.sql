@@ -1,0 +1,22 @@
+-- AlterTable
+ALTER TABLE "BordereauRemiseFonds" ADD COLUMN     "carnetsAnnexes" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "compteBanque" TEXT,
+ADD COLUMN     "compteGuichet" TEXT,
+ADD COLUMN     "compteNumero" TEXT,
+ADD COLUMN     "compteTitulaire" TEXT,
+ADD COLUMN     "dateRemise" TIMESTAMP(3),
+ADD COLUMN     "declarationAcceptee" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "deposantAdresse" TEXT,
+ADD COLUMN     "deposantNom" TEXT,
+ADD COLUMN     "deposantPrenom" TEXT,
+ADD COLUMN     "deposantTelephone" TEXT,
+ADD COLUMN     "deposantZone" TEXT,
+ADD COLUMN     "fichesPagesA" TEXT,
+ADD COLUMN     "fichesPagesDe" TEXT,
+ADD COLUMN     "mobileMoneyOperateur" TEXT,
+ADD COLUMN     "recusNumA" TEXT,
+ADD COLUMN     "recusNumDe" TEXT,
+ADD COLUMN     "signatureCollecteur" TEXT,
+ADD COLUMN     "signatureTresorier" TEXT,
+ADD COLUMN     "signatureVisaCGT" TEXT;
+

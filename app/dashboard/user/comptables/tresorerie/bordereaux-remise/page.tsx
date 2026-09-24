@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { PiecesListe } from "@/components/agent-documents/PiecesBordereau";
+import VisaBordereauModal from "@/components/agent-documents/VisaBordereauModal";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
@@ -120,6 +121,7 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
   const role = sessionData?.user?.role;
   const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
   const [busy, setBusy] = useState(false);
+  const [showVisa, setShowVisa] = useState(false);
   const [depotRef, setDepotRef] = useState("");
   const b = data?.data;
   const seuil = data?.seuilVisaCGT ?? Infinity;
@@ -184,7 +186,7 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
               )}
 
               {b.statut === "VALIDE" && visaRequis && !b.visaCGTPar && isAdmin && (
-                <button onClick={() => doAction("VISER_CGT")} disabled={busy} className="w-full flex items-center justify-center gap-1.5 px-4 py-2 text-sm text-amber-700 border border-amber-300 rounded-lg hover:bg-amber-50 disabled:opacity-50">
+                <button onClick={() => setShowVisa(true)} disabled={busy} className="w-full flex items-center justify-center gap-1.5 px-4 py-2 text-sm text-amber-700 border border-amber-300 rounded-lg hover:bg-amber-50 disabled:opacity-50">
                   <ShieldCheck className="w-4 h-4" /> Viser (Président CGT) — montant &gt; {seuil.toLocaleString("fr-FR")} FCFA
                 </button>
               )}
@@ -211,6 +213,10 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
           )}
         </div>
       </div>
+      {showVisa && b && (
+        <VisaBordereauModal id={id} reference={b.reference} onClose={() => setShowVisa(false)}
+          onDone={() => { setShowVisa(false); refetch(); onUpdated(); }} />
+      )}
     </div>
   );
 }

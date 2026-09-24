@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
-import { htmlToPdfAdaptatif, pdfResponse } from "@/lib/pdf";
+import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
+import { readFile } from "fs/promises";
+import path from "path";
+import { htmlToPdf, pdfResponse } from "@/lib/pdf";
 import { genBordereauRemiseHtml } from "@/lib/bordereauRemiseHtml";
-import { qrInstanceUrl, genererQrDataUrl } from "@/lib/documentQr";
-import { getSession } from "../../route";
+import { getSeuilVisaCGTBordereauRemise } from "@/lib/parametresDocuments";
+import { getSession, estRpvDuPdv } from "../../route";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -13,7 +16,8 @@ type Ctx = { params: Promise<{ id: string }> };
 
 /**
  * GET /api/tresorerie/bordereaux-remise/[id]/pdf
- * Accusé de remise imprimable (PDF) — CDC digitalisation §3.1.
+ * Bordereau imprimable (PDF) — CDC digitalisation §3.1. Reproduit le formulaire papier AfriSime :
+ * A4 paysage, 2 pages coupées chacune en deux colonnes (voir lib/bordereauRemiseHtml.ts).
  */
 export async function GET(req: Request, { params }: Ctx) {
   try {
@@ -25,7 +29,7 @@ export async function GET(req: Request, { params }: Ctx) {
       where: { id: Number(id) },
       include: {
         pointDeVente: { select: { nom: true, code: true } },
-        collecteur: { select: { nom: true, prenom: true, telephone: true } },
+        collecteur: { select: { id: true, nom: true, prenom: true, telephone: true, adresse: true, gestionnaire: { select: { zone: true } } } },
         tresorier: { select: { nom: true, prenom: true } },
         visaCGTPar: { select: { nom: true, prenom: true } },
         lignesBilletage: true,
@@ -33,17 +37,45 @@ export async function GET(req: Request, { params }: Ctx) {
     });
     if (!bordereau) return NextResponse.json({ error: "Bordereau introuvable" }, { status: 404 });
 
-    const isTresorierOuAdmin = !!(await getComptableSession());
-    if (!isTresorierOuAdmin && bordereau.collecteurId !== parseInt(session.user.id)) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
+    // Comptable/admin, collecteur, caissier ou RPV de l'agence de dépôt.
+    const userId = parseInt(session.user.id);
+    const autorise = !!(await getComptableSession())
+      || bordereau.collecteurId === userId
+      || (!!(await getCaissierSession()) && (await getCaissierPdvId(userId)) === bordereau.pointDeVenteId)
+      || (session.user.gestionnaireRole === "RESPONSABLE_POINT_DE_VENTE" && await estRpvDuPdv(userId, bordereau.pointDeVenteId));
+    if (!autorise) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-    const qrUrl = qrInstanceUrl(req, "BRF", bordereau.id, bordereau.createdAt.toISOString());
-    const qrDataUrl = await genererQrDataUrl(qrUrl);
+    const [pieces, seuilVisaCGT] = await Promise.all([
+      prisma.pieceJustificative.findMany({
+        where: { sourceType: "BORDEREAU_REMISE", sourceId: bordereau.id },
+        select: { nature: true },
+      }),
+      getSeuilVisaCGTBordereauRemise(),
+    ]);
 
+    let logoDataUrl: string | null = null;
+    try {
+      const buf = await readFile(path.join(process.cwd(), "public", "nouveaulogo.jpeg"));
+      logoDataUrl = `data:image/jpeg;base64,${buf.toString("base64")}`;
+    } catch { /* logo facultatif : le bordereau reste valide sans */ }
+
+    const { collecteur } = bordereau;
+    // Identité déclarée sur le bordereau (saisie possible pour un tiers), à défaut celle du compte.
+    const b = bordereau;
     const html = genBordereauRemiseHtml({
-      reference: bordereau.reference, statut: bordereau.statut,
-      pointDeVente: bordereau.pointDeVente, collecteur: bordereau.collecteur,
+      reference: b.reference, date: b.dateRemise ?? b.createdAt,
+      pointDeVente: b.pointDeVente,
+      compte: { titulaire: b.compteTitulaire, numero: b.compteNumero, banque: b.compteBanque, guichet: b.compteGuichet },
+      collecteur: {
+        id: collecteur.id,
+        nom: b.deposantNom ?? collecteur.nom, prenom: b.deposantPrenom ?? collecteur.prenom,
+        telephone: b.deposantTelephone ?? collecteur.telephone, adresse: b.deposantAdresse ?? collecteur.adresse,
+        zone: b.deposantZone ?? collecteur.gestionnaire?.zone ?? null,
+      },
+      mobileMoneyOperateur: b.mobileMoneyOperateur,
+      carnetsAnnexes: b.carnetsAnnexes, fichesPages: [b.fichesPagesDe, b.fichesPagesA], recusNum: [b.recusNumDe, b.recusNumA],
+      declarationAcceptee: b.declarationAcceptee, dateSoumission: b.createdAt,
+      signatureCollecteur: b.signatureCollecteur, signatureTresorier: b.signatureTresorier, signatureVisaCGT: b.signatureVisaCGT,
       cotisationsEspeces: Number(bordereau.cotisationsEspeces), cotisationsMobileMoney: Number(bordereau.cotisationsMobileMoney),
       mobileMoneyReference: bordereau.mobileMoneyReference,
       remboursements: Number(bordereau.remboursements), ventes: Number(bordereau.ventes), venteCarnet: Number(bordereau.venteCarnet),
@@ -57,10 +89,14 @@ export async function GET(req: Request, { params }: Ctx) {
       montantConfirmeTresorier: bordereau.montantConfirmeTresorier != null ? Number(bordereau.montantConfirmeTresorier) : null,
       dateTraitementTresorier: bordereau.dateTraitementTresorier,
       visaCGTPar: bordereau.visaCGTPar, dateVisaCGT: bordereau.dateVisaCGT,
-      depotBancaireReference: bordereau.depotBancaireReference, dateCloture: bordereau.dateCloture,
-      qrDataUrl,
+      naturesPieces: pieces.map((p) => String(p.nature)),
+      seuilVisaCGT,
+      logoDataUrl,
     });
-    const pdf = await htmlToPdfAdaptatif(html);
+    const pdf = await htmlToPdf(html, {
+      format: "A4", landscape: true, scale: 1,
+      margin: { top: "9mm", right: "9mm", bottom: "9mm", left: "9mm" },
+    });
     return pdfResponse(pdf, `${bordereau.reference}.pdf`);
   } catch (error) {
     console.error("GET /tresorerie/bordereaux-remise/[id]/pdf:", error);

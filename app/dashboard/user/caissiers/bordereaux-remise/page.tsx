@@ -7,6 +7,7 @@ import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { ArrowLeft, Wallet, RefreshCw, X, FileText, CheckCircle, AlertTriangle } from "lucide-react";
 import { PiecesListe } from "@/components/agent-documents/PiecesBordereau";
+import SignaturePad from "@/components/SignaturePad";
 
 /**
  * Bordereaux de remise de fonds (CDC digitalisation §3.1) — écran caissier.
@@ -126,6 +127,7 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
   const [busy, setBusy] = useState(false);
   const [montantConfirme, setMontantConfirme] = useState("");
   const [motifEcartTresorier, setMotifEcartTresorier] = useState("");
+  const [signature, setSignature] = useState<string | null>(null);
   const b = data?.data;
 
   const traiter = async () => {
@@ -134,7 +136,7 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
     try {
       const r = await fetch(`/api/tresorerie/bordereaux-remise/${id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "TRAITER", montantConfirmeTresorier: Number(montantConfirme), motifEcartTresorier: motifEcartTresorier || undefined }),
+        body: JSON.stringify({ action: "TRAITER", montantConfirmeTresorier: Number(montantConfirme), motifEcartTresorier: motifEcartTresorier || undefined, signatureTresorier: signature ?? undefined }),
       });
       const j = await r.json().catch(() => ({}));
       if (r.ok) {
@@ -183,8 +185,9 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
                   {montantConfirme && Math.abs(Number(montantConfirme) - Number(b.totalBilletageCalcule)) > 0.01 && (
                     <input placeholder="Motif de l'écart (obligatoire)" value={motifEcartTresorier} onChange={(e) => setMotifEcartTresorier(e.target.value)} className={inputCls} />
                   )}
+                  <SignaturePad label="Signature du trésorier (facultative — la confirmation vaut signature électronique)" onChange={setSignature} hauteur={120} />
                   <button onClick={traiter} disabled={busy} className="w-full flex items-center justify-center gap-1.5 px-4 py-2 text-sm text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-50">
-                    <CheckCircle className="w-4 h-4" /> Confirmer le comptage
+                    <CheckCircle className="w-4 h-4" /> Confirmer le comptage et signer
                   </button>
                 </div>
               )}

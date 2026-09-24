@@ -11,7 +11,7 @@ import {
   Lock, Filter, Pencil, Trash2, CalendarDays, Boxes,
   MapPin, FileText, Info, Download, Printer,
   UserPlus, Star, Activity, ShoppingBag, Wrench, UserCircle, CreditCard, Receipt,
-  Inbox, Send, Menu, LayoutGrid,
+  Inbox, Send, Menu, LayoutGrid, Stamp,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import AccountMenuButton from "@/components/AccountMenuButton";
@@ -1951,6 +1951,10 @@ function ResponsablePDVPageInner() {
                 <Link href="/dashboard/user/responsablesPointDeVente/centre-commandement"
                   className="flex items-center gap-1.5 px-3 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-xl text-sm font-medium hover:bg-indigo-50 transition-colors">
                   <LayoutGrid size={15} />Centre de commandement
+                </Link>
+                <Link href="/dashboard/user/responsablesPointDeVente/bordereaux-remise"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-orange-200 text-orange-700 rounded-xl text-sm font-medium hover:bg-orange-50 transition-colors">
+                  <Stamp size={15} />Bordereaux à viser
                 </Link>
                 {activeTab === "stock" && stockSub === "inventaire" && (
                   <>

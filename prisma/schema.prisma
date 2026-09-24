@@ -3651,6 +3651,38 @@ model BordereauRemiseFonds {
 
   notes String?
 
+  // ── Champs du formulaire papier AfriSime (lib/bordereauRemiseHtml.ts) ──
+  dateRemise      DateTime? // date portée sur le bordereau (défaut à l'impression : createdAt)
+  compteTitulaire String? // compte à créditer — facultatif
+  compteNumero    String?
+  compteBanque    String?
+  compteGuichet   String?
+
+  // I — Identité du déposant telle que déclarée : pré-remplie depuis le compte connecté mais
+  // modifiable (saisie pour le compte d'un tiers) ; à défaut, l'impression reprend `collecteur`.
+  deposantNom       String?
+  deposantPrenom    String?
+  deposantZone      String?
+  deposantTelephone String?
+  deposantAdresse   String?
+
+  mobileMoneyOperateur String? // IV — opérateur Mobile Money (T-Money, Flooz…)
+
+  // V — Pièces jointes papier déclarées (les scans restent dans PieceJustificative)
+  carnetsAnnexes Boolean @default(false)
+  fichesPagesDe  String?
+  fichesPagesA   String?
+  recusNumDe     String?
+  recusNumA      String?
+
+  // VI — Déclaration & signatures. La validation horodatée de chaque acteur (création,
+  // TRAITER, VISER_CGT) vaut signature électronique simple ; le tracé (PNG en data URL)
+  // est imprimé sur le bordereau — obligatoire pour le collecteur, facultatif sinon.
+  declarationAcceptee Boolean @default(false)
+  signatureCollecteur String? @db.Text
+  signatureTresorier  String? @db.Text
+  signatureVisaCGT    String? @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

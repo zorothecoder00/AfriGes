@@ -7,7 +7,8 @@ import { auditLog, notify, notifyRoles, notifyAdmins, ROLES_COMPTABLES } from "@
 import { getRequestMeta } from "@/lib/requestMeta";
 import { getSeuilVisaCGTBordereauRemise } from "@/lib/parametresDocuments";
 import { ecritureBordereauRemiseFonds } from "@/lib/comptabilite/moteur";
-import { getSession, INCLUDE } from "../route";
+import { getRPVSession } from "@/lib/authRPV";
+import { getSession, INCLUDE, signatureTracee, estRpvDuPdv } from "../route";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -30,7 +31,10 @@ export async function GET(_req: Request, { params }: Ctx) {
         isCaissierDuPdv = pdvId === bordereau.pointDeVenteId;
       }
     }
-    if (!isAdmin && !isComptable && !isCaissierDuPdv && bordereau.collecteurId !== parseInt(session.user.id)) {
+    const isRpvDuPdv = !isAdmin && !isComptable && !isCaissierDuPdv
+      && session.user.gestionnaireRole === "RESPONSABLE_POINT_DE_VENTE"
+      && await estRpvDuPdv(parseInt(session.user.id), bordereau.pointDeVenteId);
+    if (!isAdmin && !isComptable && !isCaissierDuPdv && !isRpvDuPdv && bordereau.collecteurId !== parseInt(session.user.id)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -84,9 +88,12 @@ async function cloturerAutomatiquement(
  *      billetage. Sans écart : VALIDE puis, si le montant ne dépasse pas le
  *      seuil de visa CGT, CLOTURE immédiatement (écriture comptable générée
  *      automatiquement). Avec écart : ECART_SIGNALE (contrôle manuel).
- *   3. Direction (admin) : VISER_CGT — uniquement si le montant dépasse le
- *      seuil ; dès le visa accordé, CLOTURE immédiatement (même écriture
- *      automatique).
+ *   3. Président — Direction (admin) ou RPV de l'agence : VISER_CGT — uniquement
+ *      si le montant dépasse le seuil ; dès le visa accordé, CLOTURE immédiatement
+ *      (même écriture automatique).
+ *   TRAITER et VISER_CGT acceptent un tracé de signature facultatif
+ *   (signatureTresorier / signatureVisaCGT) imprimé sur le bordereau ; la
+ *   validation horodatée vaut signature électronique.
  *   4. Comptable : ENREGISTRER_DEPOT — rattache après coup la référence du
  *      dépôt bancaire réel, purement informatif (n'a plus d'effet sur
  *      l'écriture, déjà générée à l'étape 2 ou 3).
@@ -142,6 +149,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
             dateTraitementTresorier: new Date(),
             ecartTresorier,
             motifEcartTresorier,
+            signatureTresorier: signatureTracee(body.signatureTresorier),
             statut: aEcart ? "ECART_SIGNALE" : "VALIDE",
           },
         });
@@ -187,12 +195,23 @@ export async function PATCH(req: Request, { params }: Ctx) {
               actionUrl: `/dashboard/user/comptables/tresorerie/bordereaux-remise?detail=${bordereauId}`,
             });
           } else if (visaRequis) {
+            const message = `Billetage confirmé par ${caissierNom} (${montantTotalPrevu.toLocaleString("fr-FR")} FCFA > seuil de ${seuil.toLocaleString("fr-FR")} FCFA) : visa Président CGT requis avant clôture.`;
             await notifyAdmins(tx, {
               titre: `Visa Direction requis — ${bordereau.reference}`,
-              message: `Billetage confirmé par ${caissierNom} (${montantTotalPrevu.toLocaleString("fr-FR")} FCFA > seuil de ${seuil.toLocaleString("fr-FR")} FCFA) : visa Président CGT requis avant clôture.`,
+              message,
               priorite: PrioriteNotification.HAUTE,
               actionUrl: `/dashboard/admin/bordereaux-remise?detail=${bordereauId}`,
             });
+            // Le RPV de l'agence peut aussi apposer le visa.
+            const pdv = await tx.pointDeVente.findUnique({ where: { id: bordereau.pointDeVenteId }, select: { rpvId: true } });
+            if (pdv?.rpvId) {
+              await notify(tx, [pdv.rpvId], {
+                titre: `Visa requis — ${bordereau.reference}`,
+                message,
+                priorite: PrioriteNotification.HAUTE,
+                actionUrl: `/dashboard/user/responsablesPointDeVente/bordereaux-remise?detail=${bordereauId}`,
+              });
+            }
           }
         }
         return b;
@@ -201,9 +220,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
     }
 
     if (body.action === "VISER_CGT") {
-      const session = await getComptableSession();
-      if (!session || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) {
-        return NextResponse.json({ error: "Seule la Direction peut apposer ce visa" }, { status: 403 });
+      // Président : Direction (admin) ou RPV de l'agence de dépôt.
+      const session = await getRPVSession();
+      const estDirection = session?.user.role === "ADMIN" || session?.user.role === "SUPER_ADMIN";
+      if (!session || (!estDirection && !(await estRpvDuPdv(parseInt(session.user.id), bordereau.pointDeVenteId)))) {
+        return NextResponse.json({ error: "Seuls la Direction ou le RPV de l'agence peuvent apposer ce visa" }, { status: 403 });
       }
       if (bordereau.statut !== "VALIDE") {
         return NextResponse.json({ error: "Le bordereau doit être validé (billetage confirmé par le caissier) avant le visa CGT" }, { status: 422 });
@@ -212,7 +233,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const updated = await prisma.$transaction(async (tx) => {
         await tx.bordereauRemiseFonds.update({
           where: { id: bordereauId },
-          data: { visaCGTParId: userId, dateVisaCGT: new Date() },
+          data: { visaCGTParId: userId, dateVisaCGT: new Date(), signatureVisaCGT: signatureTracee(body.signatureVisaCGT) },
         });
         const clotureInfo = await cloturerAutomatiquement(tx, bordereau, userId);
         const b = await tx.bordereauRemiseFonds.findUniqueOrThrow({ where: { id: bordereauId }, include: INCLUDE });

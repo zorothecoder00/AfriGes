@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
 import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
 import { getComptableSession } from "@/lib/authComptable";
+import { getRPVSession } from "@/lib/authRPV";
 import { auditLog, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
 
@@ -27,19 +28,40 @@ const INCLUDE = {
   lignesBilletage: true,
 };
 
+/** Texte libre facultatif, nettoyé et borné (null si vide). */
+function texteLibre(v: unknown, max = 120): string | null {
+  const t = typeof v === "string" ? v.trim() : "";
+  return t ? t.slice(0, max) : null;
+}
+
+/** Signature tracée : PNG en data URL, taille bornée (≈ 300 Ko) ; null si absente ou invalide. */
+function signatureTracee(v: unknown): string | null {
+  if (typeof v !== "string" || !v.startsWith("data:image/png;base64,")) return null;
+  return v.length <= 400_000 ? v : null;
+}
+
 async function getSession() {
   const agent = await getAgentTerrainSession();
   if (agent) return agent;
   const caissier = await getCaissierSession();
   if (caissier) return caissier;
-  return getComptableSession();
+  const comptable = await getComptableSession();
+  if (comptable) return comptable;
+  // RPV (« Président » du visa au même titre que la Direction) : bordereaux de son agence.
+  return getRPVSession();
+}
+
+/** Le RPV connecté est-il responsable de ce point de vente ? */
+async function estRpvDuPdv(userId: number, pointDeVenteId: number): Promise<boolean> {
+  const pdv = await prisma.pointDeVente.findUnique({ where: { id: pointDeVenteId }, select: { rpvId: true } });
+  return pdv?.rpvId === userId;
 }
 
 /**
  * GET /api/tresorerie/bordereaux-remise
  * Un collecteur (non caissier/comptable/admin) ne voit que ses propres
- * bordereaux ; un caissier voit ceux de son PDV (à traiter) ; le comptable et
- * l'admin voient tout.
+ * bordereaux ; un caissier voit ceux de son PDV (à traiter) ; un RPV ceux de
+ * l'agence dont il est responsable (à viser) ; le comptable et l'admin voient tout.
  * Query: statut?, collecteurId?
  */
 export async function GET(req: Request) {
@@ -50,6 +72,7 @@ export async function GET(req: Request) {
     const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
     const isComptable = !!(await getComptableSession());
     const isCaissier = !isAdmin && !!(await getCaissierSession());
+    const isRpv = !isAdmin && !isComptable && !isCaissier && session.user.gestionnaireRole === "RESPONSABLE_POINT_DE_VENTE";
 
     const { searchParams } = new URL(req.url);
     const statut = searchParams.get("statut");
@@ -63,13 +86,19 @@ export async function GET(req: Request) {
       // Un caissier ne traite que les bordereaux déposés à son propre PDV.
       const pdvId = await getCaissierPdvId(parseInt(session.user.id));
       whereScope.pointDeVenteId = pdvId ?? -1;
+    } else if (isRpv) {
+      whereScope.pointDeVente = { rpvId: parseInt(session.user.id) };
     } else {
       whereScope.collecteurId = parseInt(session.user.id);
     }
     const where = { ...whereScope, ...(statut ? { statut } : {}) };
 
     const [bordereaux, statsRaw] = await Promise.all([
-      prisma.bordereauRemiseFonds.findMany({ where, orderBy: { createdAt: "desc" }, include: INCLUDE }),
+      prisma.bordereauRemiseFonds.findMany({
+        where, orderBy: { createdAt: "desc" }, include: INCLUDE,
+        // Les tracés de signature (images) ne servent qu'au détail et au PDF.
+        omit: { signatureCollecteur: true, signatureTresorier: true, signatureVisaCGT: true },
+      }),
       // Stats par statut TOUJOURS sur le même périmètre (scope), jamais filtrées
       // par `statut` (sinon les badges/onglets ne refléteraient plus qu'une valeur).
       prisma.bordereauRemiseFonds.groupBy({ by: ["statut"], where: whereScope, _count: { id: true } }),
@@ -100,7 +129,11 @@ interface LigneBilletageInput { denomination: number; nombre: number }
  * Créé par le collecteur (agent terrain). Body :
  * { pieces?: [{nom, url, key, type, taille, nature}], pointDeVenteId?, cotisationsEspeces?, cotisationsMobileMoney?, mobileMoneyReference?,
  *   remboursements?, ventes?, venteCarnet?, fraisLivraison?, montantVirement?, virementReference?,
- *   lignesBilletage: [{denomination, nombre}], motifEcartSoumission?, notes? }
+ *   lignesBilletage: [{denomination, nombre}], motifEcartSoumission?, notes?,
+ *   // formulaire papier : dateRemise?, compteTitulaire?, compteNumero?, compteBanque?, compteGuichet?,
+ *   // deposantNom?, deposantPrenom?, deposantZone?, deposantTelephone?, deposantAdresse?, mobileMoneyOperateur?,
+ *   // carnetsAnnexes?, fichesPagesDe?, fichesPagesA?, recusNumDe?, recusNumA?,
+ *   declarationAcceptee: true, signatureCollecteur: "data:image/png;base64,…" }
  */
 export async function POST(req: Request) {
   try {
@@ -149,6 +182,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Avis de virement obligatoire en pièce jointe" }, { status: 400 });
     }
 
+    // VI — déclaration cochée + signature tracée du collecteur (sur l'appareil de saisie, y compris
+    // quand la saisie est faite pour le compte d'un tiers).
+    if (body.declarationAcceptee !== true) {
+      return NextResponse.json({ error: "La déclaration du collecteur doit être cochée" }, { status: 400 });
+    }
+    const signatureCollecteur = signatureTracee(body.signatureCollecteur);
+    if (!signatureCollecteur) {
+      return NextResponse.json({ error: "Signature du collecteur obligatoire" }, { status: 400 });
+    }
+    const dateRemise = body.dateRemise ? new Date(body.dateRemise) : null;
+    if (dateRemise && isNaN(dateRemise.getTime())) {
+      return NextResponse.json({ error: "Date du bordereau invalide" }, { status: 400 });
+    }
+
     const lignesBilletage = (body.lignesBilletage ?? []) as LigneBilletageInput[];
     for (const l of lignesBilletage) {
       if (!Number.isFinite(l.denomination) || l.denomination <= 0 || !Number.isFinite(l.nombre) || l.nombre < 0) {
@@ -186,6 +233,18 @@ export async function POST(req: Request) {
               virementReference: montantVirement > 0 ? String(body.virementReference).trim() : null,
               totalEspecesAttendu, totalBilletageCalcule, ecartSoumission, motifEcartSoumission,
               notes: body.notes || null,
+              dateRemise,
+              compteTitulaire: texteLibre(body.compteTitulaire), compteNumero: texteLibre(body.compteNumero),
+              compteBanque: texteLibre(body.compteBanque), compteGuichet: texteLibre(body.compteGuichet),
+              deposantNom: texteLibre(body.deposantNom), deposantPrenom: texteLibre(body.deposantPrenom),
+              deposantZone: texteLibre(body.deposantZone), deposantTelephone: texteLibre(body.deposantTelephone, 40),
+              deposantAdresse: texteLibre(body.deposantAdresse, 200),
+              mobileMoneyOperateur: cotisationsMobileMoney > 0 ? texteLibre(body.mobileMoneyOperateur, 60) : null,
+              carnetsAnnexes: body.carnetsAnnexes === true,
+              fichesPagesDe: texteLibre(body.fichesPagesDe, 20), fichesPagesA: texteLibre(body.fichesPagesA, 20),
+              recusNumDe: texteLibre(body.recusNumDe, 30), recusNumA: texteLibre(body.recusNumA, 30),
+              declarationAcceptee: true,
+              signatureCollecteur,
               lignesBilletage: { create: lignesBilletage.map((l) => ({ denomination: Number(l.denomination), nombre: Number(l.nombre), total: l.denomination * l.nombre })) },
             },
             include: INCLUDE,
@@ -224,4 +283,4 @@ export async function POST(req: Request) {
 }
 
 // Exporté pour les sous-routes ([id], [id]/pdf) — évite de redéfinir la même logique.
-export { getSession, INCLUDE };
+export { getSession, INCLUDE, signatureTracee, estRpvDuPdv };
