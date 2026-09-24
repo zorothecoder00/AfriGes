@@ -191,7 +191,7 @@ export default function PacksAdminPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-emerald-50/10 md:p-8">
+    <div className="min-h-screen bg-[#dbe7f5] md:p-8">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* Header */}

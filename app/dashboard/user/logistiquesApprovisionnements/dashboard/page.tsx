@@ -121,7 +121,7 @@ export default function DashboardSupplyChainPage() {
   const maxReseau = data ? Math.max(1, ...data.reseau.map((r) => r.valeurEngagee)) : 1;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="p-6 max-w-6xl mx-auto space-y-5">
         <RetourApprovisionnement label="Retour à l'approvisionnement" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700" />
 

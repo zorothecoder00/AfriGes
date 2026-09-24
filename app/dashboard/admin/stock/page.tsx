@@ -417,7 +417,7 @@ export default function GestionStockPage() {
 
   if (error && !response) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 flex items-center justify-center">
+      <div className="min-h-screen bg-[#dbe7f5] flex items-center justify-center">
         <div className="bg-white rounded-2xl p-8 shadow-sm border max-w-md text-center">
           <h3 className="text-lg font-bold text-slate-800 mb-2">Erreur de chargement</h3>
           <p className="text-slate-500 text-sm mb-4">{error}</p>
@@ -428,13 +428,7 @@ export default function GestionStockPage() {
   }
 
   return (
-    <div className="relative isolate min-h-screen bg-gradient-to-br from-cream-100 via-primary-50/40 to-brand-50/50 md:p-8 overflow-hidden">
-      {/* Aurora décorative — halos flous, aux couleurs du logo */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
-        <div className="absolute -top-40 -left-24 w-[34rem] h-[34rem] bg-primary-300/30 rounded-full blur-3xl" />
-        <div className="absolute top-1/4 -right-28 w-[30rem] h-[30rem] bg-brand-400/30 rounded-full blur-3xl" />
-      </div>
-
+    <div className="relative isolate min-h-screen bg-[#dbe7f5] md:p-8 overflow-hidden">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* Header */}

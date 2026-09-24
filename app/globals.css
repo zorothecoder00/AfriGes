@@ -100,6 +100,8 @@ html[data-theme="dark"] .bg-slate-100      { background-color: #1e293b !importan
 html[data-theme="dark"] .bg-slate-200      { background-color: #334155 !important; }
 html[data-theme="dark"] .bg-gray-50        { background-color: #0f172a !important; }
 html[data-theme="dark"] .bg-gray-100       { background-color: #1e293b !important; }
+/* Fond bleu uni des pages dashboard (admin + user) */
+html[data-theme="dark"] .bg-\[\#dbe7f5\]   { background-color: #0f172a !important; }
 
 /* Surfaces de marque (crème) → fond sombre en dark mode */
 html[data-theme="dark"] .bg-cream          { background-color: #1e293b !important; }
@@ -396,4 +398,60 @@ html[data-theme="light"] { color-scheme: light; }
   html[data-theme="dark"] table:not(.doc-table) > tbody > tr:hover > td:first-child {
     box-shadow: inset 4px 0 0 #60a5fa;
   }
+}
+
+/* ─── Barre du haut colorée des portails gestionnaires (dashboard/user) ────────
+   La pastille du logo dans la sidebar est blanche : une barre du haut blanche
+   s'y confondait. `.topbar-couleur` peint la barre dans la couleur de la
+   sidebar du portail (vert par défaut, variantes orange/fuchsia/rose) et passe
+   en blanc les textes/icônes neutres posés directement dessus. Les pastilles
+   et menus déroulants à fond clair (badge PDV, menu compte, popovers) gardent
+   leurs couleurs d'origine — exclusion limitée aux fonds clairs SITUÉS DANS la
+   barre (la page elle-même a souvent un fond bg-slate-50). Hors layer : prime sur les utilitaires Tailwind.
+──────────────────────────────────────────────────────────────────────────── */
+.topbar-couleur {
+  --topbar-bg: #065f46; /* emerald-800 = haut du dégradé des sidebars vertes */
+  background-color: var(--topbar-bg) !important;
+  border-color: rgb(0 0 0 / 0.2) !important;
+}
+.topbar-couleur.topbar-orange  { --topbar-bg: #9a3412; } /* orange-800  */
+.topbar-couleur.topbar-fuchsia { --topbar-bg: #86198f; } /* fuchsia-800 */
+.topbar-couleur.topbar-rose    { --topbar-bg: #9f1239; } /* rose-800    */
+
+.topbar-couleur :is(
+  .text-slate-300, .text-slate-400, .text-slate-500, .text-slate-600,
+  .text-slate-700, .text-slate-800, .text-slate-900,
+  .text-gray-300, .text-gray-400, .text-gray-500, .text-gray-600,
+  .text-gray-700, .text-gray-800, .text-gray-900
+):not(
+  [class~="bg-white"], [class~="bg-white/95"], [class~="bg-white/90"],
+  [class~="bg-slate-50"], [class~="bg-gray-50"]
+):not(.topbar-couleur :is(
+  [class~="bg-white"], [class~="bg-white/95"], [class~="bg-white/90"],
+  [class~="bg-slate-50"], [class~="bg-gray-50"]
+) *) {
+  color: #fff !important;
+}
+
+.topbar-couleur :is(
+  [class~="hover:bg-slate-100"], [class~="hover:bg-gray-100"], [class~="hover:bg-slate-50"]
+):hover:not(.topbar-couleur :is(
+  [class~="bg-white"], [class~="bg-white/95"], [class~="bg-white/90"],
+  [class~="bg-slate-50"], [class~="bg-gray-50"]
+) *) {
+  background-color: rgb(255 255 255 / 0.15) !important;
+}
+
+/* Sur la barre verte, les boutons/pastilles verts (ex. « Pointer départ »,
+   compteur de messages) se noyaient : ils sont inversés en pastille blanche à texte vert. */
+.topbar-couleur:not(.topbar-orange, .topbar-fuchsia, .topbar-rose)
+  :is([class~="bg-emerald-500"], [class~="bg-emerald-600"], [class~="bg-emerald-700"],
+      [class~="bg-green-500"], [class~="bg-green-600"], [class~="bg-teal-600"]) {
+  background-color: #fff !important;
+  border-color: #fff !important;
+  color: #047857 !important; /* emerald-700 */
+}
+.topbar-couleur:not(.topbar-orange, .topbar-fuchsia, .topbar-rose)
+  :is([class~="bg-emerald-600"], [class~="bg-emerald-700"], [class~="bg-green-600"], [class~="bg-teal-600"]):hover {
+  background-color: #ecfdf5 !important; /* emerald-50 */
 }

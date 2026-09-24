@@ -232,7 +232,7 @@ export default function TagsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary-50/20 to-purple-50/10 ">
+    <div className="min-h-screen bg-[#dbe7f5] ">
       <ClienteleTabBar>
 
       <div className="max-w-5xl mx-auto md:px-6 md:py-8 space-y-6">

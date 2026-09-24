@@ -292,7 +292,7 @@ export default function OnboardingDetailPage({ params }: { params: Promise<{ id:
 
   if (!onboarding) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
+      <div className="min-h-screen bg-[#dbe7f5] flex flex-col items-center justify-center gap-3">
         <XCircle className="w-10 h-10 text-red-400" />
         <p className="text-slate-600">Onboarding introuvable</p>
         <Link href="/dashboard/admin/rh/onboarding" className="text-indigo-600 hover:underline text-sm">
@@ -307,7 +307,7 @@ export default function OnboardingDetailPage({ params }: { params: Promise<{ id:
   const enRetard = onboarding.statut === "EN_COURS" && onboarding.dateFinPrevue && new Date(onboarding.dateFinPrevue) < new Date();
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-6 py-4">
         <div className="flex items-center justify-between">

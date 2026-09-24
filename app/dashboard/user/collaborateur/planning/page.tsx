@@ -40,7 +40,7 @@ export default function PlanningCollaborateurPage() {
 
   if (data && profilRH === null) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-[#dbe7f5] flex items-center justify-center p-6">
         <div className="bg-white rounded-2xl border border-slate-200 p-8 max-w-md text-center">
           <Info className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <h1 className="text-lg font-semibold text-slate-900">Aucun dossier RH</h1>
@@ -53,7 +53,7 @@ export default function PlanningCollaborateurPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="p-6 space-y-6 max-w-3xl mx-auto">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>

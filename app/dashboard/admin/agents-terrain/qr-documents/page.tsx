@@ -31,7 +31,7 @@ export default function QrDocumentsPage() {
   const agents = data?.agents ?? [];
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       {/* Barre d'actions — masquée à l'impression */}
       <div className="no-print sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between flex-wrap gap-3">
         <Link href="/dashboard/admin/agents-terrain" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">

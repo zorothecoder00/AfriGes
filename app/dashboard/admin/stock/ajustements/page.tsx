@@ -98,13 +98,7 @@ export default function AjustementsStockPage() {
   const diff = (d: Demande) => d.nouvelleQuantite - d.ancienneQuantite;
 
   return (
-    <div className="relative isolate min-h-screen bg-gradient-to-br from-cream-100 via-primary-50/40 to-brand-50/50 p-6 space-y-6 overflow-hidden">
-      {/* Aurora décorative — halos flous, aux couleurs du logo */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
-        <div className="absolute -top-40 -left-24 w-[34rem] h-[34rem] bg-primary-300/30 rounded-full blur-3xl" />
-        <div className="absolute top-1/4 -right-28 w-[30rem] h-[30rem] bg-brand-400/30 rounded-full blur-3xl" />
-      </div>
-
+    <div className="relative isolate min-h-screen bg-[#dbe7f5] p-6 space-y-6 overflow-hidden">
       <div className="max-w-7xl mx-auto space-y-6">
 
       {/* Header */}

@@ -455,7 +455,7 @@ export default function TemplatesOnboardingPage() {
     : undefined;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-6 py-4">
         <div className="flex items-center justify-between">

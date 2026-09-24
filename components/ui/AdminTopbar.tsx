@@ -12,20 +12,24 @@ import AccountMenuButton from "@/components/AccountMenuButton";
  */
 export default function AdminTopbar({ onMenuClick, avecSidebar = false }: { onMenuClick?: () => void; avecSidebar?: boolean }) {
   return (
-    <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 dark:bg-slate-900/90 dark:border-slate-700">
+    <header className="bg-brand-700 border-b border-brand-800 shadow-sm sticky top-0 z-50 dark:bg-slate-900/90 dark:border-slate-700">
       <div className={`px-4 sm:px-5 md:px-8 py-3 flex items-center gap-3 sm:gap-4 ${avecSidebar ? "" : "max-w-[1800px] mx-auto"}`}>
         {onMenuClick && (
           <button
             onClick={onMenuClick}
-            className="md:hidden text-slate-500 hover:text-slate-700 dark:text-slate-300"
+            className="md:hidden text-white/80 hover:text-white"
             aria-label="Ouvrir le menu"
           >
             <Menu size={22} />
           </button>
         )}
-        <AfriSimeLogo className={`h-10 w-auto shrink-0 ${avecSidebar ? "md:hidden" : ""}`} priority />
+        {/* Logo sur pastille blanche : lisible sur le vert de la barre */}
+        <span className={`shrink-0 rounded-xl bg-white px-2 py-1 ${avecSidebar ? "md:hidden" : ""}`}>
+          <AfriSimeLogo className="h-8 w-auto" priority />
+        </span>
 
-        <div className="flex items-center gap-2 sm:gap-3 ml-auto min-w-0">
+        {/* La cloche est gris foncé par défaut (composant partagé) : forcée en blanc sur la barre verte */}
+        <div className="flex items-center gap-2 sm:gap-3 ml-auto min-w-0 [&>a]:text-white [&>a:hover]:bg-white/15">
           <UserPdvBadge />
           <NotificationBell href="/dashboard/admin/notifications" />
           <AccountMenuButton settingsHref="/dashboard/admin/parametres" inline />

@@ -59,7 +59,7 @@ function TresorerieBordereauxPageInner() {
   const stats = data?.stats ?? {};
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="p-6 space-y-6 max-w-4xl mx-auto">
         <div>
           <Link href="/dashboard/user/comptables" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 mb-1"><ArrowLeft className="w-3 h-3" /> Retour</Link>

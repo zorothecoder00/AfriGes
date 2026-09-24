@@ -252,7 +252,7 @@ export default function EvaluationsPage() {
   const kpiEvals = (kpiRes?.data ?? []).filter((e) => e.objectifs.length > 0);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="p-6 space-y-5 max-w-6xl mx-auto">
 
         {/* ── Header ── */}

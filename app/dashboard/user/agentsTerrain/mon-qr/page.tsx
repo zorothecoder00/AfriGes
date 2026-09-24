@@ -43,7 +43,7 @@ export default function MonQrPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="max-w-md mx-auto px-4 py-8 space-y-5">
         <Link href="/dashboard/user/agentsTerrain" className="no-print inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Tableau de bord

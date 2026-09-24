@@ -287,7 +287,7 @@ export default function RHOnboardingDetailPage({ params }: { params: Promise<{ i
 
   if (!onboarding) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-3">
+      <div className="min-h-screen bg-[#dbe7f5] flex flex-col items-center justify-center gap-3">
         <XCircle className="w-10 h-10 text-red-400" />
         <p className="text-gray-600">Onboarding introuvable</p>
         <Link href="/dashboard/user/responsablesRH/onboarding" className="text-indigo-600 hover:underline text-sm">
@@ -302,7 +302,7 @@ export default function RHOnboardingDetailPage({ params }: { params: Promise<{ i
   const enRetard = onboarding.statut === "EN_COURS" && onboarding.dateFinPrevue && new Date(onboarding.dateFinPrevue) < new Date();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">

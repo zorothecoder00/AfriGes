@@ -14,7 +14,7 @@ export default function DashboardUserError({
   }, [error]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center bg-[#dbe7f5]">
       <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
         <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg className="w-7 h-7 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -539,7 +539,7 @@ export default function OrganigrammePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       {/* Modal réaffectation */}
       {showModal && draggedNode && (
         <ReaffectModal

@@ -105,7 +105,7 @@ function AdminRevendeursPageInner() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-rose-50/20 to-white font-['DM_Sans',sans-serif]">
+    <div className="min-h-screen bg-[#dbe7f5] font-['DM_Sans',sans-serif]">
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
         <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">

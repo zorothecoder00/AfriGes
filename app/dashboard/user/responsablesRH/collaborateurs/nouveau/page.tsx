@@ -77,7 +77,7 @@ export default function NouveauCollaborateurRHPage() {
   const inputCls = "w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white";
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="max-w-3xl mx-auto p-6 space-y-6">
         <div>
           <Link href="/dashboard/user/responsablesRH/collaborateurs"

@@ -1082,7 +1082,7 @@ export default function RecrutementPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50/50 md:p-6">
+    <div className="min-h-screen bg-[#dbe7f5] md:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">

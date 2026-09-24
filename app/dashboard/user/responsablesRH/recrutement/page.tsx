@@ -79,7 +79,7 @@ export default function RecrutementRHPage() {
   const [selectedPosteId, setSelectedPosteId] = useState<number | null>(null);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
 
         {/* Header */}

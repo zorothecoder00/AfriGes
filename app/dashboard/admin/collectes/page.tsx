@@ -152,7 +152,7 @@ export default function CollectesPage() {
   ) ?? 0;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <ClienteleTabBar>
       <div className="md:p-6 space-y-6">
 

@@ -609,7 +609,7 @@ export default function VentesPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-blue-50/20 md:p-8">
+    <div className="min-h-screen bg-[#dbe7f5] md:p-8">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* ─── Header ──────────────────────────────────────────────────────── */}

@@ -306,7 +306,7 @@ export default function GestionnairesPage() {
 
   if (error && !response) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50/20 flex items-center justify-center">
+      <div className="min-h-screen bg-[#dbe7f5] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-8 shadow-sm border max-w-md text-center">
           <h3 className="text-lg font-bold text-slate-800">{t('text_error_loading')}</h3>
           <p className="text-slate-500 text-sm">{error}</p>
@@ -317,7 +317,7 @@ export default function GestionnairesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50/20 md:p-8">
+    <div className="min-h-screen bg-[#dbe7f5] md:p-8">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* Header */}

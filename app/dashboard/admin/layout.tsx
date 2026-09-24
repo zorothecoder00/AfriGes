@@ -21,7 +21,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       {showSidebar ? (
         // Accueil admin : sidebar pleine hauteur collée à gauche (logo inclus), barre du haut et
         // contenu occupent tout le reste de la largeur (plus de marge vide à gauche).
-        <div className="min-h-screen flex bg-slate-50 dark:bg-slate-900">
+        <div className="min-h-screen flex bg-[#dbe7f5] dark:bg-slate-900">
           <AdminSidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
           <div className="flex-1 min-w-0 flex flex-col">
             <AdminTopbar avecSidebar onMenuClick={() => setMobileNavOpen(true)} />
@@ -29,7 +29,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
       ) : (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+        <div className="min-h-screen bg-[#dbe7f5] dark:bg-slate-900">
           <AdminTopbar />
           <div className="max-w-[1800px] mx-auto px-4 sm:px-5 md:px-8 py-4 sm:py-6">
             <div className="flex-1 min-w-0">{children}</div>

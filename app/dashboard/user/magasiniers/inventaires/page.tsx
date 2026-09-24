@@ -64,7 +64,7 @@ function InventairesMagasinierInner() {
     router.replace(id ? `/dashboard/user/magasiniers/inventaires?detail=${id}` : "/dashboard/user/magasiniers/inventaires");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {detailId
           ? <DetailInventaire id={detailId} onBack={() => ouvrir(null)} />

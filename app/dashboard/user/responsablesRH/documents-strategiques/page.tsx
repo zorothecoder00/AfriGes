@@ -109,7 +109,7 @@ export default function DocumentsStrategiquesRHPage() {
     .filter((g) => g.items.length > 0);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="p-6 max-w-5xl mx-auto">
         {/* En-tête */}
         <div className="flex items-center gap-3 mb-1">

@@ -761,7 +761,7 @@ export default function LogistiqueApprovisionnementPage() {
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50/30 to-blue-50/20 lg:flex">
+    <div className="min-h-screen bg-[#dbe7f5] lg:flex">
 
       {/* Overlay sidebar (mobile) */}
       {sidebarOpen && (
@@ -826,7 +826,7 @@ export default function LogistiqueApprovisionnementPage() {
       {/* Colonne principale */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Topbar */}
-        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+        <header className="topbar-couleur shadow-sm border-b border-slate-200 sticky top-0 z-30">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <button

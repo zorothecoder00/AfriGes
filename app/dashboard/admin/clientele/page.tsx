@@ -91,7 +91,7 @@ export default function ClienteleDashboard() {
   const dashOffset = circumference * (1 - taux / 100);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <ClienteleTabBar>
 
       <div className="md:p-6 space-y-6 max-w-screen-xl mx-auto">

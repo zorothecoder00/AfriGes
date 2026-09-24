@@ -107,7 +107,7 @@ export default function RevendeurPage() {
 
   if (!profil) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-rose-50/30 to-pink-50/20 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-[#dbe7f5] flex items-center justify-center p-6">
         <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 max-w-md text-center">
           <Store className="w-12 h-12 text-rose-300 mx-auto mb-4" />
           <h2 className="text-lg font-bold text-slate-800 mb-2">Compte revendeur non configuré</h2>
@@ -125,7 +125,7 @@ export default function RevendeurPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-rose-50/30 to-pink-50/20 font-['DM_Sans',sans-serif] lg:flex">
+    <div className="min-h-screen bg-[#dbe7f5] font-['DM_Sans',sans-serif] lg:flex">
       {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-rose-950 bg-gradient-to-b from-rose-800 to-rose-950 text-white flex flex-col transition-transform duration-200 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:z-auto lg:flex-shrink-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
@@ -155,7 +155,7 @@ export default function RevendeurPage() {
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+        <header className="topbar-couleur topbar-rose shadow-sm border-b border-slate-200 sticky top-0 z-30">
           <div className="px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700"><Menu size={22} /></button>
             <div className="hidden lg:block" />

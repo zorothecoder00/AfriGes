@@ -48,7 +48,7 @@ function ImpressionInner() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <style>{PRINT_CSS}</style>
       <div className="md:p-6 max-w-4xl mx-auto space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-3 no-print">

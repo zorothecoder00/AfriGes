@@ -65,7 +65,7 @@ export default function FondsCollectesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="p-6 space-y-5 max-w-5xl mx-auto">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>

@@ -84,7 +84,7 @@ export default function EtatsCCPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 print:bg-white">
+    <div className="min-h-screen bg-[#dbe7f5] print:bg-white">
       <ClienteleTabBar>
 
       <div className="md:p-6 max-w-screen-xl mx-auto space-y-6">

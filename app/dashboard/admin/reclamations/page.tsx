@@ -130,7 +130,7 @@ function AdminReclamationsPageInner() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-rose-50/20 to-white font-['DM_Sans',sans-serif]">
+    <div className="min-h-screen bg-[#dbe7f5] font-['DM_Sans',sans-serif]">
       <main className="max-w-[1400px] mx-auto md:px-6 lg:px-8 md:py-8 space-y-6">
         <RetourLien />
         <div className="flex flex-wrap items-center justify-between gap-3">

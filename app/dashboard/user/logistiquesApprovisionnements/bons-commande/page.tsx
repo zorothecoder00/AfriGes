@@ -78,7 +78,7 @@ function BonsCommandePageInner() {
   const stats = data?.stats ?? {};
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="p-6 space-y-6 max-w-6xl mx-auto">
 
         <div className="flex items-center justify-between flex-wrap gap-3">

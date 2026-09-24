@@ -74,7 +74,7 @@ export default function ResponsableRHLayout({ children }: { children: ReactNode 
   const visibleNav = NAV.filter((item) => !item.key || loading || isAllowed(item.key));
 
   return (
-    <div className="min-h-screen bg-slate-50 lg:flex">
+    <div className="min-h-screen bg-[#dbe7f5] lg:flex">
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -127,7 +127,7 @@ export default function ResponsableRHLayout({ children }: { children: ReactNode 
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <div className="bg-white border-b border-slate-200 sticky top-0 z-30 lg:hidden">
+        <div className="topbar-couleur border-b border-slate-200 sticky top-0 z-30 lg:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
             className="flex items-center gap-2 px-4 py-3 text-slate-600 hover:text-slate-800"

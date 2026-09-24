@@ -855,7 +855,7 @@ export default function MagasinierPage() {
   const detailProduit = detailResponse?.data;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/20 font-['DM_Sans',sans-serif] lg:flex">
+    <div className="min-h-screen bg-[#dbe7f5] font-['DM_Sans',sans-serif] lg:flex">
 
       {/* Overlay sidebar (mobile) */}
       {sidebarOpen && (
@@ -920,7 +920,7 @@ export default function MagasinierPage() {
       {/* Colonne principale */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Topbar */}
-        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+        <header className="topbar-couleur topbar-orange shadow-sm border-b border-slate-200 sticky top-0 z-30">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <button

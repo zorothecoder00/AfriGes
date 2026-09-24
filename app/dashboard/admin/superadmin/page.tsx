@@ -332,7 +332,7 @@ export default function SuperAdminPage() {
   // ── Guard rôle — ni ADMIN ni SUPER_ADMIN → accès refusé
   if (!isSuperAdmin && !isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-[#dbe7f5]">
         <div className="bg-white rounded-2xl p-10 shadow text-center max-w-md">
           <ShieldAlert size={48} className="text-red-400 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-slate-800 mb-2">{t('sa_acces_refuse')}</h2>
@@ -353,7 +353,7 @@ export default function SuperAdminPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-violet-50/20 to-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-[1600px] mx-auto px-3 md:px-6 py-3 flex items-center justify-between gap-2">

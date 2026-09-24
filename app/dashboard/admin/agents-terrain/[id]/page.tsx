@@ -123,7 +123,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
   if (!agent) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
+      <div className="min-h-screen bg-[#dbe7f5] flex flex-col items-center justify-center gap-4">
         <AlertTriangle className="w-10 h-10 text-amber-500" />
         <p className="text-gray-600">Agent introuvable</p>
         <Link href="/dashboard/admin/agents-terrain" className="text-emerald-600 hover:underline text-sm">
@@ -137,7 +137,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const pdv = agent.member.affectationsPDV?.[0]?.pointDeVente;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
 
         {/* ── En-tête ── */}

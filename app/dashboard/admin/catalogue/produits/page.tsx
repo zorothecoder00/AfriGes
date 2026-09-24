@@ -135,14 +135,7 @@ export default function CatalogueProduitsPage() {
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
 
   return (
-    <div className="relative isolate min-h-screen bg-gradient-to-br from-cream-100 via-primary-50/50 to-brand-50/60 overflow-hidden">
-      {/* Aurora décorative — halos flous, aux couleurs du logo (cf. dashboard admin) */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
-        <div className="absolute -top-40 -left-24 w-[34rem] h-[34rem] bg-primary-300/35 rounded-full blur-3xl" />
-        <div className="absolute top-1/4 -right-28 w-[30rem] h-[30rem] bg-brand-400/30 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 w-[26rem] h-[26rem] bg-brand-300/25 rounded-full blur-3xl" />
-      </div>
-
+    <div className="relative isolate min-h-screen bg-[#dbe7f5] overflow-hidden">
       <div className="px-3 py-4 sm:p-6 max-w-7xl mx-auto space-y-5">
         <Link href="/dashboard/admin" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour

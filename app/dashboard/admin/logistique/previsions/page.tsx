@@ -185,7 +185,7 @@ export default function PrevisionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-emerald-50/10 md:p-6">
+    <div className="min-h-screen bg-[#dbe7f5] md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
 
         {/* Header */}

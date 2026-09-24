@@ -54,7 +54,7 @@ export default function RIALayout({ children }: { children: ReactNode }) {
   }));
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       {/* Breadcrumb */}
       <div className="bg-white border-b border-slate-200 px-4 md:px-6 pt-3 pb-3 flex items-center gap-1.5 text-xs text-slate-400">
         <Link href="/dashboard/admin" className="flex items-center gap-1 hover:text-slate-600 transition-colors">

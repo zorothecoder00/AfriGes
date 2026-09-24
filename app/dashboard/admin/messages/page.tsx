@@ -10,7 +10,7 @@ function AdminMessagesInner() {
   const searchParams = useSearchParams();
   const c = searchParams.get("c");
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 p-8">
+    <div className="min-h-screen bg-[#dbe7f5] p-8">
       <div className="max-w-5xl mx-auto space-y-4">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/admin" className="p-2 hover:bg-white rounded-lg transition-colors">

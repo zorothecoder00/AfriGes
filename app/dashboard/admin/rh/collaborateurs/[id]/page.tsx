@@ -351,7 +351,7 @@ export default function DossierCollaborateurPage({
   const pdv = profil.gestionnaire.member.affectationsPDV[0]?.pointDeVente;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="md:p-6 space-y-6 max-w-5xl mx-auto">
 
         {/* ── Breadcrumb + titre ── */}

@@ -2035,7 +2035,7 @@ export default function AgentTerrainPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-['DM_Sans',sans-serif] lg:flex">
+    <div className="min-h-screen bg-[#dbe7f5] font-['DM_Sans',sans-serif] lg:flex">
 
       {factureVenteId  && <FactureModal venteDirecteId={factureVenteId}   onClose={() => setFactureVenteId(null)} />}
       {factureCreditId && <FactureModal creditClientId={factureCreditId} onClose={() => setFactureCreditId(null)} />}
@@ -2154,7 +2154,7 @@ export default function AgentTerrainPage() {
       {/* Colonne principale */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Topbar */}
-        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+        <header className="topbar-couleur shadow-sm border-b border-slate-200 sticky top-0 z-30">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <button

@@ -440,13 +440,6 @@ export default function AfriGesDashboard() {
   return (
     <div className="@container relative isolate space-y-6">
 
-      {/* Aurora décorative — halos flous animés, discrets, aux couleurs du logo */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
-        <div className="absolute -top-40 -left-24 w-[34rem] h-[34rem] bg-primary-300/20 dark:bg-primary-700/10 rounded-full blur-3xl animate-[auroraFloat_20s_ease-in-out_infinite]" />
-        <div className="absolute top-1/4 -right-28 w-[30rem] h-[30rem] bg-brand-400/15 dark:bg-brand-600/10 rounded-full blur-3xl animate-[auroraFloat_26s_ease-in-out_infinite_reverse]" />
-        <div className="absolute bottom-0 left-1/3 w-[26rem] h-[26rem] bg-primary-200/20 dark:bg-primary-800/10 rounded-full blur-3xl animate-[auroraFloat_23s_ease-in-out_infinite]" />
-      </div>
-
       {/* Titre */}
           <div className="flex flex-col @2xl:flex-row @2xl:items-center @2xl:justify-between gap-4">
             <div className="min-w-0">

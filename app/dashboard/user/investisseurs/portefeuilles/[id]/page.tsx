@@ -88,9 +88,9 @@ export default function PortefeuilleDetailPage({ params }: { params: Promise<{ i
     : 0;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       {/* ── Topbar ── */}
-      <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+      <header className="topbar-couleur border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <Link href="/dashboard/user/investisseurs" className="flex items-center gap-1 text-slate-500 hover:text-slate-700 text-sm">
             <ChevronLeft className="w-4 h-4" /> Retour

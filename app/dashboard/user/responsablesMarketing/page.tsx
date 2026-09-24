@@ -123,7 +123,7 @@ export default function ResponsableMarketingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-[#dbe7f5] flex">
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-fuchsia-900 bg-gradient-to-b from-fuchsia-800 to-fuchsia-900 text-white transform transition-transform lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         {/* Logo centré — la sidebar occupe toute la hauteur de l'écran et porte le logo */}
         <div className="flex-shrink-0 flex justify-center bg-white border-b border-white/10 py-2">
@@ -146,7 +146,7 @@ export default function ResponsableMarketingPage() {
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+        <header className="topbar-couleur topbar-fuchsia shadow-sm border-b border-slate-200 sticky top-0 z-30">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700">

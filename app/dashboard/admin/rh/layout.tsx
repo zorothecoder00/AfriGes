@@ -55,7 +55,7 @@ export default function RHLayout({ children }: { children: ReactNode }) {
   }));
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-screen bg-[#dbe7f5] dark:bg-slate-900">
       {/* Breadcrumb */}
       <div className="bg-white border-b border-slate-200 px-4 md:px-6 pt-3 pb-3 flex items-center gap-1.5 text-xs text-slate-400 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-500">
         <Link href="/dashboard/admin" className="flex items-center gap-1 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">

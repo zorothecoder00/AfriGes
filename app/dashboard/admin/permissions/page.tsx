@@ -33,7 +33,7 @@ export default function PermissionsPage() {
   const actions = res?.actions ?? [];
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="md:p-6 max-w-6xl mx-auto space-y-6">
         <div>
           <Link href="/dashboard/admin/droits-acces" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">

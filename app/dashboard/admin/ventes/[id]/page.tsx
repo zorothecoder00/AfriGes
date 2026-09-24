@@ -108,7 +108,7 @@ export default function VenteDetailPage({ params }: PageProps) {
   // ── Error ─────────────────────────────────────────────────────────────────
   if (error || !response?.data) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#dbe7f5] flex items-center justify-center">
         <div className="text-center">
           <ShoppingCart size={48} className="mx-auto text-slate-300 mb-4" />
           <p className="text-slate-600 font-medium">{error ?? t('vente_not_found')}</p>
@@ -141,7 +141,7 @@ export default function VenteDetailPage({ params }: PageProps) {
   const creditMemberId = credit.member?.id;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">

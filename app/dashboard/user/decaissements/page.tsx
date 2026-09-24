@@ -69,7 +69,7 @@ function DecaissementsPageInner() {
   const stats = data?.stats ?? {};
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="p-6 space-y-6 max-w-4xl mx-auto">
         <RetourLien className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-violet-600 transition-colors" />
         <div className="flex items-center justify-between flex-wrap gap-3">

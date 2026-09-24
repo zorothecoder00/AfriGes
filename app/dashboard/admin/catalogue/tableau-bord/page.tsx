@@ -82,7 +82,7 @@ export default function CatalogueTableauBordPage() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#dbe7f5]">
       <div className="md:p-6 max-w-6xl mx-auto space-y-5">
         <Link href="/dashboard/admin/catalogue/produits" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Retour au catalogue

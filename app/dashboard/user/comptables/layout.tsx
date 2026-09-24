@@ -97,7 +97,7 @@ export default function ComptablesLayout({ children }: { children: ReactNode }) 
   const visibleNav = NAV.filter((item) => !item.key || loading || isAllowed(item.key));
 
   return (
-    <div className="min-h-screen bg-slate-50 lg:flex">
+    <div className="min-h-screen bg-[#dbe7f5] lg:flex">
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -152,7 +152,7 @@ export default function ComptablesLayout({ children }: { children: ReactNode }) 
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Topbar (desktop + mobile) — remplace le header inline de l'ex-monolithe,
             partagé désormais par toutes les sous-pages via ce layout. */}
-        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+        <header className="topbar-couleur shadow-sm border-b border-slate-200 sticky top-0 z-30">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center gap-3 min-w-0">
