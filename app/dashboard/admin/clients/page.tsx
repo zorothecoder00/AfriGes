@@ -1670,47 +1670,47 @@ export default function ClientsPage() {
                 <>
                   {/* ── Cartes résumé ── */}
                   <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:gap-4">
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+                    <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-2xl p-4">
                       <div className="flex items-center gap-2 mb-1">
-                        <TrendingUp size={16} className="text-emerald-600" />
-                        <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Total payé</span>
+                        <TrendingUp size={16} className="text-white/80" />
+                        <span className="text-xs font-semibold text-white/80 uppercase tracking-wide">Total payé</span>
                       </div>
-                      <p className="text-2xl font-bold text-emerald-700">{formatCurrency(histoData.totaux.totalPaye)}</p>
-                      <p className="text-xs text-emerald-600 mt-1">
+                      <p className="text-2xl font-bold text-white">{formatCurrency(histoData.totaux.totalPaye)}</p>
+                      <p className="text-xs text-white/80 mt-1">
                         Packs : {formatCurrency(histoData.totaux.totalVersementsPacks)}
                         {histoData.totaux.totalAchatsDirects > 0 && ` · Achats : ${formatCurrency(histoData.totaux.totalAchatsDirects)}`}
                       </p>
                     </div>
-                    <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                    <div className="shadow-sm bg-red-700 border-red-800 border rounded-2xl p-4">
                       <div className="flex items-center gap-2 mb-1">
-                        <TrendingDown size={16} className="text-red-600" />
-                        <span className="text-xs font-semibold text-red-700 uppercase tracking-wide">Total dû</span>
+                        <TrendingDown size={16} className="text-white/80" />
+                        <span className="text-xs font-semibold text-white/80 uppercase tracking-wide">Total dû</span>
                       </div>
-                      <p className="text-2xl font-bold text-red-600">{formatCurrency(histoData.totaux.totalDu)}</p>
-                      <p className="text-xs text-red-500 mt-1">Sur souscriptions en cours</p>
+                      <p className="text-2xl font-bold text-white">{formatCurrency(histoData.totaux.totalDu)}</p>
+                      <p className="text-xs text-white/80 mt-1">Sur souscriptions en cours</p>
                     </div>
-                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                    <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-2xl p-4">
                       <div className="flex items-center gap-2 mb-1">
-                        <CreditCard size={16} className="text-blue-600" />
-                        <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Souscriptions</span>
+                        <CreditCard size={16} className="text-white/80" />
+                        <span className="text-xs font-semibold text-white/80 uppercase tracking-wide">Souscriptions</span>
                       </div>
-                      <p className="text-2xl font-bold text-blue-700">{histoData.totaux.nbSouscriptions}</p>
+                      <p className="text-2xl font-bold text-white">{histoData.totaux.nbSouscriptions}</p>
                     </div>
-                    <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
+                    <div className="shadow-sm bg-purple-700 border-purple-800 border rounded-2xl p-4">
                       <div className="flex items-center gap-2 mb-1">
-                        <ShoppingBag size={16} className="text-purple-600" />
-                        <span className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Achats directs</span>
+                        <ShoppingBag size={16} className="text-white/80" />
+                        <span className="text-xs font-semibold text-white/80 uppercase tracking-wide">Achats directs</span>
                       </div>
-                      <p className="text-2xl font-bold text-purple-700">{histoData.totaux.nbAchats}</p>
+                      <p className="text-2xl font-bold text-white">{histoData.totaux.nbAchats}</p>
                     </div>
-                    <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
+                    <div className="shadow-sm bg-violet-700 border-violet-800 border rounded-2xl p-4">
                       <div className="flex items-center gap-2 mb-1">
-                        <CreditCard size={16} className="text-violet-600" />
-                        <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Crédits actifs</span>
+                        <CreditCard size={16} className="text-white/80" />
+                        <span className="text-xs font-semibold text-white/80 uppercase tracking-wide">Crédits actifs</span>
                       </div>
-                      <p className="text-2xl font-bold text-violet-700">{histoData.totaux.nbCreditsActifs}</p>
+                      <p className="text-2xl font-bold text-white">{histoData.totaux.nbCreditsActifs}</p>
                       {histoData.totaux.soldeCredit > 0 && (
-                        <p className="text-xs text-red-500 mt-1">Solde : {formatCurrency(histoData.totaux.soldeCredit)}</p>
+                        <p className="text-xs text-white/80 mt-1">Solde : {formatCurrency(histoData.totaux.soldeCredit)}</p>
                       )}
                     </div>
                   </div>

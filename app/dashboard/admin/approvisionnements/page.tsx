@@ -13,6 +13,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 
 import Portal from "@/components/ui/Portal";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface LigneReception {
@@ -234,41 +235,41 @@ export default function AdminApprovisionnementsPage() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <div className={`rounded-2xl border p-4 sm:p-5 ${pendingApproval > 0 ? "bg-amber-50 border-amber-200" : "bg-white border-slate-200"}`}>
+        <div className={`shadow-sm rounded-2xl border p-4 sm:p-5 ${getStatCardHue(pendingApproval > 0 ? "bg-amber-50 border-amber-200" : "bg-white border-slate-200").solid}`}>
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${pendingApproval > 0 ? "bg-amber-100" : "bg-slate-100"}`}>
-              <Clock size={20} className={pendingApproval > 0 ? "text-amber-600" : "text-slate-500"} />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${pendingApproval > 0 ? "bg-white/20" : "bg-white/20"}`}>
+              <Clock size={20} className={pendingApproval > 0 ? "text-white/80" : "text-white/80"} />
             </div>
             <div>
-              <p className="text-xs text-slate-500">En attente d&apos;approbation</p>
-              <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${pendingApproval > 0 ? "text-amber-700" : "text-slate-700"}`}>{pendingApproval}</p>
+              <p className="text-xs text-white/80">En attente d&apos;approbation</p>
+              <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${pendingApproval > 0 ? "text-white" : "text-white"}`}>{pendingApproval}</p>
             </div>
           </div>
           {pendingApproval > 0 && (
-            <p className="text-xs text-amber-600 mt-2 font-medium">Action requise — cliquez sur &quot;Approuver&quot;</p>
+            <p className="text-xs text-white/80 mt-2 font-medium">Action requise — cliquez sur &quot;Approuver&quot;</p>
           )}
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5">
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-2xl p-4 sm:p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Truck size={20} className="text-blue-600" />
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <Truck size={20} className="text-white/80" />
             </div>
             <div>
-              <p className="text-xs text-slate-500">Total réceptions</p>
-              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-700">{data?.meta?.total ?? 0}</p>
+              <p className="text-xs text-white/80">Total réceptions</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{data?.meta?.total ?? 0}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5">
+        <div className="shadow-sm bg-amber-600 border-amber-700 border rounded-2xl p-4 sm:p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-              <CheckCircle size={20} className="text-emerald-600" />
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <CheckCircle size={20} className="text-white/80" />
             </div>
             <div>
-              <p className="text-xs text-slate-500">Validées</p>
-              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-700">
+              <p className="text-xs text-white/80">Validées</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">
                 {data?.stats?.totalValide ?? receptions.filter(r => r.statut === "VALIDE").length}
               </p>
             </div>

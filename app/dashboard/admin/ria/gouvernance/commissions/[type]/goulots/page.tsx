@@ -120,25 +120,25 @@ export default function GoulotsPage() {
 
       {dash && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className="text-xl font-bold text-violet-700">{toNum(dash.scoreGlobalSante)}/100</p>
-            <p className="text-xs text-slate-500">Score santé</p>
+          <div className="shadow-sm bg-violet-700 border-violet-800 border rounded-xl p-4 text-center">
+            <p className="text-xl font-bold text-white">{toNum(dash.scoreGlobalSante)}/100</p>
+            <p className="text-xs text-white/80">Score santé</p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className={`text-xl font-bold ${toNum(dash.tauxDefaut) > 5 ? "text-rose-700" : "text-emerald-700"}`}>
+          <div className="shadow-sm bg-rose-700 border-rose-800 border rounded-xl p-4 text-center">
+            <p className={`text-xl font-bold ${toNum(dash.tauxDefaut) > 5 ? "text-white" : "text-white"}`}>
               {toNum(dash.tauxDefaut).toFixed(1)}%
             </p>
-            <p className="text-xs text-slate-500">Taux défaut</p>
+            <p className="text-xs text-white/80">Taux défaut</p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className={`text-xl font-bold ${tauxUtil > 90 ? "text-rose-700" : "text-blue-700"}`}>
+          <div className="shadow-sm bg-rose-700 border-rose-800 border rounded-xl p-4 text-center">
+            <p className={`text-xl font-bold ${tauxUtil > 90 ? "text-white" : "text-white"}`}>
               {tauxUtil.toFixed(1)}%
             </p>
-            <p className="text-xs text-slate-500">Capital utilisé</p>
+            <p className="text-xs text-white/80">Capital utilisé</p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className={`text-xl font-bold ${goulots.length > 0 ? "text-rose-700" : "text-emerald-600"}`}>{goulots.length}</p>
-            <p className="text-xs text-slate-500">Goulots détectés</p>
+          <div className="shadow-sm bg-rose-700 border-rose-800 border rounded-xl p-4 text-center">
+            <p className={`text-xl font-bold ${goulots.length > 0 ? "text-white" : "text-white"}`}>{goulots.length}</p>
+            <p className="text-xs text-white/80">Goulots détectés</p>
           </div>
         </div>
       )}

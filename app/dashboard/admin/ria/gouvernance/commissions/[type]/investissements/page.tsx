@@ -55,21 +55,21 @@ export default function InvestissementsPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{stats?.total ?? 0}</p>
-          <p className="text-xs text-slate-500">Financements total</p>
+        <div className="shadow-sm bg-indigo-700 border-indigo-800 border rounded-xl p-4 text-center">
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{stats?.total ?? 0}</p>
+          <p className="text-xs text-white/80">Financements total</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-blue-700">{formatCurrency(total)}</p>
-          <p className="text-xs text-slate-500">Montant total financé</p>
+        <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-xl p-4 text-center">
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{formatCurrency(total)}</p>
+          <p className="text-xs text-white/80">Montant total financé</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-600">{formatCurrency(rembourse)}</p>
-          <p className="text-xs text-slate-500">Montant recouvré</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{formatCurrency(rembourse)}</p>
+          <p className="text-xs text-white/80">Montant recouvré</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${retard > 0 ? "text-rose-600" : "text-emerald-600"}`}>{retard}</p>
-          <p className="text-xs text-slate-500">En retard</p>
+        <div className="shadow-sm bg-rose-700 border-rose-800 border rounded-xl p-4 text-center">
+          <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${retard > 0 ? "text-white" : "text-white"}`}>{retard}</p>
+          <p className="text-xs text-white/80">En retard</p>
         </div>
       </div>
 

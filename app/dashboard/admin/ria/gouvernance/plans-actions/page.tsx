@@ -185,17 +185,17 @@ export default function PlansActionsPage() {
       {/* Stats rapides */}
       {!loading && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{allPlans.length}</p>
-            <p className="text-xs text-slate-500">Total plans</p>
+          <div className="shadow-sm bg-indigo-700 border-indigo-800 border rounded-xl p-4 text-center">
+            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{allPlans.length}</p>
+            <p className="text-xs text-white/80">Total plans</p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-blue-600">{allPlans.filter(p => p.statut === "EN_COURS").length}</p>
-            <p className="text-xs text-slate-500">En cours</p>
+          <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-xl p-4 text-center">
+            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{allPlans.filter(p => p.statut === "EN_COURS").length}</p>
+            <p className="text-xs text-white/80">En cours</p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-600">{allPlans.filter(p => p.statut === "TERMINE").length}</p>
-            <p className="text-xs text-slate-500">Terminés</p>
+          <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{allPlans.filter(p => p.statut === "TERMINE").length}</p>
+            <p className="text-xs text-white/80">Terminés</p>
           </div>
           <button onClick={() => setShowRetard(!showRetard)}
             className={`border rounded-xl p-4 text-center transition-all ${showRetard ? "border-rose-400 bg-rose-50" : "bg-white border-slate-200 hover:border-rose-300"}`}>

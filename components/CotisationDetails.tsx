@@ -102,13 +102,13 @@ const CotisationDetails: React.FC<CotisationDetailsProps> = ({ cotisation, onClo
 
           {/* Montant + Période */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-4 text-center">
-              <p className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wider mb-1">Montant</p>
-              <p className="text-2xl font-extrabold text-emerald-700">{formatCurrency(cotisation.montant)}</p>
+            <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl px-4 py-4 text-center">
+              <p className="text-[10px] text-white/80 font-semibold uppercase tracking-wider mb-1">Montant</p>
+              <p className="text-2xl font-extrabold text-white">{formatCurrency(cotisation.montant)}</p>
             </div>
-            <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-4 text-center">
-              <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-1">Période</p>
-              <p className="text-lg font-bold text-slate-800">
+            <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl px-4 py-4 text-center">
+              <p className="text-[10px] text-white/80 font-semibold uppercase tracking-wider mb-1">Période</p>
+              <p className="text-lg font-bold text-white">
                 {cotisation.periode === 'MENSUEL' ? 'Mensuelle' : 'Annuelle'}
               </p>
             </div>

@@ -5,6 +5,7 @@ import { useApi } from "@/hooks/useApi";
 import { useState } from "react";
 import { RefreshCw, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 interface Row {
   id: number; actif: boolean; classeRisque: string;
@@ -58,17 +59,17 @@ export default function ClientsAuditPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{stats?.total ?? 0}</p>
-          <p className="text-xs text-slate-500">Clients total</p>
+        <div className="shadow-sm bg-indigo-700 border-indigo-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{stats?.total ?? 0}</p>
+          <p className="text-xs text-white/80">Clients total</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-600">{stats?.actifs ?? 0}</p>
-          <p className="text-xs text-slate-500">Actifs</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{stats?.actifs ?? 0}</p>
+          <p className="text-xs text-white/80">Actifs</p>
         </div>
-        <div className={`border rounded-xl p-4 text-center ${anomalies > 0 ? "bg-rose-50 border-rose-200" : "bg-white border-slate-200"}`}>
-          <p className={`text-2xl font-bold ${anomalies > 0 ? "text-rose-700" : "text-emerald-600"}`}>{anomalies}</p>
-          <p className={`text-xs ${anomalies > 0 ? "text-rose-600" : "text-slate-500"}`}>Anomalies détectées</p>
+        <div className={`shadow-sm border rounded-xl p-4 text-center ${getStatCardHue(anomalies > 0 ? "bg-rose-50 border-rose-200" : "bg-white border-slate-200").solid}`}>
+          <p className={`text-2xl font-bold ${anomalies > 0 ? "text-white" : "text-white"}`}>{anomalies}</p>
+          <p className={`text-xs ${anomalies > 0 ? "text-white/80" : "text-white/80"}`}>Anomalies détectées</p>
         </div>
       </div>
 

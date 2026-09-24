@@ -1,6 +1,7 @@
 "use client";
 
 import { TrendingUp, Users, AlertCircle, Wallet, BarChart2, XCircle } from "lucide-react";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -234,20 +235,20 @@ export function RapportContent({ d, genereA }: { d: DonneesRapport; genereA: str
           <AlertCircle className="w-4 h-4 text-orange-600" /> Analyse des Risques
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className={`rounded-xl border p-4 ${d.retardsNb > 0 ? "bg-orange-50 border-orange-300" : "bg-slate-50 border-slate-200"}`}>
-            <p className="text-xs text-slate-500 mb-1">Retards actifs</p>
-            <p className="text-xl font-bold text-orange-700">{d.retardsNb} financement(s)</p>
-            <p className="text-sm font-medium text-orange-600 mt-0.5">{fmt(d.retardsMontant)}</p>
+          <div className={`shadow-sm rounded-xl border p-4 ${getStatCardHue(d.retardsNb > 0 ? "bg-orange-50 border-orange-300" : "bg-slate-50 border-slate-200").solid}`}>
+            <p className="text-xs text-white/80 mb-1">Retards actifs</p>
+            <p className="text-xl font-bold text-white">{d.retardsNb} financement(s)</p>
+            <p className="text-sm font-medium text-white/80 mt-0.5">{fmt(d.retardsMontant)}</p>
           </div>
-          <div className={`rounded-xl border p-4 ${d.creancesDouteuseNb > 0 ? "bg-amber-50 border-amber-300" : "bg-slate-50 border-slate-200"}`}>
-            <p className="text-xs text-slate-500 mb-1">Créances douteuses <span className="text-xs">(retard &gt; 30j)</span></p>
-            <p className="text-xl font-bold text-amber-700">{d.creancesDouteuseNb} dossier(s)</p>
-            <p className="text-sm font-medium text-amber-600 mt-0.5">{fmt(d.creancesDouteusesMontant)}</p>
+          <div className={`shadow-sm rounded-xl border p-4 ${getStatCardHue(d.creancesDouteuseNb > 0 ? "bg-amber-50 border-amber-300" : "bg-slate-50 border-slate-200").solid}`}>
+            <p className="text-xs text-white/80 mb-1">Créances douteuses <span className="text-xs">(retard &gt; 30j)</span></p>
+            <p className="text-xl font-bold text-white">{d.creancesDouteuseNb} dossier(s)</p>
+            <p className="text-sm font-medium text-white/80 mt-0.5">{fmt(d.creancesDouteusesMontant)}</p>
           </div>
-          <div className={`rounded-xl border p-4 ${d.creancesPerduseNb > 0 ? "bg-red-50 border-red-300" : "bg-slate-50 border-slate-200"}`}>
-            <p className="text-xs text-slate-500 mb-1">Créances perdues <span className="text-xs">(défaut)</span></p>
-            <p className="text-xl font-bold text-red-700">{d.creancesPerduseNb} dossier(s)</p>
-            <p className="text-sm font-medium text-red-600 mt-0.5">{fmt(d.creancesPerdusesMontant)}</p>
+          <div className={`shadow-sm rounded-xl border p-4 ${getStatCardHue(d.creancesPerduseNb > 0 ? "bg-red-50 border-red-300" : "bg-slate-50 border-slate-200").solid}`}>
+            <p className="text-xs text-white/80 mb-1">Créances perdues <span className="text-xs">(défaut)</span></p>
+            <p className="text-xl font-bold text-white">{d.creancesPerduseNb} dossier(s)</p>
+            <p className="text-sm font-medium text-white/80 mt-0.5">{fmt(d.creancesPerdusesMontant)}</p>
           </div>
         </div>
       </section>

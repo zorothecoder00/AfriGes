@@ -55,17 +55,17 @@ export default function SuggestionsPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{items.length}</p>
-          <p className="text-xs text-slate-500">Suggestions total</p>
+        <div className="shadow-sm bg-indigo-700 border-indigo-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{items.length}</p>
+          <p className="text-xs text-white/80">Suggestions total</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-violet-700">{enCours}</p>
-          <p className="text-xs text-slate-500">En cours d&apos;implémentation</p>
+        <div className="shadow-sm bg-violet-700 border-violet-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{enCours}</p>
+          <p className="text-xs text-white/80">En cours d&apos;implémentation</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-700">{implementees}</p>
-          <p className="text-xs text-slate-500">Implémentées</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{implementees}</p>
+          <p className="text-xs text-white/80">Implémentées</p>
         </div>
       </div>
 

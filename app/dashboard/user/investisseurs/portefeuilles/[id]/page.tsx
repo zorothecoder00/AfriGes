@@ -131,37 +131,37 @@ export default function PortefeuilleDetailPage({ params }: { params: Promise<{ i
 
           {/* ── KPIs ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-4">
-              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600"><Wallet className="w-5 h-5" /></div>
+            <div className="shadow-sm bg-indigo-700 border-indigo-800 rounded-2xl border p-5 flex items-start gap-4">
+              <div className="p-3 rounded-xl bg-white/20 text-white/80"><Wallet className="w-5 h-5" /></div>
               <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">Capital investi</p>
-                <p className="text-xl font-bold text-slate-900 mt-0.5">{fmt(toNum(pf.capitalInvesti))} F</p>
+                <p className="text-xs text-white/80 uppercase tracking-wider font-medium">Capital investi</p>
+                <p className="text-xl font-bold text-white mt-0.5">{fmt(toNum(pf.capitalInvesti))} F</p>
               </div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-4">
-              <div className="p-3 rounded-xl bg-blue-50 text-blue-600"><TrendingUp className="w-5 h-5" /></div>
+            <div className="shadow-sm bg-emerald-700 border-emerald-800 rounded-2xl border p-5 flex items-start gap-4">
+              <div className="p-3 rounded-xl bg-white/20 text-white/80"><TrendingUp className="w-5 h-5" /></div>
               <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">Disponible</p>
-                <p className="text-xl font-bold text-slate-900 mt-0.5">{fmt(toNum(pf.capitalDisponible))} F</p>
+                <p className="text-xs text-white/80 uppercase tracking-wider font-medium">Disponible</p>
+                <p className="text-xl font-bold text-white mt-0.5">{fmt(toNum(pf.capitalDisponible))} F</p>
               </div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-4">
-              <div className="p-3 rounded-xl bg-amber-50 text-amber-600"><Activity className="w-5 h-5" /></div>
+            <div className="shadow-sm bg-amber-600 border-amber-700 rounded-2xl border p-5 flex items-start gap-4">
+              <div className="p-3 rounded-xl bg-white/20 text-white/80"><Activity className="w-5 h-5" /></div>
               <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">Engagé</p>
-                <p className="text-xl font-bold text-slate-900 mt-0.5">{fmt(toNum(pf.capitalEngage))} F</p>
-                <div className="mt-1.5 w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-amber-400 rounded-full" style={{ width: `${Math.min(tauxEngagement, 100)}%` }} />
+                <p className="text-xs text-white/80 uppercase tracking-wider font-medium">Engagé</p>
+                <p className="text-xl font-bold text-white mt-0.5">{fmt(toNum(pf.capitalEngage))} F</p>
+                <div className="mt-1.5 w-24 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div className="h-full bg-white rounded-full" style={{ width: `${Math.min(tauxEngagement, 100)}%` }} />
                 </div>
-                <p className="text-xs text-amber-600 mt-0.5">{tauxEngagement.toFixed(0)}% du capital</p>
+                <p className="text-xs text-white/80 mt-0.5">{tauxEngagement.toFixed(0)}% du capital</p>
               </div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-start gap-4">
-              <div className="p-3 rounded-xl bg-violet-50 text-violet-600"><DollarSign className="w-5 h-5" /></div>
+            <div className="shadow-sm bg-sky-700 border-sky-800 rounded-2xl border p-5 flex items-start gap-4">
+              <div className="p-3 rounded-xl bg-white/20 text-white/80"><DollarSign className="w-5 h-5" /></div>
               <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">Bénéfices générés</p>
-                <p className="text-xl font-bold text-slate-900 mt-0.5">{fmt(toNum(pf.beneficesGeneres))} F</p>
-                <p className="text-xs text-slate-400 mt-0.5">Distribués : {fmt(toNum(pf.beneficesDistribues))} F</p>
+                <p className="text-xs text-white/80 uppercase tracking-wider font-medium">Bénéfices générés</p>
+                <p className="text-xl font-bold text-white mt-0.5">{fmt(toNum(pf.beneficesGeneres))} F</p>
+                <p className="text-xs text-white/80 mt-0.5">Distribués : {fmt(toNum(pf.beneficesDistribues))} F</p>
               </div>
             </div>
           </div>

@@ -114,17 +114,17 @@ export default function MemberDetails({ memberId }: { memberId: string }) {
       {/* Wallet Summary */}
       <div className="max-w-7xl mx-auto md:px-6 lg:px-8 py-4 md:py-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <span className="text-sm font-medium text-gray-600">{t('md_solde_general')}</span>
-            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-gray-900 mt-2">{formatCurrency(soldeGeneral)}</p>
+          <div className="shadow-sm bg-indigo-700 border-indigo-800 rounded-xl border p-6">
+            <span className="text-sm font-medium text-white/80">{t('md_solde_general')}</span>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-white mt-2">{formatCurrency(soldeGeneral)}</p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <span className="text-sm font-medium text-gray-600">{t('md_solde_tontine')}</span>
-            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-gray-900 mt-2">{formatCurrency(soldeTontine)}</p>
+          <div className="shadow-sm bg-emerald-700 border-emerald-800 rounded-xl border p-6">
+            <span className="text-sm font-medium text-white/80">{t('md_solde_tontine')}</span>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-white mt-2">{formatCurrency(soldeTontine)}</p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <span className="text-sm font-medium text-gray-600">{t('md_solde_credit')}</span>
-            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-gray-900 mt-2">{formatCurrency(soldeCredit)}</p>
+          <div className="shadow-sm bg-amber-600 border-amber-700 rounded-xl border p-6">
+            <span className="text-sm font-medium text-white/80">{t('md_solde_credit')}</span>
+            <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-white mt-2">{formatCurrency(soldeCredit)}</p>
           </div>
         </div>
 
@@ -166,7 +166,7 @@ export default function MemberDetails({ memberId }: { memberId: string }) {
                 <div className="border-t border-gray-200 pt-6">
                   <h3 className="text-sm font-medium text-gray-500 mb-4">{t('md_stats_rapides')}</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div className="bg-gray-50 rounded-lg p-4"><p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-600">{formatCurrency(soldeGeneral + soldeTontine + soldeCredit)}</p><p className="text-sm text-gray-600 mt-1">{t('md_solde_total')}</p>
+                    <div className="shadow-sm border bg-emerald-700 border-emerald-800 rounded-lg p-4"><p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-600">{formatCurrency(soldeGeneral + soldeTontine + soldeCredit)}</p><p className="text-sm text-gray-600 mt-1">{t('md_solde_total')}</p>
                     </div>
                   </div>
                 </div>

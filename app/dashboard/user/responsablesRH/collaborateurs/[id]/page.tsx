@@ -13,6 +13,7 @@ import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { generateUploadButton } from "@uploadthing/react";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
+import { teinteCarte } from "@/lib/carte3d";
 
 const UploadButton = generateUploadButton<OurFileRouter>();
 
@@ -607,17 +608,17 @@ function CongesTab({ profilId }: { profilId: number }) {
         </div>
         {soldes.length === 0 ? <p className="text-sm text-slate-400 text-center py-6">Aucune politique de congé configurée</p> : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {soldes.map((s) => {
+            {soldes.map((s, idxTuile) => {
               const pct = s.totalDroit > 0 ? Math.round((s.pris / s.totalDroit) * 100) : 0;
               return (
-                <div key={s.type} className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                  <p className="text-xs font-semibold text-slate-600 mb-2">{TYPE_CONGE_LABEL[s.type] ?? s.type}</p>
+                <div key={s.type} className={`shadow-sm p-4 rounded-xl border ${teinteCarte(idxTuile)}`}>
+                  <p className="text-xs font-semibold text-white/80 mb-2">{TYPE_CONGE_LABEL[s.type] ?? s.type}</p>
                   <div className="flex items-end justify-between mb-2">
-                    <div><span className="text-2xl font-bold text-slate-900">{s.restant}</span><span className="text-xs text-slate-400 ml-1">j restants</span></div>
-                    <div className="text-right text-xs text-slate-400"><p>{s.pris}j pris / {s.totalDroit}j</p></div>
+                    <div><span className="text-2xl font-bold text-white">{s.restant}</span><span className="text-xs text-white ml-1">j restants</span></div>
+                    <div className="text-right text-xs text-white/80"><p>{s.pris}j pris / {s.totalDroit}j</p></div>
                   </div>
-                  <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${pct >= 80 ? "bg-red-400" : pct >= 50 ? "bg-amber-400" : "bg-emerald-400"}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                  <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${pct >= 80 ? "bg-white" : pct >= 50 ? "bg-white" : "bg-white"}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                   </div>
                 </div>
               );

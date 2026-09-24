@@ -137,22 +137,22 @@ export default function AlertesImpayesPage() {
 
         {/* Stats urgence */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 sm:p-5 flex flex-col items-start sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0">
-            <div className="bg-red-100 p-2.5 sm:p-3 rounded-xl shrink-0">
-              <AlertTriangle className="w-6 h-6 text-red-600" />
+          <div className="shadow-sm bg-red-700 border-red-800 border rounded-2xl p-4 sm:p-5 flex flex-col items-start sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0">
+            <div className="bg-white/20 p-2.5 sm:p-3 rounded-xl shrink-0">
+              <AlertTriangle className="w-6 h-6 text-white/80" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-red-600 font-medium">{t('alertes_stat_creances')} (&gt; {jours}j)</p>
-              <p className="text-2xl sm:text-3xl font-bold text-red-700">{res?.stats.total ?? 0}</p>
+              <p className="text-xs text-white/80 font-medium">{t('alertes_stat_creances')} (&gt; {jours}j)</p>
+              <p className="text-2xl sm:text-3xl font-bold text-white">{res?.stats.total ?? 0}</p>
             </div>
           </div>
-          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 sm:p-5 flex flex-col items-start sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0">
-            <div className="bg-orange-100 p-2.5 sm:p-3 rounded-xl shrink-0">
-              <Bell className="w-6 h-6 text-orange-600" />
+          <div className="shadow-sm bg-orange-700 border-orange-800 border rounded-2xl p-4 sm:p-5 flex flex-col items-start sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0">
+            <div className="bg-white/20 p-2.5 sm:p-3 rounded-xl shrink-0">
+              <Bell className="w-6 h-6 text-white/80" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-orange-600 font-medium">{t('alertes_stat_montant')}</p>
-              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-orange-700">{formatCurrency(res?.stats.montant ?? 0)}</p>
+              <p className="text-xs text-white/80 font-medium">{t('alertes_stat_montant')}</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{formatCurrency(res?.stats.montant ?? 0)}</p>
             </div>
           </div>
         </div>

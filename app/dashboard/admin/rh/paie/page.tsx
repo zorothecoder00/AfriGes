@@ -1558,17 +1558,17 @@ function RetenuesTab() {
         <>
           {/* Total + répartition par type */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
-              <p className="text-xs text-slate-500 mb-1">Total des retenues</p>
-              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-red-600">{fmt(data?.totalRetenues ?? 0)} FCFA</p>
+            <div className="shadow-sm bg-red-700 border-red-800 rounded-xl border p-4">
+              <p className="text-xs text-white/80 mb-1">Total des retenues</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{fmt(data?.totalRetenues ?? 0)} FCFA</p>
             </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Répartition par type</p>
+            <div className="shadow-sm bg-emerald-700 border-emerald-800 rounded-xl border p-4">
+              <p className="text-xs font-semibold text-white/80 uppercase mb-2">Répartition par type</p>
               <div className="space-y-1.5">
                 {parType.map((t) => (
                   <div key={t.type} className="flex justify-between text-sm">
-                    <span className="text-slate-600">{t.libelle} <span className="text-slate-400 text-xs">×{t.nombre}</span></span>
-                    <span className="font-medium text-red-600">{fmt(t.total)} FCFA</span>
+                    <span className="text-white/80">{t.libelle} <span className="text-white/80 text-xs">×{t.nombre}</span></span>
+                    <span className="font-medium text-white/80">{fmt(t.total)} FCFA</span>
                   </div>
                 ))}
               </div>
@@ -1684,21 +1684,21 @@ function CnssFiscalTab() {
         <>
           {/* Totaux */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
-              <p className="text-xs text-slate-500 mb-1">CNSS salariale (4 %)</p>
-              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-red-600">{fmt(data?.totalSalariale ?? 0)} FCFA</p>
+            <div className="shadow-sm bg-red-700 border-red-800 rounded-xl border p-4">
+              <p className="text-xs text-white/80 mb-1">CNSS salariale (4 %)</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{fmt(data?.totalSalariale ?? 0)} FCFA</p>
             </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
-              <p className="text-xs text-slate-500 mb-1">CNSS patronale (17,50 %)</p>
-              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-orange-600">{fmt(data?.totalPatronale ?? 0)} FCFA</p>
+            <div className="shadow-sm bg-orange-700 border-orange-800 rounded-xl border p-4">
+              <p className="text-xs text-white/80 mb-1">CNSS patronale (17,50 %)</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{fmt(data?.totalPatronale ?? 0)} FCFA</p>
             </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
-              <p className="text-xs text-slate-500 mb-1">Total CNSS à reverser (21,50 %)</p>
-              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{fmt(data?.totalCnss ?? 0)} FCFA</p>
+            <div className="shadow-sm bg-amber-600 border-amber-700 rounded-xl border p-4">
+              <p className="text-xs text-white/80 mb-1">Total CNSS à reverser (21,50 %)</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{fmt(data?.totalCnss ?? 0)} FCFA</p>
             </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
-              <p className="text-xs text-slate-500 mb-1">IRPP à reverser (OTR)</p>
-              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-purple-600">{fmt(data?.totalIrpp ?? 0)} FCFA</p>
+            <div className="shadow-sm bg-purple-700 border-purple-800 rounded-xl border p-4">
+              <p className="text-xs text-white/80 mb-1">IRPP à reverser (OTR)</p>
+              <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{fmt(data?.totalIrpp ?? 0)} FCFA</p>
             </div>
           </div>
 

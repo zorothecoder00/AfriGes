@@ -62,21 +62,21 @@ export default function RapportsGestionPage() {
       ) : rapportsGestionData && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-2xl p-4 border border-slate-200/60">
-              <p className="text-xs text-slate-400">CA période</p>
-              <p className="text-xl font-bold text-slate-800">{formatCurrency(rapportsGestionData.data.caParPdv.reduce((s, p) => s + p.caTotal, 0))}</p>
+            <div className="shadow-sm bg-indigo-700 border-indigo-800 rounded-2xl p-4 border">
+              <p className="text-xs text-white/80">CA période</p>
+              <p className="text-xl font-bold text-white">{formatCurrency(rapportsGestionData.data.caParPdv.reduce((s, p) => s + p.caTotal, 0))}</p>
             </div>
-            <div className="bg-white rounded-2xl p-4 border border-slate-200/60">
-              <p className="text-xs text-slate-400">DSO clients (délai moyen de recouvrement)</p>
-              <p className="text-xl font-bold text-slate-800">{rapportsGestionData.data.dso.dsoJours != null ? `${rapportsGestionData.data.dso.dsoJours} j` : "—"}</p>
+            <div className="shadow-sm bg-emerald-700 border-emerald-800 rounded-2xl p-4 border">
+              <p className="text-xs text-white/80">DSO clients (délai moyen de recouvrement)</p>
+              <p className="text-xl font-bold text-white">{rapportsGestionData.data.dso.dsoJours != null ? `${rapportsGestionData.data.dso.dsoJours} j` : "—"}</p>
             </div>
-            <div className="bg-white rounded-2xl p-4 border border-slate-200/60">
-              <p className="text-xs text-slate-400">Encours clients</p>
-              <p className="text-xl font-bold text-blue-700">{formatCurrency(rapportsGestionData.data.dso.encoursMoyen)}</p>
+            <div className="shadow-sm bg-blue-700 border-blue-800 rounded-2xl p-4 border">
+              <p className="text-xs text-white/80">Encours clients</p>
+              <p className="text-xl font-bold text-white">{formatCurrency(rapportsGestionData.data.dso.encoursMoyen)}</p>
             </div>
-            <div className="bg-white rounded-2xl p-4 border border-slate-200/60">
-              <p className="text-xs text-slate-400">Reste à payer fournisseurs</p>
-              <p className="text-xl font-bold text-red-600">{formatCurrency(rapportsGestionData.data.dpoFournisseursProxy.reduce((s, f) => s + f.resteAPayer, 0))}</p>
+            <div className="shadow-sm bg-red-700 border-red-800 rounded-2xl p-4 border">
+              <p className="text-xs text-white/80">Reste à payer fournisseurs</p>
+              <p className="text-xl font-bold text-white">{formatCurrency(rapportsGestionData.data.dpoFournisseursProxy.reduce((s, f) => s + f.resteAPayer, 0))}</p>
             </div>
           </div>
 

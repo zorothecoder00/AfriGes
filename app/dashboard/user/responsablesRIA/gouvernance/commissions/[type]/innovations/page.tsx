@@ -49,17 +49,17 @@ export default function InnovationsPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{items.length}</p>
-          <p className="text-xs text-slate-500">Initiatives totales</p>
+        <div className="shadow-sm bg-indigo-700 border-indigo-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{items.length}</p>
+          <p className="text-xs text-white/80">Initiatives totales</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-blue-700">{items.filter(p => p.statut === "EN_COURS").length}</p>
-          <p className="text-xs text-slate-500">En cours</p>
+        <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{items.filter(p => p.statut === "EN_COURS").length}</p>
+          <p className="text-xs text-white/80">En cours</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-700">{terminees}</p>
-          <p className="text-xs text-slate-500">Finalisées</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{terminees}</p>
+          <p className="text-xs text-white/80">Finalisées</p>
         </div>
       </div>
 

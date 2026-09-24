@@ -45,17 +45,17 @@ export default function ActivitesPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{stats?.total ?? 0}</p>
-          <p className="text-xs text-slate-500">Affectations totales</p>
+        <div className="shadow-sm bg-indigo-700 border-indigo-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{stats?.total ?? 0}</p>
+          <p className="text-xs text-white/80">Affectations totales</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-600">{stats?.actifs ?? 0}</p>
-          <p className="text-xs text-slate-500">Actives</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{stats?.actifs ?? 0}</p>
+          <p className="text-xs text-white/80">Actives</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-blue-600">{byCommune.length}</p>
-          <p className="text-xs text-slate-500">Communes couvertes</p>
+        <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{byCommune.length}</p>
+          <p className="text-xs text-white/80">Communes couvertes</p>
         </div>
       </div>
 

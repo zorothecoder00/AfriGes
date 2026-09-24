@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import { formatDate } from "@/lib/format";
 import SideTabs from "@/components/ui/SideTabs";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 /* ─── Types ──────────────────────────────────────────────── */
 type StatutPoste = "BROUILLON" | "OUVERT" | "EN_COURS" | "POURVU" | "ANNULE";
@@ -870,17 +871,17 @@ function BaseCVTab() {
       {/* Stats ATS */}
       {data?.ats && (
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white rounded-xl border border-slate-100 p-3 text-center">
-            <div className="text-2xl font-bold text-slate-800">{data.ats.totalCandidats}</div>
-            <div className="text-xs text-slate-500">Total candidats</div>
+          <div className="shadow-sm bg-indigo-700 border-indigo-800 rounded-xl border p-3 text-center">
+            <div className="text-2xl font-bold text-white">{data.ats.totalCandidats}</div>
+            <div className="text-xs text-white/80">Total candidats</div>
           </div>
-          <div className="bg-white rounded-xl border border-slate-100 p-3 text-center">
-            <div className="text-2xl font-bold text-slate-800">{Math.round(Number(data.ats.moyenneScore))}/100</div>
-            <div className="text-xs text-slate-500">Score moyen</div>
+          <div className="shadow-sm bg-emerald-700 border-emerald-800 rounded-xl border p-3 text-center">
+            <div className="text-2xl font-bold text-white">{Math.round(Number(data.ats.moyenneScore))}/100</div>
+            <div className="text-xs text-white/80">Score moyen</div>
           </div>
-          <div className="bg-white rounded-xl border border-slate-100 p-3 text-center">
-            <div className="text-2xl font-bold text-green-600">{data.ats.parStatut?.ACCEPTE ?? 0}</div>
-            <div className="text-xs text-slate-500">Recrutés</div>
+          <div className="shadow-sm bg-green-700 border-green-800 rounded-xl border p-3 text-center">
+            <div className="text-2xl font-bold text-white">{data.ats.parStatut?.ACCEPTE ?? 0}</div>
+            <div className="text-xs text-white/80">Recrutés</div>
           </div>
         </div>
       )}
@@ -1103,10 +1104,10 @@ export default function RecrutementPage() {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {STATS.map(({ key, label, icon, color }) => (
             <button key={key} onClick={() => { setStatut(statut === key ? "" : key); setActiveTab("postes"); }}
-              className={`bg-white rounded-2xl p-3 shadow-sm border text-left transition-all ${statut === key ? "border-indigo-300 ring-2 ring-indigo-100" : "border-slate-100 hover:border-slate-200"}`}>
-              <div className={`p-2 rounded-lg w-fit ${color}`}>{icon}</div>
-              <div className="mt-2 text-xl font-bold text-slate-800">{data?.stats?.[key] ?? 0}</div>
-              <div className="text-xs text-slate-500">{label}</div>
+              className={`${getStatCardHue(color).solid} rounded-2xl p-3 shadow-sm border text-left transition-all hover:-translate-y-0.5 hover:shadow-lg ${statut === key ? "ring-4 ring-indigo-300" : ""}`}>
+              <div className="p-2 rounded-lg w-fit bg-white/20 text-white [&_svg]:text-white">{icon}</div>
+              <div className="mt-2 text-xl font-bold text-white">{data?.stats?.[key] ?? 0}</div>
+              <div className="text-xs text-white/80">{label}</div>
             </button>
           ))}
         </div>

@@ -527,43 +527,43 @@ export default function GestionStockPage() {
             </h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Ruptures */}
-              <div className={`p-4 rounded-xl border ${(stats?.enRuptureCount ?? 0) > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200 opacity-40'}`}>
+              <div className={`shadow-sm p-4 rounded-xl border ${getStatCardHue((stats?.enRuptureCount ?? 0) > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200 opacity-40').solid}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-red-700 uppercase tracking-wide">Rupture de stock</span>
-                  <Archive size={14} className="text-red-500" />
+                  <span className="text-xs font-semibold text-white/80 uppercase tracking-wide">Rupture de stock</span>
+                  <Archive size={14} className="text-white/80" />
                 </div>
-                <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-red-700">{stats?.enRuptureCount ?? 0}</p>
-                <p className="text-xs text-red-500 mt-1">produit(s) à 0</p>
+                <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{stats?.enRuptureCount ?? 0}</p>
+                <p className="text-xs text-white/80 mt-1">produit(s) à 0</p>
               </div>
 
               {/* Rupture imminente */}
-              <div className={`p-4 rounded-xl border ${(stats?.faibleCount ?? 0) > 0 ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200 opacity-40'}`}>
+              <div className={`shadow-sm p-4 rounded-xl border ${getStatCardHue((stats?.faibleCount ?? 0) > 0 ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200 opacity-40').solid}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Rupture imminente</span>
-                  <AlertTriangle size={14} className="text-amber-500" />
+                  <span className="text-xs font-semibold text-white/80 uppercase tracking-wide">Rupture imminente</span>
+                  <AlertTriangle size={14} className="text-white/80" />
                 </div>
-                <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-amber-700">{stats?.faibleCount ?? 0}</p>
-                <p className="text-xs text-amber-500 mt-1">stock ≤ seuil d&apos;alerte</p>
+                <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{stats?.faibleCount ?? 0}</p>
+                <p className="text-xs text-white/80 mt-1">stock ≤ seuil d&apos;alerte</p>
               </div>
 
               {/* Surstock */}
-              <div className={`p-4 rounded-xl border ${(stats?.surstockCount ?? 0) > 0 ? 'bg-sky-50 border-sky-200' : 'bg-slate-50 border-slate-200 opacity-40'}`}>
+              <div className={`shadow-sm p-4 rounded-xl border ${getStatCardHue((stats?.surstockCount ?? 0) > 0 ? 'bg-sky-50 border-sky-200' : 'bg-slate-50 border-slate-200 opacity-40').solid}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-sky-700 uppercase tracking-wide">Surstock</span>
-                  <Boxes size={14} className="text-sky-500" />
+                  <span className="text-xs font-semibold text-white/80 uppercase tracking-wide">Surstock</span>
+                  <Boxes size={14} className="text-white/80" />
                 </div>
-                <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-sky-700">{stats?.surstockCount ?? 0}</p>
-                <p className="text-xs text-sky-500 mt-1">stock &gt; 5× le seuil</p>
+                <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{stats?.surstockCount ?? 0}</p>
+                <p className="text-xs text-white/80 mt-1">stock &gt; 5× le seuil</p>
               </div>
 
               {/* Perte élevée */}
-              <div className={`p-4 rounded-xl border ${(stats?.perteEleveeCount ?? 0) > 0 ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200 opacity-40'}`}>
+              <div className={`shadow-sm p-4 rounded-xl border ${getStatCardHue((stats?.perteEleveeCount ?? 0) > 0 ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200 opacity-40').solid}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-rose-700 uppercase tracking-wide">Perte élevée</span>
-                  <TrendingDown size={14} className="text-rose-500" />
+                  <span className="text-xs font-semibold text-white/80 uppercase tracking-wide">Perte élevée</span>
+                  <TrendingDown size={14} className="text-white/80" />
                 </div>
-                <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-rose-700">{stats?.perteEleveeCount ?? 0}</p>
-                <p className="text-xs text-rose-500 mt-1">≥ 10% du stock endommagé</p>
+                <p className="text-2xl sm:text-3xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{stats?.perteEleveeCount ?? 0}</p>
+                <p className="text-xs text-white/80 mt-1">≥ 10% du stock endommagé</p>
               </div>
             </div>
           </div>

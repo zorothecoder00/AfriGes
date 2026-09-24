@@ -63,20 +63,20 @@ export default function PreviisionsPage() {
 
       {/* Indicateurs de base */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <DollarSign className="w-5 h-5 text-blue-500 mx-auto mb-2" />
-          <p className="text-xl font-bold text-blue-700">{formatCurrency(encours)}</p>
-          <p className="text-xs text-slate-500">Encours actif (base calcul)</p>
+        <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-xl p-4 text-center">
+          <DollarSign className="w-5 h-5 text-white/80 mx-auto mb-2" />
+          <p className="text-xl font-bold text-white">{formatCurrency(encours)}</p>
+          <p className="text-xs text-white/80">Encours actif (base calcul)</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto mb-2" />
-          <p className="text-xl font-bold text-emerald-700">{rendement.toFixed(1)}%/an</p>
-          <p className="text-xs text-slate-500">Rendement moyen</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+          <TrendingUp className="w-5 h-5 text-white/80 mx-auto mb-2" />
+          <p className="text-xl font-bold text-white">{rendement.toFixed(1)}%/an</p>
+          <p className="text-xs text-white/80">Rendement moyen</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <Calendar className="w-5 h-5 text-violet-500 mx-auto mb-2" />
-          <p className="text-xl font-bold text-violet-700">{formatCurrency(toNum(data.montantRecouvreDuMois))}</p>
-          <p className="text-xs text-slate-500">Recouvrement mensuel actuel</p>
+        <div className="shadow-sm bg-violet-700 border-violet-800 border rounded-xl p-4 text-center">
+          <Calendar className="w-5 h-5 text-white/80 mx-auto mb-2" />
+          <p className="text-xl font-bold text-white">{formatCurrency(toNum(data.montantRecouvreDuMois))}</p>
+          <p className="text-xs text-white/80">Recouvrement mensuel actuel</p>
         </div>
       </div>
 

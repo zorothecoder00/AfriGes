@@ -1687,22 +1687,22 @@ export default function LogistiqueApprovisionnementPage() {
 
             {/* ── Stats réceptions fournisseurs ── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 flex items-center gap-4">
-                <div className="w-14 h-14 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0">
-                  <ArrowUpCircle className="text-emerald-600 w-7 h-7" />
+              <div className="bg-indigo-700 border-indigo-800 rounded-2xl p-6 shadow-sm border flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                  <ArrowUpCircle className="text-white/80 w-7 h-7" />
                 </div>
                 <div>
-                  <p className="text-slate-500 text-sm">Approvisionnements réceptionnés (30j)</p>
-                  <p className="text-3xl font-bold text-slate-800">{receptionsRes?.stats?.totalReceptions30j ?? 0}</p>
+                  <p className="text-white/80 text-sm">Approvisionnements réceptionnés (30j)</p>
+                  <p className="text-3xl font-bold text-white">{receptionsRes?.stats?.totalReceptions30j ?? 0}</p>
                 </div>
               </div>
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 flex items-center gap-4">
-                <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
-                  <Boxes className="text-blue-600 w-7 h-7" />
+              <div className="bg-emerald-700 border-emerald-800 rounded-2xl p-6 shadow-sm border flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                  <Boxes className="text-white/80 w-7 h-7" />
                 </div>
                 <div>
-                  <p className="text-slate-500 text-sm">Unités reçues (30j)</p>
-                  <p className="text-3xl font-bold text-slate-800">{receptionsRes?.stats?.totalQuantiteRecue30j ?? 0}</p>
+                  <p className="text-white/80 text-sm">Unités reçues (30j)</p>
+                  <p className="text-3xl font-bold text-white">{receptionsRes?.stats?.totalQuantiteRecue30j ?? 0}</p>
                 </div>
               </div>
             </div>

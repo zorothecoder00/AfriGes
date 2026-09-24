@@ -45,20 +45,20 @@ export default function ProgrammePage() {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <ClipboardList className="w-5 h-5 text-amber-500 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-slate-800">{items.length}</p>
-          <p className="text-xs text-slate-500">Sessions totales</p>
+        <div className="shadow-sm bg-indigo-700 border-indigo-800 border rounded-xl p-4 text-center">
+          <ClipboardList className="w-5 h-5 text-white/80 mx-auto mb-1" />
+          <p className="text-2xl font-bold text-white">{items.length}</p>
+          <p className="text-xs text-white/80">Sessions totales</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <Calendar className="w-5 h-5 text-blue-500 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-blue-700">{planifiees}</p>
-          <p className="text-xs text-slate-500">Planifiées</p>
+        <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-xl p-4 text-center">
+          <Calendar className="w-5 h-5 text-white/80 mx-auto mb-1" />
+          <p className="text-2xl font-bold text-white">{planifiees}</p>
+          <p className="text-xs text-white/80">Planifiées</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-emerald-700">{tenues}</p>
-          <p className="text-xs text-slate-500">Tenues</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+          <CheckCircle2 className="w-5 h-5 text-white/80 mx-auto mb-1" />
+          <p className="text-2xl font-bold text-white">{tenues}</p>
+          <p className="text-xs text-white/80">Tenues</p>
         </div>
       </div>
 

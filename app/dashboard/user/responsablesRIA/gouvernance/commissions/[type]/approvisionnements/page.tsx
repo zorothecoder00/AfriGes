@@ -54,25 +54,25 @@ export default function ApprovisionnmentsPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <Truck className="w-5 h-5 text-emerald-500 mx-auto mb-2" />
-          <p className="text-2xl font-bold text-slate-800">{totalDepots}</p>
-          <p className="text-xs text-slate-500">Dépôts total</p>
+        <div className="shadow-sm bg-indigo-700 border-indigo-800 border rounded-xl p-4 text-center">
+          <Truck className="w-5 h-5 text-white/80 mx-auto mb-2" />
+          <p className="text-2xl font-bold text-white">{totalDepots}</p>
+          <p className="text-xs text-white/80">Dépôts total</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-2" />
-          <p className="text-xl font-bold text-emerald-700">{formatCurrency(totalValide)}</p>
-          <p className="text-xs text-slate-500">Validés</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+          <CheckCircle2 className="w-5 h-5 text-white/80 mx-auto mb-2" />
+          <p className="text-xl font-bold text-white">{formatCurrency(totalValide)}</p>
+          <p className="text-xs text-white/80">Validés</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <Clock className="w-5 h-5 text-amber-500 mx-auto mb-2" />
-          <p className="text-xl font-bold text-amber-700">{formatCurrency(totalAttente)}</p>
-          <p className="text-xs text-slate-500">En attente</p>
+        <div className="shadow-sm bg-amber-600 border-amber-700 border rounded-xl p-4 text-center">
+          <Clock className="w-5 h-5 text-white/80 mx-auto mb-2" />
+          <p className="text-xl font-bold text-white">{formatCurrency(totalAttente)}</p>
+          <p className="text-xs text-white/80">En attente</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <Package className="w-5 h-5 text-blue-500 mx-auto mb-2" />
-          <p className="text-xl font-bold text-blue-700">{formatCurrency(totalValide + totalAttente)}</p>
-          <p className="text-xs text-slate-500">Volume total</p>
+        <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-xl p-4 text-center">
+          <Package className="w-5 h-5 text-white/80 mx-auto mb-2" />
+          <p className="text-xl font-bold text-white">{formatCurrency(totalValide + totalAttente)}</p>
+          <p className="text-xs text-white/80">Volume total</p>
         </div>
       </div>
 

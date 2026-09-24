@@ -5,6 +5,7 @@ import { useApi } from "@/hooks/useApi";
 import { useState } from "react";
 import { RefreshCw, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 interface Anomalie {
   id: string; type: "EN_RETARD" | "FAIBLE_RECOUVREMENT"; severite: "CRITIQUE" | "HAUTE" | "MOYENNE";
@@ -51,20 +52,20 @@ export default function AnomaliesPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className={`border rounded-xl p-4 text-center ${critiques > 0 ? "bg-rose-50 border-rose-200" : "bg-white border-slate-200"}`}>
-          <ShieldAlert className={`w-5 h-5 mx-auto mb-1 ${critiques > 0 ? "text-rose-500" : "text-slate-300"}`} />
-          <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${critiques > 0 ? "text-rose-700" : "text-slate-400"}`}>{critiques}</p>
-          <p className="text-xs text-slate-500">Anomalies critiques</p>
+        <div className={`shadow-sm border rounded-xl p-4 text-center ${getStatCardHue(critiques > 0 ? "bg-rose-50 border-rose-200" : "bg-white border-slate-200").solid}`}>
+          <ShieldAlert className={`w-5 h-5 mx-auto mb-1 ${critiques > 0 ? "text-white/80" : "text-white/80"}`} />
+          <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${critiques > 0 ? "text-white" : "text-white"}`}>{critiques}</p>
+          <p className="text-xs text-white/80">Anomalies critiques</p>
         </div>
-        <div className={`border rounded-xl p-4 text-center ${hautes > 0 ? "bg-orange-50 border-orange-200" : "bg-white border-slate-200"}`}>
-          <AlertTriangle className={`w-5 h-5 mx-auto mb-1 ${hautes > 0 ? "text-orange-500" : "text-slate-300"}`} />
-          <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${hautes > 0 ? "text-orange-700" : "text-slate-400"}`}>{hautes}</p>
-          <p className="text-xs text-slate-500">Hautes</p>
+        <div className={`shadow-sm border rounded-xl p-4 text-center ${getStatCardHue(hautes > 0 ? "bg-orange-50 border-orange-200" : "bg-white border-slate-200").solid}`}>
+          <AlertTriangle className={`w-5 h-5 mx-auto mb-1 ${hautes > 0 ? "text-white/80" : "text-white/80"}`} />
+          <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${hautes > 0 ? "text-white" : "text-white"}`}>{hautes}</p>
+          <p className="text-xs text-white/80">Hautes</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <CheckCircle2 className={`w-5 h-5 mx-auto mb-1 ${(stats?.total ?? 0) === 0 ? "text-emerald-500" : "text-slate-300"}`} />
-          <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${(stats?.total ?? 0) === 0 ? "text-emerald-600" : "text-slate-800"}`}>{stats?.total ?? 0}</p>
-          <p className="text-xs text-slate-500">Total anomalies</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+          <CheckCircle2 className={`w-5 h-5 mx-auto mb-1 ${(stats?.total ?? 0) === 0 ? "text-white/80" : "text-white/80"}`} />
+          <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${(stats?.total ?? 0) === 0 ? "text-white" : "text-white"}`}>{stats?.total ?? 0}</p>
+          <p className="text-xs text-white/80">Total anomalies</p>
         </div>
       </div>
 

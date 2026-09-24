@@ -78,17 +78,17 @@ export default function ProcessusPage() {
 
       {data && (
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className="text-xl font-bold text-violet-700">{data.scoreGlobalSante ?? 0}/100</p>
-            <p className="text-xs text-slate-500">Score santé global</p>
+          <div className="shadow-sm bg-violet-700 border-violet-800 border rounded-xl p-4 text-center">
+            <p className="text-xl font-bold text-white">{data.scoreGlobalSante ?? 0}/100</p>
+            <p className="text-xs text-white/80">Score santé global</p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className="text-xl font-bold text-blue-700">{(data.tauxRemboursement ?? 0).toFixed(1)}%</p>
-            <p className="text-xs text-slate-500">Taux remboursement</p>
+          <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-xl p-4 text-center">
+            <p className="text-xl font-bold text-white">{(data.tauxRemboursement ?? 0).toFixed(1)}%</p>
+            <p className="text-xs text-white/80">Taux remboursement</p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className="text-xl font-bold text-emerald-700">{(data.rendementMoyen ?? 0).toFixed(1)}%</p>
-            <p className="text-xs text-slate-500">Rendement moyen</p>
+          <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+            <p className="text-xl font-bold text-white">{(data.rendementMoyen ?? 0).toFixed(1)}%</p>
+            <p className="text-xs text-white/80">Rendement moyen</p>
           </div>
         </div>
       )}

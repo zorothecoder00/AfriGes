@@ -49,25 +49,25 @@ export default function PerformancePage() {
       {/* KPIs */}
       {dash && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
-            <p className="text-xl font-bold text-emerald-700">{toNum(dash.rendementMoyen).toFixed(1)}%</p>
-            <p className="text-xs text-slate-500">Rendement moyen</p>
+          <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+            <TrendingUp className="w-5 h-5 text-white/80 mx-auto mb-1" />
+            <p className="text-xl font-bold text-white">{toNum(dash.rendementMoyen).toFixed(1)}%</p>
+            <p className="text-xs text-white/80">Rendement moyen</p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <BarChart2 className="w-5 h-5 text-blue-500 mx-auto mb-1" />
-            <p className="text-xl font-bold text-blue-700">{toNum(dash.tauxRemboursement).toFixed(1)}%</p>
-            <p className="text-xs text-slate-500">Taux remboursement</p>
+          <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-xl p-4 text-center">
+            <BarChart2 className="w-5 h-5 text-white/80 mx-auto mb-1" />
+            <p className="text-xl font-bold text-white">{toNum(dash.tauxRemboursement).toFixed(1)}%</p>
+            <p className="text-xs text-white/80">Taux remboursement</p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <Award className="w-5 h-5 text-violet-500 mx-auto mb-1" />
-            <p className="text-xl font-bold text-violet-700">{toNum(dash.nbClientsFinances)}</p>
-            <p className="text-xs text-slate-500">Clients financés actifs</p>
+          <div className="shadow-sm bg-violet-700 border-violet-800 border rounded-xl p-4 text-center">
+            <Award className="w-5 h-5 text-white/80 mx-auto mb-1" />
+            <p className="text-xl font-bold text-white">{toNum(dash.nbClientsFinances)}</p>
+            <p className="text-xs text-white/80">Clients financés actifs</p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <TrendingUp className="w-5 h-5 text-amber-500 mx-auto mb-1" />
-            <p className="text-xl font-bold text-amber-700">{formatCurrency(toNum(dash.beneficesGeneres))}</p>
-            <p className="text-xs text-slate-500">Bénéfices générés</p>
+          <div className="shadow-sm bg-amber-600 border-amber-700 border rounded-xl p-4 text-center">
+            <TrendingUp className="w-5 h-5 text-white/80 mx-auto mb-1" />
+            <p className="text-xl font-bold text-white">{formatCurrency(toNum(dash.beneficesGeneres))}</p>
+            <p className="text-xs text-white/80">Bénéfices générés</p>
           </div>
         </div>
       )}

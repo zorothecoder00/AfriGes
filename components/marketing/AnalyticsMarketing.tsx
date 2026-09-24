@@ -89,17 +89,17 @@ export default function AnalyticsMarketing() {
 
       {/* Rétention */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-400 flex items-center gap-1"><Users className="w-3.5 h-3.5" /> Clients actifs (période préc.)</p>
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800 mt-1">{data.retention.actifsPeriodePrecedente}</p>
+        <div className="shadow-sm bg-indigo-700 border-indigo-800 rounded-2xl border p-4">
+          <p className="text-xs text-white/80 flex items-center gap-1"><Users className="w-3.5 h-3.5" /> Clients actifs (période préc.)</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white mt-1">{data.retention.actifsPeriodePrecedente}</p>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-400 flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5 text-emerald-500" /> Taux de rétention</p>
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-600 mt-1">{data.retention.tauxRetention === null ? "—" : `${data.retention.tauxRetention.toFixed(0)}%`}</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 rounded-2xl border p-4">
+          <p className="text-xs text-white/80 flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5 text-white/80" /> Taux de rétention</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white mt-1">{data.retention.tauxRetention === null ? "—" : `${data.retention.tauxRetention.toFixed(0)}%`}</p>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-400 flex items-center gap-1"><TrendingDown className="w-3.5 h-3.5 text-rose-500" /> Taux de churn</p>
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-rose-600 mt-1">{data.retention.tauxChurn === null ? "—" : `${data.retention.tauxChurn.toFixed(0)}%`}</p>
+        <div className="shadow-sm bg-rose-700 border-rose-800 rounded-2xl border p-4">
+          <p className="text-xs text-white/80 flex items-center gap-1"><TrendingDown className="w-3.5 h-3.5 text-white/80" /> Taux de churn</p>
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white mt-1">{data.retention.tauxChurn === null ? "—" : `${data.retention.tauxChurn.toFixed(0)}%`}</p>
         </div>
       </div>
 

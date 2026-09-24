@@ -214,31 +214,31 @@ export default function PrevisionsPage() {
         {/* Stats */}
         {stats && (
           <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center gap-4">
-              <div className="w-11 h-11 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
-                <Package size={20} className="text-emerald-600" />
+            <div className="bg-indigo-700 border-indigo-800 rounded-2xl border shadow-sm p-5 flex items-center gap-4">
+              <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                <Package size={20} className="text-white/80" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-slate-800">{stats.totalProduits}</p>
-                <p className="text-sm text-slate-500">Produits distincts</p>
+                <p className="text-2xl font-bold text-white">{stats.totalProduits}</p>
+                <p className="text-sm text-white/80">Produits distincts</p>
               </div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center gap-4">
-              <div className="w-11 h-11 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
-                <TrendingUp size={20} className="text-blue-600" />
+            <div className="bg-emerald-700 border-emerald-800 rounded-2xl border shadow-sm p-5 flex items-center gap-4">
+              <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                <TrendingUp size={20} className="text-white/80" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-slate-800">{stats.totalQuantite.toLocaleString("fr-FR")}</p>
-                <p className="text-sm text-slate-500">Quantité totale demandée</p>
+                <p className="text-2xl font-bold text-white">{stats.totalQuantite.toLocaleString("fr-FR")}</p>
+                <p className="text-sm text-white/80">Quantité totale demandée</p>
               </div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center gap-4">
-              <div className="w-11 h-11 bg-violet-100 rounded-xl flex items-center justify-center shrink-0">
-                <Store size={20} className="text-violet-600" />
+            <div className="bg-amber-600 border-amber-700 rounded-2xl border shadow-sm p-5 flex items-center gap-4">
+              <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                <Store size={20} className="text-white/80" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-slate-800">{stats.totalPdvs}</p>
-                <p className="text-sm text-slate-500">PDVs concernés</p>
+                <p className="text-2xl font-bold text-white">{stats.totalPdvs}</p>
+                <p className="text-sm text-white/80">PDVs concernés</p>
               </div>
             </div>
           </div>

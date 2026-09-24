@@ -37,6 +37,7 @@ import { useT } from "@/contexts/AppSettingsContext";
 import AideComptable from "@/components/AideComptable";
 import { AIDE_COMPTABLE } from "@/lib/aideComptableContenu";
 import PropositionOcrModal, { type PropositionOCR } from "@/components/comptable/PropositionOcrModal";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 const UploadButton = generateUploadButton<OurFileRouter>();
 
@@ -374,25 +375,25 @@ export default function JournauxPage() {
         {/* Totaux du filtre */}
         {journalData && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200 flex items-center gap-3">
-              <ArrowUpRight className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <div className="shadow-sm bg-emerald-700 border-emerald-800 rounded-xl p-4 border flex items-center gap-3">
+              <ArrowUpRight className="w-5 h-5 text-white/80 flex-shrink-0" />
               <div>
-                <p className="text-xs text-emerald-700 font-medium">Encaissements filtrés</p>
-                <p className="text-lg font-bold text-emerald-700">{formatCurrency(journalData.totaux.encaissements)}</p>
+                <p className="text-xs text-white/80 font-medium">Encaissements filtrés</p>
+                <p className="text-lg font-bold text-white">{formatCurrency(journalData.totaux.encaissements)}</p>
               </div>
             </div>
-            <div className="bg-red-50 rounded-xl p-4 border border-red-200 flex items-center gap-3">
-              <ArrowDownRight className="w-5 h-5 text-red-600 flex-shrink-0" />
+            <div className="shadow-sm bg-red-700 border-red-800 rounded-xl p-4 border flex items-center gap-3">
+              <ArrowDownRight className="w-5 h-5 text-white/80 flex-shrink-0" />
               <div>
-                <p className="text-xs text-red-700 font-medium">Décaissements filtrés</p>
-                <p className="text-lg font-bold text-red-700">{formatCurrency(journalData.totaux.decaissements)}</p>
+                <p className="text-xs text-white/80 font-medium">Décaissements filtrés</p>
+                <p className="text-lg font-bold text-white">{formatCurrency(journalData.totaux.decaissements)}</p>
               </div>
             </div>
-            <div className={`rounded-xl p-4 border flex items-center gap-3 ${journalData.totaux.net >= 0 ? "bg-slate-50 border-slate-200" : "bg-orange-50 border-orange-200"}`}>
-              <Wallet className={`w-5 h-5 flex-shrink-0 ${journalData.totaux.net >= 0 ? "text-slate-600" : "text-orange-600"}`} />
+            <div className={`shadow-sm rounded-xl p-4 border flex items-center gap-3 ${getStatCardHue(journalData.totaux.net >= 0 ? "bg-slate-50 border-slate-200" : "bg-orange-50 border-orange-200").solid}`}>
+              <Wallet className={`w-5 h-5 flex-shrink-0 ${journalData.totaux.net >= 0 ? "text-white/80" : "text-white/80"}`} />
               <div>
-                <p className={`text-xs font-medium ${journalData.totaux.net >= 0 ? "text-slate-600" : "text-orange-700"}`}>Solde net filtré</p>
-                <p className={`text-lg font-bold ${journalData.totaux.net >= 0 ? "text-slate-800" : "text-orange-700"}`}>
+                <p className={`text-xs font-medium ${journalData.totaux.net >= 0 ? "text-white/80" : "text-white/80"}`}>Solde net filtré</p>
+                <p className={`text-lg font-bold ${journalData.totaux.net >= 0 ? "text-white" : "text-white"}`}>
                   {journalData.totaux.net >= 0 ? "+" : ""}{formatCurrency(journalData.totaux.net)}
                 </p>
               </div>

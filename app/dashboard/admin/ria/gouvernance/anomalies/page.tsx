@@ -8,6 +8,7 @@ import {
   AlertTriangle, Plus, Search, RefreshCw, CheckCircle2,
   Shield, Zap,
 } from "lucide-react";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 interface Anomalie {
   id: number;
@@ -176,25 +177,25 @@ export default function AnomaliesPage() {
       {/* Stats */}
       {data?.stats && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{data.stats.total}</p>
-            <p className="text-xs text-slate-500">Total</p>
+          <div className="shadow-sm bg-indigo-700 border-indigo-800 border rounded-xl p-4 text-center">
+            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{data.stats.total}</p>
+            <p className="text-xs text-white/80">Total</p>
           </div>
-          <div className={`rounded-xl p-4 text-center border ${data.stats.actives > 0 ? "border-rose-200 bg-rose-50" : "bg-white border-slate-200"}`}>
-            <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${data.stats.actives > 0 ? "text-rose-700" : "text-slate-800"}`}>{data.stats.actives}</p>
-            <p className="text-xs text-slate-500">Actives</p>
+          <div className={`shadow-sm rounded-xl p-4 text-center border ${getStatCardHue(data.stats.actives > 0 ? "border-rose-200 bg-rose-50" : "bg-white border-slate-200").solid}`}>
+            <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${data.stats.actives > 0 ? "text-white" : "text-white"}`}>{data.stats.actives}</p>
+            <p className="text-xs text-white/80">Actives</p>
           </div>
-          <div className={`rounded-xl p-4 text-center border cursor-pointer transition-all ${filterNiveau === "CRITIQUE" ? "border-rose-400 bg-rose-50" : "bg-white border-slate-200 hover:border-rose-300"}`}
+          <div className={`shadow-sm rounded-xl p-4 text-center border cursor-pointer transition-all ${getStatCardHue(filterNiveau === "CRITIQUE" ? "border-rose-400 bg-rose-50" : "bg-white border-slate-200 hover:border-rose-300").solid}`}
             onClick={() => setFilterNiveau(filterNiveau === "CRITIQUE" ? "" : "CRITIQUE")}>
             <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${data.stats.critique > 0 ? "text-rose-700" : "text-slate-400"}`}>{data.stats.critique}</p>
             <p className="text-xs text-slate-500">Critiques</p>
           </div>
-          <div className={`rounded-xl p-4 text-center border cursor-pointer transition-all ${filterNiveau === "MAJEURE" ? "border-orange-400 bg-orange-50" : "bg-white border-slate-200 hover:border-orange-300"}`}
+          <div className={`shadow-sm rounded-xl p-4 text-center border cursor-pointer transition-all ${getStatCardHue(filterNiveau === "MAJEURE" ? "border-orange-400 bg-orange-50" : "bg-white border-slate-200 hover:border-orange-300").solid}`}
             onClick={() => setFilterNiveau(filterNiveau === "MAJEURE" ? "" : "MAJEURE")}>
             <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-orange-600">{data.stats.majeure}</p>
             <p className="text-xs text-slate-500">Majeures</p>
           </div>
-          <div className={`rounded-xl p-4 text-center border cursor-pointer transition-all ${filterNiveau === "MINEURE" ? "border-amber-400 bg-amber-50" : "bg-white border-slate-200 hover:border-amber-300"}`}
+          <div className={`shadow-sm rounded-xl p-4 text-center border cursor-pointer transition-all ${getStatCardHue(filterNiveau === "MINEURE" ? "border-amber-400 bg-amber-50" : "bg-white border-slate-200 hover:border-amber-300").solid}`}
             onClick={() => setFilterNiveau(filterNiveau === "MINEURE" ? "" : "MINEURE")}>
             <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-amber-600">{data.stats.mineure}</p>
             <p className="text-xs text-slate-500">Mineures</p>

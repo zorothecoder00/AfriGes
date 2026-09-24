@@ -125,21 +125,21 @@ export default function DirecteurCommercialPage() {
 
         {/* Stats de la page courante */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-4 flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0"><Package className="text-indigo-600 w-5 h-5" /></div>
-            <div><p className="text-xs text-slate-500 font-medium">Produits (page)</p><p className="text-2xl font-bold text-slate-800">{meta?.total ?? 0}</p></div>
+          <div className="bg-indigo-700 border-indigo-800 rounded-2xl shadow-sm border p-4 flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0"><Package className="text-white/80 w-5 h-5" /></div>
+            <div><p className="text-xs text-white font-medium">Produits (page)</p><p className="text-2xl font-bold text-white">{meta?.total ?? 0}</p></div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-4 flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0"><TrendingUp className="text-emerald-600 w-5 h-5" /></div>
-            <div><p className="text-xs text-slate-500 font-medium">Marge cumulée (page)</p><p className="text-2xl font-bold text-slate-800">{formatCurrency(totalMarge)}</p></div>
+          <div className="bg-emerald-700 border-emerald-800 rounded-2xl shadow-sm border p-4 flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0"><TrendingUp className="text-white/80 w-5 h-5" /></div>
+            <div><p className="text-xs text-white font-medium">Marge cumulée (page)</p><p className="text-2xl font-bold text-white">{formatCurrency(totalMarge)}</p></div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-4 flex items-center gap-3">
-            <div className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center shrink-0"><Tag className="text-rose-600 w-5 h-5" /></div>
-            <div><p className="text-xs text-slate-500 font-medium">En promotion (page)</p><p className="text-2xl font-bold text-slate-800">{enPromo}</p></div>
+          <div className="bg-amber-600 border-amber-700 rounded-2xl shadow-sm border p-4 flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0"><Tag className="text-white/80 w-5 h-5" /></div>
+            <div><p className="text-xs text-white font-medium">En promotion (page)</p><p className="text-2xl font-bold text-white">{enPromo}</p></div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-4 flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0"><BarChart3 className="text-blue-600 w-5 h-5" /></div>
-            <div><p className="text-xs text-slate-500 font-medium">Page</p><p className="text-2xl font-bold text-slate-800">{meta?.page ?? 1}/{meta?.totalPages ?? 1}</p></div>
+          <div className="bg-sky-700 border-sky-800 rounded-2xl shadow-sm border p-4 flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0"><BarChart3 className="text-white/80 w-5 h-5" /></div>
+            <div><p className="text-xs text-white font-medium">Page</p><p className="text-2xl font-bold text-white">{meta?.page ?? 1}/{meta?.totalPages ?? 1}</p></div>
           </div>
         </div>
 

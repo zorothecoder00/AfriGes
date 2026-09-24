@@ -439,33 +439,33 @@ export default function RecouvrementPage() {
 
       {/* ── KPIs ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-500">Encours total</p>
-          <p className="text-xl font-bold text-slate-800 mt-1">{fmt(stats.totalEncours)}</p>
-          <p className="text-xs text-slate-400 mt-0.5">{stats.nbFinancements} financement(s)</p>
+        <div className="shadow-sm bg-indigo-700 border-indigo-800 rounded-xl border p-4">
+          <p className="text-xs text-white/80">Encours total</p>
+          <p className="text-xl font-bold text-white mt-1">{fmt(stats.totalEncours)}</p>
+          <p className="text-xs text-white/80 mt-0.5">{stats.nbFinancements} financement(s)</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-500">Total recouvré</p>
-          <p className="text-xl font-bold text-emerald-600 mt-1">{fmt(stats.totalRembourse)}</p>
-          <p className="text-xs text-slate-400 mt-0.5">sur {fmt(stats.totalFinance)} financés</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 rounded-xl border p-4">
+          <p className="text-xs text-white/80">Total recouvré</p>
+          <p className="text-xl font-bold text-white mt-1">{fmt(stats.totalRembourse)}</p>
+          <p className="text-xs text-white/80 mt-0.5">sur {fmt(stats.totalFinance)} financés</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-500">Taux de recouvrement</p>
-          <p className="text-xl font-bold text-blue-600 mt-1">{pct(stats.tauxRecouvrement)}</p>
-          <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div className="shadow-sm bg-blue-700 border-blue-800 rounded-xl border p-4">
+          <p className="text-xs text-white/80">Taux de recouvrement</p>
+          <p className="text-xl font-bold text-white mt-1">{pct(stats.tauxRecouvrement)}</p>
+          <div className="mt-2 h-1.5 bg-white/20 rounded-full overflow-hidden">
             <div
-              className="h-full bg-blue-500 rounded-full"
+              className="h-full bg-white rounded-full"
               style={{ width: `${Math.min(100, stats.tauxRecouvrement)}%` }}
             />
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-500 mb-2">Alertes retard</p>
+        <div className="shadow-sm bg-sky-700 border-sky-800 rounded-xl border p-4">
+          <p className="text-xs text-white/80 mb-2">Alertes retard</p>
           <div className="grid grid-cols-2 gap-1 text-xs">
-            <span className="text-amber-600">+3j : {stats.alertes.j3}</span>
-            <span className="text-orange-600">+7j : {stats.alertes.j7}</span>
-            <span className="text-red-600">+15j : {stats.alertes.j15}</span>
-            <span className="text-red-900 font-semibold">+30j : {stats.alertes.j30}</span>
+            <span className="text-white/80">+3j : {stats.alertes.j3}</span>
+            <span className="text-white/80">+7j : {stats.alertes.j7}</span>
+            <span className="text-white/80">+15j : {stats.alertes.j15}</span>
+            <span className="text-white/80 font-semibold">+30j : {stats.alertes.j30}</span>
           </div>
         </div>
       </div>
@@ -900,13 +900,13 @@ function RisquesTab({ periodes, risques, totalEncours }: { periodes: Periodes; r
           {periodeCards.map((c) => {
             const Icon = c.icon;
             return (
-              <div key={c.label} className="bg-white rounded-xl border border-slate-200 p-4">
+              <div key={c.label} className="shadow-sm bg-emerald-700 border-emerald-800 rounded-xl border p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-slate-500">{c.label}</p>
-                  <Icon className="w-4 h-4 text-slate-300" />
+                  <p className="text-xs text-white/80">{c.label}</p>
+                  <Icon className="w-4 h-4 text-white/80" />
                 </div>
-                <p className="text-lg font-bold text-emerald-600 mt-1">{fmt(c.value)}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{c.sub}</p>
+                <p className="text-lg font-bold text-white mt-1">{fmt(c.value)}</p>
+                <p className="text-xs text-white/80 mt-0.5">{c.sub}</p>
               </div>
             );
           })}
@@ -920,34 +920,34 @@ function RisquesTab({ periodes, risques, totalEncours }: { periodes: Periodes; r
           <h2 className="text-sm font-semibold text-slate-700">Indicateurs de risque</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className="shadow-sm bg-amber-600 border-amber-700 rounded-xl border p-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-500">Taux d&apos;impayés</p>
-              <Percent className="w-4 h-4 text-amber-400" />
+              <p className="text-xs text-white/80">Taux d&apos;impayés</p>
+              <Percent className="w-4 h-4 text-white/80" />
             </div>
-            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-amber-600 mt-1">{pct(risques.tauxImpayes)}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{fmt(risques.encoursRetard)} en retard</p>
-            <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.min(100, risques.tauxImpayes)}%` }} />
+            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white mt-1">{pct(risques.tauxImpayes)}</p>
+            <p className="text-xs text-white/80 mt-0.5">{fmt(risques.encoursRetard)} en retard</p>
+            <div className="mt-2 h-1.5 bg-white/20 rounded-full overflow-hidden">
+              <div className="h-full bg-white rounded-full" style={{ width: `${Math.min(100, risques.tauxImpayes)}%` }} />
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className="shadow-sm bg-red-700 border-red-800 rounded-xl border p-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-500">Créances douteuses</p>
-              <AlertTriangle className="w-4 h-4 text-red-400" />
+              <p className="text-xs text-white/80">Créances douteuses</p>
+              <AlertTriangle className="w-4 h-4 text-white/80" />
             </div>
-            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-red-600 mt-1">{fmt(risques.creancesDouteuses)}</p>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white mt-1">{fmt(risques.creancesDouteuses)}</p>
+            <p className="text-xs text-white/80 mt-0.5">
               {totalEncours > 0 ? pct((risques.creancesDouteuses / totalEncours) * 100) : "0%"} de l&apos;encours · retard ≥ 30 j / défaut
             </p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className="shadow-sm bg-red-700 border-red-800 rounded-xl border p-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-500">Perte probable</p>
-              <TrendingDown className="w-4 h-4 text-red-400" />
+              <p className="text-xs text-white/80">Perte probable</p>
+              <TrendingDown className="w-4 h-4 text-white/80" />
             </div>
-            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-red-700 mt-1">{fmt(risques.perteProbable)}</p>
-            <p className="text-xs text-slate-400 mt-0.5">Provision pondérée par ancienneté</p>
+            <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white mt-1">{fmt(risques.perteProbable)}</p>
+            <p className="text-xs text-white/80 mt-0.5">Provision pondérée par ancienneté</p>
           </div>
         </div>
       </div>

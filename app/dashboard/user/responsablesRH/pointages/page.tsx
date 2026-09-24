@@ -11,6 +11,7 @@ import { useApi, useMutation } from "@/hooks/useApi";
 import { toast } from "sonner";
 import SaisieJourPointage from "@/components/SaisieJourPointage";
 import { exportToXlsx } from "@/lib/exportXlsx";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -168,12 +169,12 @@ export default function PointagesRHPage() {
           {["PRESENT", "ABSENT", "RETARD", "CONGE"].map((k) => {
             const cfg = STATUT_CONFIG[k];
             return (
-              <div key={k} className="bg-white rounded-xl border border-slate-200 p-4">
+              <div key={k} className={`shadow-sm rounded-xl border p-4 ${getStatCardHue(cfg.badge).solid}`}>
                 <div className="flex items-center gap-2 mb-1">
                   <span className={`p-1.5 rounded-lg ${cfg.badge}`}>{cfg.icon}</span>
-                  <span className="text-xs text-slate-500">{cfg.label}</span>
+                  <span className="text-xs text-white/80">{cfg.label}</span>
                 </div>
-                <p className="text-2xl font-bold text-slate-900">{stats[k] ?? 0}</p>
+                <p className="text-2xl font-bold text-white">{stats[k] ?? 0}</p>
               </div>
             );
           })}

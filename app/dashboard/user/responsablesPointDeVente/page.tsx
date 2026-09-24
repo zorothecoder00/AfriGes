@@ -30,6 +30,7 @@ import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { useT } from "@/contexts/AppSettingsContext";
 import { getStatCardHue } from "@/components/ui/statCardTheme";
 import { usePageAccess } from "@/hooks/usePageAccess";
+import { teinteCarte } from "@/lib/carte3d";
 
 // ============================================================================
 // TYPES
@@ -3178,11 +3179,11 @@ function ResponsablePDVPageInner() {
 
             {/* KPIs par rôle */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
-              {Object.entries(equipeRes?.stats.parRole ?? {}).map(([role, s]) => (
-                <div key={role} className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60 text-center">
-                  <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold mb-2 ${roleColors[role] ?? "bg-slate-100 text-slate-700"}`}>{roleLabels[role] ?? role}</span>
-                  <p className="text-2xl font-bold text-slate-800">{s.total}</p>
-                  <p className="text-xs text-slate-400">{s.actifs} actif(s)</p>
+              {Object.entries(equipeRes?.stats.parRole ?? {}).map(([role, s], idxTuile) => (
+                <div key={role} className={`rounded-xl p-4 shadow-sm border text-center ${teinteCarte(idxTuile)}`}>
+                  <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold mb-2 ${roleColors[role] ?? "bg-white/20 text-white/80"}`}>{roleLabels[role] ?? role}</span>
+                  <p className="text-2xl font-bold text-white">{s.total}</p>
+                  <p className="text-xs text-white/80">{s.actifs} actif(s)</p>
                 </div>
               ))}
             </div>
@@ -3345,21 +3346,21 @@ function ResponsablePDVPageInner() {
 
                             {/* Métriques */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                              <div className="bg-slate-50 rounded-xl p-3 text-center">
-                                <p className="text-xs text-slate-400 mb-0.5">Ventes</p>
-                                <p className="text-lg font-bold text-slate-800">{p.nbVentes}</p>
+                              <div className="shadow-sm border bg-indigo-700 border-indigo-800 rounded-xl p-3 text-center">
+                                <p className="text-xs text-white/80 mb-0.5">Ventes</p>
+                                <p className="text-lg font-bold text-white">{p.nbVentes}</p>
                               </div>
-                              <div className="bg-slate-50 rounded-xl p-3 text-center">
-                                <p className="text-xs text-slate-400 mb-0.5">Panier moyen</p>
-                                <p className="text-lg font-bold text-indigo-600">{formatCurrency(p.panierMoyen)}</p>
+                              <div className="shadow-sm border bg-indigo-700 border-indigo-800 rounded-xl p-3 text-center">
+                                <p className="text-xs text-white/80 mb-0.5">Panier moyen</p>
+                                <p className="text-lg font-bold text-white">{formatCurrency(p.panierMoyen)}</p>
                               </div>
-                              <div className="bg-slate-50 rounded-xl p-3 text-center">
-                                <p className="text-xs text-slate-400 mb-0.5">Clients distincts</p>
-                                <p className="text-lg font-bold text-sky-600">{p.nbClientsDistincts}</p>
+                              <div className="shadow-sm border bg-sky-700 border-sky-800 rounded-xl p-3 text-center">
+                                <p className="text-xs text-white/80 mb-0.5">Clients distincts</p>
+                                <p className="text-lg font-bold text-white">{p.nbClientsDistincts}</p>
                               </div>
-                              <div className={`rounded-xl p-3 text-center ${tauxAnnul > 20 ? "bg-red-50" : "bg-slate-50"}`}>
-                                <p className="text-xs text-slate-400 mb-0.5">Taux annulation</p>
-                                <p className={`text-lg font-bold ${tauxAnnul > 20 ? "text-red-600" : "text-slate-600"}`}>{tauxAnnul}%</p>
+                              <div className={`shadow-sm border rounded-xl p-3 text-center ${getStatCardHue(tauxAnnul > 20 ? "bg-red-50" : "bg-slate-50").solid}`}>
+                                <p className="text-xs text-white/80 mb-0.5">Taux annulation</p>
+                                <p className={`text-lg font-bold ${tauxAnnul > 20 ? "text-white" : "text-white"}`}>{tauxAnnul}%</p>
                               </div>
                             </div>
                           </div>
@@ -3495,19 +3496,19 @@ function ResponsablePDVPageInner() {
           <div className="space-y-4">
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60">
-                <p className="text-xs text-slate-500">Total clients</p>
-                <p className="text-2xl font-bold text-indigo-600 mt-1">{clientsRes?.meta.total ?? 0}</p>
+              <div className="bg-indigo-700 border-indigo-800 rounded-xl p-4 shadow-sm border">
+                <p className="text-xs text-white/80">Total clients</p>
+                <p className="text-2xl font-bold text-white mt-1">{clientsRes?.meta.total ?? 0}</p>
               </div>
-              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60">
-                <p className="text-xs text-slate-500">Cette page</p>
-                <p className="text-2xl font-bold text-slate-700 mt-1">{clients.length}</p>
+              <div className="bg-emerald-700 border-emerald-800 rounded-xl p-4 shadow-sm border">
+                <p className="text-xs text-white/80">Cette page</p>
+                <p className="text-2xl font-bold text-white mt-1">{clients.length}</p>
               </div>
-              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60 flex items-center gap-3">
-                <div className="bg-indigo-50 p-2.5 rounded-xl"><UserCircle className="text-indigo-500 w-5 h-5" /></div>
+              <div className="bg-amber-600 border-amber-700 rounded-xl p-4 shadow-sm border flex items-center gap-3">
+                <div className="bg-white/20 p-2.5 rounded-xl"><UserCircle className="text-white/80 w-5 h-5" /></div>
                 <div>
-                  <p className="text-xs text-slate-500">Fichier client</p>
-                  <p className="text-sm font-semibold text-slate-700">Point de vente</p>
+                  <p className="text-xs text-white/80">Fichier client</p>
+                  <p className="text-sm font-semibold text-white/80">Point de vente</p>
                 </div>
               </div>
             </div>

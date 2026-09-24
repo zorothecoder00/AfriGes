@@ -2252,19 +2252,19 @@ export default function AgentTerrainPage() {
                 <div className="p-6">
                   {/* Mini-stats d'aperçu */}
                   <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
-                    <div className="text-center p-2.5 sm:p-4 bg-slate-50 rounded-xl">
-                      <p className="text-lg sm:text-2xl font-bold text-slate-800">{collecteJourData?.stats.totalClients ?? 0}</p>
-                      <p className="text-[11px] sm:text-xs text-slate-500 mt-1">Clients</p>
+                    <div className="shadow-sm border text-center p-2.5 sm:p-4 bg-indigo-700 border-indigo-800 rounded-xl">
+                      <p className="text-lg sm:text-2xl font-bold text-white">{collecteJourData?.stats.totalClients ?? 0}</p>
+                      <p className="text-[11px] sm:text-xs text-white/80 mt-1">Clients</p>
                     </div>
-                    <div className="text-center p-2.5 sm:p-4 bg-teal-50 rounded-xl">
-                      <p className="text-sm sm:text-lg font-bold text-teal-700 break-words">
+                    <div className="shadow-sm border text-center p-2.5 sm:p-4 bg-teal-700 border-teal-800 rounded-xl">
+                      <p className="text-sm sm:text-lg font-bold text-white break-words">
                         {formatCurrency(collecteJourData?.stats.totalACollecter ?? 0)}
                       </p>
-                      <p className="text-[11px] sm:text-xs text-slate-500 mt-1">À collecter</p>
+                      <p className="text-[11px] sm:text-xs text-white/80 mt-1">À collecter</p>
                     </div>
-                    <div className="text-center p-2.5 sm:p-4 bg-red-50 rounded-xl">
-                      <p className="text-lg sm:text-2xl font-bold text-red-600">{collecteJourData?.stats.retardsCritiques ?? 0}</p>
-                      <p className="text-[11px] sm:text-xs text-slate-500 mt-1">Retards</p>
+                    <div className="shadow-sm border text-center p-2.5 sm:p-4 bg-red-700 border-red-800 rounded-xl">
+                      <p className="text-lg sm:text-2xl font-bold text-white">{collecteJourData?.stats.retardsCritiques ?? 0}</p>
+                      <p className="text-[11px] sm:text-xs text-white/80 mt-1">Retards</p>
                     </div>
                   </div>
                   <button
@@ -2572,31 +2572,31 @@ export default function AgentTerrainPage() {
               <>
                 {/* Stats */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex items-center gap-4">
-                    <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
-                      <CreditCard className="w-5 h-5 text-blue-600" />
+                  <div className="bg-indigo-700 border-indigo-800 rounded-2xl p-5 shadow-sm border flex items-center gap-4">
+                    <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                      <CreditCard className="w-5 h-5 text-white/80" />
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500">Crédits actifs</p>
-                      <p className="text-2xl font-bold text-slate-800">{creditsData?.stats.total ?? 0}</p>
+                      <p className="text-xs text-white/80">Crédits actifs</p>
+                      <p className="text-2xl font-bold text-white">{creditsData?.stats.total ?? 0}</p>
                     </div>
                   </div>
-                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex items-center gap-4">
-                    <div className="w-11 h-11 bg-teal-50 rounded-xl flex items-center justify-center shrink-0">
-                      <TrendingDown className="w-5 h-5 text-teal-600" />
+                  <div className="bg-teal-700 border-teal-800 rounded-2xl p-5 shadow-sm border flex items-center gap-4">
+                    <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                      <TrendingDown className="w-5 h-5 text-white/80" />
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500">Solde total</p>
-                      <p className="text-lg font-bold text-teal-700">{formatCurrency(creditsData?.stats.totalSolde ?? 0)}</p>
+                      <p className="text-xs text-white/80">Solde total</p>
+                      <p className="text-lg font-bold text-white">{formatCurrency(creditsData?.stats.totalSolde ?? 0)}</p>
                     </div>
                   </div>
-                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-red-200 flex items-center gap-4">
-                    <div className="w-11 h-11 bg-red-50 rounded-xl flex items-center justify-center shrink-0">
-                      <AlertCircle className="w-5 h-5 text-red-600" />
+                  <div className="bg-red-700 border-red-800 rounded-2xl p-5 shadow-sm border flex items-center gap-4">
+                    <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                      <AlertCircle className="w-5 h-5 text-white/80" />
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500">En retard</p>
-                      <p className="text-2xl font-bold text-red-600">{creditsData?.stats.enRetard ?? 0}</p>
+                      <p className="text-xs text-white/80">En retard</p>
+                      <p className="text-2xl font-bold text-white">{creditsData?.stats.enRetard ?? 0}</p>
                     </div>
                   </div>
                 </div>
@@ -2862,24 +2862,24 @@ export default function AgentTerrainPage() {
           <div className="space-y-5">
             {/* Stats */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-amber-200 flex items-center gap-4">
-                <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center shrink-0">
-                  <Clock className="w-6 h-6 text-amber-600" />
+              <div className="bg-amber-600 border-amber-700 rounded-2xl p-5 shadow-sm border flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                  <Clock className="w-6 h-6 text-white/80" />
                 </div>
                 <div>
-                  <p className="text-slate-500 text-sm">{t('to_confirm')}</p>
-                  <p className="text-3xl font-bold text-amber-600">
+                  <p className="text-white/80 text-sm">{t('to_confirm')}</p>
+                  <p className="text-3xl font-bold text-white">
                     {livraisonsResponse?.stats.totalPlanifiees ?? 0}
                   </p>
                 </div>
               </div>
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-emerald-200 flex items-center gap-4">
-                <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0">
-                  <CheckCircle className="w-6 h-6 text-emerald-600" />
+              <div className="bg-emerald-700 border-emerald-800 rounded-2xl p-5 shadow-sm border flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                  <CheckCircle className="w-6 h-6 text-white/80" />
                 </div>
                 <div>
-                  <p className="text-slate-500 text-sm">{t('field_total_delivered')}</p>
-                  <p className="text-3xl font-bold text-emerald-600">
+                  <p className="text-white/80 text-sm">{t('field_total_delivered')}</p>
+                  <p className="text-3xl font-bold text-white">
                     {livraisonsResponse?.stats.totalLivrees ?? 0}
                   </p>
                 </div>

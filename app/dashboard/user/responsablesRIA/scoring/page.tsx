@@ -459,17 +459,17 @@ function TabSolvabilite() {
       {/* Stats + Actions */}
       <div className="flex items-start justify-between gap-4">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 flex-1">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-            <p className={`text-3xl font-bold ${scoreColor(data.scoreMoyen)}`}>{data.scoreMoyen}</p>
-            <p className="text-xs text-slate-500 mt-0.5">Score moyen / 100</p>
+          <div className="shadow-sm bg-indigo-700 border-indigo-800 rounded-xl border p-4 text-center">
+            <p className={`text-3xl font-bold text-white`}>{data.scoreMoyen}</p>
+            <p className="text-xs text-white/80 mt-0.5">Score moyen / 100</p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-            <p className="text-3xl font-bold text-slate-700">{data.total}</p>
-            <p className="text-xs text-slate-500 mt-0.5">Clients scorés</p>
+          <div className="shadow-sm bg-emerald-700 border-emerald-800 rounded-xl border p-4 text-center">
+            <p className="text-3xl font-bold text-white">{data.total}</p>
+            <p className="text-xs text-white/80 mt-0.5">Clients scorés</p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-            <p className="text-3xl font-bold text-emerald-600">{data.repartition["Excellent"] ?? 0}</p>
-            <p className="text-xs text-slate-500 mt-0.5">Profils Excellents</p>
+          <div className="shadow-sm bg-emerald-700 border-emerald-800 rounded-xl border p-4 text-center">
+            <p className="text-3xl font-bold text-white">{data.repartition["Excellent"] ?? 0}</p>
+            <p className="text-xs text-white/80 mt-0.5">Profils Excellents</p>
           </div>
         </div>
         <button onClick={handleRecalculer} disabled={recalcLoading}

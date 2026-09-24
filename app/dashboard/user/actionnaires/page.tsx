@@ -821,20 +821,20 @@ export default function ActionnairePage() {
 
             {/* Infos capital social */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-5 text-center">
-                <p className="text-slate-500 text-sm mb-1">Total actions émises</p>
-                <p className="text-3xl font-bold text-slate-800">{capitalTotal.toLocaleString()}</p>
-                <p className="text-xs text-slate-400 mt-1">Capital social global</p>
+              <div className="bg-indigo-700 border-indigo-800 rounded-2xl shadow-sm border p-5 text-center">
+                <p className="text-white/80 text-sm mb-1">Total actions émises</p>
+                <p className="text-3xl font-bold text-white">{capitalTotal.toLocaleString()}</p>
+                <p className="text-xs text-white/80 mt-1">Capital social global</p>
               </div>
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-5 text-center">
-                <p className="text-slate-500 text-sm mb-1">Mes actions</p>
-                <p className="text-3xl font-bold text-indigo-600">{(profil?.nombreActions ?? 0).toLocaleString()}</p>
-                <p className="text-xs text-slate-400 mt-1">Actions en portefeuille</p>
+              <div className="bg-indigo-700 border-indigo-800 rounded-2xl shadow-sm border p-5 text-center">
+                <p className="text-white/80 text-sm mb-1">Mes actions</p>
+                <p className="text-3xl font-bold text-white">{(profil?.nombreActions ?? 0).toLocaleString()}</p>
+                <p className="text-xs text-white/80 mt-1">Actions en portefeuille</p>
               </div>
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-5 text-center">
-                <p className="text-slate-500 text-sm mb-1">Part détenue</p>
-                <p className="text-3xl font-bold text-purple-600">{profil?.pourcentageCapital ?? "0"}%</p>
-                <p className="text-xs text-slate-400 mt-1">Du capital social</p>
+              <div className="bg-purple-700 border-purple-800 rounded-2xl shadow-sm border p-5 text-center">
+                <p className="text-white/80 text-sm mb-1">Part détenue</p>
+                <p className="text-3xl font-bold text-white">{profil?.pourcentageCapital ?? "0"}%</p>
+                <p className="text-xs text-white/80 mt-1">Du capital social</p>
               </div>
             </div>
 
@@ -1312,7 +1312,7 @@ export default function ActionnairePage() {
                   {Object.entries(packsStats?.parType ?? {}).map(([type, count]) => {
                     const meta = typePackLabel[type] ?? { label: type, color: "bg-slate-100 text-slate-700" };
                     return (
-                      <div key={type} className={`${meta.color} rounded-2xl p-5 text-center`}>
+                      <div key={type} className={`shadow-sm border ${getStatCardHue(meta.color).solid} rounded-2xl p-5 text-center`}>
                         <p className="text-3xl font-black">{count}</p>
                         <p className="text-sm font-semibold mt-1">{meta.label}</p>
                       </div>

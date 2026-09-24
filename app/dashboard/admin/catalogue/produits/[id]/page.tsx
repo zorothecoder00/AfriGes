@@ -344,13 +344,13 @@ function FicheProduitInner() {
         {tab === "dispo" && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white rounded-2xl border border-slate-200 p-4">
-                <p className="text-xs text-slate-400 mb-1">Stock total (toutes agences)</p>
-                <p className="text-xl font-bold text-slate-900">{stockTotal}</p>
+              <div className="shadow-sm bg-indigo-700 border-indigo-800 rounded-2xl border p-4">
+                <p className="text-xs text-white/80 mb-1">Stock total (toutes agences)</p>
+                <p className="text-xl font-bold text-white">{stockTotal}</p>
               </div>
-              <div className="bg-white rounded-2xl border border-slate-200 p-4">
-                <p className="text-xs text-slate-400 mb-1">Valeur du stock</p>
-                <p className="text-xl font-bold text-emerald-700">{formatCurrency(valeurStockTotal)}</p>
+              <div className="shadow-sm bg-emerald-700 border-emerald-800 rounded-2xl border p-4">
+                <p className="text-xs text-white/80 mb-1">Valeur du stock</p>
+                <p className="text-xl font-bold text-white">{formatCurrency(valeurStockTotal)}</p>
               </div>
             </div>
             <DisponibiliteTab produitId={fiche.id} produitNom={fiche.nom} onStockChanged={load} />

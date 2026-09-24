@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { formatDate } from "@/lib/format";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 type StatutOnboarding = "EN_COURS" | "TERMINE" | "SUSPENDU" | "ANNULE";
@@ -102,11 +103,11 @@ export default function RHOnboardingPage() {
           {(["EN_COURS", "TERMINE", "SUSPENDU", "ANNULE"] as StatutOnboarding[]).map((s) => {
             const cfg = STATUT_CONFIG[s];
             return (
-              <div key={s} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${cfg.color}`}>{cfg.icon}</div>
+              <div key={s} className={`shadow-sm rounded-xl border p-4 flex items-center gap-3 ${getStatCardHue(cfg.color).solid}`}>
+                <div className={`p-2 rounded-lg text-white`}>{cfg.icon}</div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats[s] ?? 0}</p>
-                  <p className="text-xs text-gray-500">{cfg.label}</p>
+                  <p className="text-2xl font-bold text-white">{stats[s] ?? 0}</p>
+                  <p className="text-xs text-white/80">{cfg.label}</p>
                 </div>
               </div>
             );

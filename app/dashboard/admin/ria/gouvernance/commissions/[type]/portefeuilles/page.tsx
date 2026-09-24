@@ -66,19 +66,19 @@ export default function PortefeuillesPage() {
 
       {/* Stats rapides */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{pfData?.meta.total ?? 0}</p>
-          <p className="text-xs text-slate-500">Portefeuilles total</p>
+        <div className="shadow-sm bg-indigo-700 border-indigo-800 border rounded-xl p-4 text-center">
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{pfData?.meta.total ?? 0}</p>
+          <p className="text-xs text-white/80">Portefeuilles total</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-600">{pfs.filter(p => p.actif).length}</p>
-          <p className="text-xs text-slate-500">Actifs</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{pfs.filter(p => p.actif).length}</p>
+          <p className="text-xs text-white/80">Actifs</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-blue-600">
+        <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-xl p-4 text-center">
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">
             {formatCurrency(pfs.reduce((s, p) => s + toNum(p.capitalInvesti), 0))}
           </p>
-          <p className="text-xs text-slate-500">Capital total investi</p>
+          <p className="text-xs text-white/80">Capital total investi</p>
         </div>
       </div>
 

@@ -89,17 +89,17 @@ export default function MRPPage() {
 
         {stats && (
           <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
-              <p className="text-xs text-slate-500">Produits analysés</p>
-              <p className="text-xl font-bold text-slate-900">{stats.produitsAAnalyser}</p>
+            <div className="shadow-sm bg-indigo-700 border-indigo-800 rounded-xl border p-4">
+              <p className="text-xs text-white/80">Produits analysés</p>
+              <p className="text-xl font-bold text-white">{stats.produitsAAnalyser}</p>
             </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
-              <p className="text-xs text-slate-500">Produits à commander</p>
-              <p className="text-xl font-bold text-amber-600">{stats.produitsABesoin}</p>
+            <div className="shadow-sm bg-amber-600 border-amber-700 rounded-xl border p-4">
+              <p className="text-xs text-white/80">Produits à commander</p>
+              <p className="text-xl font-bold text-white">{stats.produitsABesoin}</p>
             </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
-              <p className="text-xs text-slate-500">Besoin total (unités)</p>
-              <p className="text-xl font-bold text-slate-900">{stats.besoinTotalUnites.toLocaleString("fr-FR")}</p>
+            <div className="shadow-sm bg-amber-600 border-amber-700 rounded-xl border p-4">
+              <p className="text-xs text-white/80">Besoin total (unités)</p>
+              <p className="text-xl font-bold text-white">{stats.besoinTotalUnites.toLocaleString("fr-FR")}</p>
             </div>
           </div>
         )}

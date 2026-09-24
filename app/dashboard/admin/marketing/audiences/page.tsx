@@ -6,6 +6,7 @@ import { formatCurrency } from "@/lib/format";
 import { Plus, Loader2, Users, RefreshCw, Sparkles, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import NouvelleAudienceModal from "@/components/marketing/NouvelleAudienceModal";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 interface Regle { champ: string; operateur: string; valeur: string }
 interface AudienceItem {
@@ -124,7 +125,7 @@ function VueRFM() {
       {(["CHAMPIONS", "FIDELES", "GROS_ACHETEURS", "NOUVEAUX", "A_RISQUE", "DORMANTS", "PERDUS"] as const).map((seg) => {
         const row = segments.find((s) => s.segment === seg);
         return (
-          <div key={seg} className={`rounded-2xl border p-4 ${SEGMENT_STYLE[seg]}`}>
+          <div key={seg} className={`shadow-sm rounded-2xl border p-4 text-white ${getStatCardHue(SEGMENT_STYLE[seg]).solid}`}>
             <div className="flex items-center justify-between">
               <p className="font-semibold text-sm flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5" /> {SEGMENT_LABEL[seg]}</p>
               <span className="text-lg font-bold">{row?.effectif ?? 0}</span>

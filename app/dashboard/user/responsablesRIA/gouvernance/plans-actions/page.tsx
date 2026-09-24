@@ -8,6 +8,7 @@ import {
   Calendar, ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 interface PlanAction {
   id: number;
@@ -104,21 +105,21 @@ export default function MesPlansActionsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-3">
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{allPlans.length}</p>
-          <p className="text-xs text-slate-500">Total</p>
+        <div className="shadow-sm bg-indigo-700 border-indigo-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{allPlans.length}</p>
+          <p className="text-xs text-white/80">Total</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-blue-600">{allPlans.filter(p => p.statut === "EN_COURS").length}</p>
-          <p className="text-xs text-slate-500">En cours</p>
+        <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{allPlans.filter(p => p.statut === "EN_COURS").length}</p>
+          <p className="text-xs text-white/80">En cours</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-600">{allPlans.filter(p => p.statut === "TERMINE").length}</p>
-          <p className="text-xs text-slate-500">Terminés</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{allPlans.filter(p => p.statut === "TERMINE").length}</p>
+          <p className="text-xs text-white/80">Terminés</p>
         </div>
-        <div className={`rounded-xl p-4 text-center border ${nbRetard > 0 ? "border-rose-200 bg-rose-50" : "bg-white border-slate-200"}`}>
-          <p className={`text-2xl font-bold ${nbRetard > 0 ? "text-rose-700" : "text-slate-400"}`}>{nbRetard}</p>
-          <p className="text-xs text-slate-500">En retard</p>
+        <div className={`shadow-sm rounded-xl p-4 text-center border ${getStatCardHue(nbRetard > 0 ? "border-rose-200 bg-rose-50" : "bg-white border-slate-200").solid}`}>
+          <p className={`text-2xl font-bold ${nbRetard > 0 ? "text-white" : "text-white"}`}>{nbRetard}</p>
+          <p className="text-xs text-white/80">En retard</p>
         </div>
       </div>
 

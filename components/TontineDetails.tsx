@@ -462,24 +462,24 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                      <CreditCard className="w-5 h-5 text-blue-600" />
+                    <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                      <CreditCard className="w-5 h-5 text-white/80" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Contribution</p>
-                      <p className="text-xl font-bold text-gray-900">{formatCurrency(montantCycle)}</p>
+                      <p className="text-sm text-white/80">Contribution</p>
+                      <p className="text-xl font-bold text-white">{formatCurrency(montantCycle)}</p>
                     </div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-purple-600" />
+                    <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-white/80" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Frequence</p>
-                      <p className="text-xl font-bold text-gray-900">
+                      <p className="text-sm text-white/80">Frequence</p>
+                      <p className="text-xl font-bold text-white">
                         {tontine.frequence === 'MENSUEL' ? 'Mensuelle' : 'Hebdomadaire'}
                       </p>
                     </div>
@@ -488,12 +488,12 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
 
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center">
-                      <Calendar className="w-5 h-5 text-emerald-600" />
+                    <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                      <Calendar className="w-5 h-5 text-white/80" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Date de debut</p>
-                      <p className="text-xl font-bold text-gray-900">
+                      <p className="text-sm text-white/80">Date de debut</p>
+                      <p className="text-xl font-bold text-white">
                         {formatDate(tontine.dateDebut)}
                       </p>
                     </div>
@@ -502,12 +502,12 @@ export default function TontineDetails({ tontineId }: { tontineId: string }) {
 
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-5 h-5 text-orange-600" />
+                    <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5 text-white/80" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Date de fin</p>
-                      <p className="text-xl font-bold text-gray-900">
+                      <p className="text-sm text-white/80">Date de fin</p>
+                      <p className="text-xl font-bold text-white">
                         {tontine.dateFin ? formatDate(tontine.dateFin) : 'Non definie'}
                       </p>
                     </div>

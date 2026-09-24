@@ -313,10 +313,10 @@ function DetailJourModal({ apiBase, date, onClose }: { apiBase: string; date: st
           <div className="overflow-y-auto px-6 py-4 space-y-5">
             {/* Rapport */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3"><p className="text-xs text-emerald-600">Collecté</p><p className="text-lg font-bold text-emerald-700">{fmt(d.rapport.totalCollecte)}</p></div>
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3"><p className="text-xs text-amber-600">Retards</p><p className="text-lg font-bold text-amber-700">{d.rapport.nbRetards} · {fmt(d.rapport.montantRetards)}</p></div>
-              <div className="bg-rose-50 border border-rose-100 rounded-xl p-3"><p className="text-xs text-rose-600">Impayés</p><p className="text-lg font-bold text-rose-700">{d.rapport.nbImpayes} · {fmt(d.rapport.montantImpayes)}</p></div>
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3"><p className="text-xs text-blue-600">Recouvrement</p><p className="text-lg font-bold text-blue-700">{d.rapport.tauxRecouvrement}%</p></div>
+              <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-3"><p className="text-xs text-emerald-600">Collecté</p><p className="text-lg font-bold text-emerald-700">{fmt(d.rapport.totalCollecte)}</p></div>
+              <div className="shadow-sm bg-amber-600 border-amber-700 border rounded-xl p-3"><p className="text-xs text-amber-600">Retards</p><p className="text-lg font-bold text-amber-700">{d.rapport.nbRetards} · {fmt(d.rapport.montantRetards)}</p></div>
+              <div className="shadow-sm bg-rose-700 border-rose-800 border rounded-xl p-3"><p className="text-xs text-rose-600">Impayés</p><p className="text-lg font-bold text-rose-700">{d.rapport.nbImpayes} · {fmt(d.rapport.montantImpayes)}</p></div>
+              <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-xl p-3"><p className="text-xs text-blue-600">Recouvrement</p><p className="text-lg font-bold text-blue-700">{d.rapport.tauxRecouvrement}%</p></div>
             </div>
 
             {/* Collectes */}

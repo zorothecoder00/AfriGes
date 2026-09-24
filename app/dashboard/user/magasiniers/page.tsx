@@ -1171,41 +1171,41 @@ export default function MagasinierPage() {
           <div className="space-y-6">
             {/* Stats 30 jours */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+              <div className="bg-indigo-700 border-indigo-800 rounded-2xl p-6 shadow-sm border">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="bg-emerald-50 p-3 rounded-xl">
-                    <ArrowUpCircle className="text-emerald-500 w-6 h-6" />
+                  <div className="bg-white/20 p-3 rounded-xl">
+                    <ArrowUpCircle className="text-white/80 w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-slate-600 text-sm">Entrees (30j)</p>
-                    <p className="text-2xl font-bold text-slate-800">{journalResponse?.stats.totalEntrees ?? '-'}</p>
+                    <p className="text-white/80 text-sm">Entrees (30j)</p>
+                    <p className="text-2xl font-bold text-white">{journalResponse?.stats.totalEntrees ?? '-'}</p>
                   </div>
                 </div>
-                <p className="text-xs text-slate-500">Receptions et approvisionnements</p>
+                <p className="text-xs text-white/80">Receptions et approvisionnements</p>
               </div>
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+              <div className="bg-emerald-700 border-emerald-800 rounded-2xl p-6 shadow-sm border">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="bg-red-50 p-3 rounded-xl">
-                    <ArrowDownCircle className="text-red-500 w-6 h-6" />
+                  <div className="bg-white/20 p-3 rounded-xl">
+                    <ArrowDownCircle className="text-white/80 w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-slate-600 text-sm">Sorties (30j)</p>
-                    <p className="text-2xl font-bold text-slate-800">{journalResponse?.stats.totalSorties ?? '-'}</p>
+                    <p className="text-white/80 text-sm">Sorties (30j)</p>
+                    <p className="text-2xl font-bold text-white">{journalResponse?.stats.totalSorties ?? '-'}</p>
                   </div>
                 </div>
-                <p className="text-xs text-slate-500">Ventes et distributions</p>
+                <p className="text-xs text-white/80">Ventes et distributions</p>
               </div>
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+              <div className="bg-amber-600 border-amber-700 rounded-2xl p-6 shadow-sm border">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="bg-blue-50 p-3 rounded-xl">
-                    <ArrowRightLeft className="text-blue-500 w-6 h-6" />
+                  <div className="bg-white/20 p-3 rounded-xl">
+                    <ArrowRightLeft className="text-white/80 w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-slate-600 text-sm">Ajustements (30j)</p>
-                    <p className="text-2xl font-bold text-slate-800">{journalResponse?.stats.totalAjustements ?? '-'}</p>
+                    <p className="text-white/80 text-sm">Ajustements (30j)</p>
+                    <p className="text-2xl font-bold text-white">{journalResponse?.stats.totalAjustements ?? '-'}</p>
                   </div>
                 </div>
-                <p className="text-xs text-slate-500">Corrections d&apos;inventaire</p>
+                <p className="text-xs text-white/80">Corrections d&apos;inventaire</p>
               </div>
             </div>
 
@@ -1401,40 +1401,40 @@ export default function MagasinierPage() {
 
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
-                  <PackageCheck className="text-blue-600 w-5 h-5" />
+              <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                  <PackageCheck className="text-white/80 w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-blue-700 font-medium">Réceptions — à confirmer</p>
-                  <p className="text-2xl font-bold text-blue-800">{nbLivraisonsEnCours}</p>
+                  <p className="text-xs text-white/80 font-medium">Réceptions — à confirmer</p>
+                  <p className="text-2xl font-bold text-white">{nbLivraisonsEnCours}</p>
                 </div>
               </div>
-              <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center shrink-0">
-                  <Truck className="text-violet-600 w-5 h-5" />
+              <div className="shadow-sm bg-violet-700 border-violet-800 border rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                  <Truck className="text-white/80 w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-violet-700 font-medium">Transferts entrants</p>
-                  <p className="text-2xl font-bold text-violet-800">{transfertsEntrantsMag.length}</p>
+                  <p className="text-xs text-white/80 font-medium">Transferts entrants</p>
+                  <p className="text-2xl font-bold text-white">{transfertsEntrantsMag.length}</p>
                 </div>
               </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
-                  <Send className="text-amber-600 w-5 h-5" />
+              <div className="shadow-sm bg-amber-600 border-amber-700 border rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                  <Send className="text-white/80 w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-amber-700 font-medium">Sorties clients en attente</p>
-                  <p className="text-2xl font-bold text-amber-800">{livClientsPending.length}</p>
+                  <p className="text-xs text-white/80 font-medium">Sorties clients en attente</p>
+                  <p className="text-2xl font-bold text-white">{livClientsPending.length}</p>
                 </div>
               </div>
-              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
-                  <Gift className="text-orange-600 w-5 h-5" />
+              <div className="shadow-sm bg-orange-700 border-orange-800 border rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                  <Gift className="text-white/80 w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-orange-700 font-medium">Livraisons packs</p>
-                  <p className="text-2xl font-bold text-orange-800">{livraisonsPacksPlanifiees.length}</p>
+                  <p className="text-xs text-white/80 font-medium">Livraisons packs</p>
+                  <p className="text-2xl font-bold text-white">{livraisonsPacksPlanifiees.length}</p>
                 </div>
               </div>
             </div>

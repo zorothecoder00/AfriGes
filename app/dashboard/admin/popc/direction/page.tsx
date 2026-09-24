@@ -6,6 +6,7 @@ import {
   LayoutDashboard, ShieldCheck, TrendingUp, Users, FileText,
   BookOpen, Wallet, Target, AlertTriangle, CheckCircle2, XCircle,
 } from "lucide-react";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 interface DirectionData {
   objectifsGeneres: boolean;
@@ -108,11 +109,11 @@ export default function DirectionPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <Kpi icon={<Target className="w-4 h-4" />} label="Charges budgétées" value={`${fmt(d.chargesTotales)} F`} />
             <Kpi icon={<BookOpen className="w-4 h-4" />} label="Charges réelles" value={`${fmt(d.chargesReelles)} F`} highlight />
-            <div className={`rounded-2xl p-4 border shadow-sm ${d.ecartCharges > 0 ? "bg-red-50 border-red-100" : "bg-emerald-50 border-emerald-100"}`}>
-              <div className="flex items-center gap-1.5 text-gray-400 text-xs">
+            <div className={`rounded-2xl p-4 border shadow-sm ${getStatCardHue(d.ecartCharges > 0 ? "bg-red-50 border-red-100" : "bg-emerald-50 border-emerald-100").solid}`}>
+              <div className="flex items-center gap-1.5 text-white/80 text-xs">
                 {d.ecartCharges > 0 ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />} Écart
               </div>
-              <div className={`text-lg font-bold mt-1 ${d.ecartCharges > 0 ? "text-red-600" : "text-emerald-600"}`}>
+              <div className={`text-lg font-bold mt-1 ${d.ecartCharges > 0 ? "text-white" : "text-white"}`}>
                 {d.ecartCharges > 0 ? "+" : ""}{fmt(d.ecartCharges)} F
               </div>
             </div>

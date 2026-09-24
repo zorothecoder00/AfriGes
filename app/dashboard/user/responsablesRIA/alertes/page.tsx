@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronUp,
 } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 interface RetardItem {
   id: number; reference: string; clientNom: string; clientTel?: string | null;
@@ -87,21 +88,21 @@ export default function AlertesRIAResponsablePage() {
 
       {r && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className={`rounded-xl border p-4 ${r.nbAlertesCritiques > 0 ? "bg-red-50 border-red-200" : "bg-white border-slate-200"}`}>
-            <p className="text-xs text-slate-500">Alertes critiques</p>
-            <p className={`text-2xl font-bold mt-1 ${r.nbAlertesCritiques > 0 ? "text-red-600" : "text-emerald-600"}`}>{r.nbAlertesCritiques}</p>
+          <div className={`shadow-sm rounded-xl border p-4 ${getStatCardHue(r.nbAlertesCritiques > 0 ? "bg-red-50 border-red-200" : "bg-white border-slate-200").solid}`}>
+            <p className="text-xs text-white/80">Alertes critiques</p>
+            <p className={`text-2xl font-bold mt-1 ${r.nbAlertesCritiques > 0 ? "text-white" : "text-white"}`}>{r.nbAlertesCritiques}</p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <p className="text-xs text-slate-500">Alertes totales</p>
-            <p className={`text-2xl font-bold mt-1 ${r.nbAlertesTotal > 0 ? "text-amber-600" : "text-emerald-600"}`}>{r.nbAlertesTotal}</p>
+          <div className="shadow-sm bg-amber-600 border-amber-700 rounded-xl border p-4">
+            <p className="text-xs text-white/80">Alertes totales</p>
+            <p className={`text-2xl font-bold mt-1 ${r.nbAlertesTotal > 0 ? "text-white" : "text-white"}`}>{r.nbAlertesTotal}</p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <p className="text-xs text-slate-500">Encours à risque</p>
-            <p className="text-lg font-bold mt-1 text-slate-800">{fmt(r.totalImpayes)}</p>
+          <div className="shadow-sm bg-amber-600 border-amber-700 rounded-xl border p-4">
+            <p className="text-xs text-white/80">Encours à risque</p>
+            <p className="text-lg font-bold mt-1 text-white">{fmt(r.totalImpayes)}</p>
           </div>
-          <div className={`rounded-xl border p-4 ${r.tauxDefaut >= (d?.seuils.TAUX_DEFAUT_SEUIL ?? 10) ? "bg-red-50 border-red-200" : "bg-white border-slate-200"}`}>
-            <p className="text-xs text-slate-500">Taux de défaut</p>
-            <p className={`text-2xl font-bold mt-1 ${r.tauxDefaut >= (d?.seuils.TAUX_DEFAUT_SEUIL ?? 10) ? "text-red-600" : "text-emerald-600"}`}>{r.tauxDefaut}%</p>
+          <div className={`shadow-sm rounded-xl border p-4 ${getStatCardHue(r.tauxDefaut >= (d?.seuils.TAUX_DEFAUT_SEUIL ?? 10) ? "bg-red-50 border-red-200" : "bg-white border-slate-200").solid}`}>
+            <p className="text-xs text-white/80">Taux de défaut</p>
+            <p className={`text-2xl font-bold mt-1 ${r.tauxDefaut >= (d?.seuils.TAUX_DEFAUT_SEUIL ?? 10) ? "text-white" : "text-white"}`}>{r.tauxDefaut}%</p>
           </div>
         </div>
       )}

@@ -5,6 +5,7 @@ import { useApi } from "@/hooks/useApi";
 import { useState } from "react";
 import { RefreshCw, AlertTriangle, Shield, Activity } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import { getStatCardHue } from "@/components/ui/statCardTheme";
 
 interface Row {
   id: number; actif: boolean; classeRisque: string;
@@ -67,11 +68,11 @@ export default function RisquesPage() {
         {byRisque.map(({ key, count, montant }) => {
           const cfg = cfgOf(key);
           return (
-            <div key={key} className={`${cfg.bg} border border-slate-200 rounded-xl p-4 text-center`}>
+            <div key={key} className={`shadow-sm ${getStatCardHue(cfg.bg).solid} border rounded-xl p-4 text-center`}>
               <div className={`w-3 h-3 rounded-full ${cfg.dot} mx-auto mb-2`} />
-              <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold ${cfg.color}`}>{count}</p>
-              <p className="text-xs text-slate-600 mt-0.5">{cfg.label}</p>
-              <p className="text-xs text-slate-500">{formatCurrency(montant)}</p>
+              <p className={`text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white`}>{count}</p>
+              <p className="text-xs text-white/80 mt-0.5">{cfg.label}</p>
+              <p className="text-xs text-white/80">{formatCurrency(montant)}</p>
             </div>
           );
         })}

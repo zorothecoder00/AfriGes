@@ -411,49 +411,49 @@ export default function GestionnaireDetails({ gestionnaireId }: GestionnaireDeta
           <>
             {/* Stats CA */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+              <div className="bg-indigo-700 border-indigo-800 rounded-2xl p-6 shadow-sm border">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="bg-blue-50 p-2.5 rounded-xl">
-                    <Users size={18} className="text-blue-600" />
+                  <div className="bg-white/20 p-2.5 rounded-xl">
+                    <Users size={18} className="text-white/80" />
                   </div>
-                  <span className="text-sm font-medium text-slate-600">Clients assignés</span>
+                  <span className="text-sm font-medium text-white/80">Clients assignés</span>
                 </div>
-                <p className="text-3xl font-bold text-slate-800">{clientsMeta?.total ?? 0}</p>
+                <p className="text-3xl font-bold text-white">{clientsMeta?.total ?? 0}</p>
               </div>
 
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+              <div className="bg-emerald-700 border-emerald-800 rounded-2xl p-6 shadow-sm border">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="bg-emerald-50 p-2.5 rounded-xl">
-                    <TrendingUp size={18} className="text-emerald-600" />
+                  <div className="bg-white/20 p-2.5 rounded-xl">
+                    <TrendingUp size={18} className="text-white/80" />
                   </div>
-                  <span className="text-sm font-medium text-slate-600">CA global</span>
+                  <span className="text-sm font-medium text-white/80">CA global</span>
                 </div>
-                <p className="text-2xl font-bold text-emerald-700">
+                <p className="text-2xl font-bold text-white">
                   {formatCurrency(clientsMeta?.caGlobal ?? 0)}
                 </p>
-                <p className="text-xs text-slate-400 mt-1">packs + ventes directes</p>
+                <p className="text-xs text-white/80 mt-1">packs + ventes directes</p>
               </div>
 
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+              <div className="bg-purple-700 border-purple-800 rounded-2xl p-6 shadow-sm border">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="bg-purple-50 p-2.5 rounded-xl">
-                    <Layers size={18} className="text-purple-600" />
+                  <div className="bg-white/20 p-2.5 rounded-xl">
+                    <Layers size={18} className="text-white/80" />
                   </div>
-                  <span className="text-sm font-medium text-slate-600">CA packs</span>
+                  <span className="text-sm font-medium text-white/80">CA packs</span>
                 </div>
-                <p className="text-2xl font-bold text-purple-700">
+                <p className="text-2xl font-bold text-white">
                   {formatCurrency(clients.reduce((s, c) => s + c.caPacks, 0))}
                 </p>
               </div>
 
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
+              <div className="bg-amber-600 border-amber-700 rounded-2xl p-6 shadow-sm border">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="bg-amber-50 p-2.5 rounded-xl">
-                    <ShoppingBag size={18} className="text-amber-600" />
+                  <div className="bg-white/20 p-2.5 rounded-xl">
+                    <ShoppingBag size={18} className="text-white/80" />
                   </div>
-                  <span className="text-sm font-medium text-slate-600">CA ventes directes</span>
+                  <span className="text-sm font-medium text-white/80">CA ventes directes</span>
                 </div>
-                <p className="text-2xl font-bold text-amber-700">
+                <p className="text-2xl font-bold text-white">
                   {formatCurrency(clients.reduce((s, c) => s + c.caVentes, 0))}
                 </p>
               </div>

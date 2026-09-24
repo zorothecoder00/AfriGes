@@ -135,17 +135,17 @@ export default function RiaEligibilitePage() {
 
       {/* Résumé */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-500">Validés (affectables)</p>
-          <p className="text-xl font-bold text-blue-600 mt-1">{counts.valide}</p>
+        <div className="shadow-sm bg-blue-700 border-blue-800 rounded-xl border p-4">
+          <p className="text-xs text-white/80">Validés (affectables)</p>
+          <p className="text-xl font-bold text-white mt-1">{counts.valide}</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-500">Éligibles à confirmer</p>
-          <p className="text-xl font-bold text-emerald-600 mt-1">{counts.eligible}</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 rounded-xl border p-4">
+          <p className="text-xs text-white/80">Éligibles à confirmer</p>
+          <p className="text-xl font-bold text-white mt-1">{counts.eligible}</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-500">Refusés</p>
-          <p className="text-xl font-bold text-red-600 mt-1">{counts.refuse}</p>
+        <div className="shadow-sm bg-red-700 border-red-800 rounded-xl border p-4">
+          <p className="text-xs text-white/80">Refusés</p>
+          <p className="text-xl font-bold text-white mt-1">{counts.refuse}</p>
         </div>
       </div>
 

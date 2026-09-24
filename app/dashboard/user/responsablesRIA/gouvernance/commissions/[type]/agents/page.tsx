@@ -44,17 +44,17 @@ export default function AgentsAuditPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-slate-800">{stats?.total ?? 0}</p>
-          <p className="text-xs text-slate-500">Agents total</p>
+        <div className="shadow-sm bg-indigo-700 border-indigo-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{stats?.total ?? 0}</p>
+          <p className="text-xs text-white/80">Agents total</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-blue-700">{stats?.totalPortefeuilles ?? 0}</p>
-          <p className="text-xs text-slate-500">Portefeuilles gérés</p>
+        <div className="shadow-sm bg-blue-700 border-blue-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{stats?.totalPortefeuilles ?? 0}</p>
+          <p className="text-xs text-white/80">Portefeuilles gérés</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-700">{stats?.totalClientsActifs ?? 0}</p>
-          <p className="text-xs text-slate-500">Clients actifs</p>
+        <div className="shadow-sm bg-emerald-700 border-emerald-800 border rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-white">{stats?.totalClientsActifs ?? 0}</p>
+          <p className="text-xs text-white/80">Clients actifs</p>
         </div>
       </div>
 
