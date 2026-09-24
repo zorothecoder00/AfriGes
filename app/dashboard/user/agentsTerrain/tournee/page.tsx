@@ -57,17 +57,17 @@ export default function TourneePage() {
 
         {/* Résumé */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-            <div className="flex items-center gap-1.5 text-slate-400 text-xs"><MapPin className="w-4 h-4" /> Clients à visiter</div>
-            <div className="text-2xl font-bold text-slate-800 mt-1">{fmt(meta?.total ?? 0)}</div>
+          <div className="bg-blue-700 border-blue-800 rounded-2xl p-4 border shadow-sm">
+            <div className="flex items-center gap-1.5 text-white/80 text-xs"><MapPin className="w-4 h-4" /> Clients à visiter</div>
+            <div className="text-2xl font-bold text-white mt-1">{fmt(meta?.total ?? 0)}</div>
           </div>
-          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-            <div className="flex items-center gap-1.5 text-slate-400 text-xs"><AlertTriangle className="w-4 h-4" /> Urgentes</div>
-            <div className="text-2xl font-bold text-red-600 mt-1">{fmt(meta?.urgentes ?? 0)}</div>
+          <div className="bg-red-700 border-red-800 rounded-2xl p-4 border shadow-sm">
+            <div className="flex items-center gap-1.5 text-white/80 text-xs"><AlertTriangle className="w-4 h-4" /> Urgentes</div>
+            <div className="text-2xl font-bold text-white mt-1">{fmt(meta?.urgentes ?? 0)}</div>
           </div>
-          <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 shadow-sm">
-            <div className="flex items-center gap-1.5 text-indigo-500 text-xs"><Wallet className="w-4 h-4" /> À collecter</div>
-            <div className="text-2xl font-bold text-indigo-700 mt-1">{fmt(meta?.totalACollecter ?? 0)} F</div>
+          <div className="bg-indigo-700 border-indigo-800 rounded-2xl p-4 border shadow-sm">
+            <div className="flex items-center gap-1.5 text-white/80 text-xs"><Wallet className="w-4 h-4" /> À collecter</div>
+            <div className="text-2xl font-bold text-white mt-1">{fmt(meta?.totalACollecter ?? 0)} F</div>
           </div>
         </div>
 

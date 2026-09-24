@@ -55,17 +55,17 @@ export default function CreancesPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-center">
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-rose-700">{creances?.count ?? 0}</p>
-          <p className="text-xs text-rose-600">Créances en retard</p>
+        <div className="bg-rose-700 border-rose-800 shadow-sm border rounded-xl p-4 text-center">
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{creances?.count ?? 0}</p>
+          <p className="text-xs text-white/80">Créances en retard</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-rose-700">{formatCurrency(creances?.totalCreance ?? 0)}</p>
-          <p className="text-xs text-slate-500">Capital restant dû</p>
+        <div className="bg-amber-600 border-amber-700 shadow-sm border rounded-xl p-4 text-center">
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{formatCurrency(creances?.totalCreance ?? 0)}</p>
+          <p className="text-xs text-white/80">Capital restant dû</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-slate-800">{creances?.retardMoyen ?? 0}j</p>
-          <p className="text-xs text-slate-500">Retard moyen</p>
+        <div className="bg-slate-700 border-slate-800 shadow-sm border rounded-xl p-4 text-center">
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{creances?.retardMoyen ?? 0}j</p>
+          <p className="text-xs text-white/80">Retard moyen</p>
         </div>
       </div>
 

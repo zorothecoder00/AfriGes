@@ -609,17 +609,17 @@ function TabPrevisions() {
       {/* Mini stats */}
       {stats && stats.totalProduits > 0 && (
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
-            <p className="text-2xl font-bold text-emerald-700">{stats.totalProduits}</p>
-            <p className="text-xs text-emerald-600 mt-0.5">Produits distincts</p>
+          <div className="bg-emerald-700 border-emerald-800 shadow-sm border rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-white">{stats.totalProduits}</p>
+            <p className="text-xs text-white/80 mt-0.5">Produits distincts</p>
           </div>
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-            <p className="text-2xl font-bold text-blue-700">{stats.totalQuantite.toLocaleString("fr-FR")}</p>
-            <p className="text-xs text-blue-600 mt-0.5">Quantité totale demandée</p>
+          <div className="bg-blue-700 border-blue-800 shadow-sm border rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-white">{stats.totalQuantite.toLocaleString("fr-FR")}</p>
+            <p className="text-xs text-white/80 mt-0.5">Quantité totale demandée</p>
           </div>
-          <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 text-center">
-            <p className="text-2xl font-bold text-violet-700">{stats.totalPdvs}</p>
-            <p className="text-xs text-violet-600 mt-0.5">PDVs concernés</p>
+          <div className="bg-violet-700 border-violet-800 shadow-sm border rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-white">{stats.totalPdvs}</p>
+            <p className="text-xs text-white/80 mt-0.5">PDVs concernés</p>
           </div>
         </div>
       )}

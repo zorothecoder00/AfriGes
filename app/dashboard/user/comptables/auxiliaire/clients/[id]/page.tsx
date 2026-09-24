@@ -122,19 +122,19 @@ export default function FicheClientComptablePage({ params }: { params: Promise<{
 
       {/* Solde & créances échues/non échues */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
-          <p className="text-xs text-slate-400 flex items-center gap-1.5 mb-1"><Wallet size={13} />Solde compte auxiliaire ({gl?.compte?.numero ?? "—"})</p>
-          <p className="text-2xl font-bold text-slate-800">{formatCurrency(gl?.soldeFinal ?? 0)}</p>
+        <div className="bg-indigo-700 border-indigo-800 rounded-2xl p-5 shadow-sm border">
+          <p className="text-xs text-white/80 flex items-center gap-1.5 mb-1"><Wallet size={13} />Solde compte auxiliaire ({gl?.compte?.numero ?? "—"})</p>
+          <p className="text-2xl font-bold text-white">{formatCurrency(gl?.soldeFinal ?? 0)}</p>
         </div>
-        <div className="bg-red-50 rounded-2xl p-5 shadow-sm border border-red-200">
-          <p className="text-xs text-red-600 flex items-center gap-1.5 mb-1"><AlertTriangle size={13} />Créances échues</p>
-          <p className="text-2xl font-bold text-red-700">{formatCurrency(creances?.totalEchues ?? 0)}</p>
-          <p className="text-xs text-red-500 mt-0.5">{creances?.echues.length ?? 0} échéance(s)/facture(s)</p>
+        <div className="bg-red-700 border-red-800 rounded-2xl p-5 shadow-sm border">
+          <p className="text-xs text-white/80 flex items-center gap-1.5 mb-1"><AlertTriangle size={13} />Créances échues</p>
+          <p className="text-2xl font-bold text-white">{formatCurrency(creances?.totalEchues ?? 0)}</p>
+          <p className="text-xs text-white/80 mt-0.5">{creances?.echues.length ?? 0} échéance(s)/facture(s)</p>
         </div>
-        <div className="bg-blue-50 rounded-2xl p-5 shadow-sm border border-blue-200">
-          <p className="text-xs text-blue-600 flex items-center gap-1.5 mb-1"><Calendar size={13} />Créances non échues</p>
-          <p className="text-2xl font-bold text-blue-700">{formatCurrency(creances?.totalNonEchues ?? 0)}</p>
-          <p className="text-xs text-blue-500 mt-0.5">{creances?.nonEchues.length ?? 0} échéance(s)/facture(s)</p>
+        <div className="bg-blue-700 border-blue-800 rounded-2xl p-5 shadow-sm border">
+          <p className="text-xs text-white/80 flex items-center gap-1.5 mb-1"><Calendar size={13} />Créances non échues</p>
+          <p className="text-2xl font-bold text-white">{formatCurrency(creances?.totalNonEchues ?? 0)}</p>
+          <p className="text-xs text-white/80 mt-0.5">{creances?.nonEchues.length ?? 0} échéance(s)/facture(s)</p>
         </div>
       </div>
 

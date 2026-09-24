@@ -381,21 +381,21 @@ function RapportLivraison({ livreurs }: { livreurs: Livreur[] }) {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
-              { label: "Tournées", value: data.global.nbTournees },
-              { label: "Arrêts", value: data.global.nbArrets },
-              { label: "Effectués", value: data.global.nbEffectues },
-              { label: "Non effectués", value: data.global.nbNonEffectues },
-              { label: "Incidents", value: data.global.nbIncidents },
+              { label: "Tournées", value: data.global.nbTournees, solid: "bg-indigo-700 border-indigo-800" },
+              { label: "Arrêts", value: data.global.nbArrets, solid: "bg-sky-700 border-sky-800" },
+              { label: "Effectués", value: data.global.nbEffectues, solid: "bg-emerald-700 border-emerald-800" },
+              { label: "Non effectués", value: data.global.nbNonEffectues, solid: "bg-amber-600 border-amber-700" },
+              { label: "Incidents", value: data.global.nbIncidents, solid: "bg-red-700 border-red-800" },
             ].map((k) => (
-              <div key={k.label} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 text-center">
-                <p className="text-xs text-slate-500">{k.label}</p>
-                <p className="text-xl font-bold text-slate-800">{k.value}</p>
+              <div key={k.label} className={`${k.solid} rounded-xl p-4 shadow-sm border text-center`}>
+                <p className="text-xs text-white/80">{k.label}</p>
+                <p className="text-xl font-bold text-white">{k.value}</p>
               </div>
             ))}
           </div>
-          <div className="bg-blue-50 rounded-xl p-4 text-center border border-blue-100">
-            <p className="text-sm text-blue-700">Taux de réussite des livraisons constatées</p>
-            <p className="text-3xl font-bold text-blue-800">{data.global.tauxReussite}%</p>
+          <div className="bg-blue-700 border-blue-800 shadow-sm rounded-xl p-4 text-center border">
+            <p className="text-sm text-white/80">Taux de réussite des livraisons constatées</p>
+            <p className="text-3xl font-bold text-white">{data.global.tauxReussite}%</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">

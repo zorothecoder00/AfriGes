@@ -1436,25 +1436,25 @@ export default function LogistiqueApprovisionnementPage() {
 
             {/* ── Stats ── */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
-                <ArrowUpCircle className="text-emerald-600 w-5 h-5 shrink-0" />
+              <div className="bg-emerald-700 border-emerald-800 shadow-sm border rounded-2xl p-4 flex items-center gap-3">
+                <ArrowUpCircle className="text-white/80 w-5 h-5 shrink-0" />
                 <div>
-                  <p className="text-xs text-emerald-700 font-medium">Appros à démarrer</p>
-                  <p className="text-2xl font-bold text-emerald-800">{receptionsEnAttente.length}</p>
+                  <p className="text-xs text-white/80 font-medium">Appros à démarrer</p>
+                  <p className="text-2xl font-bold text-white">{receptionsEnAttente.length}</p>
                 </div>
               </div>
-              <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex items-center gap-3">
-                <PlayCircle className="text-teal-600 w-5 h-5 shrink-0" />
+              <div className="bg-teal-700 border-teal-800 shadow-sm border rounded-2xl p-4 flex items-center gap-3">
+                <PlayCircle className="text-white/80 w-5 h-5 shrink-0" />
                 <div>
-                  <p className="text-xs text-teal-700 font-medium">Appros en cours</p>
-                  <p className="text-2xl font-bold text-teal-800">{receptionsEnCours.length}</p>
+                  <p className="text-xs text-white/80 font-medium">Appros en cours</p>
+                  <p className="text-2xl font-bold text-white">{receptionsEnCours.length}</p>
                 </div>
               </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3">
-                <Truck className="text-blue-600 w-5 h-5 shrink-0" />
+              <div className="bg-blue-700 border-blue-800 shadow-sm border rounded-2xl p-4 flex items-center gap-3">
+                <Truck className="text-white/80 w-5 h-5 shrink-0" />
                 <div>
-                  <p className="text-xs text-blue-700 font-medium">Transferts à confirmer</p>
-                  <p className="text-2xl font-bold text-blue-800">{transfertsEntrants.length}</p>
+                  <p className="text-xs text-white/80 font-medium">Transferts à confirmer</p>
+                  <p className="text-2xl font-bold text-white">{transfertsEntrants.length}</p>
                 </div>
               </div>
             </div>

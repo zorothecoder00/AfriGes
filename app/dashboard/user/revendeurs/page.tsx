@@ -324,17 +324,17 @@ export default function RevendeurPage() {
                 <PrintReleveButton />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 text-center">
-                  <p className="text-xs text-slate-500">Factures</p>
-                  <p className="text-2xl font-bold text-slate-800">{releveData?.stats.nbFactures ?? 0}</p>
+                <div className="bg-blue-700 border-blue-800 rounded-2xl p-5 shadow-sm border text-center">
+                  <p className="text-xs text-white/80">Factures</p>
+                  <p className="text-2xl font-bold text-white">{releveData?.stats.nbFactures ?? 0}</p>
                 </div>
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 text-center">
-                  <p className="text-xs text-slate-500">Total facturé</p>
-                  <p className="text-2xl font-bold text-slate-800">{formatCurrency(releveData?.stats.totalFacture ?? 0)}</p>
+                <div className="bg-indigo-700 border-indigo-800 rounded-2xl p-5 shadow-sm border text-center">
+                  <p className="text-xs text-white/80">Total facturé</p>
+                  <p className="text-2xl font-bold text-white">{formatCurrency(releveData?.stats.totalFacture ?? 0)}</p>
                 </div>
-                <div className="bg-rose-50 rounded-2xl p-5 border border-rose-100 text-center">
-                  <p className="text-xs text-rose-600">Solde dû</p>
-                  <p className="text-2xl font-bold text-rose-700">{formatCurrency(releveData?.stats.soldeDu ?? 0)}</p>
+                <div className="bg-rose-700 border-rose-800 shadow-sm rounded-2xl p-5 border text-center">
+                  <p className="text-xs text-white/80">Solde dû</p>
+                  <p className="text-2xl font-bold text-white">{formatCurrency(releveData?.stats.soldeDu ?? 0)}</p>
                 </div>
               </div>
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">

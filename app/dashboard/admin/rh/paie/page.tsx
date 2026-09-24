@@ -2225,17 +2225,17 @@ function DashboardTab() {
             </h3>
             <p className="text-xs text-slate-400 mb-4">Montants effectivement <b>versés</b> (fiches payées uniquement) — distinct de la masse salariale engagée.</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-                <p className="text-xs text-emerald-700 font-medium">Commissions versées</p>
-                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-800 mt-1">{fmt(d.variables.commissions)} FCFA</p>
+              <div className="rounded-xl border bg-emerald-700 border-emerald-800 shadow-sm p-4">
+                <p className="text-xs text-white/80 font-medium">Commissions versées</p>
+                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white mt-1">{fmt(d.variables.commissions)} FCFA</p>
               </div>
-              <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
-                <p className="text-xs text-amber-700 font-medium">Bonus versés</p>
-                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-amber-800 mt-1">{fmt(d.variables.bonus)} FCFA</p>
+              <div className="rounded-xl border bg-amber-600 border-amber-700 shadow-sm p-4">
+                <p className="text-xs text-white/80 font-medium">Bonus versés</p>
+                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white mt-1">{fmt(d.variables.bonus)} FCFA</p>
               </div>
-              <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
-                <p className="text-xs text-indigo-700 font-medium">Primes versées</p>
-                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-indigo-800 mt-1">{fmt(d.variables.primes)} FCFA</p>
+              <div className="rounded-xl border bg-indigo-700 border-indigo-800 shadow-sm p-4">
+                <p className="text-xs text-white/80 font-medium">Primes versées</p>
+                <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white mt-1">{fmt(d.variables.primes)} FCFA</p>
               </div>
             </div>
             <VariablesChart data={d.variablesMensuelles} moisCourant={d.moisCourant} />

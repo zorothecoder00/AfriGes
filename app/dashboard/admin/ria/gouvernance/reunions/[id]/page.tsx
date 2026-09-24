@@ -256,17 +256,17 @@ function OngletPresences({ r, onRefresh }: { r: Reunion; onRefresh: () => void }
     <div className="space-y-4">
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-center">
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-emerald-700">{presents}</p>
-          <p className="text-xs text-emerald-600">Présents</p>
+        <div className="bg-emerald-700 border-emerald-800 shadow-sm border rounded-xl p-4 text-center">
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{presents}</p>
+          <p className="text-xs text-white/80">Présents</p>
         </div>
-        <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 text-center">
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-rose-700">{absents}</p>
-          <p className="text-xs text-rose-600">Absents</p>
+        <div className="bg-rose-700 border-rose-800 shadow-sm border rounded-xl p-4 text-center">
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{absents}</p>
+          <p className="text-xs text-white/80">Absents</p>
         </div>
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center">
-          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-blue-700">{signes}</p>
-          <p className="text-xs text-blue-600">Signatures numériques</p>
+        <div className="bg-blue-700 border-blue-800 shadow-sm border rounded-xl p-4 text-center">
+          <p className="text-xl sm:text-2xl leading-tight [overflow-wrap:anywhere] font-bold text-white">{signes}</p>
+          <p className="text-xs text-white/80">Signatures numériques</p>
         </div>
       </div>
 

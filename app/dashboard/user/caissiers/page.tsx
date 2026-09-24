@@ -4220,20 +4220,20 @@ export default function CaissierPage() {
                   { label: "Total versements",   value: formatCurrency(jourEnCours?.montantTotal ?? 0),  color: "text-emerald-600" },
                   { label: "Clients",            value: String(jourEnCours?.nbClients ?? 0),             color: "text-pink-600"    },
                 ].map((s) => (
-                  <div key={s.label} className="bg-slate-50 rounded-xl p-4 text-center border border-slate-200">
-                    <p className="text-xs text-slate-500 mb-1">{s.label}</p>
-                    <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                  <div key={s.label} className={`${getStatCardHue(s.color).solid} rounded-xl p-4 text-center border shadow-sm`}>
+                    <p className="text-xs text-white/80 mb-1">{s.label}</p>
+                    <p className="text-2xl font-bold text-white">{s.value}</p>
                   </div>
                 ))}
               </div>
               <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-emerald-50 rounded-xl p-4 text-center border border-emerald-200">
-                  <p className="text-xs text-emerald-600 mb-1">Encaissements financiers</p>
-                  <p className="text-2xl font-bold text-emerald-700">{formatCurrency(jourEnCours?.totalEncaissementsAutres ?? 0)}</p>
+                <div className="bg-emerald-700 border-emerald-800 shadow-sm rounded-xl p-4 text-center border">
+                  <p className="text-xs text-white/80 mb-1">Encaissements financiers</p>
+                  <p className="text-2xl font-bold text-white">{formatCurrency(jourEnCours?.totalEncaissementsAutres ?? 0)}</p>
                 </div>
-                <div className="bg-red-50 rounded-xl p-4 text-center border border-red-200">
-                  <p className="text-xs text-red-500 mb-1">Décaissements</p>
-                  <p className="text-2xl font-bold text-red-600">{formatCurrency(jourEnCours?.totalDecaissements ?? 0)}</p>
+                <div className="bg-red-700 border-red-800 shadow-sm rounded-xl p-4 text-center border">
+                  <p className="text-xs text-white/80 mb-1">Décaissements</p>
+                  <p className="text-2xl font-bold text-white">{formatCurrency(jourEnCours?.totalDecaissements ?? 0)}</p>
                 </div>
               </div>
 
