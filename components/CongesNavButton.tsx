@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { avecRetour } from "@/components/RetourLien";
 import { CalendarDays, Wallet } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 
@@ -13,6 +15,8 @@ import { useApi } from "@/hooks/useApi";
  * dans ce cas.
  */
 export default function CongesNavButton() {
+  // `retour` = page courante : le lien de retour des pages collaborateur y ramène.
+  const pathname = usePathname();
   const { data } = useApi<{ profilRH: { id: number } | null }>(
     "/api/collaborateur/pointage/today",
   );
@@ -24,7 +28,7 @@ export default function CongesNavButton() {
   return (
     <>
       <Link
-        href="/dashboard/user/collaborateur/conges"
+        href={avecRetour("/dashboard/user/collaborateur/conges", pathname)}
         title="Congés & absences"
         className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
       >
@@ -32,7 +36,7 @@ export default function CongesNavButton() {
         <span className="hidden sm:inline">Congés</span>
       </Link>
       <Link
-        href="/dashboard/user/collaborateur/avances-prets"
+        href={avecRetour("/dashboard/user/collaborateur/avances-prets", pathname)}
         title="Avances & prêts"
         className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
       >

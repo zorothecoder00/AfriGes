@@ -6,6 +6,8 @@ import {
   Printer, Star, Clock,
 } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { avecRetour } from "@/components/RetourLien";
 import type { UsePointageReturn } from "@/hooks/usePointage";
 
 // ── Helpers (partagés avec le badge fusionné pour l'icône de statut) ────────────
@@ -52,6 +54,9 @@ export default function PointagePanel(props: UsePointageReturn & { onClose: () =
     pointer, pointageToday, config, peutArrivee, peutDepart, saisiRH, valide,
     onClose, className,
   } = props;
+
+  // `retour` = page courante : le lien de retour des pages collaborateur y ramène.
+  const pathname = usePathname();
 
   const statutCfg = pointageToday ? (STATUT_CFG[pointageToday.statut] ?? STATUT_CFG.PRESENT) : null;
 
@@ -173,7 +178,7 @@ export default function PointagePanel(props: UsePointageReturn & { onClose: () =
 
         {/* Accès Congés & Absences */}
         <Link
-          href="/dashboard/user/collaborateur/conges"
+          href={avecRetour("/dashboard/user/collaborateur/conges", pathname)}
           onClick={onClose}
           className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 hover:bg-indigo-100 transition-colors"
         >
@@ -185,7 +190,7 @@ export default function PointagePanel(props: UsePointageReturn & { onClose: () =
 
         {/* Accès Avances & Prêts */}
         <Link
-          href="/dashboard/user/collaborateur/avances-prets"
+          href={avecRetour("/dashboard/user/collaborateur/avances-prets", pathname)}
           onClick={onClose}
           className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 hover:bg-emerald-100 transition-colors"
         >
@@ -197,7 +202,7 @@ export default function PointagePanel(props: UsePointageReturn & { onClose: () =
 
         {/* Accès Formations */}
         <Link
-          href="/dashboard/user/collaborateur/formations"
+          href={avecRetour("/dashboard/user/collaborateur/formations", pathname)}
           onClick={onClose}
           className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 hover:bg-blue-100 transition-colors"
         >
@@ -209,7 +214,7 @@ export default function PointagePanel(props: UsePointageReturn & { onClose: () =
 
         {/* Accès Planning d'équipe */}
         <Link
-          href="/dashboard/user/collaborateur/planning"
+          href={avecRetour("/dashboard/user/collaborateur/planning", pathname)}
           onClick={onClose}
           className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl bg-violet-50 border border-violet-100 text-violet-700 hover:bg-violet-100 transition-colors"
         >
@@ -221,7 +226,7 @@ export default function PointagePanel(props: UsePointageReturn & { onClose: () =
 
         {/* Accès Mes évaluations */}
         <Link
-          href="/dashboard/user/collaborateur/evaluations"
+          href={avecRetour("/dashboard/user/collaborateur/evaluations", pathname)}
           onClick={onClose}
           className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-100 text-amber-700 hover:bg-amber-100 transition-colors"
         >

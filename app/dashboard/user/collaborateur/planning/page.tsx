@@ -2,6 +2,7 @@
 
 import { RefreshCw, CalendarClock, Info } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
+import RetourLien from "@/components/RetourLien";
 import { formatDate } from "@/lib/format";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -42,6 +43,7 @@ export default function PlanningCollaborateurPage() {
     return (
       <div className="min-h-screen bg-[#dbe7f5] flex items-center justify-center p-6">
         <div className="bg-white rounded-2xl border border-slate-200 p-8 max-w-md text-center">
+          <RetourLien className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-4 transition-colors" />
           <Info className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <h1 className="text-lg font-semibold text-slate-900">Aucun dossier RH</h1>
           <p className="text-sm text-slate-500 mt-2">
@@ -57,6 +59,7 @@ export default function PlanningCollaborateurPage() {
       <div className="p-6 space-y-6 max-w-3xl mx-auto">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
+            <RetourLien className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-2 transition-colors" />
             <h1 className="text-2xl font-bold text-slate-900">Mon planning</h1>
             <p className="text-sm text-slate-500 mt-0.5">Affectations d&apos;équipe des 14 prochains jours</p>
           </div>

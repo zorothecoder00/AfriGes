@@ -229,6 +229,12 @@ export async function proxy(request: NextRequest) {
       // n'importe quel gestionnaire ; le traitement (N1/N2/exécution) reste gated
       // en aval par lib/authComptable.ts / lib/authCaissier.ts.
       "/dashboard/user/decaissements",
+      // Self-service collaborateur (congés, avances & prêts, planning, évaluations,
+      // formations…) : tout gestionnaire est aussi collaborateur. Les API
+      // /api/collaborateur/* n'exposent que les données du profil RH de l'appelant.
+      "/dashboard/user/collaborateur",
+      // Paramètres du compte (photo, email, mot de passe) — lien du menu profil.
+      "/dashboard/user/parametres",
     ];
     const isCommonPath = commonPaths.some(p => pathname.startsWith(p));
 

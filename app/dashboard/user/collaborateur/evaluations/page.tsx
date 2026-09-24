@@ -2,6 +2,7 @@
 
 import { RefreshCw, Star, Printer, Info } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
+import RetourLien from "@/components/RetourLien";
 import { formatDate } from "@/lib/format";
 
 interface Evaluation {
@@ -33,6 +34,7 @@ export default function EvaluationsCollaborateurPage() {
         {/* ── En-tête ── */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
+            <RetourLien className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-2 transition-colors" />
             <h1 className="text-2xl font-bold text-slate-900">Mes évaluations</h1>
             <p className="text-sm text-slate-500 mt-0.5">Historique de vos fiches d&apos;évaluation</p>
           </div>
@@ -47,6 +49,7 @@ export default function EvaluationsCollaborateurPage() {
           </div>
         ) : evaluations.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+            <RetourLien className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-4 transition-colors" />
             <Info className="w-10 h-10 text-slate-300 mx-auto mb-3" />
             <h2 className="text-lg font-semibold text-slate-900">Aucune évaluation disponible</h2>
             <p className="text-sm text-slate-500 mt-2">Vos fiches d&apos;évaluation apparaîtront ici une fois engagées par le RH.</p>

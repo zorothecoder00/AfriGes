@@ -6,6 +6,7 @@ import {
   Wallet, Landmark, ChevronRight,
 } from "lucide-react";
 import { useApi, useMutation } from "@/hooks/useApi";
+import RetourLien from "@/components/RetourLien";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -62,6 +63,7 @@ export default function AvancesPretsPage() {
     return (
       <div className="min-h-screen bg-[#dbe7f5] flex items-center justify-center p-6">
         <div className="bg-white rounded-2xl border border-slate-200 p-8 max-w-md text-center">
+          <RetourLien className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-4 transition-colors" />
           <Info className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <h1 className="text-lg font-semibold text-slate-900">Aucun dossier RH</h1>
           <p className="text-sm text-slate-500 mt-2">
@@ -79,6 +81,7 @@ export default function AvancesPretsPage() {
 
         {/* En-tête */}
         <div>
+          <RetourLien className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-2 transition-colors" />
           <h1 className="text-2xl font-bold text-slate-900">Avances &amp; Prêts</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Soumettez et suivez vos demandes
