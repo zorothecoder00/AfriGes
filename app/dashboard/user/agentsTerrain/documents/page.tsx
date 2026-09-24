@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, FileText, ShoppingCart, Banknote, Wallet, PackageCheck, Plus, List, Printer, QrCode } from "lucide-react";
+import { ArrowLeft, FileText, ShoppingCart, Banknote, Wallet, PackageCheck, Plus, List, Printer, QrCode, ClipboardList } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { inclinerCarte, redresserCarte, teinteCarte, CLASSES_CARTE_3D } from "@/lib/carte3d";
 
@@ -12,6 +12,7 @@ import { inclinerCarte, redresserCarte, teinteCarte, CLASSES_CARTE_3D } from "@/
  */
 
 interface QrModele { code: string; libelle: string; url: string; qr: string }
+interface FicheCollecteItem { id: number; reference: string; dateCollecte: string; montantCollecte: string; _count: { lignes: number } }
 
 interface Doc {
   code: string; titre: string; description: string;
@@ -30,6 +31,7 @@ export default function DocumentsCommerciauxPage() {
   const { data } = useApi<{ data: QrModele[] }>("/api/agentTerrain/qr-modeles");
   const qrParCode = new Map((data?.data ?? []).map((m) => [m.code, m]));
   const menu = qrParCode.get("DOC");
+  const { data: fichesCollecte } = useApi<{ data: FicheCollecteItem[] }>("/api/collectes?limit=10");
 
   return (
     <div className="min-h-screen bg-[#dbe7f5]">
@@ -103,6 +105,33 @@ export default function DocumentsCommerciauxPage() {
             </div>
             <p className="text-sm text-white/80 mt-1.5">Généré automatiquement à l&apos;expédition d&apos;une commande. Le client l&apos;atteste avec son propre lien — suivez l&apos;état de vos réceptions depuis vos commandes.</p>
             <Link href="/dashboard/user/agentsTerrain/commandes-client" className="inline-flex items-center gap-1.5 mt-3 px-3 py-2 border border-white/40 text-white hover:bg-white/15 rounded-lg text-sm font-medium"><List className="w-4 h-4" /> Voir mes commandes</Link>
+          </div>
+
+          {/* Fiche journalière de collecte : générée depuis la tournée du jour (membres collectés,
+              récapitulatif, transmission reprise du bordereau de remise) ; fiche vierge pour le terrain. */}
+          <div onMouseMove={inclinerCarte} onMouseLeave={redresserCarte}
+            className={`rounded-2xl p-5 md:col-span-2 no-print text-white ${CLASSES_CARTE_3D} ${teinteCarte(DOCS.length + 2)}`}>
+            <div className="flex items-center gap-2">
+              <span className="text-white/90"><ClipboardList className="w-5 h-5" /></span>
+              <h2 className="font-semibold">Fiche journalière de collecte</h2>
+            </div>
+            <p className="text-sm text-white/80 mt-1.5">Remplie automatiquement à partir de votre tournée du jour (membres collectés, montants, remise au trésorier). À transmettre avec les fonds et à conserver dans le classeur de collecte mensuel.</p>
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
+              <a href="/api/collectes/fiche-vierge" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-white/90 text-slate-800 rounded-lg text-sm font-semibold"><Printer className="w-4 h-4" /> Fiche vierge</a>
+            </div>
+            {(fichesCollecte?.data ?? []).length > 0 && (
+              <div className="mt-3 grid sm:grid-cols-2 gap-1.5">
+                {fichesCollecte!.data.map((f) => (
+                  <a key={f.id} href={`/api/collectes/${f.id}/fiche`} target="_blank" rel="noreferrer"
+                    className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white/15 hover:bg-white/25 text-sm">
+                    <span className="flex items-center gap-1.5 min-w-0"><FileText className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{new Date(f.dateCollecte).toLocaleDateString("fr-FR")} · {f._count.lignes} encaissement(s)</span>
+                    </span>
+                    <span className="shrink-0 font-semibold">{Number(f.montantCollecte).toLocaleString("fr-FR")} F</span>
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,25 +1,15 @@
 import { NextResponse } from "next/server";
-import { readFile } from "fs/promises";
-import path from "path";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { getComptableSession } from "@/lib/authComptable";
 import { getCaissierSession } from "@/lib/authCaissier";
-import { htmlToPdf, pdfResponse } from "@/lib/pdf";
+import { htmlToPdf, pdfResponse, imagePubliqueDataUrl } from "@/lib/pdf";
 import { genDecaissementHtml } from "@/lib/decaissementHtml";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 type Ctx = { params: Promise<{ id: string }> };
-
-/** Image de /public en data URL (null si absente : le document reste valide sans logo). */
-async function imagePublique(fichier: string, type: string): Promise<string | null> {
-  try {
-    const buf = await readFile(path.join(process.cwd(), "public", fichier));
-    return `data:${type};base64,${buf.toString("base64")}`;
-  } catch { return null; }
-}
 
 /**
  * GET /api/decaissements/[id]/pdf
@@ -51,8 +41,8 @@ export async function GET(_req: Request, { params }: Ctx) {
     if (!autorise) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
     const [logoGaucheDataUrl, logoDroitDataUrl] = await Promise.all([
-      imagePublique("nouveaulogo.jpeg", "image/jpeg"),
-      imagePublique("afrisime-logo.svg", "image/svg+xml"),
+      imagePubliqueDataUrl("nouveaulogo.jpeg", "image/jpeg"),
+      imagePubliqueDataUrl("afrisime-logo.svg", "image/svg+xml"),
     ]);
 
     const html = genDecaissementHtml({

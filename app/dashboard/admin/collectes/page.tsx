@@ -5,7 +5,7 @@ import {
   RefreshCw, Filter, Calendar, CheckCircle,
   Clock, XCircle, Eye, Phone,
   MapPin, Wallet, TrendingUp,
-  Save, Check,
+  Save, Check, Printer,
 } from 'lucide-react';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatCurrency } from '@/lib/format';
@@ -308,6 +308,10 @@ export default function CollectesPage() {
                           title="Voir détail"
                           icon={<Eye className="w-4 h-4" />}
                         />
+                        <a href={`/api/collectes/${c.id}/fiche`} target="_blank" rel="noreferrer" title="Fiche journalière de collecte (PDF)"
+                          className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg">
+                          <Printer className="w-4 h-4" />
+                        </a>
                         {c.statut === 'EN_COURS' && (
                           <Button
                             variant="ghost"

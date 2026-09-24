@@ -15,6 +15,8 @@
 
 import puppeteer, { type Browser, type Page } from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
+import { readFile } from "fs/promises";
+import path from "path";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -55,6 +57,12 @@ export interface PdfOptions {
 export const PDF_A5_PAYSAGE: PdfOptions = {
   format: "A5", landscape: true, scale: 0.82,
   margin: { top: "8mm", right: "8mm", bottom: "9mm", left: "8mm" },
+};
+
+/** Formulaires papier AfriSime reproduits en A4 paysage (bordereau de remise, fiche de collecte). */
+export const PDF_A4_PAYSAGE_FORMULAIRE: PdfOptions = {
+  format: "A4", landscape: true, scale: 1,
+  margin: { top: "9mm", right: "9mm", bottom: "9mm", left: "9mm" },
 };
 
 /** Repli automatique quand un gabarit A5 déborde : même esprit paysage, en A4. */
@@ -179,4 +187,12 @@ export function escapeHtml(s: string | null | undefined): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+/** Image de /public en data URL pour les gabarits PDF (null si absente : le document reste valide sans). */
+export async function imagePubliqueDataUrl(fichier: string, type: string): Promise<string | null> {
+  try {
+    const buf = await readFile(path.join(process.cwd(), "public", fichier));
+    return `data:${type};base64,${buf.toString("base64")}`;
+  } catch { return null; }
 }

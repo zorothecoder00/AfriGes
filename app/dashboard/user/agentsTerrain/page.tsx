@@ -2298,6 +2298,10 @@ export default function AgentTerrainPage() {
                           <span className={`ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${s.statut === "EN_COURS" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
                             {s.statut === "EN_COURS" ? "En cours" : s.statut === "VALIDEE" ? "Validée" : s.statut}
                           </span>
+                          <a href={`/api/collectes/${s.id}/fiche`} target="_blank" rel="noreferrer" title="Fiche journalière de collecte (PDF)"
+                            className="ml-2 inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-600 text-white hover:bg-teal-700">
+                            <FileText size={12} /> Fiche de collecte
+                          </a>
                         </div>
                         <button onClick={refetchCollecteJour} className="p-2 text-slate-400 hover:text-teal-600 rounded-lg hover:bg-slate-50">
                           <RefreshCw size={14} />

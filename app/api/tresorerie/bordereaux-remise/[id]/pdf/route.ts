@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getComptableSession } from "@/lib/authComptable";
 import { getCaissierSession, getCaissierPdvId } from "@/lib/authCaissier";
-import { readFile } from "fs/promises";
-import path from "path";
-import { htmlToPdf, pdfResponse } from "@/lib/pdf";
+import { htmlToPdf, pdfResponse, imagePubliqueDataUrl, PDF_A4_PAYSAGE_FORMULAIRE } from "@/lib/pdf";
 import { genBordereauRemiseHtml } from "@/lib/bordereauRemiseHtml";
 import { getSeuilVisaCGTBordereauRemise } from "@/lib/parametresDocuments";
 import { getSession, estRpvDuPdv } from "../../route";
@@ -53,11 +51,7 @@ export async function GET(req: Request, { params }: Ctx) {
       getSeuilVisaCGTBordereauRemise(),
     ]);
 
-    let logoDataUrl: string | null = null;
-    try {
-      const buf = await readFile(path.join(process.cwd(), "public", "nouveaulogo.jpeg"));
-      logoDataUrl = `data:image/jpeg;base64,${buf.toString("base64")}`;
-    } catch { /* logo facultatif : le bordereau reste valide sans */ }
+    const logoDataUrl = await imagePubliqueDataUrl("nouveaulogo.jpeg", "image/jpeg");
 
     const { collecteur } = bordereau;
     // Identité déclarée sur le bordereau (saisie possible pour un tiers), à défaut celle du compte.
@@ -93,10 +87,7 @@ export async function GET(req: Request, { params }: Ctx) {
       seuilVisaCGT,
       logoDataUrl,
     });
-    const pdf = await htmlToPdf(html, {
-      format: "A4", landscape: true, scale: 1,
-      margin: { top: "9mm", right: "9mm", bottom: "9mm", left: "9mm" },
-    });
+    const pdf = await htmlToPdf(html, PDF_A4_PAYSAGE_FORMULAIRE);
     return pdfResponse(pdf, `${bordereau.reference}.pdf`);
   } catch (error) {
     console.error("GET /tresorerie/bordereaux-remise/[id]/pdf:", error);
