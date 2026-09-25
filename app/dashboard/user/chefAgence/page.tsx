@@ -6,7 +6,7 @@ import {
   UserCheck, ShoppingBag, FileText, RefreshCw, Download,
   AlertTriangle, CheckCircle, XCircle, Clock, Search,
   ArrowRight, BarChart3, ArrowLeftRight, Plus, X, Menu,
-  ChevronDown, ChevronUp, Eye, MapPin, Send, LayoutGrid,
+  ChevronDown, ChevronUp, Eye, MapPin, Send, LayoutGrid, PackageMinus,
 } from "lucide-react";
 import Link from "next/link";
 import SidebarLogo from "@/components/SidebarLogo";
@@ -630,6 +630,11 @@ export default function ChefAgenceDashboard() {
                   className="px-3 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-xl text-sm font-semibold hover:bg-indigo-50 transition-all shadow-sm flex items-center gap-2">
                   <LayoutGrid className="w-4 h-4" />
                   Centre de commandement
+                </Link>
+                <Link href="/dashboard/user/chefAgence/bons-sortie"
+                  className="px-3 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-xl text-sm font-semibold hover:bg-indigo-50 transition-all shadow-sm flex items-center gap-2">
+                  <PackageMinus className="w-4 h-4" />
+                  Bons de sortie
                 </Link>
                 <MessagesLink />
                 <CongesNavButton />

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getRPVSession } from "@/lib/authRPV";
+import { getChefAgenceSession } from "@/lib/authChefAgence";
 import { getAuthSession } from "@/lib/auth";
 import { htmlToPdfAdaptatif, pdfResponse } from "@/lib/pdf";
 import { genBonSortieHtml } from "@/lib/bonSortieHtml";
@@ -21,6 +22,11 @@ export async function GET(req: Request, { params }: Ctx) {
   try {
     const { id } = await params;
     let session = (await getMagasinierSession()) ?? (await getRPVSession());
+    if (!session) {
+      // Le chef d'agence consulte les bons des agences qu'il supervise.
+      const chef = await getChefAgenceSession();
+      if (chef && (await prisma.bonSortie.count({ where: { id: Number(id), pointDeVente: { chefAgenceId: parseInt(chef.user.id) } } })) > 0) session = chef;
+    }
     if (!session) {
       // L'agent qui a passé la commande client peut télécharger le bon de sortie généré,
       // de même que l'agent qui a lui-même rempli le bon (demandeur).

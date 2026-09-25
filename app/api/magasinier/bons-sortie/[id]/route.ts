@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { PrioriteNotification, StatutBonSortie, TypeSortieStock } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
-import { getRPVSession } from "@/lib/authRPV";
+import { getVisaRpvOuChefAgenceSession } from "@/lib/authRPV";
 import { requirePermission } from "@/lib/permissions";
 import { auditLog, notify, notifyRoles } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
@@ -66,12 +66,22 @@ export async function PATCH(req: Request, { params }: Ctx) {
     // action distincte du magasinier, requise pour exécuter les sorties dont la
     // valorisation dépasse le seuil paramétré.
     if (body.action === "VISER") {
-      const viseur = await getRPVSession();
+      const viseur = await getVisaRpvOuChefAgenceSession();
       if (!viseur) {
         return NextResponse.json({ error: "Visa réservé au Responsable Point de Vente / Chef d'agence / Direction" }, { status: 403 });
       }
-      const bonAViser = await prisma.bonSortie.findUnique({ where: { id: bonId } });
+      const bonAViser = await prisma.bonSortie.findUnique({
+        where: { id: bonId },
+        include: { pointDeVente: { select: { rpvId: true, chefAgenceId: true } } },
+      });
       if (!bonAViser) return NextResponse.json({ error: "Bon introuvable" }, { status: 404 });
+      // Périmètre : le RPV vise les bons de son agence, le chef d'agence ceux des agences
+      // qu'il supervise ; la Direction (admin) vise partout.
+      const estAdminViseur = viseur.user.role === "ADMIN" || viseur.user.role === "SUPER_ADMIN";
+      const viseurUserId = parseInt(viseur.user.id);
+      if (!estAdminViseur && bonAViser.pointDeVente.rpvId !== viseurUserId && bonAViser.pointDeVente.chefAgenceId !== viseurUserId) {
+        return NextResponse.json({ error: "Ce bon de sortie n'appartient pas à une agence que vous supervisez" }, { status: 403 });
+      }
       if (bonAViser.statut !== "BROUILLON") {
         return NextResponse.json({ error: "Seul un bon en attente peut être visé" }, { status: 422 });
       }

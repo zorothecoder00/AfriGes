@@ -3,7 +3,7 @@ import { PrioriteNotification, TypeSortieStock } from "@prisma/client";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
-import { notifyGestionnaires, notifyAdmins, auditLog } from "@/lib/notifications";
+import { notify, notifyGestionnaires, notifyAdmins, auditLog } from "@/lib/notifications";
 import { getSeuilVisaBonSortie } from "@/lib/parametresDocuments";
 
 /**
@@ -148,8 +148,11 @@ export async function POST(req: Request) {
         priorite: visaRequis || typeSortie === "PERTE" || typeSortie === "CASSE" ? PrioriteNotification.HAUTE : PrioriteNotification.NORMAL,
       };
       await notifyGestionnaires(tx, ["MAGAZINIER"], { ...payload, actionUrl: "/dashboard/user/magasiniers?tab=sorties" });
-      await notifyGestionnaires(tx, ["RESPONSABLE_POINT_DE_VENTE"], { ...payload, actionUrl: "/dashboard/user/responsablesPointDeVente/bons-sortie" });
       await notifyAdmins(tx, { ...payload, actionUrl: "/dashboard/admin/stock/sorties" });
+      // RPV et chef d'agence de CETTE agence uniquement (pas tous ceux de l'entreprise).
+      const pdv = await tx.pointDeVente.findUnique({ where: { id: pointDeVenteId }, select: { rpvId: true, chefAgenceId: true } });
+      if (pdv?.rpvId) await notify(tx, [pdv.rpvId], { ...payload, actionUrl: "/dashboard/user/responsablesPointDeVente/bons-sortie" });
+      if (pdv?.chefAgenceId && pdv.chefAgenceId !== pdv.rpvId) await notify(tx, [pdv.chefAgenceId], { ...payload, actionUrl: "/dashboard/user/chefAgence/bons-sortie" });
       return created;
     });
 
