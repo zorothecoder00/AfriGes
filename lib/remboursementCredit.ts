@@ -784,3 +784,48 @@ export async function supprimerRemboursementCredit(p: ParamsSuppression): Promis
     return { ok: true as const, recalculFinancier: recalcul };
   });
 }
+
+/**
+ * Réaligne le statut ACTIF / EN_RETARD / SOLDE des crédits en cours sur l'argent
+ * réellement confirmé : un crédit est EN_RETARD seulement si le cumul remboursé
+ * est inférieur au cumul des échéances échues AVANT aujourd'hui. Corrige les
+ * crédits restés « en retard » après que le client a rattrapé (ou soldé) son
+ * retard — cas historique de la confirmation caissier qui recopiait le statut.
+ * Le critère est cumulatif (et non échéance par échéance) pour rester juste même
+ * si une imputation passée a laissé une échéance PARTIEL derrière des PAYE.
+ * Retourne le nombre de crédits corrigés.
+ */
+export async function resynchroniserStatutsCredits(
+  db: TX,
+  where: Prisma.CreditClientWhereInput,
+): Promise<number> {
+  const debutJour = new Date();
+  debutJour.setHours(0, 0, 0, 0);
+
+  const credits = await db.creditClient.findMany({
+    where: { AND: [where, { statut: { in: [StatutCredit.ACTIF, StatutCredit.EN_RETARD] } }] },
+    select: {
+      id: true, statut: true, soldeRestant: true, montantRembourse: true,
+      echeances: { where: { dateEcheance: { lt: debutJour } }, select: { montantDu: true } },
+    },
+  });
+
+  let corriges = 0;
+  for (const c of credits) {
+    const dejaEchu = c.echeances.reduce((s, e) => s + Number(e.montantDu), 0);
+    const attendu: StatutCredit =
+      Number(c.soldeRestant) <= 0.01 ? StatutCredit.SOLDE
+      : Number(c.montantRembourse) + 0.01 < dejaEchu ? StatutCredit.EN_RETARD
+      : StatutCredit.ACTIF;
+    if (attendu === c.statut) continue;
+    await db.creditClient.update({ where: { id: c.id }, data: { statut: attendu } });
+    if (attendu === StatutCredit.SOLDE) {
+      await db.echeanceCredit.updateMany({
+        where: { creditId: c.id, statut: { not: StatutEcheanceCredit.PAYE } },
+        data:  { statut: StatutEcheanceCredit.PAYE },
+      });
+    }
+    corriges++;
+  }
+  return corriges;
+}

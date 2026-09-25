@@ -8,6 +8,7 @@ import { ecritureRemboursementCreditConfirme } from "@/lib/comptabilite/moteur";
 import { obtenirOuCreerCompteAuxiliaireClient } from "@/lib/comptabilite/auxiliaire";
 import { proposerLettrage, appliquerLettrage } from "@/lib/comptabilite/lettrage";
 import { enregistrerTransactionClient } from "@/lib/clientTransaction";
+import { resynchroniserStatutsCredits } from "@/lib/remboursementCredit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -136,7 +137,7 @@ export async function POST(req: Request, { params }: Ctx) {
 
       // 2. Mettre à jour les échéances crédit
       const echeances = await tx.echeanceCredit.findMany({
-        where:   { creditId: credit.id, statut: { in: ["EN_ATTENTE", "EN_RETARD"] } },
+        where:   { creditId: credit.id, statut: { in: ["EN_ATTENTE", "EN_RETARD", "PARTIEL"] } },
         orderBy: { dateEcheance: "asc" },
       });
       let budget = montantNum;
@@ -164,9 +165,12 @@ export async function POST(req: Request, { params }: Ctx) {
         data:  {
           montantRembourse: { increment: montantNum },
           soldeRestant:     estSolde ? 0 : nouveauSolde,
-          statut:           estSolde ? "SOLDE" : credit.statut,
+          // Recalculé ci-dessous (resynchroniserStatutsCredits) : recopier credit.statut
+          // laissait un crédit EN_RETARD « en retard » même une fois le retard rattrapé.
+          ...(estSolde ? { statut: "SOLDE" as const } : {}),
         },
       });
+      if (!estSolde) await resynchroniserStatutsCredits(tx, { id: credit.id });
 
       // 4. Décrémenter la dette du client
       await tx.client.update({

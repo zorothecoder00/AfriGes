@@ -22,10 +22,15 @@ export async function GET(req: Request, { params }: Ctx) {
     const { id } = await params;
     let session = (await getMagasinierSession()) ?? (await getRPVSession());
     if (!session) {
-      // L'agent qui a passé la commande client peut télécharger le bon de sortie généré.
+      // L'agent qui a passé la commande client peut télécharger le bon de sortie généré,
+      // de même que l'agent qui a lui-même rempli le bon (demandeur).
       const s = await getAuthSession();
-      const commande = s ? await prisma.commandeClient.findFirst({ where: { bonSortieId: Number(id), agentId: parseInt(s.user.id) }, select: { id: true } }) : null;
-      if (commande && s) session = s;
+      const agentId = s ? parseInt(s.user.id) : null;
+      const autorise = agentId !== null && (
+        (await prisma.bonSortie.count({ where: { id: Number(id), creeParId: agentId } })) > 0 ||
+        (await prisma.commandeClient.count({ where: { bonSortieId: Number(id), agentId } })) > 0
+      );
+      if (autorise && s) session = s;
     }
     if (!session) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 

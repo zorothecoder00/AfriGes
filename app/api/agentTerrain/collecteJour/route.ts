@@ -4,6 +4,7 @@ import { getAgentTerrainSession } from '@/lib/authAgentTerrain';
 import { autoCloseOldSessions } from '@/lib/collecteAutoClose';
 import { calculerResumeSessionJour } from '@/lib/popc/realisationsServer';
 import { trouverOuCreerSessionDuJour } from '@/lib/collecteSession';
+import { resynchroniserStatutsCredits } from '@/lib/remboursementCredit';
 
 const STATUTS_SOUSCRIPTION = ['ACTIF', 'EN_ATTENTE'] as const;
 const STATUTS_CREDIT        = ['ACTIF', 'EN_RETARD']  as const;
@@ -34,6 +35,7 @@ export async function GET(_req: Request) {
 
     // 0. Clôture automatique des sessions des jours précédents
     await autoCloseOldSessions(agentId);
+    await resynchroniserStatutsCredits(prisma, { client: { agentTerrainId: agentId } });
 
     // 1. Session du jour
     const sessionJour = await prisma.collecteJournaliere.findFirst({

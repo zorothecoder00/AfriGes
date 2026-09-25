@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, FileText, ShoppingCart, Banknote, Wallet, PackageCheck, Plus, List, Printer, QrCode, ClipboardList } from "lucide-react";
+import { ArrowLeft, FileText, ShoppingCart, Banknote, Wallet, PackageCheck, PackageMinus, Plus, List, Printer, QrCode, ClipboardList } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { inclinerCarte, redresserCarte, teinteCarte, CLASSES_CARTE_3D } from "@/lib/carte3d";
 
@@ -24,6 +24,7 @@ const DOCS: Doc[] = [
   { code: "DEV", titre: "Devis", description: "Offre de prix à un client, valable jusqu'à une date, convertible en proforma.", nouveau: "/dashboard/user/agentsTerrain/devis-proforma?nouveau=DEVIS", liste: "/dashboard/user/agentsTerrain/devis-proforma", icon: <FileText className="w-5 h-5" /> },
   { code: "PRO", titre: "Facture proforma", description: "Facture préalable à la commande, à faire valider par le client.", nouveau: "/dashboard/user/agentsTerrain/devis-proforma?nouveau=PROFORMA", liste: "/dashboard/user/agentsTerrain/devis-proforma", icon: <FileText className="w-5 h-5" /> },
   { code: "BRF", titre: "Bordereau de remise de fonds", description: "Remise des fonds collectés (espèces, mobile money, virement) avec billetage et pièces jointes.", nouveau: "/dashboard/user/agentsTerrain/bordereaux-remise?nouveau=1", liste: "/dashboard/user/agentsTerrain/bordereaux-remise", icon: <Banknote className="w-5 h-5" /> },
+  { code: "BS", titre: "Bon de sortie", description: "Sortie de marchandises (échantillons, usage terrain, perte, casse) soumise au magasinier qui l'exécute.", nouveau: "/dashboard/user/agentsTerrain/bons-sortie?nouveau=1", liste: "/dashboard/user/agentsTerrain/bons-sortie", icon: <PackageMinus className="w-5 h-5" /> },
   { code: "FD", titre: "Fiche de décaissement", description: "Demande de sortie de fonds (achat, avance, frais) soumise aux approbations avant paiement.", nouveau: "/dashboard/user/decaissements?nouveau=1", liste: "/dashboard/user/decaissements", icon: <Wallet className="w-5 h-5" /> },
 ];
 

@@ -70,6 +70,7 @@ export const QR_MODELES = [
   { code: "DEV", libelle: "Devis", cible: "/dashboard/user/agentsTerrain/devis-proforma?nouveau=DEVIS" },
   { code: "PRO", libelle: "Facture proforma", cible: "/dashboard/user/agentsTerrain/devis-proforma?nouveau=PROFORMA" },
   { code: "FD", libelle: "Fiche de décaissement", cible: "/dashboard/user/decaissements?nouveau=1" },
+  { code: "BS", libelle: "Bon de sortie", cible: "/dashboard/user/agentsTerrain/bons-sortie?nouveau=1" },
 ] as const;
 
 export function qrModeleUrl(req: Request, code: string): string {

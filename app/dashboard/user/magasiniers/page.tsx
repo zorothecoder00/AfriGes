@@ -237,6 +237,13 @@ export default function MagasinierPage() {
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState<'inventaire' | 'journal' | 'reception' | 'reappro' | 'livraisons' | 'alertes' | 'sorties' | 'anomalies'>('inventaire');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Lien profond depuis une notification (ex. ?tab=sorties pour un bon de sortie rempli par un agent).
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    const onglets = ['inventaire', 'journal', 'reception', 'reappro', 'livraisons', 'alertes', 'sorties', 'anomalies'] as const;
+    const cible = onglets.find((o) => o === tab);
+    if (cible) setActiveTab(cible);
+  }, []);
   const [filterStatut, setFilterStatut] = useState<StatutStock | ''>('');
   const [filterType, setFilterType] = useState<'ENTREE' | 'SORTIE' | 'AJUSTEMENT' | ''>('');
   const [journalPage, setJournalPage] = useState(1);

@@ -5,6 +5,7 @@ import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { tariferLigne } from "@/lib/venteTarification";
 import { estFormuleValide, dureeJoursPourFormule, remunerationFormule } from "@/lib/formuleCredit";
 import { notifyGestionnaires, ROLES_COMPTABLES } from "@/lib/notifications";
+import { resynchroniserStatutsCredits } from "@/lib/remboursementCredit";
 
 /**
  * GET /api/agentTerrain/credits
@@ -22,6 +23,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const mode   = searchParams.get("mode");
     const statut = searchParams.get("statut");
+
+    // Réaligne les statuts retard/actif/soldé avant lecture (crédits restés
+    // « en retard » alors que le client a rattrapé ou tout payé).
+    await resynchroniserStatutsCredits(prisma, { client: { agentTerrainId: agentId } });
 
     // ── Mode full : page dédiée crédits ──────────────────────────────────────
     if (mode === "full") {
