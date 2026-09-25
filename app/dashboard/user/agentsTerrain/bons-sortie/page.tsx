@@ -9,12 +9,12 @@ import { ArrowLeft, PackageMinus, Plus, RefreshCw, Printer } from "lucide-react"
 
 interface BonSortie {
   id: number; reference: string; typeSortie: string; statut: "BROUILLON" | "VALIDE" | "ANNULE";
-  motif: string; notes: string | null; montantTotal: number | string | null;
+  motif: string; notes: string | null; commentaireEcart: string | null; montantTotal: number | string | null;
   dateValidation: string | null; createdAt: string;
   pointDeVente: { id: number; nom: string; code: string };
   validePar: { nom: string; prenom: string } | null;
   visePar: { nom: string; prenom: string } | null;
-  lignes: { id: number; quantite: number; produit: { id: number; nom: string; reference: string | null } }[];
+  lignes: { id: number; quantite: number; quantiteDemandee: number | null; produit: { id: number; nom: string; reference: string | null } }[];
 }
 
 const STATUT_CFG: Record<BonSortie["statut"], { label: string; badge: string }> = {
@@ -97,8 +97,13 @@ function BonsSortieAgentPageInner() {
                 </div>
                 <p className="text-sm text-slate-700 mt-2">{b.motif}</p>
                 <ul className="mt-2 text-sm text-slate-600 space-y-0.5">
-                  {b.lignes.map((l) => <li key={l.id}>• {l.produit.nom} × {l.quantite}</li>)}
+                  {b.lignes.map((l) => (
+                    <li key={l.id}>• {l.produit.nom} × {l.quantite}
+                      {l.quantiteDemandee != null && l.quantiteDemandee !== l.quantite && <span className="text-amber-600"> (demandé : {l.quantiteDemandee})</span>}
+                    </li>
+                  ))}
                 </ul>
+                {b.commentaireEcart && <p className="text-xs text-amber-600 mt-1">Écart du magasinier : {b.commentaireEcart}</p>}
                 <div className="flex items-center justify-between gap-2 mt-2 text-xs text-slate-500 flex-wrap">
                   <span>{b.montantTotal != null && `Valorisation : ${Number(b.montantTotal).toLocaleString("fr-FR")} FCFA`}</span>
                   {b.statut === "VALIDE" && b.validePar && (

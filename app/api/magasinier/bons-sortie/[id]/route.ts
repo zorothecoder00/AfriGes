@@ -121,10 +121,47 @@ export async function PATCH(req: Request, { params }: Ctx) {
     });
     if (!bon) return NextResponse.json({ error: "Bon introuvable" }, { status: 404 });
 
+    // Ajustement des quantités par le magasinier au moment de l'exécution (ex. bon rempli
+    // par un agent terrain) : uniquement à la baisse par rapport à la demande — une hausse
+    // contournerait le visa déjà donné, elle passe par un nouveau bon. Un écart impose un
+    // commentaire (CDC §3.4). Appliqué en mémoire ici, persisté dans la transaction d'exécution.
+    let ajustementQuantites: { commentaireEcart: string | null; montantTotal: number } | null = null;
+    if (Array.isArray(body.lignes) && statut === "VALIDE" && bon.statut === "BROUILLON") {
+      if (bon.typeSortie === "LIVRAISON_CLIENT") {
+        return NextResponse.json({ error: "Les quantités d'une livraison client se corrigent dans le bon de préparation" }, { status: 400 });
+      }
+      const saisies = new Map<number, number>(
+        (body.lignes as { id: unknown; quantite: unknown }[]).map((l) => [Number(l.id), Number(l.quantite)])
+      );
+      for (const l of bon.lignes) {
+        if (!saisies.has(l.id)) continue;
+        const q = saisies.get(l.id)!;
+        const max = l.quantiteDemandee ?? l.quantite;
+        if (!Number.isInteger(q) || q < 0 || q > max) {
+          return NextResponse.json({ error: `Quantité invalide pour une ligne : entre 0 et ${max} (quantité demandée)` }, { status: 400 });
+        }
+        if (l.quantiteDemandee == null) l.quantiteDemandee = l.quantite;
+        l.quantite = q;
+      }
+      if (bon.lignes.every((l) => l.quantite === 0)) {
+        return NextResponse.json({ error: "Aucune quantité à sortir : annulez plutôt le bon" }, { status: 400 });
+      }
+      const aUnEcart = bon.lignes.some((l) => l.quantite < (l.quantiteDemandee ?? l.quantite));
+      const commentaire = String(body.commentaireEcart ?? "").trim();
+      if (aUnEcart && !commentaire) {
+        return NextResponse.json({ error: "Une quantité sortie est inférieure à la demande : le commentaire d'écart est obligatoire" }, { status: 400 });
+      }
+      ajustementQuantites = {
+        commentaireEcart: aUnEcart ? commentaire : null,
+        montantTotal: bon.lignes.reduce((s, l) => s + l.quantite * Number(l.prixUnit ?? 0), 0),
+      };
+    }
+
     // Visa requis avant toute exécution si la valorisation dépasse le seuil paramétré.
     if (statut === "VALIDE" && bon.statut === "BROUILLON") {
       const seuilValide = await getSeuilVisaBonSortie();
-      if (Number(bon.montantTotal ?? 0) > seuilValide && !bon.viseParId) {
+      const valorisation = ajustementQuantites?.montantTotal ?? Number(bon.montantTotal ?? 0);
+      if (valorisation > seuilValide && !bon.viseParId) {
         return NextResponse.json(
           { error: `Visa requis avant exécution (valorisation > ${seuilValide.toLocaleString("fr-FR")} FCFA)` },
           { status: 422 }
@@ -280,6 +317,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const versEndommage = bon.typeSortie === "PERTE" || bon.typeSortie === "CASSE";
       // Vérifier les stocks avant transaction
       for (const l of bon.lignes) {
+        if (l.quantite === 0) continue;
         const stock = await prisma.stockSite.findUnique({
           where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: bon.pointDeVenteId } },
           include: { produit: { select: { nom: true } } },
@@ -293,7 +331,17 @@ export async function PATCH(req: Request, { params }: Ctx) {
       }
 
       const updated = await prisma.$transaction(async (tx) => {
+        if (ajustementQuantites) {
+          for (const l of bon.lignes) {
+            await tx.ligneBonSortie.update({ where: { id: l.id }, data: { quantite: l.quantite, quantiteDemandee: l.quantiteDemandee } });
+          }
+          await tx.bonSortie.update({
+            where: { id: bonId },
+            data: { montantTotal: ajustementQuantites.montantTotal, commentaireEcart: ajustementQuantites.commentaireEcart },
+          });
+        }
         for (const l of bon.lignes) {
+          if (l.quantite === 0) continue;
           // Décrémenter le disponible (4.1) — PERTE/CASSE en plus vers l'endommagé (4.4)
           await tx.stockSite.update({
             where: { produitId_pointDeVenteId: { produitId: l.produitId, pointDeVenteId: bon.pointDeVenteId } },

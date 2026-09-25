@@ -312,6 +312,10 @@ export default function MagasinierPage() {
   const bonPreparationUpdateIdRef = useRef<number | null>(null);
   const [expandedPrepBonId, setExpandedPrepBonId] = useState<number | null>(null);
   const [prepQuantites, setPrepQuantites] = useState<Record<number, string>>({});
+  // Exécution d'un bon de sortie avec ajustement des quantités (à la baisse) par le magasinier.
+  const [execBonId, setExecBonId] = useState<number | null>(null);
+  const [execQuantites, setExecQuantites] = useState<Record<number, string>>({});
+  const [execEcartCommentaire, setExecEcartCommentaire] = useState('');
   const [prepEcartCommentaire, setPrepEcartCommentaire] = useState('');
 
   // Livraisons packs
@@ -386,7 +390,7 @@ export default function MagasinierPage() {
     { successMessage: 'Statut de l\'anomalie mis a jour' }
   );
 
-  const { mutate: updateBonSortie, loading: updatingBonSortie } = useMutation<unknown, { statut: string }>(
+  const { mutate: updateBonSortie, loading: updatingBonSortie } = useMutation<unknown, { statut: string; lignes?: { id: number; quantite: number }[]; commentaireEcart?: string }>(
     () => `/api/magasinier/bons-sortie/${bonSortieUpdateIdRef.current}`,
     'PATCH',
     { successMessage: 'Statut du bon de sortie mis a jour' }
@@ -757,6 +761,20 @@ export default function MagasinierPage() {
     bonSortieUpdateIdRef.current = id;
     const result = await updateBonSortie({ statut });
     if (result) refetchBonsSortie();
+  };
+
+  const handleOuvrirExecution = (bon: BonSortie) => {
+    if (execBonId === bon.id) { setExecBonId(null); return; }
+    setExecBonId(bon.id);
+    setExecQuantites(Object.fromEntries(bon.lignes.map(l => [l.id, String(l.quantite)])));
+    setExecEcartCommentaire('');
+  };
+
+  const handleExecuterBonSortie = async (bon: BonSortie) => {
+    bonSortieUpdateIdRef.current = bon.id;
+    const lignes = bon.lignes.map(l => ({ id: l.id, quantite: Number(execQuantites[l.id] ?? l.quantite) }));
+    const result = await updateBonSortie({ statut: 'VALIDE', lignes, commentaireEcart: execEcartCommentaire.trim() || undefined });
+    if (result) { setExecBonId(null); refetchBonsSortie(); }
   };
 
   const handleViserBonSortie = async (id: number) => {
@@ -2405,7 +2423,7 @@ export default function MagasinierPage() {
                                 <ClipboardList size={12} /> {prepOuverte ? 'Fermer la préparation' : 'Préparer la commande'}
                               </button>
                             ) : (
-                              <button onClick={() => handleUpdateBonStatut(bon.id, 'VALIDE')} disabled={updatingBonSortie && bonSortieUpdateIdRef.current === bon.id}
+                              <button onClick={() => bon.typeSortie === 'LIVRAISON_CLIENT' ? handleUpdateBonStatut(bon.id, 'VALIDE') : handleOuvrirExecution(bon)} disabled={updatingBonSortie && bonSortieUpdateIdRef.current === bon.id}
                                 className="ml-auto text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors font-medium flex items-center gap-1 disabled:opacity-50">
                                 <CheckSquare size={12} /> {bon.typeSortie === 'LIVRAISON_CLIENT' ? 'Confirmer expédition' : 'Exécuter la sortie'}
                               </button>
@@ -2444,6 +2462,43 @@ export default function MagasinierPage() {
                             <button onClick={() => handleMarquerPreparationPrete(bon)} disabled={updatingBonPreparation}
                               className="px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium disabled:opacity-50 flex items-center gap-1">
                               <CheckSquare size={14} /> Marquer prête
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Exécution : quantités réellement sorties (≤ demande), commentaire si écart */}
+                      {execBonId === bon.id && bon.statut === 'BROUILLON' && (
+                        <div className="mt-3 pt-3 border-t border-slate-100 bg-emerald-50/50 -mx-5 px-5 pb-4">
+                          <p className="text-xs font-semibold text-slate-700 mb-2 mt-2">Quantités réellement sorties</p>
+                          <div className="space-y-2">
+                            {bon.lignes.map(l => {
+                              const max = l.quantiteDemandee ?? l.quantite;
+                              return (
+                                <div key={l.id} className="flex items-center justify-between gap-3">
+                                  <span className="text-xs text-slate-600 flex-1">{l.produit.nom} <span className="text-slate-400">(demandé : {max})</span></span>
+                                  <input
+                                    type="number" min={0} max={max} step={1}
+                                    value={execQuantites[l.id] ?? String(l.quantite)}
+                                    onChange={e => setExecQuantites(prev => ({ ...prev, [l.id]: e.target.value }))}
+                                    className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center bg-white"
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <textarea
+                            value={execEcartCommentaire}
+                            onChange={e => setExecEcartCommentaire(e.target.value)}
+                            placeholder="Commentaire d'écart (obligatoire si une quantité sortie est inférieure à la demande)"
+                            rows={2}
+                            className="w-full mt-3 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white resize-none"
+                          />
+                          <div className="flex justify-end gap-2 mt-3">
+                            <button onClick={() => setExecBonId(null)} className="px-4 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-white">{t('btn_cancel')}</button>
+                            <button onClick={() => handleExecuterBonSortie(bon)} disabled={updatingBonSortie}
+                              className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-50 flex items-center gap-1">
+                              <CheckSquare size={14} /> Confirmer la sortie
                             </button>
                           </div>
                         </div>
