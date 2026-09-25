@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getMagasinierSession } from "@/lib/authMagasinier";
 import { getRPVSession } from "@/lib/authRPV";
 import { getChefAgenceSession } from "@/lib/authChefAgence";
+import { getComptableSession, getComptablePdvId } from "@/lib/authComptable";
 import { getAuthSession } from "@/lib/auth";
 import { htmlToPdfAdaptatif, pdfResponse } from "@/lib/pdf";
 import { genBonSortieHtml } from "@/lib/bonSortieHtml";
@@ -26,6 +27,14 @@ export async function GET(req: Request, { params }: Ctx) {
       // Le chef d'agence consulte les bons des agences qu'il supervise.
       const chef = await getChefAgenceSession();
       if (chef && (await prisma.bonSortie.count({ where: { id: Number(id), pointDeVente: { chefAgenceId: parseInt(chef.user.id) } } })) > 0) session = chef;
+    }
+    if (!session) {
+      // Le comptable consulte les bons de son agence (toutes s'il n'est affecté à aucune).
+      const comptable = await getComptableSession();
+      if (comptable) {
+        const pdvId = await getComptablePdvId(comptable);
+        if (pdvId === null || (await prisma.bonSortie.count({ where: { id: Number(id), pointDeVenteId: pdvId } })) > 0) session = comptable;
+      }
     }
     if (!session) {
       // L'agent qui a passé la commande client peut télécharger le bon de sortie généré,

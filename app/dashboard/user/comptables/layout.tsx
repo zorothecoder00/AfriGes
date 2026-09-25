@@ -14,7 +14,7 @@ import { usePathname } from "next/navigation";
 import {
   ShieldOff, ArrowLeft, Home, LayoutDashboard, PenSquare, BookOpen, BookMarked,
   Users, Wallet, Percent, Building2, TrendingUp, ClipboardCheck, FileText,
-  CheckCircle, Settings, Menu, X, Calculator,
+  CheckCircle, Settings, Menu, X, Calculator, PackageMinus,
 } from "lucide-react";
 import { usePageAccess } from "@/hooks/usePageAccess";
 import { useT } from "@/contexts/AppSettingsContext";
@@ -31,6 +31,7 @@ const NAV = [
   { href: BASE,                          label: "Tableau de bord",        icon: LayoutDashboard, exact: true },
   { href: `${BASE}/saisie`,              label: "Saisie comptable",       icon: PenSquare,  key: "saisie" },
   { href: `${BASE}/journaux`,            label: "Journaux",               icon: BookOpen,   key: "journal" },
+  { href: `${BASE}/bons-sortie`,         label: "Bons de sortie",         icon: PackageMinus },
   { href: `${BASE}/plan-comptable`,      label: "Plan comptable",         icon: BookMarked, key: "plan" },
   { href: `${BASE}/auxiliaire`,          label: "Comptabilité auxiliaire", icon: Users,     key: "auxiliaire" },
   { href: `${BASE}/tresorerie`,          label: "Trésorerie",             icon: Wallet,     key: "tresorerie" },

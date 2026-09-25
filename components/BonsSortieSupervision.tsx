@@ -15,7 +15,7 @@ import RetourLien from "@/components/RetourLien";
 interface BonSortie {
   id: number; reference: string; typeSortie: string; statut: "BROUILLON" | "VALIDE" | "ANNULE";
   motif: string; commentaireEcart: string | null; montantTotal: string | number | null;
-  viseParId: number | null; createdAt: string; dateValidation: string | null;
+  viseParId: number | null; ecritureId: number | null; createdAt: string; dateValidation: string | null;
   creePar: { id: number; nom: string; prenom: string; gestionnaire: { role: string } | null };
   validePar: { nom: string; prenom: string } | null;
   visePar: { nom: string; prenom: string } | null;
@@ -35,7 +35,11 @@ const STATUT_CFG: Record<BonSortie["statut"], { label: string; badge: string }> 
 };
 const selectCls = "px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white";
 
-export default function BonsSortieSupervision({ apiUrl, perimetre }: { apiUrl: string; perimetre: "agence" | "agences" }) {
+export default function BonsSortieSupervision({ apiUrl, perimetre, peutViser = true }: {
+  apiUrl: string; perimetre: "agence" | "agences";
+  /** false pour une consultation seule (comptable) : pas de bouton Viser. */
+  peutViser?: boolean;
+}) {
   const [statut, setStatut] = useState("");
   const [pointDeVenteId, setPointDeVenteId] = useState("");
   const [origine, setOrigine] = useState("AGENT_TERRAIN");
@@ -69,7 +73,7 @@ export default function BonsSortieSupervision({ apiUrl, perimetre }: { apiUrl: s
           <div>
             <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><PackageMinus className="w-6 h-6 text-indigo-600" /> Bons de sortie</h1>
             <p className="text-sm text-slate-500 mt-0.5">
-              {data?.pdv ? `${data.pdv.nom} — ` : ""}sorties de marchandises de {perimetre === "agence" ? "votre agence" : "vos agences"}, dont celles demandées par les agents terrain. L&apos;exécution revient au magasinier ; vous visez les bons au-delà du seuil.
+              {data?.pdv ? `${data.pdv.nom} — ` : ""}sorties de marchandises de {perimetre === "agence" ? "votre agence" : "vos agences"}, dont celles demandées par les agents terrain. L&apos;exécution revient au magasinier ; {peutViser ? "vous visez les bons au-delà du seuil." : "la sortie est comptabilisée à son exécution."}
             </p>
           </div>
           <button onClick={() => refetch()} className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50" title="Actualiser"><RefreshCw className="w-4 h-4 text-slate-600" /></button>
@@ -115,6 +119,7 @@ export default function BonsSortieSupervision({ apiUrl, perimetre }: { apiUrl: s
                         {b.creePar.gestionnaire?.role === "AGENT_TERRAIN" && <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Agent terrain</span>}
                         {b.visePar && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Visé — {b.visePar.prenom} {b.visePar.nom}</span>}
                         {visaAttendu && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Visa requis</span>}
+                        {b.ecritureId && <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Comptabilisé</span>}
                       </div>
                       <p className="text-sm text-slate-700 mt-1">{b.motif}</p>
                       {b.commandeClient && <p className="text-xs text-slate-500">Commande {b.commandeClient.reference} — {b.commandeClient.client.prenom} {b.commandeClient.client.nom}</p>}
@@ -124,7 +129,7 @@ export default function BonsSortieSupervision({ apiUrl, perimetre }: { apiUrl: s
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {visaAttendu && (
+                      {visaAttendu && peutViser && (
                         <button onClick={() => viser(b.id)} disabled={visaEnCours === b.id}
                           className="flex items-center gap-1 px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg text-xs font-medium hover:bg-orange-200 disabled:opacity-50">
                           <Stamp className="w-3.5 h-3.5" /> Viser
