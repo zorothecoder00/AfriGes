@@ -3,7 +3,7 @@ import { PrioriteNotification, TypeSortieStock } from "@prisma/client";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getAgentTerrainSession } from "@/lib/authAgentTerrain";
-import { notifyRoles, auditLog } from "@/lib/notifications";
+import { notifyGestionnaires, notifyAdmins, auditLog } from "@/lib/notifications";
 import { getSeuilVisaBonSortie } from "@/lib/parametresDocuments";
 
 /**
@@ -140,12 +140,16 @@ export async function POST(req: Request) {
       });
 
       await auditLog(tx, userId, "BON_SORTIE_DEMANDE_AGENT", "BonSortie", created.id);
-      await notifyRoles(tx, ["MAGAZINIER", "RESPONSABLE_POINT_DE_VENTE"], {
+      // Même message, lien propre à chaque destinataire : le magasinier exécute depuis son
+      // onglet Sorties, le RPV supervise/vise depuis sa page, l'admin depuis Stock › Bons de sortie.
+      const payload = {
         titre: `Bon de sortie à exécuter (${reference})`,
         message: `${agentNom} (agent terrain) a rempli un bon de sortie « ${typeSortie} » sur « ${created.pointDeVente.nom} » : ${lignes.length} produit(s), ${montantTotal.toLocaleString("fr-FR")} FCFA. Motif : ${motif}.${visaRequis ? " Visa requis avant exécution." : ""}`,
         priorite: visaRequis || typeSortie === "PERTE" || typeSortie === "CASSE" ? PrioriteNotification.HAUTE : PrioriteNotification.NORMAL,
-        actionUrl: "/dashboard/user/magasiniers?tab=sorties",
-      });
+      };
+      await notifyGestionnaires(tx, ["MAGAZINIER"], { ...payload, actionUrl: "/dashboard/user/magasiniers?tab=sorties" });
+      await notifyGestionnaires(tx, ["RESPONSABLE_POINT_DE_VENTE"], { ...payload, actionUrl: "/dashboard/user/responsablesPointDeVente/bons-sortie" });
+      await notifyAdmins(tx, { ...payload, actionUrl: "/dashboard/admin/stock/sorties" });
       return created;
     });
 

@@ -11,7 +11,7 @@ import {
   Lock, Filter, Pencil, Trash2, CalendarDays, Boxes,
   MapPin, FileText, Info, Download, Printer,
   UserPlus, Star, Activity, ShoppingBag, Wrench, UserCircle, CreditCard, Receipt,
-  Inbox, Send, Menu, LayoutGrid, Stamp,
+  Inbox, Send, Menu, LayoutGrid, Stamp, PackageMinus,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import AccountMenuButton from "@/components/AccountMenuButton";
@@ -1955,6 +1955,10 @@ function ResponsablePDVPageInner() {
                 <Link href="/dashboard/user/responsablesPointDeVente/bordereaux-remise"
                   className="flex items-center gap-1.5 px-3 py-2 bg-white border border-orange-200 text-orange-700 rounded-xl text-sm font-medium hover:bg-orange-50 transition-colors">
                   <Stamp size={15} />Bordereaux à viser
+                </Link>
+                <Link href="/dashboard/user/responsablesPointDeVente/bons-sortie"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-xl text-sm font-medium hover:bg-indigo-50 transition-colors">
+                  <PackageMinus size={15} />Bons de sortie
                 </Link>
                 {activeTab === "stock" && stockSub === "inventaire" && (
                   <>
