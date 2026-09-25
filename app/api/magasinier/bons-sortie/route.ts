@@ -52,6 +52,8 @@ export async function GET(req: NextRequest) {
 
     if (statut)     where.statut     = statut;
     if (typeSortie) where.typeSortie = typeSortie;
+    // ?origine=AGENT_TERRAIN : bons remplis par les agents terrain (demandeurs).
+    if (searchParams.get("origine") === "AGENT_TERRAIN") where.creePar = { gestionnaire: { role: "AGENT_TERRAIN" } };
 
     const [bons, total] = await Promise.all([
       prisma.bonSortie.findMany({
@@ -61,7 +63,7 @@ export async function GET(req: NextRequest) {
         orderBy: { createdAt: "desc" },
         include: {
           pointDeVente: { select: { id: true, nom: true, code: true } },
-          creePar:      { select: { id: true, nom: true, prenom: true } },
+          creePar:      { select: { id: true, nom: true, prenom: true, gestionnaire: { select: { role: true } } } },
           validePar:    { select: { id: true, nom: true, prenom: true } },
           visePar:      { select: { id: true, nom: true, prenom: true } },
           lignes: {

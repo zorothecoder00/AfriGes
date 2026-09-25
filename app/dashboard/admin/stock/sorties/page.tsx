@@ -21,7 +21,7 @@ interface BonSortie {
   id: number; reference: string; typeSortie: string; statut: "BROUILLON" | "VALIDE" | "ANNULE";
   motif: string; notes: string | null; commentaireEcart: string | null; montantTotal: string | null;
   viseParId: number | null; dateVisa: string | null;
-  pointDeVente: PDV; creePar: { id: number; nom: string; prenom: string };
+  pointDeVente: PDV; creePar: { id: number; nom: string; prenom: string; gestionnaire?: { role: string } | null };
   validePar: { id: number; nom: string; prenom: string } | null;
   visePar: { id: number; nom: string; prenom: string } | null;
   lignes: LigneBonSortie[];
@@ -50,13 +50,16 @@ export default function AdminBonsSortiePage() {
   const [pointDeVenteId, setPointDeVenteId] = useState("");
   const [statut, setStatut] = useState("");
   const [typeSortie, setTypeSortie] = useState("");
+  const [origine, setOrigine] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [detail, setDetail] = useState<BonSortie | null>(null);
+  const [aExecuter, setAExecuter] = useState<BonSortie | null>(null);
 
   const params = new URLSearchParams();
   if (pointDeVenteId) params.set("pointDeVenteId", pointDeVenteId);
   if (statut) params.set("statut", statut);
   if (typeSortie) params.set("typeSortie", typeSortie);
+  if (origine) params.set("origine", origine);
   params.set("limit", "50");
 
   const { data, loading, refetch } = useApi<BonsSortieResponse>(`/api/magasinier/bons-sortie?${params}`);
@@ -64,16 +67,17 @@ export default function AdminBonsSortiePage() {
   const pdvs = data?.pdvs ?? [];
   const seuil = data?.seuilVisaBonSortie ?? Infinity;
 
-  async function actionBon(id: number, body: Record<string, unknown>) {
+  async function actionBon(id: number, body: Record<string, unknown>): Promise<boolean> {
     try {
       const res = await fetch(`/api/magasinier/bons-sortie/${id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
       });
       const j = await res.json();
-      if (!res.ok) { toast.error(j.error || "Erreur"); return; }
+      if (!res.ok) { toast.error(j.error || "Erreur"); return false; }
       toast.success("Bon de sortie mis à jour");
       refetch();
-    } catch { toast.error("Erreur réseau"); }
+      return true;
+    } catch { toast.error("Erreur réseau"); return false; }
   }
 
   return (
@@ -108,6 +112,10 @@ export default function AdminBonsSortiePage() {
             <option value="">Tous les types</option>
             {Object.entries(TYPE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
+          <select value={origine} onChange={(e) => setOrigine(e.target.value)} className={`${inputCls} w-auto`}>
+            <option value="">Toutes les origines</option>
+            <option value="AGENT_TERRAIN">Remplis par les agents terrain</option>
+          </select>
         </div>
       </Card>
 
@@ -127,6 +135,7 @@ export default function AdminBonsSortiePage() {
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUT_BADGE[b.statut]}`}>{STATUT_LABEL[b.statut]}</span>
                     <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{TYPE_LABEL[b.typeSortie] ?? b.typeSortie}</span>
                     {visaRequis && !b.viseParId && <span className="text-[11px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Visa requis</span>}
+                    {b.creePar.gestionnaire?.role === "AGENT_TERRAIN" && <span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Agent terrain</span>}
                   </div>
                   <p className="text-sm text-slate-600 mt-1">{b.pointDeVente.nom} ({b.pointDeVente.code}) — {b.motif}</p>
                   {clientDuBon(b) && <p className="text-sm text-slate-700 mt-0.5">Client : <span className="font-medium">{clientDuBon(b)}</span></p>}
@@ -149,7 +158,7 @@ export default function AdminBonsSortiePage() {
                     </button>
                   )}
                   {peutValider && (
-                    <button onClick={() => actionBon(b.id, { statut: "VALIDE" })}
+                    <button onClick={() => b.typeSortie === "LIVRAISON_CLIENT" ? actionBon(b.id, { statut: "VALIDE" }) : setAExecuter(b)}
                       className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-200">
                       <CheckCircle2 size={13} /> Valider
                     </button>
@@ -170,9 +179,78 @@ export default function AdminBonsSortiePage() {
       </div>
 
       {detail && <DetailBonSortie bon={detail} onClose={() => setDetail(null)} />}
+      {aExecuter && (
+        <ExecutionBonSortie
+          bon={aExecuter}
+          onClose={() => setAExecuter(null)}
+          onConfirm={async (lignes, commentaireEcart) => {
+            if (await actionBon(aExecuter.id, { statut: "VALIDE", lignes, commentaireEcart })) setAExecuter(null);
+          }}
+        />
+      )}
       {showCreate && (
         <FormBonSortie pdvs={pdvs} onClose={() => setShowCreate(false)} onDone={() => { setShowCreate(false); refetch(); }} />
       )}
+    </div>
+  );
+}
+
+/**
+ * Exécution d'un bon de sortie (hors livraison client) : quantités réellement sorties,
+ * ajustables à la baisse uniquement (le serveur refuse une hausse, qui contournerait le
+ * visa), commentaire d'écart obligatoire si une quantité est inférieure à la demande.
+ */
+function ExecutionBonSortie({ bon, onClose, onConfirm }: {
+  bon: BonSortie; onClose: () => void;
+  onConfirm: (lignes: { id: number; quantite: number }[], commentaireEcart?: string) => Promise<void>;
+}) {
+  const [quantites, setQuantites] = useState<Record<number, string>>(() => Object.fromEntries(bon.lignes.map((l) => [l.id, String(l.quantite)])));
+  const [commentaire, setCommentaire] = useState("");
+  const [saving, setSaving] = useState(false);
+  const qte = (l: LigneBonSortie) => Number(quantites[l.id] ?? l.quantite) || 0;
+  const aUnEcart = bon.lignes.some((l) => qte(l) < (l.quantiteDemandee ?? l.quantite));
+  const total = bon.lignes.reduce((s, l) => s + qte(l) * Number(l.prixUnit ?? 0), 0);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <h3 className="font-bold text-slate-800">Exécuter la sortie <span className="font-mono text-sm text-slate-500">{bon.reference}</span></h3>
+          <button onClick={onClose}><X size={18} className="text-slate-400" /></button>
+        </div>
+        <div className="px-6 py-4 space-y-3 overflow-y-auto">
+          <p className="text-xs text-slate-500">Quantités réellement sorties (au plus la quantité demandée).</p>
+          {bon.lignes.map((l) => {
+            const max = l.quantiteDemandee ?? l.quantite;
+            return (
+              <div key={l.id} className="flex items-center justify-between gap-3">
+                <span className="text-sm text-slate-700 flex-1">{l.produit.nom} <span className="text-xs text-slate-400">(demandé : {max})</span></span>
+                <input type="number" min={0} max={max} step={1} value={quantites[l.id] ?? ""}
+                  onChange={(e) => setQuantites((prev) => ({ ...prev, [l.id]: e.target.value }))}
+                  className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center" />
+              </div>
+            );
+          })}
+          <p className="text-xs text-slate-500 text-right">Valorisation : <span className="font-semibold text-slate-700">{formatCurrency(total)}</span></p>
+          {aUnEcart && (
+            <textarea value={commentaire} onChange={(e) => setCommentaire(e.target.value)} rows={2}
+              placeholder="Commentaire d'écart (obligatoire : une quantité est inférieure à la demande)"
+              className={`${inputCls} resize-none`} />
+          )}
+        </div>
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100 shrink-0">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Annuler</button>
+          <button disabled={saving}
+            onClick={async () => {
+              setSaving(true);
+              try { await onConfirm(bon.lignes.map((l) => ({ id: l.id, quantite: qte(l) })), aUnEcart ? commentaire.trim() : undefined); }
+              finally { setSaving(false); }
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
+            <CheckCircle2 size={14} /> Confirmer la sortie
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
