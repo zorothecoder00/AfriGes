@@ -53,6 +53,9 @@ function BonsSortieAgentPageInner() {
           </div>
           <div className="flex gap-2">
             <button onClick={() => refetch()} className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"><RefreshCw className="w-4 h-4 text-slate-600" /></button>
+            <a href="/api/magasinier/bons-sortie/vierge" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50">
+              <Printer className="w-4 h-4" /> Bon vierge
+            </a>
             <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
               <Plus className="w-4 h-4" /> Nouveau
             </button>

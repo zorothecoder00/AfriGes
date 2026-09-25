@@ -2271,13 +2271,22 @@ export default function MagasinierPage() {
                 <h3 className="text-xl font-bold text-slate-800">Bons de Sortie</h3>
                 <p className="text-sm text-slate-500">Gérez les sorties de stock (PDV, pertes, casses, dons)</p>
               </div>
-              <button
-                onClick={() => setShowBonSortieForm(true)}
-                className="px-5 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-colors font-semibold flex items-center gap-2"
-              >
-                <Plus size={18} />
-                Nouveau bon de sortie
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <a
+                  href="/api/magasinier/bons-sortie/vierge" target="_blank" rel="noreferrer"
+                  className="px-5 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-semibold flex items-center gap-2"
+                >
+                  <Printer size={18} />
+                  Bon vierge
+                </a>
+                <button
+                  onClick={() => setShowBonSortieForm(true)}
+                  className="px-5 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-colors font-semibold flex items-center gap-2"
+                >
+                  <Plus size={18} />
+                  Nouveau bon de sortie
+                </button>
+              </div>
             </div>
 
             {/* Formulaire de création */}

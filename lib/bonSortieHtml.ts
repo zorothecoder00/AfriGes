@@ -148,3 +148,98 @@ export function genBonSortieHtml(d: BonSortieHtmlData): string {
   </p>
 </div>`.trim();
 }
+
+/**
+ * Bon de sortie VIERGE — à imprimer et remplir à la main (terrain, coupure réseau), puis à
+ * ressaisir dans AfriGes. Mêmes rubriques que le bon numérique : nature, demandeur, motif,
+ * quantités demandée / sortie, écart, signatures demandeur + magasinier + visa (au-delà du seuil).
+ */
+export function genBonSortieViergeHtml(opts: { seuilVisa: number; pointDeVente?: { nom: string; code: string } | null }): string {
+  // Sans largeur : le champ occupe l'espace restant ; avec : largeur fixe (Date, Fonction).
+  const champ = (label: string, largeur?: string) =>
+    `<div style="${largeur ? `flex:0 0 ${largeur}` : "flex:1; min-width:0"};"><span style="font-size:11px; color:#475569;">${label}</span><div style="border-bottom:1px solid #94a3b8; height:22px;"></div></div>`;
+  const caseACocher = (label: string) =>
+    `<span style="display:inline-flex; align-items:center; gap:6px; margin-right:18px; font-size:12px;"><span style="display:inline-block; width:12px; height:12px; border:1.5px solid #0f172a;"></span>${label}</span>`;
+  const lignesVides = Array.from({ length: 14 }, (_, i) => `
+    <tr>
+      <td style="padding:0 6px; height:24px; border:1px solid #cbd5e1; text-align:center; color:#94a3b8;">${i + 1}</td>
+      <td style="border:1px solid #cbd5e1;"></td>
+      <td style="border:1px solid #cbd5e1;"></td>
+      <td style="border:1px solid #cbd5e1;"></td>
+      <td style="border:1px solid #cbd5e1;"></td>
+      <td style="border:1px solid #cbd5e1;"></td>
+    </tr>`).join("");
+  const signature = (titre: string, sousTitre: string) => `
+    <div style="flex:1; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; min-height:78px;">
+      <p style="margin:0; font-weight:bold; font-size:12px;">${titre}</p>
+      <p style="margin:2px 0 0; font-size:10px; color:#64748b;">${sousTitre}</p>
+      <p style="margin:28px 0 0; font-size:10px; color:#64748b;">Nom, date et signature</p>
+    </div>`;
+
+  return `
+<div style="font-family:'Helvetica Neue', Arial, sans-serif; max-width:760px; margin:0 auto; padding:8px 24px; color:#1a1a1a; font-size:13px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #0f172a; padding-bottom:12px; margin-bottom:16px;">
+    <div>
+      <h1 style="font-size:20px; font-weight:bold; margin:0;">${esc(SOCIETE.nom)}</h1>
+      <p style="font-size:11px; color:#555; margin:4px 0 0;">${esc(SOCIETE.adresse)}</p>
+      <p style="font-size:11px; color:#555; margin:2px 0 0;">${esc(SOCIETE.telephone)} · ${esc(SOCIETE.email)}</p>
+    </div>
+    <div style="text-align:right;">
+      <h2 style="font-size:18px; font-weight:bold; margin:0; text-transform:uppercase;">Bon de sortie</h2>
+      <p style="font-size:11px; color:#555; margin:4px 0 0;">de marchandises</p>
+      <p style="font-size:12px; margin:10px 0 0;">N° ______________________</p>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:16px; margin-bottom:10px;">
+    ${opts.pointDeVente
+      ? `<div style="flex:1;"><span style="font-size:11px; color:#475569;">Point de vente / Dépôt</span><div style="border-bottom:1px solid #94a3b8; height:22px; font-weight:bold;">${esc(opts.pointDeVente.nom)} (${esc(opts.pointDeVente.code)})</div></div>`
+      : champ("Point de vente / Dépôt")}
+    ${champ("Date", "160px")}
+  </div>
+
+  <div style="margin:12px 0;">
+    <p style="font-size:11px; color:#475569; margin:0 0 6px;">Nature de la sortie</p>
+    ${caseACocher("Don / échantillon")}${caseACocher("Usage terrain / interne")}${caseACocher("Perte")}${caseACocher("Casse")}${caseACocher("Autre : ____________")}
+  </div>
+
+  <div style="display:flex; gap:16px; margin-bottom:10px;">
+    ${champ("Demandeur (nom et prénom)")}
+    ${champ("Fonction", "200px")}
+  </div>
+  <div style="margin-bottom:6px;">${champ("Motif")}</div>
+  <div style="margin-bottom:16px;"><div style="border-bottom:1px solid #94a3b8; height:22px;"></div></div>
+
+  <table style="width:100%; border-collapse:collapse; font-size:12px;">
+    <thead>
+      <tr style="background:#0f172a; color:#fff;">
+        <th style="padding:6px; width:28px;">N°</th>
+        <th style="padding:6px; text-align:left;">Produit (désignation)</th>
+        <th style="padding:6px; width:90px;">Référence</th>
+        <th style="padding:6px; width:80px;">Qté demandée</th>
+        <th style="padding:6px; width:80px;">Qté sortie</th>
+        <th style="padding:6px; width:130px;">Observations</th>
+      </tr>
+    </thead>
+    <tbody>${lignesVides}</tbody>
+  </table>
+
+  <div style="margin-top:12px;">
+    <span style="font-size:11px; color:#475569;">Écart quantité (obligatoire si la quantité sortie est inférieure à la demande)</span>
+    <div style="border-bottom:1px solid #94a3b8; height:22px;"></div>
+    <div style="border-bottom:1px solid #94a3b8; height:22px;"></div>
+  </div>
+
+  <div style="display:flex; gap:12px; margin-top:16px;">
+    ${signature("Demandeur", "Agent / service demandeur")}
+    ${signature("Magasinier", "Sortie exécutée — quantités vérifiées")}
+    ${signature("Visa RPV / Chef d'agence", `Obligatoire au-delà de ${fmtMontant(opts.seuilVisa)} XOF`)}
+  </div>
+
+  <p style="font-size:10px; color:#64748b; margin:14px 0 0;">
+    Aucune marchandise ne sort du stock sans la signature du magasinier. Ce bon papier doit être ressaisi dans AfriGes le jour même.
+  </p>
+  <hr style="margin-top:14px; border:none; border-top:1px solid #ddd;">
+  <p style="font-size:10px; color:#999; text-align:center; margin:6px 0 0;">${esc(SOCIETE.nom)} · ${esc(SOCIETE_LEGAL)}</p>
+</div>`.trim();
+}
