@@ -127,7 +127,7 @@ interface LigneBilletageInput { denomination: number; nombre: number }
  *   lignesBilletage: [{denomination, nombre}], motifEcartSoumission?, notes?,
  *   // formulaire papier : dateRemise?, compteTitulaire?, compteNumero?, compteBanque?, compteGuichet?,
  *   // deposantNom?, deposantPrenom?, deposantZone?, deposantTelephone?, deposantAdresse?, mobileMoneyOperateur?,
- *   // carnetsAnnexes?, fichesPagesDe?, fichesPagesA?, recusNumDe?, recusNumA?,
+ *   // carnetsAnnexes?, fichesCollecteJointes?, recusJoints?, justificatifsJoints?,
  *   declarationAcceptee: true, signatureCollecteur: "data:image/png;base64,…" }
  */
 export async function POST(req: Request) {
@@ -236,8 +236,9 @@ export async function POST(req: Request) {
               deposantAdresse: texteLibre(body.deposantAdresse, 200),
               mobileMoneyOperateur: cotisationsMobileMoney > 0 ? texteLibre(body.mobileMoneyOperateur, 60) : null,
               carnetsAnnexes: body.carnetsAnnexes === true,
-              fichesPagesDe: texteLibre(body.fichesPagesDe, 20), fichesPagesA: texteLibre(body.fichesPagesA, 20),
-              recusNumDe: texteLibre(body.recusNumDe, 30), recusNumA: texteLibre(body.recusNumA, 30),
+              fichesCollecteJointes: body.fichesCollecteJointes === true,
+              recusJoints: body.recusJoints === true,
+              justificatifsJoints: body.justificatifsJoints === true,
               declarationAcceptee: true,
               signatureCollecteur,
               lignesBilletage: { create: lignesBilletage.map((l) => ({ denomination: Number(l.denomination), nombre: Number(l.nombre), total: l.denomination * l.nombre })) },

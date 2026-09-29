@@ -3669,11 +3669,10 @@ model BordereauRemiseFonds {
   mobileMoneyOperateur String? // IV — opérateur Mobile Money (T-Money, Flooz…)
 
   // V — Pièces jointes papier déclarées (les scans restent dans PieceJustificative)
-  carnetsAnnexes Boolean @default(false)
-  fichesPagesDe  String?
-  fichesPagesA   String?
-  recusNumDe     String?
-  recusNumA      String?
+  carnetsAnnexes        Boolean @default(false)
+  fichesCollecteJointes Boolean @default(false)
+  recusJoints           Boolean @default(false)
+  justificatifsJoints   Boolean @default(false) // Mobile Money / Virement
 
   // VI — Déclaration & signatures. La validation horodatée de chaque acteur (création,
   // TRAITER, VISER_CGT) vaut signature électronique simple ; le tracé (PNG en data URL)

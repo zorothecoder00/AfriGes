@@ -47,7 +47,7 @@ export default function NouveauBordereauRemise({ onClose, onCreated, pdvsDisponi
   const [virementReference, setVirementReference] = useState("");
   const [billetage, setBilletage] = useState<Record<number, string>>({});
   const [motifEcart, setMotifEcart] = useState("");
-  const [papier, setPapier] = useState({ carnets: false, fichesDe: "", fichesA: "", recusDe: "", recusA: "" });
+  const [papier, setPapier] = useState({ carnets: false, fiches: false, recus: false, justificatifs: false });
   const [declaration, setDeclaration] = useState(false);
   const [signature, setSignature] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
@@ -107,7 +107,7 @@ export default function NouveauBordereauRemise({ onClose, onCreated, pdvsDisponi
           lignesBilletage: DENOMINATIONS.filter((d) => Number(billetage[d]) > 0).map((d) => ({ denomination: d, nombre: Number(billetage[d]) })),
           motifEcartSoumission: motifEcart || undefined,
           carnetsAnnexes: papier.carnets,
-          fichesPagesDe: papier.fichesDe, fichesPagesA: papier.fichesA, recusNumDe: papier.recusDe, recusNumA: papier.recusA,
+          fichesCollecteJointes: papier.fiches, recusJoints: papier.recus, justificatifsJoints: papier.justificatifs,
           declarationAcceptee: declaration,
           signatureCollecteur: signature,
           notes: notes || undefined,
@@ -220,24 +220,19 @@ export default function NouveauBordereauRemise({ onClose, onCreated, pdvsDisponi
 
           {/* ── V — Pièces jointes ── */}
           <div>
-            <p className={titreCls}>V — Pièces jointes</p>
+            <p className={titreCls}>V — Pièces jointes <span className="normal-case font-normal">(cochez)</span></p>
             <div className="space-y-2 text-sm text-slate-700">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={papier.carnets} onChange={(e) => setPapier({ ...papier, carnets: e.target.checked })} />
-                Carnets individuels en annexe (listés)
-              </label>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="flex-1 min-w-[180px]">Fiches journalières de collecte — n° pages</span>
-                <input placeholder="de" value={papier.fichesDe} onChange={(e) => setPapier({ ...papier, fichesDe: e.target.value })} className={inputCls + " !w-20"} />
-                <span>à</span>
-                <input placeholder="à" value={papier.fichesA} onChange={(e) => setPapier({ ...papier, fichesA: e.target.value })} className={inputCls + " !w-20"} />
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="flex-1 min-w-[180px]">Copies des reçus numérotés — n°</span>
-                <input placeholder="de" value={papier.recusDe} onChange={(e) => setPapier({ ...papier, recusDe: e.target.value })} className={inputCls + " !w-20"} />
-                <span>à</span>
-                <input placeholder="à" value={papier.recusA} onChange={(e) => setPapier({ ...papier, recusA: e.target.value })} className={inputCls + " !w-20"} />
-              </div>
+              {([
+                ["carnets", "Carnets individuels en annexe (listés)"],
+                ["fiches", "Fiches journalières de collecte"],
+                ["recus", "Copies des reçus numérotés"],
+                ["justificatifs", "Copies justificatifs Mobile Money / Virement"],
+              ] as const).map(([cle, libelle]) => (
+                <label key={cle} className="flex items-center gap-2">
+                  <input type="checkbox" checked={papier[cle]} onChange={(e) => setPapier({ ...papier, [cle]: e.target.checked })} />
+                  {libelle}
+                </label>
+              ))}
               <PiecesUploader nature="PIECE_CAISSE" label="Fiches journalières de collecte scannées" pieces={pieces} onChange={setPieces} />
             </div>
           </div>

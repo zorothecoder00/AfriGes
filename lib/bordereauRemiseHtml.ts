@@ -60,6 +60,11 @@ function case_(cochee: boolean): string {
   return `<span class="case">${cochee ? "X" : ""}</span>`;
 }
 
+/** Code collecteur dérivé automatiquement de l'id du compte (jamais saisi par l'agent). */
+function codeCollecteur(id: number): string {
+  return `COL-${String(id).padStart(5, "0")}`;
+}
+
 /** Dénominations du formulaire papier, dans l'ordre. */
 const DENOMINATIONS_FORMULAIRE = [10000, 5000, 2000, 1000, 500, 250, 200, 100, 50, 25];
 
@@ -83,8 +88,9 @@ export interface BordereauRemiseHtmlData {
   naturesPieces: string[];
   mobileMoneyOperateur: string | null;
   carnetsAnnexes: boolean;
-  fichesPages: [string | null, string | null];
-  recusNum: [string | null, string | null];
+  fichesCollecteJointes: boolean;
+  recusJoints: boolean;
+  justificatifsJoints: boolean;
   /** VI — déclaration cochée et signée par le collecteur à la soumission. */
   declarationAcceptee: boolean;
   dateSoumission: Date | string;
@@ -178,7 +184,7 @@ export function genBordereauRemiseHtml(d: BordereauRemiseHtmlData): string {
     <h2>I — Identification du déposant / collecteur</h2>
     <ul>
       <li>Nom &amp; Prénom : ${champ(nomCollecteur, "230px")}</li>
-      <li>Code Collecteur / ID : ${champ(`#${d.collecteur.id}`, "200px")}</li>
+      <li>Code Collecteur / ID : ${champ(codeCollecteur(d.collecteur.id), "200px")}</li>
       <li>Zone / Secteur : ${champ(d.collecteur.zone, "230px")}</li>
       <li>Téléphone : ${champ(d.collecteur.telephone, "255px")}</li>
       <li>Adresse : ${champ(d.collecteur.adresse, "270px")}</li>
@@ -237,9 +243,9 @@ export function genBordereauRemiseHtml(d: BordereauRemiseHtmlData): string {
     <h2>V — Pièces jointes (cochez)</h2>
     <ul>
       <li>${case_(d.carnetsAnnexes)} Carnets individuels en annexe (listés)</li>
-      <li>${case_(!!(d.fichesPages[0] || d.fichesPages[1]) || pieces.has("PIECE_CAISSE"))} Fiches journalières de collecte (n° pages : ${champ(d.fichesPages[0], "28px")} à ${champ(d.fichesPages[1], "28px")})</li>
-      <li>${case_(!!(d.recusNum[0] || d.recusNum[1]) || pieces.has("RECU"))} Copies des reçus numérotés (n° : ${champ(d.recusNum[0], "28px")} à ${champ(d.recusNum[1], "28px")})</li>
-      <li>${case_(pieces.has("RELEVE_BANCAIRE"))} Copies justificatifs Mobile Money / Virement</li>
+      <li>${case_(d.fichesCollecteJointes || pieces.has("PIECE_CAISSE"))} Fiches journalières de collecte</li>
+      <li>${case_(d.recusJoints)} Copies des reçus numérotés</li>
+      <li>${case_(d.justificatifsJoints || pieces.has("RECU") || pieces.has("RELEVE_BANCAIRE"))} Copies justificatifs Mobile Money / Virement</li>
     </ul>
 
     <h2>VI — Déclaration &amp; Signatures</h2>

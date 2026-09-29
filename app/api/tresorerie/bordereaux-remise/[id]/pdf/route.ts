@@ -67,7 +67,7 @@ export async function GET(req: Request, { params }: Ctx) {
         zone: b.deposantZone ?? collecteur.gestionnaire?.zone ?? null,
       },
       mobileMoneyOperateur: b.mobileMoneyOperateur,
-      carnetsAnnexes: b.carnetsAnnexes, fichesPages: [b.fichesPagesDe, b.fichesPagesA], recusNum: [b.recusNumDe, b.recusNumA],
+      carnetsAnnexes: b.carnetsAnnexes, fichesCollecteJointes: b.fichesCollecteJointes, recusJoints: b.recusJoints, justificatifsJoints: b.justificatifsJoints,
       declarationAcceptee: b.declarationAcceptee, dateSoumission: b.createdAt,
       signatureCollecteur: b.signatureCollecteur, signatureTresorier: b.signatureTresorier, signatureVisaCGT: b.signatureVisaCGT,
       cotisationsEspeces: Number(bordereau.cotisationsEspeces), cotisationsMobileMoney: Number(bordereau.cotisationsMobileMoney),
