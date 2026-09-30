@@ -56,7 +56,7 @@ export default function UserDashboardLayout({ children }: { children: ReactNode 
         <AccountMenuButton settingsHref="/dashboard/user/parametres" catalogueHref="/dashboard/user/catalogue" />
       )}
       {!hasPdvBadge && <PointageWidget />}
-      <RiaAccessShortcuts />
+      <RiaAccessShortcuts aboveWidget={!hasPdvBadge} />
     </>
   );
 }
