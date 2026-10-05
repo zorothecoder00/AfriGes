@@ -42,6 +42,13 @@ export default function NouveauBonSortie({ onClose, onCreated }: { onClose: () =
 
   const handleSubmit = async () => {
     if (!motif.trim()) { toast.error("Indiquez le motif de la sortie"); return; }
+    // Une sortie de stock ne peut porter que sur un produit existant : on le dit clairement au lieu d'ignorer la ligne.
+    const inconnus = lignes.filter((l) => !l.produitId && l.produitNom.trim());
+    if (inconnus.length > 0) {
+      toast.error(`Produit inconnu du catalogue : ${inconnus.map((l) => `« ${l.produitNom.trim()} »`).join(", ")}. Choisissez-le dans la liste, ou demandez sa création à l'administration (une sortie de stock exige un produit existant).`, { duration: 8000 });
+      return;
+    }
+    if (lignes.some((l) => l.produitId && !(Number(l.quantite) > 0))) { toast.error("Indiquez la quantité de chaque produit"); return; }
     if (lignesValides.length === 0) { toast.error("Ajoutez au moins un produit avec sa quantité"); return; }
     setSaving(true);
     try {
@@ -101,14 +108,18 @@ export default function NouveauBonSortie({ onClose, onCreated }: { onClose: () =
                       onFocus={() => setLigneEnRecherche(i)}
                       placeholder="Rechercher un produit…" className={inputCls}
                     />
-                    {ligneEnRecherche === i && produits.length > 0 && !l.produitId && (
+                    {ligneEnRecherche === i && !l.produitId && produitSearch.length >= 2 && (
                       <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                         {produits.map((p) => (
                           <button key={p.id} onClick={() => { updateLigne(i, { produitId: p.id, produitNom: p.nom, prix: Number(p.prixUnitaire) }); setLigneEnRecherche(null); }} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex justify-between">
                             <span>{p.nom}</span><span className="text-slate-400">{Number(p.prixUnitaire).toLocaleString("fr-FR")}</span>
                           </button>
                         ))}
+                        {produits.length === 0 && <p className="px-3 py-2 text-xs text-slate-400">Aucun produit trouvé.</p>}
                       </div>
+                    )}
+                    {!l.produitId && l.produitNom.trim() && ligneEnRecherche !== i && (
+                      <p className="text-[11px] text-red-600 mt-0.5">Produit non choisi dans la liste : la sortie exige un produit du catalogue (demandez sa création à l&apos;administration).</p>
                     )}
                   </div>
                   <input type="number" min="0.25" step="0.25" value={l.quantite} onChange={(e) => updateLigne(i, { quantite: e.target.value })} placeholder="Qté" className="w-20 px-3 py-2 border border-slate-200 rounded-lg text-sm" />

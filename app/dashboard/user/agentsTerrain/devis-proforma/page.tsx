@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { ArrowLeft, FileText, Plus, X, RefreshCw, Copy, CheckCircle2, XCircle, Repeat } from "lucide-react";
 
 interface ClientRef { id: number; nom: string; prenom: string; telephone: string; adresse: string | null }
-interface Ligne { id: number; produitId: number; quantite: number; prixUnitaire: number | string; remiseMontant: number | string; totalLigne: number | string; produit: { id: number; nom: string } }
+interface Ligne { id: number; produitId: number | null; designationLibre: string | null; quantite: number; prixUnitaire: number | string; remiseMontant: number | string; totalLigne: number | string; produit: { id: number; nom: string } | null }
 interface Document {
   id: number; reference: string; type: "DEVIS" | "PROFORMA"; statut: string;
   pointDeVente: { id: number; nom: string; code: string };
@@ -171,11 +171,14 @@ function DetailModal({ id, onClose, onUpdated }: { id: number; onClose: () => vo
                 <table className="w-full text-sm">
                   <tbody className="divide-y divide-slate-100">
                     {d.lignes.map((l) => (
-                      <tr key={l.id}><td className="px-3 py-2">{l.produit.nom}</td><td className="text-center px-3 py-2">× {l.quantite}</td><td className="text-right px-3 py-2 font-medium">{Number(l.totalLigne).toLocaleString("fr-FR")}</td></tr>
+                      <tr key={l.id}><td className="px-3 py-2">{l.produit ? l.produit.nom : <span className="text-amber-700">{l.designationLibre} <span className="text-[10px]">(hors catalogue)</span></span>}</td><td className="text-center px-3 py-2">× {l.quantite}</td><td className="text-right px-3 py-2 font-medium">{Number(l.totalLigne).toLocaleString("fr-FR")}</td></tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              {d.lignes.some((l) => !l.produit) && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">Produit(s) hors catalogue : l&apos;administration doit les associer à un produit du catalogue (et fixer le prix) avant l&apos;envoi au client.</p>
+              )}
               <p className="text-right text-sm font-bold text-slate-800">Total TTC : {Number(d.totalTTC).toLocaleString("fr-FR")} FCFA</p>
               {d.devisOrigine && <p className="text-xs text-slate-400">Issu du devis {d.devisOrigine.reference}</p>}
               {d.proformaGenere && <p className="text-xs text-slate-400">Converti en proforma {d.proformaGenere.reference}</p>}

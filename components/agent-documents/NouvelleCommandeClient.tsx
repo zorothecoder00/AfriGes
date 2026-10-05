@@ -2,18 +2,17 @@
 
 import { useState } from "react";
 import IdentiteAgent from "./IdentiteAgent";
+import ChoixClientAgent, { type ClientRef } from "./ChoixClientAgent";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { X, Plus, Send, Trash2, MapPin, Loader2 } from "lucide-react";
 
-export interface ClientRef { id: number; nom: string; prenom: string; telephone: string; adresse: string | null }
 interface ProduitRef { id: number; nom: string; reference: string | null; prixUnitaire: number | string }
 type LigneForm = { produitId: number | null; produitNom: string; quantite: string; remisePourcent: string; libre: boolean; prix: string };
 const LIGNE_VIDE: LigneForm = { produitId: null, produitNom: "", quantite: "", remisePourcent: "0", libre: false, prix: "" };
 const inputCls = "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500";
 
 export default function NouvelleCommandeClient({ onClose, onCreated }: { onClose: () => void; onCreated: (id: number) => void }) {
-  const [clientSearch, setClientSearch] = useState("");
   const [client, setClient] = useState<ClientRef | null>(null);
   const [typeClientCommande, setTypeClientCommande] = useState<"PARTICULIER" | "REVENDEUR">("PARTICULIER");
   const [modeReglement, setModeReglement] = useState<"COMPTANT" | "MOBILE_MONEY" | "CREDIT">("COMPTANT");
@@ -28,9 +27,7 @@ export default function NouvelleCommandeClient({ onClose, onCreated }: { onClose
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const { data: clientsData } = useApi<{ data: ClientRef[] }>(clientSearch.length >= 2 ? `/api/agentTerrain/clients?search=${encodeURIComponent(clientSearch)}&limit=8` : null);
   const { data: produitsData } = useApi<{ data: ProduitRef[] }>(produitSearch.length >= 2 ? `/api/agentTerrain/produits?search=${encodeURIComponent(produitSearch)}&limit=10` : null);
-  const clients = clientsData?.data ?? [];
   const produits = produitsData?.data ?? [];
 
   const updateLigne = (idx: number, patch: Partial<(typeof lignes)[number]>) => setLignes((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -51,8 +48,12 @@ export default function NouvelleCommandeClient({ onClose, onCreated }: { onClose
   const handleSubmit = async () => {
     if (!client) { toast.error("Sélectionnez un client"); return; }
     if (!signatureClientNom.trim()) { toast.error("Signature électronique du client obligatoire"); return; }
-    const lignesValides = lignes.filter((l) => Number(l.quantite) > 0 && (l.libre ? l.produitNom.trim() && Number(l.prix) > 0 : l.produitId));
-    if (lignesValides.length === 0) { toast.error("Ajoutez au moins une ligne valide"); return; }
+    // Un nom tapé sans choisir dans la liste devient une ligne hors catalogue (au lieu d'être ignoré).
+    const lignesSaisies = lignes.map((l) => (!l.produitId && !l.libre && l.produitNom.trim() ? { ...l, libre: true } : l));
+    if (lignesSaisies.some((l) => (l.produitId || l.libre) && !(Number(l.quantite) > 0))) { toast.error("Indiquez la quantité de chaque produit"); return; }
+    const lignesValides = lignesSaisies.filter((l) => Number(l.quantite) > 0 && (l.libre ? l.produitNom.trim() : l.produitId));
+    if (lignesValides.length === 0) { toast.error("Ajoutez au moins un produit avec sa quantité"); return; }
+    setLignes(lignesSaisies);
 
     setSaving(true);
     try {
@@ -62,7 +63,7 @@ export default function NouvelleCommandeClient({ onClose, onCreated }: { onClose
           clientId: client.id, typeClientCommande, modeReglement,
           dateLivraisonSouhaitee: dateLivraisonSouhaitee || undefined, lieuLivraison: lieuLivraison || undefined,
           lignes: lignesValides.map((l) => l.libre
-            ? { designation: l.produitNom.trim(), prixUnitaire: Number(l.prix), quantite: Number(l.quantite), remisePourcent: Number(l.remisePourcent) || 0 }
+            ? { designation: l.produitNom.trim(), prixUnitaire: Number(l.prix) || undefined, quantite: Number(l.quantite), remisePourcent: Number(l.remisePourcent) || 0 }
             : { produitId: l.produitId, quantite: Number(l.quantite), remisePourcent: Number(l.remisePourcent) || 0 }),
           ...(gps ? { latitude: gps.latitude, longitude: gps.longitude, precisionGps: gps.precision } : {}),
           signatureClientNom, notes: notes || undefined,
@@ -85,23 +86,7 @@ export default function NouvelleCommandeClient({ onClose, onCreated }: { onClose
           <IdentiteAgent />
           <div>
             <label className="text-xs text-slate-500">Client (recherche par téléphone ou nom)</label>
-            {client ? (
-              <div className="flex items-center justify-between px-3 py-2 border border-emerald-200 bg-emerald-50 rounded-lg text-sm">
-                <span>{client.prenom} {client.nom} — {client.telephone}</span>
-                <button onClick={() => { setClient(null); setClientSearch(""); }} className="text-emerald-700 hover:text-emerald-900"><X className="w-4 h-4" /></button>
-              </div>
-            ) : (
-              <>
-                <input value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} placeholder="Téléphone ou nom…" className={inputCls} />
-                {clients.length > 0 && (
-                  <div className="mt-1 border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-40 overflow-y-auto">
-                    {clients.map((c) => (
-                      <button key={c.id} onClick={() => setClient(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">{c.prenom} {c.nom} — {c.telephone}</button>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
+            <ChoixClientAgent client={client} onChange={setClient} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -158,11 +143,14 @@ export default function NouvelleCommandeClient({ onClose, onCreated }: { onClose
                         </button>
                       </div>
                     )}
+                    {!l.libre && !l.produitId && l.produitNom.trim() && (
+                      <p className="text-[11px] text-amber-700 mt-0.5">Non choisi dans la liste : sera enregistré hors catalogue</p>
+                    )}
                     {l.libre && (
                       <button onClick={() => updateLigne(i, { libre: false, prix: "", produitNom: "" })} className="text-[11px] text-slate-400 hover:text-slate-600 mt-0.5">← Choisir dans le catalogue</button>
                     )}
                   </div>
-                  {l.libre && <input type="number" min="1" value={l.prix} onChange={(e) => updateLigne(i, { prix: e.target.value })} placeholder="Prix unit." className="w-24 px-3 py-2 border border-amber-300 bg-amber-50/40 rounded-lg text-sm" title="Prix unitaire indicatif (FCFA)" />}
+                  {l.libre && <input type="number" min="0" value={l.prix} onChange={(e) => updateLigne(i, { prix: e.target.value })} placeholder="Prix ?" className="w-24 px-3 py-2 border border-amber-300 bg-amber-50/40 rounded-lg text-sm" title="Prix unitaire indicatif (FCFA) — facultatif, l'administration le fixera" />}
                   <input type="number" step="0.25" min="0.25" value={l.quantite} onChange={(e) => updateLigne(i, { quantite: e.target.value })} placeholder="Qté" className="w-20 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
                   <input type="number" min="0" max="100" value={l.remisePourcent} onChange={(e) => updateLigne(i, { remisePourcent: e.target.value })} placeholder="Remise %" className="w-24 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
                   {lignes.length > 1 && <button onClick={() => removeLigne(i)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>}
@@ -171,7 +159,7 @@ export default function NouvelleCommandeClient({ onClose, onCreated }: { onClose
             </div>
             <button onClick={addLigne} className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 border border-dashed border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-lg text-sm font-medium"><Plus className="w-4 h-4" /> Ajouter un produit</button>
             {lignes.some((l) => l.libre) && (
-              <p className="text-[11px] text-amber-700 mt-1.5">Les produits hors catalogue devront être associés à un produit du catalogue par l&apos;administration avant validation de la commande.</p>
+              <p className="text-[11px] text-amber-700 mt-1.5">Les produits hors catalogue (prix facultatif) seront associés à un produit du catalogue et chiffrés par l&apos;administration avant validation de la commande.</p>
             )}
           </div>
 

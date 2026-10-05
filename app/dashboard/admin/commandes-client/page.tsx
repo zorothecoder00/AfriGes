@@ -242,7 +242,7 @@ function FormAjuster({ commande, onClose, onDone }: { commande: Commande; onClos
               </div>
               {!l.produitId && (
                 <div className="mt-2 relative">
-                  <p className="text-[11px] text-amber-700 mb-1">Hors catalogue (prix indicatif de l&apos;agent : {formatCurrency(l.prixLibre)}) — associer à un produit du catalogue :</p>
+                  <p className="text-[11px] text-amber-700 mb-1">Hors catalogue ({l.prixLibre > 0 ? <>prix indicatif de l&apos;agent : {formatCurrency(l.prixLibre)}</> : "prix non renseigné"}) — associer à un produit du catalogue :</p>
                   <input value={rechercheIdx === i ? recherche : ""} onFocus={() => setRechercheIdx(i)} onChange={(e) => { setRechercheIdx(i); chercher(e.target.value); }} placeholder="Rechercher un produit du catalogue…" className={inputCls} />
                   {rechercheIdx === i && options.length > 0 && (
                     <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">

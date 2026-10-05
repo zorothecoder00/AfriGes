@@ -32,7 +32,7 @@ export async function GET(_req: Request, { params }: Ctx) {
         pointDeVenteNom: doc.pointDeVente.nom,
         dateValidite: doc.dateValidite,
         conditions: doc.conditions,
-        lignes: doc.lignes.map((l) => ({ produitNom: l.produit.nom, quantite: l.quantite, prixUnitaire: Number(l.prixUnitaire), totalLigne: Number(l.totalLigne) })),
+        lignes: doc.lignes.map((l) => ({ produitNom: l.produit?.nom ?? l.designationLibre ?? "—", quantite: l.quantite, prixUnitaire: Number(l.prixUnitaire), totalLigne: Number(l.totalLigne) })),
         totalHT: Number(doc.totalHT), totalRemise: Number(doc.totalRemise), totalTVA: Number(doc.totalTVA), totalTTC: Number(doc.totalTTC),
         nomSignataireReponse: doc.nomSignataireReponse,
         motifRefus: doc.motifRefus,

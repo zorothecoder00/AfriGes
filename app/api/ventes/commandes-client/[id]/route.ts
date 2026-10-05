@@ -99,7 +99,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   try {
     const { id } = await params;
     const commandeId = Number(id);
-    const commande = await prisma.commandeClient.findUnique({ where: { id: commandeId }, include: { lignes: true, client: { select: { segment: true } } } });
+    const commande = await prisma.commandeClient.findUnique({ where: { id: commandeId }, include: { lignes: true, client: { select: { segment: true, etat: true } } } });
     if (!commande) return NextResponse.json({ error: "Commande introuvable" }, { status: 404 });
 
     const body = await req.json();
@@ -115,6 +115,15 @@ export async function PATCH(req: Request, { params }: Ctx) {
       if (horsCatalogue.length > 0) {
         return NextResponse.json({
           error: `${horsCatalogue.length} produit(s) hors catalogue (${horsCatalogue.map((l) => l.designationLibre).join(", ")}) : associez-les à un produit du catalogue (Ajuster) ou retirez-les avant de valider — aucune sortie de stock n'est possible sans produit du catalogue.`,
+        }, { status: 422 });
+      }
+      // Client créé sur le terrain : une vente à crédit attend la validation de sa fiche par le RVC
+      // (limite de crédit) ; le comptant n'en dépend pas.
+      if (commande.modeReglement === "CREDIT" && commande.client.etat !== "ACTIF") {
+        return NextResponse.json({
+          error: commande.client.etat === "EN_ATTENTE_VALIDATION"
+            ? "Vente à crédit : la fiche du client (créée par l'agent) doit d'abord être validée par le Responsable Vente Crédit."
+            : `Vente à crédit impossible : client ${commande.client.etat.toLowerCase().replace(/_/g, " ")}.`,
         }, { status: 422 });
       }
       const userId = parseInt(session.user.id);
@@ -206,7 +215,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (Array.isArray(body.lignes)) {
       const lignesInput = body.lignes as LigneInput[];
       for (const l of lignesInput) {
-        if (!l.quantite || l.quantite <= 0 || (!l.produitId && (!String(l.designation || "").trim() || !(Number(l.prixUnitaire) > 0)))) {
+        if (!l.quantite || l.quantite <= 0 || (!l.produitId && (!String(l.designation || "").trim() || (l.prixUnitaire != null && !(Number(l.prixUnitaire) >= 0))))) {
           return NextResponse.json({ error: "Ligne invalide" }, { status: 400 });
         }
       }
@@ -222,7 +231,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
           const remisePourcent = Math.min(100, Math.max(0, Number(l.remisePourcent) || 0));
           if (!produit) {
             // Ligne encore hors catalogue (désignation libre + prix indicatif de l'agent)
-            const prixUnitaire = Number(l.prixUnitaire);
+            const prixUnitaire = Number(l.prixUnitaire) || 0;
             const montant = Math.round(prixUnitaire * l.quantite * 100) / 100;
             const remiseMontant = Math.round(montant * remisePourcent / 100 * 100) / 100;
             return { produitId: null as number | null, designationLibre: String(l.designation).trim() as string | null, quantite: l.quantite, prixUnitaire, remisePourcent, remiseMontant, totalLigne: montant - remiseMontant };

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
-import { tariferLigne } from "@/lib/venteTarification";
+import { tariferLigne, type ContexteVente } from "@/lib/venteTarification";
 import { resoudreTvaVente, decomposerTTC } from "@/lib/comptabilite/tva";
 import { nouveauJetonConfirmation } from "@/lib/livraisonConfirmation";
 
@@ -33,6 +33,67 @@ export const INCLUDE = {
   devisOrigine: { select: { id: true, reference: true } },
   proformaGenere: { select: { id: true, reference: true } },
 };
+
+/** Ligne du catalogue (produitId) ou produit hors catalogue (designation + prixUnitaire indicatif facultatif). */
+export interface LigneDevisInput { produitId?: number | null; designation?: string; prixUnitaire?: number; quantite: number; remisePourcent?: number }
+
+/**
+ * Contrôle des lignes saisies ; renvoie un message d'erreur ou null.
+ * `libreAutorise(designation)` dit si une ligne hors catalogue est acceptée (refusé à l'Admin, qui choisit
+ * toujours dans le catalogue, sauf pour conserver une ligne déjà saisie par l'agent).
+ */
+export function erreurLignesDevis(lignes: LigneDevisInput[], libreAutorise: (designation: string) => boolean): string | null {
+  if (!lignes.length) return "Au moins une ligne est requise";
+  for (const l of lignes) {
+    if (!(Number(l.quantite) > 0)) return "Chaque ligne doit avoir une quantité (>0)";
+    if (!l.produitId) {
+      const designation = String(l.designation || "").trim();
+      if (!designation) return "Produit hors catalogue : désignation obligatoire";
+      if (!libreAutorise(designation)) return "Sélectionnez un produit du catalogue pour chaque ligne";
+      if (l.prixUnitaire != null && !(Number(l.prixUnitaire) >= 0)) return "Produit hors catalogue : prix indicatif invalide";
+    }
+  }
+  return null;
+}
+
+/**
+ * Calcule les lignes (moteur de prix pour le catalogue, prix indicatif — 0 = à chiffrer — pour le hors
+ * catalogue) et les totaux du document.
+ */
+export async function calculerLignesDevis(
+  tx: Prisma.TransactionClient,
+  lignesInput: LigneDevisInput[],
+  ctx: ContexteVente,
+) {
+  const produits = await Promise.all(
+    lignesInput.map((l) => l.produitId ? tx.produit.findUnique({
+      where: { id: Number(l.produitId) },
+      select: { id: true, nom: true, prixUnitaire: true, categorieId: true, familleId: true, marqueId: true },
+    }) : Promise.resolve(null))
+  );
+  if (lignesInput.some((l, i) => l.produitId && !produits[i])) throw new Error("Produit introuvable");
+
+  const lignes = await Promise.all(lignesInput.map(async (l, i) => {
+    const produit = produits[i];
+    const quantite = Number(l.quantite);
+    const remisePourcent = Math.min(100, Math.max(0, Number(l.remisePourcent) || 0));
+    if (!produit) {
+      const prixUnitaire = Number(l.prixUnitaire) || 0;
+      const montant = Math.round(prixUnitaire * quantite * 100) / 100;
+      const remiseMontant = Math.round(montant * remisePourcent / 100 * 100) / 100;
+      return { produitId: null as number | null, designationLibre: String(l.designation).trim() as string | null, quantite, prixUnitaire, remisePourcent, remiseMontant, totalLigne: montant - remiseMontant };
+    }
+    const tarif = await tariferLigne(produit, quantite, ctx);
+    const remiseMontant = Math.round(tarif.montant * remisePourcent / 100 * 100) / 100;
+    return { produitId: produit.id as number | null, designationLibre: null as string | null, quantite, prixUnitaire: tarif.prixUnitaire, remisePourcent, remiseMontant, totalLigne: tarif.montant - remiseMontant };
+  }));
+
+  const totalRemise = lignes.reduce((s, l) => s + l.remiseMontant, 0);
+  const totalTTC = lignes.reduce((s, l) => s + l.totalLigne, 0);
+  const tva = await resoudreTvaVente(tx);
+  const { montantHT: totalHT, montantTVA: totalTVA } = tva ? decomposerTTC(totalTTC, tva.taux) : { montantHT: totalTTC, montantTVA: 0 };
+  return { lignes, totalHT, totalRemise, totalTVA, totalTTC };
+}
 
 /**
  * GET /api/ventes/devis-proforma
@@ -81,12 +142,11 @@ export async function GET(req: Request) {
   }
 }
 
-interface LigneInput { produitId: number; quantite: number; remisePourcent?: number }
 
 /**
  * POST /api/ventes/devis-proforma
  * Body : { type?, clientId, pointDeVenteId?, dateValidite?, conditions?,
- *   lignes: [{produitId, quantite, remisePourcent?}], notes? }
+ *   lignes: [{produitId, quantite, remisePourcent?} | {designation, prixUnitaire?, quantite, remisePourcent?}], notes? }
  */
 export async function POST(req: Request) {
   try {
@@ -109,13 +169,10 @@ export async function POST(req: Request) {
     const client = await prisma.client.findUnique({ where: { id: clientId }, select: { id: true, segment: true, telephone: true } });
     if (!client) return NextResponse.json({ error: "Client introuvable" }, { status: 404 });
 
-    const lignesInput = (body.lignes ?? []) as LigneInput[];
-    if (!lignesInput.length) return NextResponse.json({ error: "Au moins une ligne est requise" }, { status: 400 });
-    for (const l of lignesInput) {
-      if (!l.produitId || !l.quantite || l.quantite <= 0) {
-        return NextResponse.json({ error: "Chaque ligne doit avoir produitId et quantite (>0)" }, { status: 400 });
-      }
-    }
+    const lignesInput = (body.lignes ?? []) as LigneDevisInput[];
+    const estAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+    const erreurLignes = erreurLignesDevis(lignesInput, () => !estAdmin);
+    if (erreurLignes) return NextResponse.json({ error: erreurLignes }, { status: 400 });
 
     const dateValidite = body.dateValidite ? new Date(body.dateValidite) : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
 
@@ -126,27 +183,7 @@ export async function POST(req: Request) {
       const reference = `${prefixe}-${annee}-${String(count + 1 + attempt).padStart(6, "0")}`;
       try {
         const document = await prisma.$transaction(async (tx) => {
-          const produits = await Promise.all(
-            lignesInput.map((l) => tx.produit.findUnique({
-              where: { id: Number(l.produitId) },
-              select: { id: true, nom: true, prixUnitaire: true, categorieId: true, familleId: true, marqueId: true },
-            }))
-          );
-          if (produits.some((p) => !p)) throw new Error("Produit introuvable");
-
-          const lignesCalc = await Promise.all(lignesInput.map(async (l, i) => {
-            const produit = produits[i]!;
-            const tarif = await tariferLigne(produit, l.quantite, { pointDeVenteId, clientId, segment: client.segment });
-            const remisePourcent = Math.min(100, Math.max(0, Number(l.remisePourcent) || 0));
-            const remiseMontant = Math.round(tarif.montant * remisePourcent / 100 * 100) / 100;
-            const totalLigne = tarif.montant - remiseMontant;
-            return { produitId: produit.id, quantite: l.quantite, prixUnitaire: tarif.prixUnitaire, remisePourcent, remiseMontant, totalLigne };
-          }));
-
-          const totalRemise = lignesCalc.reduce((s, l) => s + l.remiseMontant, 0);
-          const totalTTC = lignesCalc.reduce((s, l) => s + l.totalLigne, 0);
-          const tva = await resoudreTvaVente(tx);
-          const { montantHT: totalHT, montantTVA: totalTVA } = tva ? decomposerTTC(totalTTC, tva.taux) : { montantHT: totalTTC, montantTVA: 0 };
+          const { lignes: lignesCalc, totalHT, totalRemise, totalTVA, totalTTC } = await calculerLignesDevis(tx, lignesInput, { pointDeVenteId, clientId, segment: client.segment });
 
           const d = await tx.devisProforma.create({
             data: {
@@ -156,7 +193,7 @@ export async function POST(req: Request) {
               totalHT, totalRemise, totalTVA, totalTTC,
               tokenReponse: nouveauJetonConfirmation(),
               notes: body.notes || null,
-              lignes: { create: lignesCalc.map((l) => ({ produitId: l.produitId, quantite: l.quantite, prixUnitaire: l.prixUnitaire, remisePourcent: l.remisePourcent, remiseMontant: l.remiseMontant, totalLigne: l.totalLigne })) },
+              lignes: { create: lignesCalc.map((l) => ({ produitId: l.produitId, designationLibre: l.designationLibre, quantite: l.quantite, prixUnitaire: l.prixUnitaire, remisePourcent: l.remisePourcent, remiseMontant: l.remiseMontant, totalLigne: l.totalLigne })) },
             },
             include: INCLUDE,
           });

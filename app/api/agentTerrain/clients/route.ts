@@ -127,12 +127,13 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const {
-      nom, prenom, telephone,
+      nom, prenom,
       adresse, sexe, dateNaissance, telephoneSecondaire,
       quartier, ville, commune, numeroCNI,
       activite, nomCommerce,
       latitude, longitude,
     } = body;
+    const telephone = typeof body.telephone === "string" ? body.telephone.trim() : body.telephone;
 
     if (!nom || !prenom || !telephone) {
       return NextResponse.json(
@@ -141,8 +142,14 @@ export async function POST(req: Request) {
       );
     }
 
-    const existing = await prisma.client.findUnique({ where: { telephone } });
+    const existing = await prisma.client.findUnique({
+      where: { telephone },
+      select: { id: true, nom: true, prenom: true, telephone: true, adresse: true, etat: true },
+    });
     if (existing) {
+      // Création rapide depuis un document commercial : le client existe déjà (souvent rattaché à une
+      // autre agence, donc absent de la recherche de l'agent) → on le reprend au lieu de bloquer.
+      if (body.reprendreExistant) return NextResponse.json({ data: existing, existant: true });
       return NextResponse.json({ error: "Ce numéro de téléphone est déjà utilisé" }, { status: 400 });
     }
 

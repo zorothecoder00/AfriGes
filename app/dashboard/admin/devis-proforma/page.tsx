@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import RetourLien from "@/components/RetourLien";
-import { Plus, X, Loader2, Search, Send, Repeat, Ban, Printer, RefreshCw} from "lucide-react";
+import { Plus, X, Loader2, Search, Send, Repeat, Ban, Printer, RefreshCw, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 import Button from "@/components/ui/Button";
@@ -20,7 +20,7 @@ interface Devis {
   id: number; reference: string; type: "DEVIS" | "PROFORMA"; statut: string; totalTTC: string; dateValidite: string;
   client: { nom: string; prenom: string; telephone: string | null };
   pointDeVente: PDV; devisOrigine: { id: number; reference: string } | null; proformaGenere: { id: number; reference: string } | null;
-  lignes: { id: number; quantite: number; produit: ProduitOption }[];
+  lignes: { id: number; quantite: number; prixUnitaire: number | string; remisePourcent: number | string | null; designationLibre: string | null; produit: ProduitOption | null }[];
   createdAt: string;
 }
 interface DevisResponse { data: Devis[]; stats: Record<string, number> }
@@ -35,6 +35,7 @@ export default function AdminDevisProformaPage() {
   const [statut, setStatut] = useState("");
   const [type, setType] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [ajusterDevis, setAjusterDevis] = useState<Devis | null>(null);
 
   const params = new URLSearchParams();
   if (statut) params.set("statut", statut);
@@ -98,8 +99,14 @@ export default function AdminDevisProformaPage() {
                   {d.devisOrigine && ` · issu du devis ${d.devisOrigine.reference}`}
                   {d.proformaGenere && ` · converti en ${d.proformaGenere.reference}`}
                 </p>
+                {d.lignes.some((l) => !l.produit) && (
+                  <p className="text-xs text-amber-700 mt-1">Produit(s) hors catalogue : {d.lignes.filter((l) => !l.produit).map((l) => l.designationLibre).join(", ")} — à associer via « Ajuster » avant l&apos;envoi.</p>
+                )}
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
+                {d.statut === "BROUILLON" && (
+                  <button onClick={() => setAjusterDevis(d)} className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100"><SlidersHorizontal size={13} /> Ajuster</button>
+                )}
                 {d.statut === "BROUILLON" && (
                   <button onClick={() => action(d.id, { action: "ENVOYER" }, "Document envoyé")} className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium hover:bg-indigo-200"><Send size={13} /> Envoyer</button>
                 )}
@@ -116,7 +123,94 @@ export default function AdminDevisProformaPage() {
         ))}
       </div>
 
+      {ajusterDevis && <FormAjusterDevis devis={ajusterDevis} onClose={() => setAjusterDevis(null)} onDone={() => { setAjusterDevis(null); refetch(); }} />}
       {showCreate && <FormDevis onClose={() => setShowCreate(false)} onDone={() => { setShowCreate(false); refetch(); }} />}
+    </div>
+  );
+}
+
+interface LigneAjust { produitId: number | null; nom: string; libre: string | null; prixLibre: number; quantite: string; remisePourcent: string }
+
+/** Ajustement d'un brouillon : quantités/remises + association des produits hors catalogue saisis par l'agent. */
+function FormAjusterDevis({ devis, onClose, onDone }: { devis: Devis; onClose: () => void; onDone: () => void }) {
+  const [lignes, setLignes] = useState<LigneAjust[]>(devis.lignes.map((l) => ({
+    produitId: l.produit?.id ?? null, nom: l.produit?.nom ?? l.designationLibre ?? "", libre: l.produit ? null : l.designationLibre,
+    prixLibre: Number(l.prixUnitaire), quantite: String(l.quantite), remisePourcent: String(Number(l.remisePourcent) || 0),
+  })));
+  const [submitting, setSubmitting] = useState(false);
+  const [rechercheIdx, setRechercheIdx] = useState<number | null>(null);
+  const [recherche, setRecherche] = useState("");
+  const [options, setOptions] = useState<ProduitOption[]>([]);
+
+  const maj = (i: number, patch: Partial<LigneAjust>) => setLignes((prev) => prev.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+
+  async function chercher(q: string) {
+    setRecherche(q);
+    if (q.trim().length < 2) { setOptions([]); return; }
+    const r = await fetch(`/api/admin/reclamations/produits-recherche?q=${encodeURIComponent(q)}`);
+    const j = await r.json();
+    if (r.ok) setOptions(j.data);
+  }
+
+  async function submit() {
+    if (lignes.length === 0) { toast.error("Au moins une ligne est requise"); return; }
+    if (lignes.some((l) => !(Number(l.quantite) > 0))) { toast.error("Quantité invalide"); return; }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/ventes/devis-proforma/${devis.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lignes: lignes.map((l) => l.produitId
+          ? { produitId: l.produitId, quantite: Number(l.quantite), remisePourcent: Number(l.remisePourcent) || 0 }
+          : { designation: l.libre, prixUnitaire: l.prixLibre, quantite: Number(l.quantite), remisePourcent: Number(l.remisePourcent) || 0 }) }),
+      });
+      const j = await res.json();
+      if (!res.ok) { toast.error(j.error || "Erreur"); return; }
+      toast.success("Document ajusté");
+      onDone();
+    } catch { toast.error("Erreur réseau"); }
+    finally { setSubmitting(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[210] p-4">
+      <div className="bg-white rounded-2xl w-full max-w-xl shadow-xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+          <h4 className="font-bold text-slate-800 text-sm">Ajuster {devis.reference}</h4>
+          <button onClick={onClose}><X size={16} className="text-slate-400" /></button>
+        </div>
+        <div className="p-5 space-y-3 overflow-y-auto">
+          <p className="text-xs text-slate-500">Modifiez les quantités et remises ; les prix des produits du catalogue sont recalculés par le serveur.</p>
+          {lignes.map((l, i) => (
+            <div key={i} className={`rounded-lg ${l.produitId ? "" : "border border-amber-200 bg-amber-50/50 p-2"}`}>
+              <div className="flex items-center gap-2">
+                <span className="text-sm flex-1 truncate">{l.nom}</span>
+                <input type="number" step="0.25" min="0.25" value={l.quantite} onChange={(e) => maj(i, { quantite: e.target.value })} className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" title="Quantité" />
+                <input type="number" min={0} max={100} value={l.remisePourcent} onChange={(e) => maj(i, { remisePourcent: e.target.value })} className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" title="Remise %" />
+                {lignes.length > 1 && <button onClick={() => setLignes((prev) => prev.filter((_, k) => k !== i))} title="Retirer la ligne"><X size={14} className="text-slate-400 hover:text-red-500" /></button>}
+              </div>
+              {!l.produitId && (
+                <div className="mt-2 relative">
+                  <p className="text-[11px] text-amber-700 mb-1">Hors catalogue ({l.prixLibre > 0 ? <>prix indicatif de l&apos;agent : {formatCurrency(l.prixLibre)}</> : "prix non renseigné"}) — associer à un produit du catalogue :</p>
+                  <input value={rechercheIdx === i ? recherche : ""} onFocus={() => setRechercheIdx(i)} onChange={(e) => { setRechercheIdx(i); chercher(e.target.value); }} placeholder="Rechercher un produit du catalogue…" className={inputCls} />
+                  {rechercheIdx === i && options.length > 0 && (
+                    <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                      {options.map((p) => (
+                        <button key={p.id} onClick={() => { maj(i, { produitId: p.id, nom: p.nom, libre: null }); setRechercheIdx(null); setRecherche(""); setOptions([]); }} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">{p.nom}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-100">
+          <button onClick={onClose} className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 rounded-lg">Annuler</button>
+          <button onClick={submit} disabled={submitting} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-medium disabled:opacity-50">
+            {submitting ? <Loader2 size={13} className="animate-spin" /> : "Enregistrer"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

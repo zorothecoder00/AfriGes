@@ -2,10 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditLog } from "@/lib/notifications";
 import { getRequestMeta } from "@/lib/requestMeta";
-import { tariferLigne } from "@/lib/venteTarification";
-import { resoudreTvaVente, decomposerTTC } from "@/lib/comptabilite/tva";
 import { nouveauJetonConfirmation, baseUrlPourLivraison } from "@/lib/livraisonConfirmation";
-import { getCreateSession, INCLUDE } from "../route";
+import { getCreateSession, INCLUDE, erreurLignesDevis, calculerLignesDevis, type LigneDevisInput } from "../route";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -34,8 +32,6 @@ export async function GET(_req: Request, { params }: Ctx) {
   }
 }
 
-interface LigneInput { produitId: number; quantite: number; remisePourcent?: number }
-
 /**
  * PATCH /api/ventes/devis-proforma/[id]
  * - Actions : { action: "ENVOYER" | "CONVERTIR_PROFORMA" | "ANNULER" }
@@ -61,6 +57,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
     if (body.action === "ENVOYER") {
       if (document.statut !== "BROUILLON") return NextResponse.json({ error: `Impossible depuis le statut ${document.statut}` }, { status: 422 });
+      const horsCatalogue = document.lignes.filter((l) => l.produitId == null);
+      if (horsCatalogue.length > 0) {
+        return NextResponse.json({
+          error: `${horsCatalogue.length} produit(s) hors catalogue (${horsCatalogue.map((l) => l.designationLibre).join(", ")}) : associez-les à un produit du catalogue (Ajuster) avant l'envoi au client.`,
+        }, { status: 422 });
+      }
       const updated = await prisma.$transaction(async (tx) => {
         const d = await tx.devisProforma.update({ where: { id: docId }, data: { statut: "ENVOYE", dateEnvoi: new Date() }, include: INCLUDE });
         await auditLog(tx, userId, "DEVIS_PROFORMA_ENVOYE", "DevisProforma", docId, undefined, getRequestMeta(req));
@@ -93,7 +95,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
                 tokenReponse: nouveauJetonConfirmation(),
                 devisOrigineId: docId,
                 notes: document.notes,
-                lignes: { create: document.lignes.map((l) => ({ produitId: l.produitId, quantite: l.quantite, prixUnitaire: l.prixUnitaire, remisePourcent: l.remisePourcent, remiseMontant: l.remiseMontant, totalLigne: l.totalLigne })) },
+                lignes: { create: document.lignes.map((l) => ({ produitId: l.produitId, designationLibre: l.designationLibre, quantite: l.quantite, prixUnitaire: l.prixUnitaire, remisePourcent: l.remisePourcent, remiseMontant: l.remiseMontant, totalLigne: l.totalLigne })) },
               },
               include: INCLUDE,
             });
@@ -130,29 +132,16 @@ export async function PATCH(req: Request, { params }: Ctx) {
     }
 
     if (Array.isArray(body.lignes)) {
-      const lignesInput = body.lignes as LigneInput[];
-      for (const l of lignesInput) {
-        if (!l.produitId || !l.quantite || l.quantite <= 0) return NextResponse.json({ error: "Ligne invalide" }, { status: 400 });
-      }
+      const lignesInput = body.lignes as LigneDevisInput[];
+      const estAdmin = session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+      // L'Admin associe ou retire les lignes hors catalogue de l'agent, mais n'en crée pas de nouvelles.
+      const designationsExistantes = new Set(document.lignes.filter((l) => l.produitId == null).map((l) => l.designationLibre));
+      const erreurLignes = erreurLignesDevis(lignesInput, (d) => !estAdmin || designationsExistantes.has(d));
+      if (erreurLignes) return NextResponse.json({ error: erreurLignes }, { status: 400 });
       const updated = await prisma.$transaction(async (tx) => {
-        const produits = await Promise.all(
-          lignesInput.map((l) => tx.produit.findUnique({ where: { id: Number(l.produitId) }, select: { id: true, nom: true, prixUnitaire: true, categorieId: true, familleId: true, marqueId: true } }))
-        );
-        if (produits.some((p) => !p)) throw new Error("Produit introuvable");
-
-        const lignesCalc = await Promise.all(lignesInput.map(async (l, i) => {
-          const produit = produits[i]!;
-          const tarif = await tariferLigne(produit, l.quantite, { pointDeVenteId: document.pointDeVenteId, clientId: document.clientId, segment: document.client.segment });
-          const remisePourcent = Math.min(100, Math.max(0, Number(l.remisePourcent) || 0));
-          const remiseMontant = Math.round(tarif.montant * remisePourcent / 100 * 100) / 100;
-          const totalLigne = tarif.montant - remiseMontant;
-          return { produitId: produit.id, quantite: l.quantite, prixUnitaire: tarif.prixUnitaire, remisePourcent, remiseMontant, totalLigne };
-        }));
-
-        const totalRemise = lignesCalc.reduce((s, l) => s + l.remiseMontant, 0);
-        const totalTTC = lignesCalc.reduce((s, l) => s + l.totalLigne, 0);
-        const tva = await resoudreTvaVente(tx);
-        const { montantHT: totalHT, montantTVA: totalTVA } = tva ? decomposerTTC(totalTTC, tva.taux) : { montantHT: totalTTC, montantTVA: 0 };
+        const { lignes: lignesCalc, totalHT, totalRemise, totalTVA, totalTTC } = await calculerLignesDevis(tx, lignesInput, {
+          pointDeVenteId: document.pointDeVenteId, clientId: document.clientId, segment: document.client.segment,
+        });
 
         await tx.ligneDevisProforma.deleteMany({ where: { devisProformaId: docId } });
         const d = await tx.devisProforma.update({
@@ -162,7 +151,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
             conditions: "conditions" in body ? (body.conditions || null) : undefined,
             dateValidite: "dateValidite" in body && body.dateValidite ? new Date(body.dateValidite) : undefined,
             notes: "notes" in body ? (body.notes || null) : undefined,
-            lignes: { create: lignesCalc.map((l) => ({ produitId: l.produitId, quantite: l.quantite, prixUnitaire: l.prixUnitaire, remisePourcent: l.remisePourcent, remiseMontant: l.remiseMontant, totalLigne: l.totalLigne })) },
+            lignes: { create: lignesCalc.map((l) => ({ produitId: l.produitId, designationLibre: l.designationLibre, quantite: l.quantite, prixUnitaire: l.prixUnitaire, remisePourcent: l.remisePourcent, remiseMontant: l.remiseMontant, totalLigne: l.totalLigne })) },
           },
           include: INCLUDE,
         });

@@ -39,7 +39,7 @@ export async function GET(req: Request, { params }: Ctx) {
       reference: document.reference, type: document.type, statut: document.statut,
       agent: document.agent, pointDeVente: document.pointDeVente, client: document.client,
       dateValidite: document.dateValidite, conditions: document.conditions,
-      lignes: document.lignes.map((l) => ({ produitNom: l.produit.nom, quantite: l.quantite, prixUnitaire: Number(l.prixUnitaire), remiseMontant: Number(l.remiseMontant), totalLigne: Number(l.totalLigne) })),
+      lignes: document.lignes.map((l) => ({ produitNom: l.produit?.nom ?? l.designationLibre ?? "—", quantite: l.quantite, prixUnitaire: Number(l.prixUnitaire), remiseMontant: Number(l.remiseMontant), totalLigne: Number(l.totalLigne) })),
       totalHT: Number(document.totalHT), totalRemise: Number(document.totalRemise), totalTVA: Number(document.totalTVA), totalTTC: Number(document.totalTTC),
       nomSignataireReponse: document.nomSignataireReponse, dateReponse: document.dateReponse,
       qrDataUrl,

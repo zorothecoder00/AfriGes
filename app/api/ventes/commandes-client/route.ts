@@ -117,7 +117,7 @@ interface LigneInput { produitId?: number | null; designation?: string; prixUnit
  * POST /api/ventes/commandes-client
  * Body : { clientId, pointDeVenteId?, typeClientCommande?, modeReglement?,
  *   dateLivraisonSouhaitee?, lieuLivraison?, latitude?, longitude?, precisionGps?,
- *   lignes: [{produitId, quantite, remisePourcent?} | {designation, prixUnitaire, quantite, remisePourcent?}],
+ *   lignes: [{produitId, quantite, remisePourcent?} | {designation, prixUnitaire?, quantite, remisePourcent?}],
  *   signatureClientNom, notes? }
  */
 export async function POST(req: Request) {
@@ -151,8 +151,12 @@ export async function POST(req: Request) {
         // Produit hors catalogue : désignation + prix indicatif obligatoires ; à associer à un produit du
         // catalogue par l'Admin avant validation (l'Admin, lui, choisit toujours dans le catalogue).
         if (estAdminCreateur) return NextResponse.json({ error: "Sélectionnez un produit du catalogue pour chaque ligne" }, { status: 400 });
-        if (!String(l.designation || "").trim() || !(Number(l.prixUnitaire) > 0)) {
-          return NextResponse.json({ error: "Produit hors catalogue : désignation et prix unitaire (>0) obligatoires" }, { status: 400 });
+        // Prix indicatif facultatif (0 / vide = à chiffrer par l'Admin lors de l'association au catalogue).
+        if (!String(l.designation || "").trim()) {
+          return NextResponse.json({ error: "Produit hors catalogue : désignation obligatoire" }, { status: 400 });
+        }
+        if (l.prixUnitaire != null && !(Number(l.prixUnitaire) >= 0)) {
+          return NextResponse.json({ error: "Produit hors catalogue : prix indicatif invalide" }, { status: 400 });
         }
       }
       if (l.remisePourcent != null && (l.remisePourcent < 0 || l.remisePourcent > 100)) {
@@ -198,8 +202,8 @@ export async function POST(req: Request) {
             const produit = produits[i];
             const remisePourcent = Math.min(100, Math.max(0, Number(l.remisePourcent) || 0));
             if (!produit) {
-              // Ligne hors catalogue : prix indicatif saisi par l'agent, pas de moteur de prix.
-              const prixUnitaire = Number(l.prixUnitaire);
+              // Ligne hors catalogue : prix indicatif saisi par l'agent (0 = à chiffrer), pas de moteur de prix.
+              const prixUnitaire = Number(l.prixUnitaire) || 0;
               const montant = Math.round(prixUnitaire * l.quantite * 100) / 100;
               const remiseMontant = Math.round(montant * remisePourcent / 100 * 100) / 100;
               return { produitId: null as number | null, designationLibre: String(l.designation).trim(), quantite: l.quantite, prixUnitaire, remisePourcent, remiseMontant, totalLigne: montant - remiseMontant };
