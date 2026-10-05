@@ -2384,8 +2384,8 @@ export default function LogistiqueApprovisionnementPage() {
                   Quantité reçue <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="number"
-                  min="1"
+                  type="number" step="0.25"
+                  min="0.25"
                   required
                   value={recForm.quantite}
                   onChange={e => setRecForm(f => ({ ...f, quantite: e.target.value }))}
@@ -2538,8 +2538,8 @@ export default function LogistiqueApprovisionnementPage() {
                   Quantité à affecter <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="number"
-                  min="1"
+                  type="number" step="0.25"
+                  min="0.25"
                   max={affProduit?.stock ?? undefined}
                   required
                   disabled={!affProduit}
@@ -2795,8 +2795,8 @@ export default function LogistiqueApprovisionnementPage() {
                             ))}
                           </select>
                           <input
-                            type="number"
-                            min="1"
+                            type="number" step="0.25"
+                            min="0.25"
                             required
                             placeholder="Qté"
                             value={ligne.quantiteAttendue}
@@ -3195,17 +3195,17 @@ function ReceptionControleModal({ reception, onClose, onValidated }: {
                       <td className="px-3 py-2.5 font-medium text-slate-800">{l.produit.nom}</td>
                       <td className="text-center px-3 py-2.5 text-slate-500">{l.quantiteAttendue}{l.produit.unite ? ` ${l.produit.unite}` : ""}</td>
                       <td className="px-3 py-2 text-center">
-                        <input type="number" min="0" value={c.quantiteRecue}
+                        <input type="number" step="0.25" min="0" value={c.quantiteRecue}
                           onChange={(e) => setLigne(l.id, { quantiteRecue: e.target.value })}
                           className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                       </td>
                       <td className="px-3 py-2 text-center">
-                        <input type="number" min="0" value={c.quantiteRefusee}
+                        <input type="number" step="0.25" min="0" value={c.quantiteRefusee}
                           onChange={(e) => setLigne(l.id, { quantiteRefusee: e.target.value })}
                           className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
                       </td>
                       <td className="px-3 py-2 text-center">
-                        <input type="number" min="0" value={c.quantiteEndommagee}
+                        <input type="number" step="0.25" min="0" value={c.quantiteEndommagee}
                           onChange={(e) => setLigne(l.id, { quantiteEndommagee: e.target.value })}
                           className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                       </td>

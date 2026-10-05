@@ -551,10 +551,10 @@ export default function VentesPage() {
     if (!souscriptionId) return;
     if (packClientPdvs.length > 0 && !packSelectedPdvId) return;
     const validLignes = packLignes
-      .filter(l => l.produitId && parseInt(l.quantite) > 0)
+      .filter(l => l.produitId && parseFloat(l.quantite) > 0)
       .map(l => ({
         produitId:    parseInt(l.produitId),
-        quantite:     parseInt(l.quantite),
+        quantite:     parseFloat(l.quantite),
         prixUnitaire: parseFloat(l.prixUnitaire) || 0,
       }));
     if (validLignes.length === 0) return;
@@ -860,7 +860,7 @@ export default function VentesPage() {
                                   className="w-24 px-2 py-1 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary-500" />
                               </div>
                               <span className="text-slate-400">×</span>
-                              <input type="number" min="1" max={l.stockDispo} value={l.quantite}
+                              <input type="number" step="0.25" min="0.25" max={l.stockDispo} value={l.quantite}
                                 onChange={e => updateLigneQte(l.produitId, Number(e.target.value))}
                                 className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary-500" />
                               <span className="text-slate-400">=</span>
@@ -1272,7 +1272,7 @@ export default function VentesPage() {
                       {packLignes.map((ligne, idx) => {
                         const pr = produits.find(x => x.id === parseInt(ligne.produitId));
                         const stockDispo = pr ? Math.max(0, (pr.totalStock ?? pr.stock ?? 0) - (pr.quantiteReservee ?? 0)) : 0;
-                        const stockDepasse = !!pr && (parseInt(ligne.quantite) || 0) > stockDispo;
+                        const stockDepasse = !!pr && (parseFloat(ligne.quantite) || 0) > stockDispo;
                         return (
                           <div key={idx} className="grid grid-cols-[1fr_72px_88px_32px] gap-2 items-center">
                             <select
@@ -1291,7 +1291,7 @@ export default function VentesPage() {
                                 return <option key={p.id} value={p.id}>{p.nom} (dispo : {dispo})</option>;
                               })}
                             </select>
-                            <input type="number" min="1" max={stockDispo || undefined}
+                            <input type="number" step="0.25" min="0.25" max={stockDispo || undefined}
                               value={ligne.quantite}
                               onChange={e => setPackLignes(l => l.map((row, i) => i === idx ? { ...row, quantite: e.target.value } : row))}
                               placeholder="Qté"
@@ -1323,14 +1323,14 @@ export default function VentesPage() {
                     const mVerse = Number(sousc.montantVerse);
                     const mDejaLivre = Number(sousc.montantDejaLivre ?? 0);
                     const budgetDispo = Math.max(0, (mVerse > 0 ? mVerse : Number(sousc.montantTotal)) - mDejaLivre);
-                    const montantLignes = packLignes.reduce((sum, l) => sum + (parseInt(l.quantite) || 0) * (parseFloat(l.prixUnitaire) || 0), 0);
+                    const montantLignes = packLignes.reduce((sum, l) => sum + (parseFloat(l.quantite) || 0) * (parseFloat(l.prixUnitaire) || 0), 0);
                     const budgetDepasse = montantLignes > budgetDispo && budgetDispo > 0;
                     if (montantLignes === 0) return null;
                     return (
                       <div className="space-y-1.5">
                         <div className={`rounded-xl px-3 py-2.5 border text-sm flex items-center justify-between ${budgetDepasse ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
                           <span className="text-slate-600">
-                            Total livraison ({packLignes.filter(l => l.produitId && parseInt(l.quantite) > 0).length} ligne(s))
+                            Total livraison ({packLignes.filter(l => l.produitId && parseFloat(l.quantite) > 0).length} ligne(s))
                           </span>
                           <span className={`font-bold ${budgetDepasse ? 'text-red-600' : 'text-emerald-700'}`}>
                             {formatCurrency(montantLignes)}
@@ -1353,7 +1353,7 @@ export default function VentesPage() {
                       Retour
                     </button>
                     <button type="submit"
-                      disabled={adding || (packClientPdvs.length > 0 && !packSelectedPdvId) || packLignes.every(l => !l.produitId || !(parseInt(l.quantite) > 0))}
+                      disabled={adding || (packClientPdvs.length > 0 && !packSelectedPdvId) || packLignes.every(l => !l.produitId || !(parseFloat(l.quantite) > 0))}
                       className="flex-1 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-60 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
                       <Truck size={15} />
                       {adding ? 'Enregistrement…' : 'Planifier la livraison'}

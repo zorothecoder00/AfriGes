@@ -111,7 +111,7 @@ export default function NouveauBonSortie({ onClose, onCreated }: { onClose: () =
                       </div>
                     )}
                   </div>
-                  <input type="number" min="1" step="1" value={l.quantite} onChange={(e) => updateLigne(i, { quantite: e.target.value })} placeholder="Qté" className="w-20 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                  <input type="number" min="0.25" step="0.25" value={l.quantite} onChange={(e) => updateLigne(i, { quantite: e.target.value })} placeholder="Qté" className="w-20 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
                   {lignes.length > 1 && <button onClick={() => removeLigne(i)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>}
                 </div>
               ))}

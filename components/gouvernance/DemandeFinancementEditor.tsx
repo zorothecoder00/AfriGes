@@ -279,7 +279,7 @@ export function DemandeFinancementEditor({
                     <input placeholder="Produit" value={p.nom} disabled={disabled}
                       onChange={e => updClient(ci, { produits: (c.produits ?? []).map((x, j) => j === pi ? { ...x, nom: e.target.value } : x) })}
                       className="flex-1 border border-slate-200 rounded px-2 py-1 disabled:bg-slate-50 min-w-0" />
-                    <input type="number" placeholder="Qté" value={p.quantite} disabled={disabled}
+                    <input type="number" step="0.25" placeholder="Qté" value={p.quantite} disabled={disabled}
                       onChange={e => updClient(ci, { produits: (c.produits ?? []).map((x, j) => j === pi ? { ...x, quantite: Number(e.target.value) || 0 } : x) })}
                       className="w-16 border border-slate-200 rounded px-2 py-1 disabled:bg-slate-50" />
                     <input type="number" placeholder="Coût achat" value={p.coutAchat} disabled={disabled}

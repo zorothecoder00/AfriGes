@@ -527,7 +527,7 @@ function CreateDepotModal({ conventions, pdvs, onClose, onCreated }: { conventio
                   )}
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
-                  <input type="number" min="1" value={l.quantite} onChange={(e) => updateLigne(i, { quantite: e.target.value })} placeholder="Qté" className={`${inputCls} text-xs`} />
+                  <input type="number" step="0.25" min="0.25" value={l.quantite} onChange={(e) => updateLigne(i, { quantite: e.target.value })} placeholder="Qté" className={`${inputCls} text-xs`} />
                   <input type="number" min="0" value={l.prixVenteConvenu} onChange={(e) => updateLigne(i, { prixVenteConvenu: e.target.value })} placeholder="Prix vente (FCFA)" className={`${inputCls} text-xs`} />
                   <input type="date" value={l.dlc} onChange={(e) => updateLigne(i, { dlc: e.target.value })} className={`${inputCls} text-xs`} />
                 </div>
@@ -630,7 +630,7 @@ function DepotDetail({ id, onClose, onUpdated }: { id: number; onClose: () => vo
                       {d.statut === "EN_STOCK" && (
                         <td className="text-center px-3 py-2.5">
                           {(l.lotProduit?.quantite ?? 0) > 0 && (
-                            <input type="number" min="0" max={l.lotProduit?.quantite ?? 0} value={reprises[l.id] ?? ""}
+                            <input type="number" step="0.25" min="0" max={l.lotProduit?.quantite ?? 0} value={reprises[l.id] ?? ""}
                               onChange={(e) => setReprises((r) => ({ ...r, [l.id]: e.target.value }))}
                               className="w-16 px-2 py-1 border border-slate-200 rounded text-xs text-center" />
                           )}

@@ -244,7 +244,7 @@ function CommandeDetail({ id, onClose, onUpdated }: { id: number; onClose: () =>
                         <td className="text-center px-3 py-2.5 text-slate-500">{l.quantiteDemandee} {l.produit.unite ?? ""}</td>
                         <td className="text-center px-3 py-2.5">
                           {c.statut === "SOUMISE" ? (
-                            <input type="number" min="0" value={getQte(l)}
+                            <input type="number" step="0.25" min="0" value={getQte(l)}
                               onChange={(e) => setQuantites((p) => ({ ...p, [l.id]: e.target.value }))}
                               className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                           ) : (

@@ -116,7 +116,7 @@ export default function LotsProduit({ produitId }: { produitId: number }) {
             <option value="">Site / dépôt *</option>
             {pdvs.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
           </select>
-          <input type="number" min={1} value={form.quantiteInitiale} onChange={(e) => setForm({ ...form, quantiteInitiale: e.target.value })} placeholder="Quantité *" className={field} />
+          <input type="number" step="0.25" min="0.25" value={form.quantiteInitiale} onChange={(e) => setForm({ ...form, quantiteInitiale: e.target.value })} placeholder="Quantité *" className={field} />
           <label className="text-xs text-gray-500">DLC (péremption)<input type="date" value={form.dlc} onChange={(e) => setForm({ ...form, dlc: e.target.value })} className={field} /></label>
           <label className="text-xs text-gray-500">DLUO (qualité)<input type="date" value={form.dluo} onChange={(e) => setForm({ ...form, dluo: e.target.value })} className={field} /></label>
           <input type="number" min={0} value={form.prixAchat} onChange={(e) => setForm({ ...form, prixAchat: e.target.value })} placeholder="Prix d'achat" className={field} />
@@ -162,7 +162,7 @@ export default function LotsProduit({ produitId }: { produitId: number }) {
                   <td className="px-4 py-2.5 text-xs text-gray-500">{l.pointDeVente.nom}</td>
                   <td className="px-4 py-2.5 text-right">
                     {editId === l.id ? (
-                      <input type="number" min={0} defaultValue={l.quantite} className="w-20 px-2 py-1 border border-slate-200 rounded text-sm text-right"
+                      <input type="number" step="0.25" min={0} defaultValue={l.quantite} className="w-20 px-2 py-1 border border-slate-200 rounded text-sm text-right"
                         onKeyDown={(e) => { if (e.key === "Enter") ajuster(l, { quantite: Number((e.target as HTMLInputElement).value) }); }}
                         id={`qte-${l.id}`} />
                     ) : (

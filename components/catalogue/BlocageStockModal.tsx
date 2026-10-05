@@ -84,7 +84,7 @@ export default function BlocageStockModal({ stock, onClose, onDone }: {
 
           <label className="block">
             <span className="block text-xs font-medium text-slate-600 mb-1">Quantité (max {plafond})</span>
-            <input type="number" min="1" max={plafond} value={quantite} onChange={(e) => setQuantite(e.target.value)}
+            <input type="number" step="0.25" min="0.25" max={plafond} value={quantite} onChange={(e) => setQuantite(e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </label>
 

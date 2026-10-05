@@ -233,7 +233,7 @@ function CreateDemandeModal({ onClose, onCreated }: { onClose: () => void; onCre
                   <input type="text" value={l.justification} onChange={(e) => updateLigne(i, { justification: e.target.value })}
                     placeholder="Justification (optionnel)" className={`${inputCls} text-xs`} />
                 </div>
-                <input type="number" min="1" value={l.quantite} onChange={(e) => updateLigne(i, { quantite: e.target.value })}
+                <input type="number" step="0.25" min="0.25" value={l.quantite} onChange={(e) => updateLigne(i, { quantite: e.target.value })}
                   placeholder="Qté" className="w-20 px-2 py-2 border border-slate-200 rounded-lg text-sm text-center" />
                 {lignes.length > 1 && (
                   <button onClick={() => setLignes((ls) => ls.filter((_, j) => j !== i))} className="p-2 text-slate-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>

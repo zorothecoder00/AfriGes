@@ -670,19 +670,19 @@ export default function AdminApprovisionnementsPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <div>
                         <label className="block text-xs text-slate-500 mb-1">Qté reçue (bon état)</label>
-                        <input type="number" min={0} value={v.quantiteRecue}
+                        <input type="number" step="0.25" min={0} value={v.quantiteRecue}
                           onChange={(e) => setLignesRecues((prev) => ({ ...prev, [l.id]: { ...v, quantiteRecue: e.target.value } }))}
                           className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm" />
                       </div>
                       <div>
                         <label className="block text-xs text-slate-500 mb-1">Qté refusée</label>
-                        <input type="number" min={0} value={v.quantiteRefusee}
+                        <input type="number" step="0.25" min={0} value={v.quantiteRefusee}
                           onChange={(e) => setLignesRecues((prev) => ({ ...prev, [l.id]: { ...v, quantiteRefusee: e.target.value } }))}
                           className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm" />
                       </div>
                       <div>
                         <label className="block text-xs text-slate-500 mb-1">Qté endommagée</label>
-                        <input type="number" min={0} value={v.quantiteEndommagee}
+                        <input type="number" step="0.25" min={0} value={v.quantiteEndommagee}
                           onChange={(e) => setLignesRecues((prev) => ({ ...prev, [l.id]: { ...v, quantiteEndommagee: e.target.value } }))}
                           className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm" />
                       </div>
@@ -838,7 +838,7 @@ function FormCreerReception({ onClose, onDone }: { onClose: () => void; onDone: 
           {lignes.map((l) => (
             <div key={l.produit.id} className="flex items-center gap-2 p-2 border border-slate-100 rounded-lg">
               <span className="text-sm flex-1">{l.produit.nom}</span>
-              <input type="number" min={1} value={l.quantite} onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, quantite: e.target.value } : x))} className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Qté" />
+              <input type="number" step="0.25" min="0.25" value={l.quantite} onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, quantite: e.target.value } : x))} className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Qté" />
               <input type="number" min={0} value={l.prixUnitaire} onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, prixUnitaire: e.target.value } : x))} className="w-28 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Prix achat" />
               <button onClick={() => setLignes((prev) => prev.filter((x) => x.produit.id !== l.produit.id))}><X size={14} className="text-slate-400" /></button>
             </div>

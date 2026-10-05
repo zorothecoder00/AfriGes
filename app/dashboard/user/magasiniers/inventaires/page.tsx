@@ -229,7 +229,7 @@ function DetailInventaire({ id, onBack }: { id: number; onBack: () => void }) {
   const nbEcarts = lignesCalc.filter(l => (l.ecartCalc ?? 0) !== 0).length;
   const nbZeroSuspects = lignesCalc.filter(l => l.qteSaisie === 0 && l.quantiteSysteme > 0).length;
   const valeurEcart = lignesCalc.reduce((acc, l) => acc + (l.ecartCalc ?? 0) * Number(l.produit.prixAchat ?? l.produit.prixUnitaire), 0);
-  const invalide = lignesCalc.some(l => l.qteSaisie === null || !Number.isInteger(l.qteSaisie) || l.qteSaisie < 0);
+  const invalide = lignesCalc.some(l => l.qteSaisie === null || !Number.isFinite(l.qteSaisie) || l.qteSaisie < 0);
 
   async function patch(body: Record<string, unknown>) {
     const r = await fetch(`/api/magasinier/inventaires/${id}`, {

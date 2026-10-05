@@ -127,7 +127,7 @@ export default function LivraisonConfirmationPage() {
                 <div key={l.produitId} className="flex items-center justify-between gap-2 text-sm">
                   <span className="flex-1 truncate">{l.produitNom}</span>
                   <span className="text-xs text-slate-400">commandé {l.quantiteCommandee}</span>
-                  <input type="number" min="0" max={l.quantiteCommandee} value={quantites[l.produitId] ?? ""}
+                  <input type="number" step="0.25" min="0" max={l.quantiteCommandee} value={quantites[l.produitId] ?? ""}
                     onChange={(e) => setQuantites((prev) => ({ ...prev, [l.produitId]: e.target.value }))}
                     className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center" />
                 </div>

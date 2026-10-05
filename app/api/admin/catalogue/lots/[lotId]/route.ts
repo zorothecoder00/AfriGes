@@ -36,7 +36,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
   // Ajustement de quantité (nouvelle quantité absolue).
   const nouvelleQte = body.quantite != null && body.quantite !== "" ? Number(body.quantite) : undefined;
-  if (nouvelleQte !== undefined && (!Number.isInteger(nouvelleQte) || nouvelleQte < 0)) {
+  if (nouvelleQte !== undefined && (!Number.isFinite(nouvelleQte) || nouvelleQte < 0)) {
     return NextResponse.json({ message: "Quantité invalide" }, { status: 400 });
   }
 

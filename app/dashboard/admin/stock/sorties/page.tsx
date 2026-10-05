@@ -225,7 +225,7 @@ function ExecutionBonSortie({ bon, onClose, onConfirm }: {
             return (
               <div key={l.id} className="flex items-center justify-between gap-3">
                 <span className="text-sm text-slate-700 flex-1">{l.produit.nom} <span className="text-xs text-slate-400">(demandé : {max})</span></span>
-                <input type="number" min={0} max={max} step={1} value={quantites[l.id] ?? ""}
+                <input type="number" min={0} max={max} step="0.25" value={quantites[l.id] ?? ""}
                   onChange={(e) => setQuantites((prev) => ({ ...prev, [l.id]: e.target.value }))}
                   className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center" />
               </div>
@@ -430,10 +430,10 @@ function FormBonSortie({ pdvs, onClose, onDone }: { pdvs: PDV[]; onClose: () => 
               {lignes.map((l) => (
                 <div key={l.produit.id} className="flex items-center gap-2 p-2 border border-slate-100 rounded-lg">
                   <span className="text-sm flex-1">{l.produit.nom}</span>
-                  <input type="number" min={1} value={l.quantite}
+                  <input type="number" step="0.25" min="0.25" value={l.quantite}
                     onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, quantite: e.target.value } : x))}
                     className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Qté sortie" />
-                  <input type="number" min={0} value={l.quantiteDemandee}
+                  <input type="number" step="0.25" min={0} value={l.quantiteDemandee}
                     onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, quantiteDemandee: e.target.value } : x))}
                     className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Qté demandée" title="Si différente de la quantité sortie" />
                   <button onClick={() => retirerLigne(l.produit.id)}><X size={14} className="text-slate-400" /></button>

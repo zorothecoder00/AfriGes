@@ -1351,12 +1351,12 @@ function ModalNouvelleSouscription({
     for (const id of checkedIds) {
       const item = produitsDispoModal.find(p => p.produit.id === id);
       if (!item) continue;
-      const qte = parseInt(quantities[id] || "1");
+      const qte = parseFloat(quantities[id] || "1");
       if (qte > 0) lignes.push({ produitId: id, produitNomSaisi: item.produit.nom, quantite: qte });
     }
     for (const p of newProds) {
-      if (p.nom.trim() && parseInt(p.quantite) > 0)
-        lignes.push({ produitNomSaisi: p.nom.trim(), quantite: parseInt(p.quantite) });
+      if (p.nom.trim() && parseFloat(p.quantite) > 0)
+        lignes.push({ produitNomSaisi: p.nom.trim(), quantite: parseFloat(p.quantite) });
     }
     if (lignes.length > 0) {
       setSavingLignes(true);
@@ -1615,7 +1615,7 @@ function ModalNouvelleSouscription({
                           {item.produit.unite && <span className="text-xs text-slate-400">{item.produit.unite}</span>}
                           {item.quantite > 0 && <span className="text-xs text-slate-400">stock : {item.quantite}</span>}
                           {checked && (
-                            <input type="number" min="1"
+                            <input type="number" step="0.25" min="0.25"
                               value={quantities[item.produit.id] ?? "1"}
                               onChange={e => setQuantities(q => ({ ...q, [item.produit.id]: e.target.value }))}
                               onClick={e => e.preventDefault()}
@@ -1644,7 +1644,7 @@ function ModalNouvelleSouscription({
                     <input type="text" placeholder="Nom du produit" value={p.nom}
                       onChange={e => setNewProds(arr => arr.map((x, j) => j === i ? { ...x, nom: e.target.value } : x))}
                       className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
-                    <input type="number" min="1" value={p.quantite}
+                    <input type="number" step="0.25" min="0.25" value={p.quantite}
                       onChange={e => setNewProds(arr => arr.map((x, j) => j === i ? { ...x, quantite: e.target.value } : x))}
                       className="w-20 border border-slate-200 rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-400" />
                     <button type="button" onClick={() => setNewProds(arr => arr.filter((_, j) => j !== i))}
@@ -3163,7 +3163,7 @@ export default function AgentTerrainPage() {
                                 </option>
                               ))}
                             </select>
-                            <input type="number" min="1" max={produitSel?.quantite} placeholder="Qté"
+                            <input type="number" step="0.25" min="0.25" max={produitSel?.quantite} placeholder="Qté"
                               value={l.quantite} onChange={e => setVLignes(prev => prev.map((x, j) => j === i ? { ...x, quantite: e.target.value } : x))}
                               className="w-20 px-2 py-2.5 border border-slate-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-teal-500" />
                             {produitSel && (

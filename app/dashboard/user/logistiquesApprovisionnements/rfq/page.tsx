@@ -222,7 +222,7 @@ function CreateRFQModal({ onClose, onCreated, prefill }: {
             )}
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Quantité *"><input type="number" min="1" value={quantite} onChange={(e) => setQuantite(e.target.value)} className={inputCls} /></Field>
+            <Field label="Quantité *"><input type="number" step="0.25" min="0.25" value={quantite} onChange={(e) => setQuantite(e.target.value)} className={inputCls} /></Field>
             <Field label="Date limite de réponse"><input type="date" value={dateLimiteReponse} onChange={(e) => setDateLimiteReponse(e.target.value)} className={inputCls} /></Field>
           </div>
           <Field label="Notes"><textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className={`${inputCls} resize-y`} /></Field>

@@ -77,7 +77,7 @@ export async function POST(req: Request) {
     for (const l of lignesBrutes as { produitId: unknown; quantite: unknown }[]) {
       const produitId = Number(l.produitId);
       const quantite = Number(l.quantite);
-      if (!Number.isInteger(produitId) || produitId <= 0 || !Number.isInteger(quantite) || quantite <= 0) {
+      if (!Number.isInteger(produitId) || produitId <= 0 || !Number.isFinite(quantite) || quantite <= 0) {
         return NextResponse.json({ error: "Chaque ligne doit avoir un produit et une quantité entière positive" }, { status: 400 });
       }
       parProduit.set(produitId, (parProduit.get(produitId) ?? 0) + quantite);

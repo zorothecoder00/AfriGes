@@ -269,7 +269,7 @@ function CreateModal({ onClose, onCreated, prefill }: {
                       </>
                     )}
                   </div>
-                  <input type="number" min="1" placeholder="Qté" value={l.quantite} onChange={(e) => updateLigne(idx, { quantite: e.target.value })} className={`${inputBase} w-20 flex-shrink-0`} />
+                  <input type="number" step="0.25" min="0.25" placeholder="Qté" value={l.quantite} onChange={(e) => updateLigne(idx, { quantite: e.target.value })} className={`${inputBase} w-20 flex-shrink-0`} />
                   <input type="number" min="0" placeholder="P.U." value={l.prixUnitaire} onChange={(e) => updateLigne(idx, { prixUnitaire: e.target.value })} className={`${inputBase} w-28 flex-shrink-0`} />
                   {lignes.length > 1 && (
                     <button onClick={() => removeLigne(idx)} className="text-slate-300 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>

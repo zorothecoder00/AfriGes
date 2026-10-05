@@ -660,7 +660,7 @@ function FormRetour({ reclamationId, onClose, onDone }: { reclamationId: number;
       </div>
       <div>
         <label className="block text-xs font-medium text-slate-500 mb-1">Quantité retournée</label>
-        <input type="number" min={1} value={quantite} onChange={(e) => setQuantite(e.target.value)} className={inputCls} placeholder="Quantité" />
+        <input type="number" step="0.25" min="0.25" value={quantite} onChange={(e) => setQuantite(e.target.value)} className={inputCls} placeholder="Quantité" />
       </div>
       <div>
         <label className="block text-xs font-medium text-slate-500 mb-1">État constaté (optionnel)</label>
@@ -702,7 +702,7 @@ function FormRemplacement({ reclamationId, onClose, onDone }: { reclamationId: n
       <ProduitPicker produit={produitRemplacement} setProduit={setProduitRemplacement} search={searchNouveau} />
       <div>
         <label className="block text-xs font-medium text-slate-500 mb-1">Quantité à remplacer</label>
-        <input type="number" min={1} value={quantite} onChange={(e) => setQuantite(e.target.value)} className={inputCls} placeholder="Quantité" />
+        <input type="number" step="0.25" min="0.25" value={quantite} onChange={(e) => setQuantite(e.target.value)} className={inputCls} placeholder="Quantité" />
       </div>
     </MiniModal>
   );

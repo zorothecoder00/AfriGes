@@ -72,7 +72,7 @@ export async function POST(req: Request, { params }: Ctx) {
       const l = await tx.lotProduit.create({
         data: {
           numeroLot, produitId, pointDeVenteId,
-          quantiteInitiale: Math.round(quantiteInitiale), quantite: Math.round(quantiteInitiale),
+          quantiteInitiale, quantite: quantiteInitiale,
           dlc, dluo, prixAchat: prixAchat != null ? new Prisma.Decimal(prixAchat) : null,
           fournisseurId, notes: typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null,
           creeParId: userId,

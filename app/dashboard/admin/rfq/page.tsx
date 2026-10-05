@@ -286,7 +286,7 @@ function FormRfq({ onClose, onDone }: { onClose: () => void; onDone: () => void 
             )}
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs font-medium text-slate-500 mb-1 block">Quantité *</label><input type="number" min={1} value={quantite} onChange={(e) => setQuantite(e.target.value)} className={inputCls} /></div>
+            <div><label className="text-xs font-medium text-slate-500 mb-1 block">Quantité *</label><input type="number" step="0.25" min="0.25" value={quantite} onChange={(e) => setQuantite(e.target.value)} className={inputCls} /></div>
             <div><label className="text-xs font-medium text-slate-500 mb-1 block">Date limite de réponse</label><input type="date" value={dateLimiteReponse} onChange={(e) => setDateLimiteReponse(e.target.value)} className={inputCls} /></div>
           </div>
           <div>

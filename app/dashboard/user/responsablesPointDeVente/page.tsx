@@ -1183,7 +1183,7 @@ function ResponsablePDVPageInner() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Quantité *</label>
-                <input required type="number" min={mvtType === "AJUSTEMENT" ? undefined : "1"} value={mvtQte} onChange={(e) => setMvtQte(e.target.value)}
+                <input required type="number" step="0.25" min={mvtType === "AJUSTEMENT" ? undefined : "1"} value={mvtQte} onChange={(e) => setMvtQte(e.target.value)}
                   className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
                   placeholder={mvtType === "AJUSTEMENT" ? "Négatif pour réduire" : "Ex : 10"} />
               </div>
@@ -1269,7 +1269,7 @@ function ResponsablePDVPageInner() {
                         <option value="">— Produit —</option>
                         {produits.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
                       </select>
-                      <input type="number" min="1" placeholder="Qté"
+                      <input type="number" step="0.25" min="0.25" placeholder="Qté"
                         value={lg.quantitePrevue}
                         onChange={(e) => setLivLignes(livLignes.map((x, j) => j === i ? { ...x, quantitePrevue: e.target.value } : x))}
                         className="w-20 px-2 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50" />
@@ -1547,7 +1547,7 @@ function ResponsablePDVPageInner() {
                                 return <option key={p.id} value={p.id}>{p.nom} ({parts.join(' · ')})</option>;
                               })}
                             </select>
-                            <input type="number" min="1"
+                            <input type="number" step="0.25" min="0.25"
                               max={produitSelec ? Math.max(0, (produitSelec.totalStock ?? produitSelec.stock ?? 0) - (produitSelec.quantiteReservee ?? 0)) : undefined}
                               value={ligne.quantite}
                               onChange={(e) => setPlanifLignes((ls) => ls.map((l, i) => i === idx ? { ...l, quantite: e.target.value } : l))}
@@ -1741,7 +1741,7 @@ function ResponsablePDVPageInner() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Quantité souhaitée *</label>
-                  <input required type="number" min="1" value={rQte} onChange={(e) => setRQte(e.target.value)}
+                  <input required type="number" step="0.25" min="0.25" value={rQte} onChange={(e) => setRQte(e.target.value)}
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50" />
                 </div>
                 <div>
@@ -1806,7 +1806,7 @@ function ResponsablePDVPageInner() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Quantité concernée *</label>
-                <input required type="number" min="1" value={anoQte} onChange={(e) => setAnoQte(e.target.value)}
+                <input required type="number" step="0.25" min="0.25" value={anoQte} onChange={(e) => setAnoQte(e.target.value)}
                   className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50" />
               </div>
               <div>
@@ -3935,7 +3935,7 @@ function NouvelleDemandeReapproModal({ onClose, onCreated }: { onClose: () => vo
               {lignes.map((l) => (
                 <div key={l.produitId} className="flex items-center gap-2 px-3 py-2">
                   <span className="flex-1 text-sm text-slate-700">{l.nom}</span>
-                  <input type="number" min="1" value={l.quantite} onChange={(e) => setQuantite(l.produitId, e.target.value)}
+                  <input type="number" step="0.25" min="0.25" value={l.quantite} onChange={(e) => setQuantite(l.produitId, e.target.value)}
                     className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
                   <button onClick={() => removeProduit(l.produitId)} className="p-1 text-slate-400 hover:text-red-500"><X className="w-4 h-4" /></button>
                 </div>
@@ -4110,7 +4110,7 @@ function NouvelleDemandeTransfertModal({ onClose, onCreated }: { onClose: () => 
               {lignes.map((l) => (
                 <div key={l.produitId} className="flex items-center gap-2 px-3 py-2">
                   <span className="flex-1 text-sm text-slate-700">{l.nom}</span>
-                  <input type="number" min="1" value={l.quantite} onChange={(e) => setQuantite(l.produitId, e.target.value)}
+                  <input type="number" step="0.25" min="0.25" value={l.quantite} onChange={(e) => setQuantite(l.produitId, e.target.value)}
                     className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                   <button onClick={() => removeProduit(l.produitId)} className="p-1 text-slate-400 hover:text-red-500"><X className="w-4 h-4" /></button>
                 </div>

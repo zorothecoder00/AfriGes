@@ -147,7 +147,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         if (!saisies.has(l.id)) continue;
         const q = saisies.get(l.id)!;
         const max = l.quantiteDemandee ?? l.quantite;
-        if (!Number.isInteger(q) || q < 0 || q > max) {
+        if (!Number.isFinite(q) || q < 0 || q > max) {
           return NextResponse.json({ error: `Quantité invalide pour une ligne : entre 0 et ${max} (quantité demandée)` }, { status: 400 });
         }
         if (l.quantiteDemandee == null) l.quantiteDemandee = l.quantite;

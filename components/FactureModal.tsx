@@ -1305,7 +1305,7 @@ export default function FactureModal({
                       className="col-span-1 sm:col-span-2 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-300"
                     />
                     <input
-                      type="number" min="1"
+                      type="number" step="0.25" min="0.25"
                       value={l.quantite}
                       onChange={e => updatePfLigne(i, "quantite", e.target.value)}
                       placeholder="Qté"

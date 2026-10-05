@@ -105,7 +105,7 @@ export async function POST(req: Request) {
     }
 
     const qty = Number(quantite);
-    if (!Number.isInteger(qty) || qty <= 0) {
+    if (!Number.isFinite(qty) || qty <= 0) {
       return NextResponse.json({ error: "La quantité doit être un entier positif" }, { status: 400 });
     }
 

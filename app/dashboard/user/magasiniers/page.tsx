@@ -1369,17 +1369,17 @@ export default function MagasinierPage() {
                                   <td className="px-3 py-2.5 font-medium text-slate-800">{lg.produit.nom}</td>
                                   <td className="text-center px-3 py-2.5 text-slate-500">{lg.quantiteAttendue}</td>
                                   <td className="px-2 py-2 text-center">
-                                    <input type="number" min="0" value={c?.quantiteRecue ?? String(lg.quantiteAttendue)}
+                                    <input type="number" step="0.25" min="0" value={c?.quantiteRecue ?? String(lg.quantiteAttendue)}
                                       onChange={e => setValiderLignes(prev => ({ ...prev, [lg.id]: { ...prev[lg.id], quantiteRecue: e.target.value } }))}
                                       className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                                   </td>
                                   <td className="px-2 py-2 text-center">
-                                    <input type="number" min="0" value={c?.quantiteRefusee ?? '0'}
+                                    <input type="number" step="0.25" min="0" value={c?.quantiteRefusee ?? '0'}
                                       onChange={e => setValiderLignes(prev => ({ ...prev, [lg.id]: { ...prev[lg.id], quantiteRefusee: e.target.value } }))}
                                       className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
                                   </td>
                                   <td className="px-2 py-2 text-center">
-                                    <input type="number" min="0" value={c?.quantiteEndommagee ?? '0'}
+                                    <input type="number" step="0.25" min="0" value={c?.quantiteEndommagee ?? '0'}
                                       onChange={e => setValiderLignes(prev => ({ ...prev, [lg.id]: { ...prev[lg.id], quantiteEndommagee: e.target.value } }))}
                                       className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                                   </td>
@@ -2096,7 +2096,7 @@ export default function MagasinierPage() {
                     Quantite {recType === 'AJUSTEMENT' && <span className="text-xs text-slate-500">(negatif pour diminuer)</span>}
                   </label>
                   <input
-                    type="number"
+                    type="number" step="0.25"
                     value={recQuantite}
                     onChange={(e) => setRecQuantite(e.target.value)}
                     min={recType === 'ENTREE' ? 1 : undefined}
@@ -2328,7 +2328,7 @@ export default function MagasinierPage() {
                           <option value="">Sélectionner un produit</option>
                           {produits.map(p => <option key={p.id} value={p.id}>{p.nom} (stock: {p.stock})</option>)}
                         </select>
-                        <input type="number" min="1" value={ligne.quantite} onChange={e => { const n = [...bsLignes]; n[i].quantite = e.target.value; setBsLignes(n); }} placeholder="Qté" className="w-24 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 text-sm" />
+                        <input type="number" step="0.25" min="0.25" value={ligne.quantite} onChange={e => { const n = [...bsLignes]; n[i].quantite = e.target.value; setBsLignes(n); }} placeholder="Qté" className="w-24 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 text-sm" />
                         {bsLignes.length > 1 && (
                           <button onClick={() => setBsLignes(bsLignes.filter((_, j) => j !== i))} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
                         )}
@@ -2451,7 +2451,7 @@ export default function MagasinierPage() {
                               <div key={l.id} className="flex items-center justify-between gap-3">
                                 <span className="text-xs text-slate-600 flex-1">{l.produit.nom} <span className="text-slate-400">(demandé : {l.quantiteDemandee})</span></span>
                                 <input
-                                  type="number" min={0} max={l.quantiteDemandee}
+                                  type="number" step="0.25" min={0} max={l.quantiteDemandee}
                                   value={prepQuantites[l.id] ?? String(l.quantitePreparee)}
                                   onChange={e => setPrepQuantites(prev => ({ ...prev, [l.id]: e.target.value }))}
                                   className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center bg-white"
@@ -2487,7 +2487,7 @@ export default function MagasinierPage() {
                                 <div key={l.id} className="flex items-center justify-between gap-3">
                                   <span className="text-xs text-slate-600 flex-1">{l.produit.nom} <span className="text-slate-400">(demandé : {max})</span></span>
                                   <input
-                                    type="number" min={0} max={max} step={1}
+                                    type="number" min={0} max={max} step="0.25"
                                     value={execQuantites[l.id] ?? String(l.quantite)}
                                     onChange={e => setExecQuantites(prev => ({ ...prev, [l.id]: e.target.value }))}
                                     className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center bg-white"
@@ -2588,7 +2588,7 @@ export default function MagasinierPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Quantité concernée</label>
-                    <input type="number" min="1" value={anomalieQuantite} onChange={e => setAnomalieQuantite(e.target.value)} placeholder="Ex: 5" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50" />
+                    <input type="number" step="0.25" min="0.25" value={anomalieQuantite} onChange={e => setAnomalieQuantite(e.target.value)} placeholder="Ex: 5" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Description détaillée</label>
@@ -3056,7 +3056,7 @@ export default function MagasinierPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Quantite</label>
                 <input
-                  type="number"
+                  type="number" step="0.25"
                   value={ajustementQuantite}
                   onChange={(e) => setAjustementQuantite(e.target.value)}
                   min={ajustementType === 'ENTREE' ? 1 : undefined}
@@ -3331,7 +3331,7 @@ function NouvelleDemandeReapproModalMag({ onClose, onCreated }: { onClose: () =>
               {lignes.map((l) => (
                 <div key={l.produitId} className="flex items-center gap-2 px-3 py-2">
                   <span className="flex-1 text-sm text-slate-700">{l.nom}</span>
-                  <input type="number" min="1" value={l.quantite} onChange={(e) => setQuantite(l.produitId, e.target.value)}
+                  <input type="number" step="0.25" min="0.25" value={l.quantite} onChange={(e) => setQuantite(l.produitId, e.target.value)}
                     className="w-20 px-2 py-1 border border-slate-200 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
                   <button onClick={() => removeProduit(l.produitId)} className="p-1 text-slate-400 hover:text-red-500"><X className="w-4 h-4" /></button>
                 </div>

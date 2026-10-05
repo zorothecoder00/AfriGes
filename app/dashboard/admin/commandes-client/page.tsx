@@ -236,7 +236,7 @@ function FormAjuster({ commande, onClose, onDone }: { commande: Commande; onClos
             <div key={i} className={`rounded-lg ${l.produitId ? "" : "border border-amber-200 bg-amber-50/50 p-2"}`}>
               <div className="flex items-center gap-2">
                 <span className="text-sm flex-1 truncate">{l.nom}</span>
-                <input type="number" min={1} value={l.quantite} onChange={(e) => maj(i, { quantite: e.target.value })} className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" title="Quantité" />
+                <input type="number" step="0.25" min="0.25" value={l.quantite} onChange={(e) => maj(i, { quantite: e.target.value })} className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" title="Quantité" />
                 <input type="number" min={0} max={100} value={l.remisePourcent} onChange={(e) => maj(i, { remisePourcent: e.target.value })} className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" title="Remise %" />
                 {lignes.length > 1 && <button onClick={() => setLignes((prev) => prev.filter((_, k) => k !== i))} title="Retirer la ligne"><X size={14} className="text-slate-400 hover:text-red-500" /></button>}
               </div>
@@ -394,7 +394,7 @@ function FormCommande({ onClose, onDone }: { onClose: () => void; onDone: () => 
           {lignes.map((l) => (
             <div key={l.produit.id} className="flex items-center gap-2 p-2 border border-slate-100 rounded-lg">
               <span className="text-sm flex-1">{l.produit.nom}</span>
-              <input type="number" min={1} value={l.quantite} onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, quantite: e.target.value } : x))} className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Qté" />
+              <input type="number" step="0.25" min="0.25" value={l.quantite} onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, quantite: e.target.value } : x))} className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Qté" />
               <input type="number" min={0} max={100} value={l.remisePourcent} onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, remisePourcent: e.target.value } : x))} className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Remise %" />
               <button onClick={() => setLignes((prev) => prev.filter((x) => x.produit.id !== l.produit.id))}><X size={14} className="text-slate-400" /></button>
             </div>

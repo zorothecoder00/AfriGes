@@ -2173,9 +2173,9 @@ export default function RVCCreditsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Quantité *</label>
-                  <input type="number" value={ligneEditQuantite}
+                  <input type="number" step="0.25" value={ligneEditQuantite}
                     onChange={(e) => setLigneEditQuantite(e.target.value)}
-                    min={1} placeholder="1"
+                    min="0.25" placeholder="1"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50"
                   />
                 </div>

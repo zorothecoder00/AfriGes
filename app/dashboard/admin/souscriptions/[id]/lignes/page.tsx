@@ -214,7 +214,7 @@ function AddLigneForm({
 
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Quantité <span className="text-red-500">*</span></label>
-                <input type="number" min="1" value={ligne.quantite}
+                <input type="number" step="0.25" min="0.25" value={ligne.quantite}
                   onChange={e => updateField(idx, "quantite", e.target.value)}
                   placeholder="0"
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-300 outline-none" />

@@ -90,7 +90,7 @@ export default function TransfererProduitModal({ produitId, produitNom, origineP
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Quantité *</label>
-            <input type="number" required min="1" placeholder="Qté" value={quantite}
+            <input type="number" step="0.25" required min="0.25" placeholder="Qté" value={quantite}
               onChange={(e) => setQuantite(e.target.value)}
               className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm" />
           </div>

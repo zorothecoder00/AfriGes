@@ -68,7 +68,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       for (const li of lignesInput) {
         const ligne = bp.lignes.find((l) => l.id === Number(li.id));
         if (!ligne) continue;
-        const q = Math.max(0, Math.min(ligne.quantiteDemandee, Math.round(Number(li.quantitePreparee) || 0)));
+        const q = Math.max(0, Math.min(ligne.quantiteDemandee, Number(li.quantitePreparee) || 0));
         await tx.ligneBonPreparation.update({ where: { id: ligne.id }, data: { quantitePreparee: q } });
       }
 

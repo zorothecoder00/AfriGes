@@ -2159,12 +2159,12 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
     for (const id of checkedIds) {
       const prod = produitsStep3.find(p => p.id === id);
       if (!prod) continue;
-      const qte = parseInt(quantities[id] || "1");
+      const qte = parseFloat(quantities[id] || "1");
       if (qte > 0) lignes.push({ produitId: id, produitNomSaisi: prod.nom, quantite: qte });
     }
     for (const p of newProds) {
-      if (p.nom.trim() && parseInt(p.quantite) > 0) {
-        lignes.push({ produitNomSaisi: p.nom.trim(), quantite: parseInt(p.quantite) });
+      if (p.nom.trim() && parseFloat(p.quantite) > 0) {
+        lignes.push({ produitNomSaisi: p.nom.trim(), quantite: parseFloat(p.quantite) });
       }
     }
 
@@ -2465,7 +2465,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
                         {prod.unite && <span className="text-xs text-slate-400">{prod.unite}</span>}
                         {prod.stock > 0 && <span className="text-xs text-slate-400">stock : {prod.stock}</span>}
                         {checked && (
-                          <input type="number" min="1"
+                          <input type="number" step="0.25" min="0.25"
                             value={quantities[prod.id] ?? "1"}
                             onChange={e => setQuantities(q => ({ ...q, [prod.id]: e.target.value }))}
                             onClick={e => e.preventDefault()}
@@ -2494,7 +2494,7 @@ function ModalNouvelleSouscription({ onClose, onSuccess }: { onClose: () => void
                   <input type="text" placeholder="Nom du produit" value={p.nom}
                     onChange={e => setNewProds(arr => arr.map((x, j) => j === i ? { ...x, nom: e.target.value } : x))}
                     className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
-                  <input type="number" min="1" value={p.quantite}
+                  <input type="number" step="0.25" min="0.25" value={p.quantite}
                     onChange={e => setNewProds(arr => arr.map((x, j) => j === i ? { ...x, quantite: e.target.value } : x))}
                     className="w-20 border border-slate-200 rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   <button type="button" onClick={() => setNewProds(arr => arr.filter((_, j) => j !== i))}
@@ -2717,7 +2717,7 @@ function ModalPlanifierLivraison({
   // Budget disponible = ce que le client a payé MOINS ce qui a déjà été livré
   const budgetDispo = Math.max(0, (montantVerse > 0 ? montantVerse : montantTotal) - montantDejaLivre);
   const montantLignes = lignes.reduce((sum, l) => {
-    const qte = parseInt(l.quantite) || 0;
+    const qte = parseFloat(l.quantite) || 0;
     const prix = parseFloat(l.prixUnitaire) || 0;
     return sum + qte * prix;
   }, 0);
@@ -2731,7 +2731,7 @@ function ModalPlanifierLivraison({
       .filter((l) => l.produitId && l.quantite)
       .map((l) => ({
         produitId: parseInt(l.produitId),
-        quantite: parseInt(l.quantite),
+        quantite: parseFloat(l.quantite),
         prixUnitaire: parseFloat(l.prixUnitaire),
       }));
 
@@ -2858,7 +2858,7 @@ function ModalPlanifierLivraison({
                 const prixAchat = prod?.prixAchat ? Number(prod.prixAchat) : null;
                 const prixRef = prod ? Number(prod.prixUnitaire) : null;
                 const prix = parseFloat(l.prixUnitaire) || 0;
-                const qte = parseInt(l.quantite) || 0;
+                const qte = parseFloat(l.quantite) || 0;
                 const marge = prixAchat != null && prix > 0 && qte > 0 ? (prix - prixAchat) * qte : null;
                 return (
                   <div key={i} className="space-y-1">
@@ -2883,7 +2883,7 @@ function ModalPlanifierLivraison({
                         </select>
                       </div>
                       <div className="w-20">
-                        <input type="number" min="1" max={prod ? Math.max(0, (prod.totalStock ?? prod.stock ?? 0) - (prod.quantiteReservee ?? 0)) : undefined}
+                        <input type="number" step="0.25" min="0.25" max={prod ? Math.max(0, (prod.totalStock ?? prod.stock ?? 0) - (prod.quantiteReservee ?? 0)) : undefined}
                           value={l.quantite} onChange={(e) => updateLigne(i, "quantite", e.target.value)}
                           placeholder="Qté" className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary-500" />
                       </div>

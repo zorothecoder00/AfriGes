@@ -710,7 +710,7 @@ export default function GestionStockPage() {
                             <option key={p.id} value={p.id}>{p.nom}</option>
                           ))}
                         </select>
-                        <input type="number" required min="1" placeholder="Qté"
+                        <input type="number" step="0.25" required min="0.25" placeholder="Qté"
                           value={ligne.quantite}
                           onChange={e => updateApproLigne(idx, 'quantite', e.target.value)}
                           className="w-24 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
@@ -847,7 +847,7 @@ export default function GestionStockPage() {
                             <option key={p.id} value={p.id}>{p.nom}</option>
                           ))}
                         </select>
-                        <input type="number" required min="1" placeholder="Qté" value={ligne.quantite}
+                        <input type="number" step="0.25" required min="0.25" placeholder="Qté" value={ligne.quantite}
                           onChange={e => updateLigne(idx, 'quantite', e.target.value)}
                           className="w-24 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm" />
                         {transferForm.lignes.length > 1 && (
@@ -1576,7 +1576,7 @@ function BlocageStockModal({ stock, onClose, onDone }: {
 
           <label className="block">
             <span className="block text-xs font-medium text-slate-600 mb-1">Quantité (max {plafond})</span>
-            <input type="number" min="1" max={plafond} value={quantite} onChange={(e) => setQuantite(e.target.value)}
+            <input type="number" step="0.25" min="0.25" max={plafond} value={quantite} onChange={(e) => setQuantite(e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </label>
 

@@ -65,7 +65,9 @@ export async function tariferLigne(
   ctx: ContexteVente = {},
   now: Date = new Date(),
 ): Promise<TarifLigne> {
-  const qte = Math.max(1, Math.floor(Number(quantite) || 0));
+  // Quantités fractionnées autorisées (½, ¼…) ; une saisie nulle/invalide vaut 1.
+  const q = Number(quantite) || 0;
+  const qte = q > 0 ? q : 1;
   const miroir = Number(produit.prixUnitaire ?? 0) || 0;
 
   // 1. Prix de base résolu depuis le catalogue (agence + profil), sinon miroir legacy.

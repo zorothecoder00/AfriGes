@@ -112,7 +112,7 @@ export default function ApprovisionnerProduitModal({ produitId, produitNom, poin
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Quantité *</label>
             <div className="flex items-center gap-2">
-              <input type="number" required min="1" placeholder="Qté" value={quantite}
+              <input type="number" step="0.25" required min="0.25" placeholder="Qté" value={quantite}
                 onChange={(e) => setQuantite(e.target.value)}
                 className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
               <button type="button" onClick={() => setTracabiliteOuverte((v) => !v)}

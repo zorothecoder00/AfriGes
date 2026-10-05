@@ -872,13 +872,13 @@ model User {
   reglementsDepotVenteDemandes ReglementDepotVente[]        @relation("ReglementDepotVenteDemandePar")
 
   // Caisse
-  sessionsCaisseOuvertes CaissePDV[]          @relation("CaissesPDVRPV")
-  sessionsCaisse         SessionCaisse[]      @relation("SessionsCaisseCaissier")
-  operationsCaisse       OperationCaisse[]    @relation("OperationsCaisse")
-  operationsCaissePDV    OperationCaissePDV[] @relation("OperationsCaissePDV")
+  sessionsCaisseOuvertes          CaissePDV[]          @relation("CaissesPDVRPV")
+  sessionsCaisse                  SessionCaisse[]      @relation("SessionsCaisseCaissier")
+  operationsCaisse                OperationCaisse[]    @relation("OperationsCaisse")
+  operationsCaissePDV             OperationCaissePDV[] @relation("OperationsCaissePDV")
   operationsCaisseBeneficiaire    OperationCaisse[]    @relation("OperationsCaisseBeneficiaire")
   operationsCaissePDVBeneficiaire OperationCaissePDV[] @relation("OperationsCaissePDVBeneficiaire")
-  transfertsCaisse       TransfertCaisse[]    @relation("TransfertsCaisse")
+  transfertsCaisse                TransfertCaisse[]    @relation("TransfertsCaisse")
 
   // Ventes directes
   ventesDirectes VenteDirecte[] @relation("VendeurVente")
@@ -2582,8 +2582,8 @@ model LotProduit {
   pointDeVenteId Int
   pointDeVente   PointDeVente @relation(fields: [pointDeVenteId], references: [id])
 
-  quantiteInitiale Int
-  quantite         Int       @default(0) // quantité restante dans le lot
+  quantiteInitiale Float
+  quantite         Float     @default(0) // quantité restante dans le lot
   dateFabrication  DateTime? // CDC §5 — date de fabrication (distincte de la DLC)
   dlc              DateTime? // date limite de consommation (péremption stricte)
   dluo             DateTime? // date de durabilité minimale (qualité optimale)
@@ -2619,7 +2619,7 @@ model MouvementLot {
   lotId       Int
   lot         LotProduit       @relation(fields: [lotId], references: [id], onDelete: Cascade)
   type        TypeMouvementLot
-  quantite    Int // valeur positive ; le sens dépend du type
+  quantite    Float // valeur positive ; le sens dépend du type
   motif       String?
   operateurId Int?
   operateur   User?            @relation("MouvementLotOperateur", fields: [operateurId], references: [id])
@@ -2692,10 +2692,10 @@ model StockSite {
   pointDeVenteId     Int
   quantite           Float @default(0) // 4.1 disponible — physiquement vendable (décimal : demi-quantités crédit)
   quantiteReservee   Float @default(0) // 4.2 réservé — engagé (ventes crédit en attente d'approbation)
-  quantiteEnTransit  Int   @default(0) // 4.3 en transit — commandé, non encore réceptionné
-  quantiteEndommagee Int   @default(0) // 4.4 endommagé — non vendable (perte/casse mis de côté)
-  quantiteBloquee    Int   @default(0) // CDC §11 — sous blocage qualité/litige, non vendable
-  quantiteConsignee  Int   @default(0) // CDC §11 — en dépôt-vente, propriété du fournisseur jusqu'à vente
+  quantiteEnTransit  Float @default(0) // 4.3 en transit — commandé, non encore réceptionné
+  quantiteEndommagee Float @default(0) // 4.4 endommagé — non vendable (perte/casse mis de côté)
+  quantiteBloquee    Float @default(0) // CDC §11 — sous blocage qualité/litige, non vendable
+  quantiteConsignee  Float @default(0) // CDC §11 — en dépôt-vente, propriété du fournisseur jusqu'à vente
   // 4.5 stockTheorique = quantite + quantiteReservee + quantiteEnTransit - quantiteEndommagee (calculé)
   alerteStock        Int? // seuil d'alerte spécifique au site (override global)
 
@@ -2724,7 +2724,7 @@ model MouvementStock {
   type           TypeMouvement
   typeEntree     TypeEntreeStock? // précision si type == ENTREE
   typeSortie     TypeSortieStock? // précision si type == SORTIE
-  quantite       Int
+  quantite       Float
   prixUnitaire   Decimal? // prix de vente au client (renseigné pour les sorties livraison pack)
   motif          String?
   reference      String           @unique
@@ -2853,10 +2853,10 @@ model LigneReceptionAppro {
   id                 Int      @id @default(autoincrement())
   receptionId        Int
   produitId          Int
-  quantiteAttendue   Int
-  quantiteRecue      Int?
-  quantiteRefusee    Int?     @default(0) // CDC §10 — refusé/retourné au fournisseur, n'entre jamais en stock
-  quantiteEndommagee Int?     @default(0) // CDC §10 — abîmé mais conservé, entre en stock côté StockSite.quantiteEndommagee (non vendable)
+  quantiteAttendue   Float
+  quantiteRecue      Float?
+  quantiteRefusee    Float?   @default(0) // CDC §10 — refusé/retourné au fournisseur, n'entre jamais en stock
+  quantiteEndommagee Float?   @default(0) // CDC §10 — abîmé mais conservé, entre en stock côté StockSite.quantiteEndommagee (non vendable)
   prixUnitaire       Decimal?
   etatQualite        String? // "BON" | "DEFECTUEUX" | "PARTIEL"
   notes              String?
@@ -2954,7 +2954,7 @@ model LigneDemandeAchatInterne {
   demande       DemandeAchatInterne @relation(fields: [demandeId], references: [id], onDelete: Cascade)
   produitId     Int
   produit       Produit             @relation(fields: [produitId], references: [id])
-  quantite      Int
+  quantite      Float
   justification String?
 
   demandeCotation DemandeCotation?
@@ -3072,7 +3072,7 @@ model LigneDepotMarchandise {
   produitId Int
   produit   Produit @relation(fields: [produitId], references: [id])
 
-  quantiteDeposee  Int
+  quantiteDeposee  Float
   prixVenteConvenu Decimal
   dlc              DateTime?
 
@@ -3082,7 +3082,7 @@ model LigneDepotMarchandise {
   lotProduitId Int?        @unique
   lotProduit   LotProduit? @relation(fields: [lotProduitId], references: [id])
 
-  quantiteReprise Int @default(0) // cumul repris au fournisseur (invendus)
+  quantiteReprise Float @default(0) // cumul repris au fournisseur (invendus)
 
   ligneReglements LigneReglementDepotVente[]
 
@@ -3143,7 +3143,7 @@ model LigneReglementDepotVente {
   ligneDepotId Int
   ligneDepot   LigneDepotMarchandise @relation(fields: [ligneDepotId], references: [id])
 
-  quantiteVendue    Int
+  quantiteVendue    Float
   montantBrut       Decimal
   montantCommission Decimal
   montantNet        Decimal
@@ -3158,7 +3158,7 @@ model DemandeCotation {
 
   produitId Int
   produit   Produit @relation(fields: [produitId], references: [id])
-  quantite  Int
+  quantite  Float
 
   // Site demandeur (facultatif — RFQ peut couvrir un besoin agrégé multi-agences)
   pointDeVenteId Int?
@@ -3304,9 +3304,9 @@ model LigneBonCommande {
   bonCommande   BonCommande @relation(fields: [bonCommandeId], references: [id], onDelete: Cascade)
   produitId     Int
   produit       Produit     @relation(fields: [produitId], references: [id])
-  quantite      Int
+  quantite      Float
   prixUnitaire  Decimal
-  quantiteRecue Int         @default(0) // alimenté à la réception, pilote PARTIALLY_DELIVERED/COMPLETED
+  quantiteRecue Float       @default(0) // alimenté à la réception, pilote PARTIALLY_DELIVERED/COMPLETED
 
   @@index([bonCommandeId])
 }
@@ -3420,7 +3420,7 @@ model LigneTransfertStock {
   id          Int      @id @default(autoincrement())
   transfertId Int
   produitId   Int
-  quantite    Int
+  quantite    Float
   prixUnit    Decimal?
 
   transfert TransfertStock @relation(fields: [transfertId], references: [id], onDelete: Cascade)
@@ -3464,11 +3464,11 @@ model InventaireSite {
 }
 
 model LigneInventaireSite {
-  id                Int @id @default(autoincrement())
+  id                Int   @id @default(autoincrement())
   inventaireId      Int
   produitId         Int
-  quantiteSysteme   Int // quantité selon le système
-  quantiteConstatee Int // quantité réelle comptée
+  quantiteSysteme   Float // quantité selon le système
+  quantiteConstatee Float // quantité réelle comptée
   ecart             Int // = constatée - système
 
   inventaire InventaireSite @relation(fields: [inventaireId], references: [id], onDelete: Cascade)
@@ -3499,11 +3499,11 @@ model CommandeInterne {
 }
 
 model LigneCommandeInterne {
-  id               Int  @id @default(autoincrement())
+  id               Int    @id @default(autoincrement())
   commandeId       Int
   produitId        Int
-  quantiteDemandee Int
-  quantiteValidee  Int?
+  quantiteDemandee Float
+  quantiteValidee  Float?
 
   commande CommandeInterne @relation(fields: [commandeId], references: [id], onDelete: Cascade)
   produit  Produit         @relation(fields: [produitId], references: [id])
@@ -3571,8 +3571,8 @@ model LigneBonSortie {
   id               Int      @id @default(autoincrement())
   bonSortieId      Int
   produitId        Int
-  quantite         Int // quantité effectivement sortie
-  quantiteDemandee Int? // quantité demandée par le demandeur, si différente (CDC §3.4)
+  quantite         Float // quantité effectivement sortie
+  quantiteDemandee Float? // quantité demandée par le demandeur, si différente (CDC §3.4)
   prixUnit         Decimal?
 
   bonSortie BonSortie @relation(fields: [bonSortieId], references: [id], onDelete: Cascade)
@@ -3786,17 +3786,17 @@ model CommandeClient {
 }
 
 model LigneCommandeClient {
-  id             Int     @id @default(autoincrement())
-  commandeId     Int
+  id               Int     @id @default(autoincrement())
+  commandeId       Int
   // Null = produit hors catalogue saisi par l'agent (désignation libre + prix indicatif) : à associer à un
   // produit du catalogue par l'Admin avant validation (aucune sortie de stock possible sans produit).
-  produitId      Int?
+  produitId        Int?
   designationLibre String?
-  quantite       Int
-  prixUnitaire   Decimal // résolu via lib/venteTarification.ts (moteur de prix catalogue) ; saisi pour un produit hors catalogue
-  remisePourcent Decimal @default(0)
-  remiseMontant  Decimal @default(0)
-  totalLigne     Decimal
+  quantite         Float
+  prixUnitaire     Decimal // résolu via lib/venteTarification.ts (moteur de prix catalogue) ; saisi pour un produit hors catalogue
+  remisePourcent   Decimal @default(0)
+  remiseMontant    Decimal @default(0)
+  totalLigne       Decimal
 
   commande CommandeClient @relation(fields: [commandeId], references: [id], onDelete: Cascade)
   produit  Produit?       @relation(fields: [produitId], references: [id])
@@ -3916,7 +3916,7 @@ model LigneCommandeRevendeur {
   id           Int     @id @default(autoincrement())
   commandeId   Int
   produitId    Int
-  quantite     Int
+  quantite     Float
   prixUnitaire Decimal // prix catalogue résolu (TypePrix.GROS, repli DETAIL puis miroir)
   montantLigne Decimal
 
@@ -3949,10 +3949,10 @@ model BonLivraisonRevendeur {
 }
 
 model LigneBonLivraisonRevendeur {
-  id             Int @id @default(autoincrement())
+  id             Int   @id @default(autoincrement())
   bonLivraisonId Int
   produitId      Int
-  quantite       Int
+  quantite       Float
 
   bonLivraison BonLivraisonRevendeur @relation(fields: [bonLivraisonId], references: [id], onDelete: Cascade)
   produit      Produit               @relation(fields: [produitId], references: [id])
@@ -4023,9 +4023,9 @@ model FicheDecaissement {
   // (grande caisse OU petite caisse RPV), jamais l'inverse. @unique = une seule fiche par
   // sortie. Null uniquement pour les anciennes fiches (créées avant cette règle) et les
   // fiches générées par les flux fournisseur/dépôt-vente.
-  operationCaisseId    Int?              @unique
-  operationCaisse      OperationCaisse?  @relation(fields: [operationCaisseId], references: [id])
-  operationCaissePDVId Int?              @unique
+  operationCaisseId    Int?                @unique
+  operationCaisse      OperationCaisse?    @relation(fields: [operationCaisseId], references: [id])
+  operationCaissePDVId Int?                @unique
   operationCaissePDV   OperationCaissePDV? @relation(fields: [operationCaissePDVId], references: [id])
 
   piecesJustificatives String[] @default([]) // types de pièces déclarées (facture, BC, BL, contrat…)
@@ -4134,11 +4134,11 @@ model BonReception {
 }
 
 model LigneBonReception {
-  id                Int @id @default(autoincrement())
+  id                Int   @id @default(autoincrement())
   bonReceptionId    Int
   produitId         Int
-  quantiteCommandee Int
-  quantiteLivree    Int
+  quantiteCommandee Float
+  quantiteLivree    Float
 
   bonReception BonReception @relation(fields: [bonReceptionId], references: [id], onDelete: Cascade)
   produit      Produit      @relation(fields: [produitId], references: [id])
@@ -4185,11 +4185,11 @@ model BonPreparation {
 }
 
 model LigneBonPreparation {
-  id               Int @id @default(autoincrement())
+  id               Int   @id @default(autoincrement())
   bonPreparationId Int
   produitId        Int
-  quantiteDemandee Int
-  quantitePreparee Int
+  quantiteDemandee Float
+  quantitePreparee Float
 
   bonPreparation BonPreparation @relation(fields: [bonPreparationId], references: [id], onDelete: Cascade)
   produit        Produit        @relation(fields: [produitId], references: [id])
@@ -4232,10 +4232,10 @@ model BonLivraison {
 }
 
 model LigneBonLivraison {
-  id             Int @id @default(autoincrement())
+  id             Int   @id @default(autoincrement())
   bonLivraisonId Int
   produitId      Int
-  quantite       Int
+  quantite       Float
 
   bonLivraison BonLivraison @relation(fields: [bonLivraisonId], references: [id], onDelete: Cascade)
   produit      Produit      @relation(fields: [produitId], references: [id])
@@ -4352,7 +4352,7 @@ model LigneRetourTournee {
   arret     TourneeArret @relation(fields: [arretId], references: [id], onDelete: Cascade)
   produitId Int
   produit   Produit      @relation(fields: [produitId], references: [id])
-  quantite  Int
+  quantite  Float
   motif     String?
 
   @@index([arretId])
@@ -4432,7 +4432,7 @@ model LigneDevisProforma {
   id              Int     @id @default(autoincrement())
   devisProformaId Int
   produitId       Int
-  quantite        Int
+  quantite        Float
   prixUnitaire    Decimal
   remisePourcent  Decimal @default(0)
   remiseMontant   Decimal @default(0)
@@ -4454,7 +4454,7 @@ model AnomalieStock {
   produitId      Int
   pointDeVenteId Int?
   type           TypeAnomalie
-  quantite       Int
+  quantite       Float
   description    String
   statut         StatutAnomalie @default(EN_ATTENTE)
   signalePar     Int
@@ -4722,7 +4722,7 @@ model LigneVenteDirecte {
   venteId      Int
   produitId    Int? // nullable si produit hors catalogue
   produitNom   String? // nom libre saisi par l'agent si hors catalogue
-  quantite     Int
+  quantite     Float
   prixUnitaire Decimal
   montant      Decimal
 
@@ -4984,7 +4984,7 @@ model LigneReceptionPack {
   reception    ReceptionProduitPack @relation(fields: [receptionId], references: [id], onDelete: Cascade)
   produitId    Int
   produit      Produit              @relation(fields: [produitId], references: [id])
-  quantite     Int
+  quantite     Float
   prixUnitaire Decimal
 }
 
@@ -5006,8 +5006,8 @@ model LigneSouscriptionProduit {
   categorieSaisie String?
   uniteSaisie     String?
 
-  quantite         Int
-  quantiteParCycle Int? // pour packs récurrents : qté à chaque cycle
+  quantite         Float
+  quantiteParCycle Float? // pour packs récurrents : qté à chaque cycle
   prixEstime       Decimal? // estimation agent terrain
 
   statut            StatutLigneSouscription @default(EN_ATTENTE)
@@ -8646,7 +8646,7 @@ model LigneReclamation {
   reclamation   ReclamationClient @relation(fields: [reclamationId], references: [id], onDelete: Cascade)
   produitId     Int
   produit       Produit           @relation(fields: [produitId], references: [id])
-  quantite      Int
+  quantite      Float
   motif         String?
 
   @@index([reclamationId])
@@ -8703,7 +8703,7 @@ model LigneRetourMarchandise {
   retour      RetourMarchandiseClient @relation(fields: [retourId], references: [id], onDelete: Cascade)
   produitId   Int
   produit     Produit                 @relation(fields: [produitId], references: [id])
-  quantite    Int
+  quantite    Float
   etatProduit String?
 
   @@index([retourId])
@@ -8722,7 +8722,7 @@ model RemplacementProduit {
   produitOrigine        Produit @relation("RemplacementOrigine", fields: [produitOrigineId], references: [id])
   produitRemplacementId Int
   produitRemplacement   Produit @relation("RemplacementNouveau", fields: [produitRemplacementId], references: [id])
-  quantite              Int
+  quantite              Float
 
   statut StatutRemplacementProduit @default(DEMANDE)
 

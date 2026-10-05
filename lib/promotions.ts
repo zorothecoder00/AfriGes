@@ -106,7 +106,8 @@ export function appliquerPromotion(
   promo: PromotionEvaluable,
   quantite = 1,
 ): ResultatPromotion | null {
-  const qte = Math.max(1, Math.floor(quantite));
+  // Quantités fractionnées autorisées (½, ¼…) ; une saisie nulle/invalide vaut 1.
+  const qte = quantite > 0 ? quantite : 1;
   let quantiteFacturee = qte;
   let prixRemiseUnitaire = prixUnitaire;
 

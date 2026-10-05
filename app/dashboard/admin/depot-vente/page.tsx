@@ -323,7 +323,7 @@ function FormDepot({ pdvs, conventions, onClose, onDone }: { pdvs: PDV[]; conven
           {lignes.map((l) => (
             <div key={l.produit.id} className="flex items-center gap-2 p-2 border border-slate-100 rounded-lg">
               <span className="text-sm flex-1">{l.produit.nom}</span>
-              <input type="number" min={1} value={l.quantite} onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, quantite: e.target.value } : x))} className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Qté" />
+              <input type="number" step="0.25" min="0.25" value={l.quantite} onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, quantite: e.target.value } : x))} className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Qté" />
               <input type="number" min={0} value={l.prixVenteConvenu} onChange={(e) => setLignes((prev) => prev.map((x) => x.produit.id === l.produit.id ? { ...x, prixVenteConvenu: e.target.value } : x))} className="w-28 px-2 py-1.5 border border-slate-200 rounded-lg text-sm" placeholder="Prix de vente" />
               <button onClick={() => setLignes((prev) => prev.filter((x) => x.produit.id !== l.produit.id))}><X size={14} className="text-slate-400" /></button>
             </div>

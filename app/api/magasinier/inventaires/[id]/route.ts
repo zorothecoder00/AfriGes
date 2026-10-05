@@ -103,7 +103,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         .map(l => ({ ligne: parId.get(Number(l.ligneId)), qte: Number(l.quantiteConstatee) }))
         .filter((x): x is { ligne: NonNullable<typeof x.ligne>; qte: number } => !!x.ligne);
 
-      if (saisies.some(s => !Number.isInteger(s.qte) || s.qte < 0)) {
+      if (saisies.some(s => !Number.isFinite(s.qte) || s.qte < 0)) {
         return NextResponse.json({ error: "Les quantités constatées doivent être des entiers positifs" }, { status: 400 });
       }
 

@@ -2070,7 +2070,7 @@ function NouvelleDemandeApproModal({ pdvList, onClose, onCreated }: {
               {lignes.map((l) => (
                 <div key={l.produitId} className="flex items-center gap-2 px-3 py-2">
                   <span className="flex-1 text-sm text-gray-700">{l.nom}</span>
-                  <input type="number" min="1" value={l.quantite} onChange={(e) => setQuantite(l.produitId, e.target.value)}
+                  <input type="number" step="0.25" min="0.25" value={l.quantite} onChange={(e) => setQuantite(l.produitId, e.target.value)}
                     className="w-20 px-2 py-1 border border-gray-300 rounded text-center text-sm" />
                   <button onClick={() => removeProduit(l.produitId)} className="p-1 text-gray-400 hover:text-red-500"><X className="w-4 h-4" /></button>
                 </div>

@@ -398,7 +398,7 @@ function NouvelleCommandeForm({ revendeurId, pointDeVenteId, onCreated }: { reve
       {lignes.map((l, i) => (
         <div key={i} className="flex gap-2">
           <input placeholder="ID produit" value={l.produitId} onChange={(e) => setLignes((ls) => ls.map((x, xi) => xi === i ? { ...x, produitId: e.target.value } : x))} className={inputCls} />
-          <input placeholder="Qté" type="number" min={1} value={l.quantite} onChange={(e) => setLignes((ls) => ls.map((x, xi) => xi === i ? { ...x, quantite: e.target.value } : x))} className={inputCls + " max-w-[100px]"} />
+          <input placeholder="Qté" type="number" step="0.25" min="0.25" value={l.quantite} onChange={(e) => setLignes((ls) => ls.map((x, xi) => xi === i ? { ...x, quantite: e.target.value } : x))} className={inputCls + " max-w-[100px]"} />
         </div>
       ))}
       <button onClick={() => setLignes((ls) => [...ls, { produitId: "", quantite: "1" }])} className="text-xs text-rose-600 hover:underline">+ ajouter une ligne</button>

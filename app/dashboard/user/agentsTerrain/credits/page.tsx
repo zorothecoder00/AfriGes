@@ -641,7 +641,7 @@ function NouveauCreditModal({
                       />
                     </div>
                     <input
-                      type="number" placeholder="Qté" min={1} value={l.quantite}
+                      type="number" step="0.25" placeholder="Qté" min="0.25" value={l.quantite}
                       onChange={(e) => setLigne(i, "quantite", e.target.value)}
                       className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
