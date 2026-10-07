@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PrioriteNotification } from "@prisma/client";
+import { Prisma, PrioriteNotification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCompteCourantSession } from "@/lib/authCompteCourant";
 import { chargerParametrageCC, enregistrerDepotCC, extraireMetaRequete } from "@/lib/compteCourant";
@@ -91,6 +91,8 @@ export async function POST(req: Request, { params }: Ctx) {
   const clientNom = `${compte.client.prenom} ${compte.client.nom}`;
   const userId = Number(session.user.id);
 
+  // Deux dépôts simultanés peuvent viser la même référence (P2002) : on rejoue la transaction.
+  for (let attempt = 0; attempt < 3; attempt++) {
   try {
     const result = await prisma.$transaction(async (tx) => {
       const depot = await enregistrerDepotCC(tx, {
@@ -114,7 +116,10 @@ export async function POST(req: Request, { params }: Ctx) {
 
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002" && attempt < 2) continue;
     console.error("POST /api/comptes-courants/[id]/depots", e);
     return NextResponse.json({ error: "Erreur lors de l'enregistrement du dépôt" }, { status: 500 });
   }
+  }
+  return NextResponse.json({ error: "Erreur lors de l'enregistrement du dépôt" }, { status: 500 });
 }

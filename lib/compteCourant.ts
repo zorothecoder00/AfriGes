@@ -72,11 +72,32 @@ export async function chargerParametrageCC() {
   return prisma.parametrageCompteCourant.create({ data: { id: 1 } });
 }
 
-/** Référence unique d'un mouvement, ex : « DEP-20260706-00042 ». */
+/**
+ * Référence unique d'un mouvement, ex : « DEP-20260706-00042 ».
+ * Le compteur global (count + 1) ne suffit pas : la suppression d'un mouvement
+ * le fait reculer et la référence retombe sur une déjà émise le même jour
+ * (violation d'unicité → 500 sur tous les dépôts de la journée). On part donc
+ * du max(count + 1, dernier suffixe du jour + 1) puis on saute les références prises.
+ */
 export async function genererReferenceMouvementCC(tx: TxClient, prefix = "MVT"): Promise<string> {
   const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const count = await tx.mouvementCompteCourant.count();
-  return `${prefix}-${ymd}-${String(count + 1).padStart(5, "0")}`;
+  const base = `${prefix}-${ymd}-`;
+  const [count, dernier] = await Promise.all([
+    tx.mouvementCompteCourant.count(),
+    tx.mouvementCompteCourant.findFirst({
+      where: { reference: { startsWith: base } },
+      orderBy: { id: "desc" },
+      select: { reference: true },
+    }),
+  ]);
+  const suffixeDernier = dernier ? parseInt(dernier.reference.slice(base.length), 10) || 0 : 0;
+  let n = Math.max(count + 1, suffixeDernier + 1);
+  for (let i = 0; i < 50; i++, n++) {
+    const reference = `${base}${String(n).padStart(5, "0")}`;
+    const pris = await tx.mouvementCompteCourant.findUnique({ where: { reference }, select: { id: true } });
+    if (!pris) return reference;
+  }
+  return `${base}${String(n).padStart(5, "0")}-${Date.now().toString(36)}`;
 }
 
 export interface LigneEcritureCC { numero: string; debit?: number; credit?: number; libelle?: string }
