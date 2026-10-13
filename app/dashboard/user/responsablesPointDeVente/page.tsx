@@ -1960,6 +1960,10 @@ function ResponsablePDVPageInner() {
                   className="flex items-center gap-1.5 px-3 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-xl text-sm font-medium hover:bg-indigo-50 transition-colors">
                   <PackageMinus size={15} />Bons de sortie
                 </Link>
+                <Link href="/dashboard/user/responsablesPointDeVente/credits"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-blue-200 text-blue-700 rounded-xl text-sm font-medium hover:bg-blue-50 transition-colors">
+                  <CreditCard size={15} />Crédits clients
+                </Link>
                 {activeTab === "stock" && stockSub === "inventaire" && (
                   <>
                     <button onClick={() => openAnomalie()} className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 rounded-xl text-sm font-medium transition-colors">

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { StatutCredit, StatutEcheanceCredit, TypeMouvement, TypeEntreeStock } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getRVCSession } from "@/lib/authRVC";
+import { getCorrectionCreditSession, creditDansPerimetre } from "@/lib/authRVC";
+import { notifyAdmins } from "@/lib/notifications";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { resolveRvcPdv } from "@/lib/gestionnaireCredit";
 import { tariferLigne } from "@/lib/venteTarification";
@@ -16,8 +17,8 @@ type Ctx = { params: Promise<{ id: string }> };
  */
 export async function GET(_req: Request, { params }: Ctx) {
   try {
-    const session = await getRVCSession();
-    if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+    const acces = await getCorrectionCreditSession();
+    if (!acces) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
 
     const { id } = await params;
     const creditId = Number(id);
@@ -58,6 +59,9 @@ export async function GET(_req: Request, { params }: Ctx) {
     });
 
     if (!credit) return NextResponse.json({ message: "Crédit introuvable" }, { status: 404 });
+    if (!creditDansPerimetre(acces.pdvIds, credit.pointDeVenteId)) {
+      return NextResponse.json({ message: "Ce crédit n'appartient pas à votre point de vente" }, { status: 403 });
+    }
 
     const rvcPdv = await resolveRvcPdv(credit.pointDeVenteId);
     return NextResponse.json({ data: { ...credit, rvcPdv } });
@@ -80,8 +84,9 @@ export async function GET(_req: Request, { params }: Ctx) {
  */
 export async function PATCH(req: Request, { params }: Ctx) {
   try {
-    const session = await getRVCSession();
-    if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+    const acces = await getCorrectionCreditSession();
+    if (!acces) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+    const { session } = acces;
 
     const { id } = await params;
     const creditId = Number(id);
@@ -101,6 +106,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         },
       });
       if (!credit) throw new Error("CREDIT_INTROUVABLE");
+      if (!creditDansPerimetre(acces.pdvIds, credit.pointDeVenteId)) throw new Error("HORS_PERIMETRE");
 
       // « En remboursement » = ACTIF ou EN_RETARD : dans les deux cas l'échéancier existe
       // et peut être régénéré (avec réimputation du déjà-payé).
@@ -320,6 +326,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (error instanceof Error) {
       const map: Record<string, [string, number]> = {
         CREDIT_INTROUVABLE:   ["Crédit introuvable", 404],
+        HORS_PERIMETRE:       ["Ce crédit n'appartient pas à votre point de vente", 403],
         CREDIT_NON_MODIFIABLE: ["Seuls les crédits en attente de validation ou actifs peuvent être modifiés", 422],
         ACTIF_AVEC_REMBOURSEMENT: ["Crédit actif avec remboursement(s) : montant et échéancier non modifiables. Supprimez-le et recréez-le, ou ne changez que garantie/observations/pénalité.", 422],
         ACTIF_LIGNE_LIVREE:   ["Crédit actif avec produit(s) déjà livré(s) : modification du montant impossible.", 422],
@@ -358,8 +365,9 @@ const STATUTS_SUPPRIMABLES: StatutCredit[] = [
 
 export async function DELETE(_req: Request, { params }: Ctx) {
   try {
-    const session = await getRVCSession();
-    if (!session) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+    const acces = await getCorrectionCreditSession();
+    if (!acces) return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+    const { session } = acces;
 
     const { id } = await params;
     const creditId = Number(id);
@@ -374,6 +382,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
         },
       });
       if (!credit) throw new Error("CREDIT_INTROUVABLE");
+      if (!creditDansPerimetre(acces.pdvIds, credit.pointDeVenteId)) throw new Error("HORS_PERIMETRE");
       if (!STATUTS_SUPPRIMABLES.includes(credit.statut)) throw new Error("CREDIT_NON_SUPPRIMABLE");
       if (credit._count.livraisons > 0 || credit._count.facturesVente > 0 || credit._count.financementsRIA > 0) {
         throw new Error("CREDIT_LIE");
@@ -435,6 +444,17 @@ export async function DELETE(_req: Request, { params }: Ctx) {
           userId: Number(session.user.id),
         },
       });
+
+      // Suppression faite par un RPV (hors circuit crédit) → information de la Direction.
+      if (acces.estRPV) {
+        const auteur = `${session.user.prenom ?? ""} ${session.user.nom ?? ""}`.trim();
+        await notifyAdmins(tx, {
+          titre: `Crédit supprimé par le RPV — ${credit.reference}`,
+          message: `${auteur} a supprimé le crédit ${credit.reference} (${Number(credit.montantTotal).toLocaleString("fr-FR")} FCFA).`,
+          priorite: "HAUTE",
+          actionUrl: "/dashboard/admin/credits",
+        });
+      }
     });
 
     return NextResponse.json({ message: "Crédit supprimé" });
@@ -443,6 +463,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     if (error instanceof Error) {
       const map: Record<string, [string, number]> = {
         CREDIT_INTROUVABLE:    ["Crédit introuvable", 404],
+        HORS_PERIMETRE:        ["Ce crédit n'appartient pas à votre point de vente", 403],
         CREDIT_NON_SUPPRIMABLE: ["Seuls les crédits en attente de validation, actifs ou rejetés peuvent être supprimés", 422],
         CREDIT_LIE:            ["Ce crédit est lié à des opérations (livraisons, factures ou financements) — suppression impossible", 422],
         CREDIT_AVEC_REMBOURSEMENT: ["Ce crédit a déjà des remboursements — utilisez « Annuler » pour préserver l'historique", 422],

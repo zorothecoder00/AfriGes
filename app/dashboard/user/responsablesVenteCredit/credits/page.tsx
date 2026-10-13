@@ -971,6 +971,19 @@ export default function RVCCreditsPage() {
     finally { setEditRembSaving(false); }
   };
 
+  const deleteRemb = async (r: { id: number; montant: string | number; dateRemboursement: string }) => {
+    if (!detailCredit) return;
+    if (!confirm(`Supprimer le remboursement de ${formatCurrency(Number(r.montant))} du ${formatDate(r.dateRemboursement)} ?
+Le crédit et le solde du client seront recalculés.`)) return;
+    try {
+      const creditId = detailCredit.id;
+      const res = await fetch(`/api/admin/credits/${creditId}/remboursements/${r.id}`, { method: "DELETE" });
+      const j = await res.json();
+      if (res.ok) { toast.success("Remboursement supprimé — crédit recalculé"); await openDetail(creditId); }
+      else toast.error(j.error ?? j.message ?? "Erreur");
+    } catch { toast.error("Erreur réseau"); }
+  };
+
   const openLigneAction = (creditId: number, ligneId: number, statut: string) => {
     setLigneActionCreditId(creditId);
     setLigneActionLigneId(ligneId);
@@ -1627,6 +1640,10 @@ export default function RVCCreditsPage() {
                           <button type="button" onClick={() => openEditRemb(r)}
                             className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded" title="Corriger ce remboursement">
                             <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button type="button" onClick={() => deleteRemb(r)}
+                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Supprimer ce remboursement">
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                           ))}
