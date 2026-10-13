@@ -312,8 +312,16 @@ export default function CreditsPage() {
 
   // Crédit actif avec remboursements : la durée/date restent modifiables — l'échéancier
   // est régénéré et le déjà-payé réimputé côté serveur (on affiche juste un avertissement).
-  const editEnRemboursement = editCredit?.statut === 'ACTIF' || editCredit?.statut === 'EN_RETARD';
+  const editEnRemboursement = editCredit?.statut === 'ACTIF' || editCredit?.statut === 'EN_RETARD' || editCredit?.statut === 'SOLDE';
   const editAvecRemboursements = editEnRemboursement && (editCredit?._count.remboursements ?? 0) > 0;
+  // Crédit rejeté / annulé : seuls les champs descriptifs restent modifiables.
+  const editClos = editCredit?.statut === 'REJETE' || editCredit?.statut === 'ANNULE';
+
+  // Le détail (GET) ne renvoie pas _count : on le reconstitue depuis les listes chargées.
+  const creditDepuisDetail = (d: CreditDetail): CreditClient => ({
+    ...d,
+    _count: { lignes: d.lignes.length, echeances: d.echeances.length, remboursements: d.remboursements.length },
+  });
 
   const openEdit = (credit: CreditClient) => {
     setEditForm({
@@ -1259,13 +1267,11 @@ Le crédit et le solde du client seront recalculés.`)) return;
                                 <Receipt className="w-4 h-4" />
                               </button>
 
-                              {/* Modifier (en attente de validation, actif ou en retard) */}
-                              {(credit.statut === 'EN_ATTENTE_VALIDATION' || credit.statut === 'ACTIF' || credit.statut === 'EN_RETARD') && (
-                                <button onClick={() => openEdit(credit)}
-                                  className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors" title="Modifier">
-                                  <Pencil className="w-4 h-4" />
-                                </button>
-                              )}
+                              {/* Modifier (tout statut — correction d'erreur de saisie) */}
+                              <button onClick={() => openEdit(credit)}
+                                className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors" title="Modifier le crédit">
+                                <Pencil className="w-4 h-4" />
+                              </button>
 
                               {/* Valider */}
                               {canValider && (
@@ -1299,13 +1305,11 @@ Le crédit et le solde du client seront recalculés.`)) return;
                                 </button>
                               )}
 
-                              {/* Supprimer (en attente de validation ou rejeté) */}
-                              {(credit.statut === 'EN_ATTENTE_VALIDATION' || credit.statut === 'ACTIF' || credit.statut === 'REJETE') && (
-                                <button onClick={() => setDeleteCredit(credit)}
-                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer">
-                                  <Trash className="w-4 h-4" />
-                                </button>
-                              )}
+                              {/* Supprimer (tout statut — remboursements inclus) */}
+                              <button onClick={() => setDeleteCredit(credit)}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer le crédit">
+                                <Trash className="w-4 h-4" />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1362,9 +1366,23 @@ Le crédit et le solde du client seront recalculés.`)) return;
                   )}
                 </div>
               </div>
-              <button onClick={() => setDetailCredit(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                {detailCredit && (
+                  <>
+                    <button onClick={() => openEdit(creditDepuisDetail(detailCredit))}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100">
+                      <Pencil className="w-3.5 h-3.5" /> Modifier
+                    </button>
+                    <button onClick={() => setDeleteCredit(creditDepuisDetail(detailCredit))}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100">
+                      <Trash className="w-3.5 h-3.5" /> Supprimer
+                    </button>
+                  </>
+                )}
+                <button onClick={() => setDetailCredit(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {detailLoading ? (
@@ -1610,26 +1628,30 @@ Le crédit et le solde du client seront recalculés.`)) return;
                               <span className="text-emerald-700">{formatCurrency(grp.total)}</span>
                             </button>
                             {rembMonths.isOpen(grp.key) && grp.items.map((r) => (
-                          <div key={r.id} className="flex items-center gap-3 bg-emerald-50 rounded-lg px-3 py-2 text-xs">
-                            <span className="text-slate-500">{formatDate(r.dateRemboursement)}</span>
-                            {r.numeroJour != null && <span className="text-slate-400">J{r.numeroJour}</span>}
-                            <span className="flex-1 text-slate-600 truncate">
-                              {r.agentCollecteur ? `${r.agentCollecteur.prenom} ${r.agentCollecteur.nom}` : '—'}
-                            </span>
-                            <span className="text-slate-400">{r.modePaiement.replace('_', ' ')}</span>
-                            <span className="font-bold text-emerald-700">{formatCurrency(Number(r.montant))}</span>
-                            <a href={`/api/admin/credits/${detailCredit.id}/remboursements/${r.id}/pdf`} target="_blank" rel="noreferrer"
-                              className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded" title="Imprimer le reçu">
-                              <Printer className="w-3.5 h-3.5" />
-                            </a>
-                            <button type="button" onClick={() => openEditRemb(r)}
-                              className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded" title="Corriger ce remboursement">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button type="button" onClick={() => deleteRemb(r)}
-                              className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Supprimer ce remboursement">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                          <div key={r.id} className="bg-emerald-50 rounded-lg px-3 py-2 text-xs space-y-1.5">
+                            <div className="flex items-center gap-3">
+                              <span className="text-slate-500">{formatDate(r.dateRemboursement)}</span>
+                              {r.numeroJour != null && <span className="text-slate-400">J{r.numeroJour}</span>}
+                              <span className="flex-1 text-slate-600 truncate">
+                                {r.agentCollecteur ? `${r.agentCollecteur.prenom} ${r.agentCollecteur.nom}` : '—'}
+                              </span>
+                              <span className="text-slate-400">{r.modePaiement.replace('_', ' ')}</span>
+                              <span className="font-bold text-emerald-700">{formatCurrency(Number(r.montant))}</span>
+                            </div>
+                            <div className="flex flex-wrap items-center justify-end gap-1.5">
+                              <a href={`/api/admin/credits/${detailCredit.id}/remboursements/${r.id}/pdf`} target="_blank" rel="noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-1 font-medium text-emerald-700 bg-white border border-emerald-200 rounded-md hover:bg-emerald-100" title="Imprimer le reçu">
+                                <Printer className="w-3.5 h-3.5" /> Reçu
+                              </a>
+                              <button type="button" onClick={() => openEditRemb(r)}
+                                className="inline-flex items-center gap-1 px-2 py-1 font-medium text-amber-700 bg-white border border-amber-200 rounded-md hover:bg-amber-50" title="Corriger ce remboursement">
+                                <Pencil className="w-3.5 h-3.5" /> Modifier
+                              </button>
+                              <button type="button" onClick={() => deleteRemb(r)}
+                                className="inline-flex items-center gap-1 px-2 py-1 font-medium text-red-600 bg-white border border-red-200 rounded-md hover:bg-red-50" title="Supprimer ce remboursement">
+                                <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                              </button>
+                            </div>
                           </div>
                             ))}
                           </div>
@@ -2531,8 +2553,13 @@ Le crédit et le solde du client seront recalculés.`)) return;
                   <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
                   Crédit <strong>en cours de remboursement</strong> : changer la durée ou la date régénère l&apos;échéancier et ajuste le solde du client.
                   {editAvecRemboursements
-                    ? " Ce crédit a déjà des remboursements : le déjà-payé sera réimputé sur le nouvel échéancier (montant total et solde restant inchangés)."
+                    ? " Ce crédit a déjà des remboursements : le déjà-payé sera réimputé sur le nouvel échéancier et le statut recalculé (un crédit soldé à tort repasse en cours si le solde redevient positif). Pour corriger un montant encaissé, modifiez le remboursement lui-même."
                     : " Les produits ne sont pas modifiables ici."}
+                </div>
+              ) : editClos ? (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600 flex items-start gap-2">
+                  <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  Crédit {editCredit.statut === 'REJETE' ? 'rejeté' : 'annulé'} : seuls garantie, garant, observations, gestionnaire et pénalité sont modifiables.
                 </div>
               ) : (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 flex items-start gap-2">
@@ -2543,13 +2570,13 @@ Le crédit et le solde du client seront recalculés.`)) return;
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Durée (jours) <span className="text-red-500">*</span></label>
-                  <input type="number" min={1} value={editForm.dureeJours}
+                  <input type="number" min={1} value={editForm.dureeJours} disabled={editClos}
                     onChange={(e) => setEditForm(f => ({ ...f, dureeJours: e.target.value }))}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-60 disabled:cursor-not-allowed" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Date de début <span className="text-red-500">*</span></label>
-                  <input type="date" value={editForm.dateDebut}
+                  <input type="date" value={editForm.dateDebut} disabled={editClos}
                     onChange={(e) => setEditForm(f => ({ ...f, dateDebut: e.target.value }))}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-60 disabled:cursor-not-allowed" />
                 </div>
@@ -2572,28 +2599,25 @@ Le crédit et le solde du client seront recalculés.`)) return;
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Frais & intérêts (bordereau)</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  <input type="number" min={0} step={100} value={editForm.fraisDossier} disabled={editAvecRemboursements}
+                  <input type="number" min={0} step={100} value={editForm.fraisDossier} disabled={editClos}
                     onChange={(e) => setEditForm(f => ({ ...f, fraisDossier: e.target.value }))} placeholder="Frais dossier"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50" />
-                  <input type="number" min={0} step={100} value={editForm.assurance} disabled={editAvecRemboursements}
+                  <input type="number" min={0} step={100} value={editForm.assurance} disabled={editClos}
                     onChange={(e) => setEditForm(f => ({ ...f, assurance: e.target.value }))} placeholder="Assurance"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50" />
-                  <input type="number" min={0} step={100} value={editForm.autresFrais} disabled={editAvecRemboursements}
+                  <input type="number" min={0} step={100} value={editForm.autresFrais} disabled={editClos}
                     onChange={(e) => setEditForm(f => ({ ...f, autresFrais: e.target.value }))} placeholder="Autres frais"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50" />
-                  <input type="number" min={0} step={100} value={editForm.fraisLivraison} disabled={editAvecRemboursements}
+                  <input type="number" min={0} step={100} value={editForm.fraisLivraison} disabled={editClos}
                     onChange={(e) => setEditForm(f => ({ ...f, fraisLivraison: e.target.value }))} placeholder="Frais livraison"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50" />
-                  <input type="number" min={0} step={0.1} value={editForm.tauxInteret} disabled={editAvecRemboursements}
+                  <input type="number" min={0} step={0.1} value={editForm.tauxInteret} disabled={editClos}
                     onChange={(e) => setEditForm(f => ({ ...f, tauxInteret: e.target.value }))} placeholder="Taux intérêt %"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50" />
                   <input type="number" min={0} step={1} value={editForm.delaiGraceJours}
                     onChange={(e) => setEditForm(f => ({ ...f, delaiGraceJours: e.target.value }))} placeholder="Délai grâce (j)"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400" />
                 </div>
-                {editAvecRemboursements && (
-                  <p className="text-xs text-amber-600 mt-1">Frais/intérêt verrouillés (crédit avec remboursements). Garant, délai de grâce et pénalité restent modifiables.</p>
-                )}
               </div>
 
               {/* Garant (structuré — bordereau de remboursement) */}
@@ -2667,9 +2691,11 @@ Le crédit et le solde du client seront recalculés.`)) return;
               </p>
               <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 flex items-start gap-2">
                 <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                {deleteCredit.statut === 'ACTIF'
-                  ? <span>Crédit <strong>actif</strong> : le stock réservé sera libéré et le solde du client corrigé du montant restant, puis le crédit et son échéancier supprimés. Irréversible. (Bloqué s&apos;il a déjà des remboursements ou des opérations liées.)</span>
-                  : <span>Cette action est irréversible. Les lignes de produits et l&apos;échéancier éventuel seront supprimés.</span>}
+                <span>
+                  Le stock réservé ou livré sera restitué et le solde du client corrigé, puis le crédit, son échéancier
+                  {deleteCredit._count.remboursements > 0 && <> et ses <strong>{deleteCredit._count.remboursements} remboursement(s)</strong></>} supprimés.
+                  Irréversible. (Bloqué si livraisons, factures, financement RIA ou remboursement issu d&apos;une collecte terrain / d&apos;un compte courant.)
+                </span>
               </div>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">

@@ -675,6 +675,12 @@ export default function RVCCreditsPage() {
   const rembMonths = useCollapsedMonths();
 
   // ── Édition durée / date du crédit ──────────────────────────────────────────
+  // Le détail (GET) ne renvoie pas _count : on le reconstitue depuis les listes chargées.
+  const creditDepuisDetail = (d: CreditDetail): CreditClient => ({
+    ...d,
+    _count: { lignes: d.lignes.length, remboursements: d.remboursements.length },
+  });
+
   const openDureeEdit = (credit: CreditClient) => {
     setDureeForm({
       dureeJours: String(credit.dureeJours),
@@ -1441,6 +1447,18 @@ Le crédit et le solde du client seront recalculés.`)) return;
                     className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg">
                     <Receipt className="w-3.5 h-3.5" /> Facture
                   </button>
+                )}
+                {detailCredit && (
+                  <>
+                    <button onClick={() => openDureeEdit(creditDepuisDetail(detailCredit))}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg">
+                      <Pencil className="w-3.5 h-3.5" /> Modifier
+                    </button>
+                    <button onClick={() => deleteCredit(creditDepuisDetail(detailCredit))} disabled={deletingCreditId === detailCredit.id}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 disabled:opacity-50 rounded-lg">
+                      {deletingCreditId === detailCredit.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Supprimer
+                    </button>
+                  </>
                 )}
                 <button onClick={() => setDetailCredit(null)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400">
                   <X className="w-5 h-5" />

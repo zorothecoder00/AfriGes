@@ -82,12 +82,13 @@ export default function RpvCreditsPage() {
   const [editCredit, setEditCredit] = useState(false);
   const [creditForm, setCreditForm] = useState({ dureeJours: "", dateDebut: "", fraisDossier: "", garantie: "", observations: "" });
 
-  const ouvrir = async (id: number) => {
+  const ouvrir = async (id: number): Promise<CreditDetail | null> => {
     setDetailLoading(id);
     try {
       const j = await appel(`/api/admin/credits/${id}`, "GET");
       setDetail(j.data);
-    } catch (e) { toast.error((e as Error).message); }
+      return j.data as CreditDetail;
+    } catch (e) { toast.error((e as Error).message); return null; }
     finally { setDetailLoading(null); }
   };
 
@@ -133,22 +134,27 @@ export default function RpvCreditsPage() {
   };
 
   // ── Crédit ────────────────────────────────────────────────────────────────
-  const ouvrirEditCredit = () => {
-    if (!detail) return;
+  const ouvrirEditCredit = (d: CreditDetail | null = detail) => {
+    if (!d) return;
     setCreditForm({
-      dureeJours: String(detail.dureeJours),
-      dateDebut: detail.dateDebut.slice(0, 10),
-      fraisDossier: String(Number(detail.fraisDossier)),
-      garantie: detail.garantie ?? "",
-      observations: detail.observations ?? "",
+      dureeJours: String(d.dureeJours),
+      dateDebut: d.dateDebut.slice(0, 10),
+      fraisDossier: String(Number(d.fraisDossier)),
+      garantie: d.garantie ?? "",
+      observations: d.observations ?? "",
     });
     setEditCredit(true);
   };
 
+  // Bouton « Modifier » de la liste : charge le détail puis ouvre le formulaire.
+  const modifierDepuisListe = async (id: number) => {
+    const d = await ouvrir(id);
+    if (d) ouvrirEditCredit(d);
+  };
+
   const enregistrerCredit = async () => {
     if (!detail) return;
-    // N'envoie que les champs réellement modifiés (le serveur refuse un changement
-    // de montant sur un crédit actif qui a déjà des remboursements).
+    // N'envoie que les champs réellement modifiés (évite de régénérer l'échéancier pour rien).
     const body: Record<string, unknown> = {};
     if (Number(creditForm.dureeJours) !== detail.dureeJours) body.dureeJours = Number(creditForm.dureeJours);
     if (creditForm.dateDebut !== detail.dateDebut.slice(0, 10)) body.dateDebut = creditForm.dateDebut;
@@ -166,18 +172,19 @@ export default function RpvCreditsPage() {
     finally { setBusy(false); }
   };
 
-  const supprimerCredit = async () => {
-    if (!detail) return;
-    if (detail.remboursements.length > 0) {
-      toast.error("Supprimez d'abord les remboursements de ce crédit");
-      return;
-    }
-    if (!confirm(`Supprimer définitivement le crédit ${detail.reference} (${formatCurrency(Number(detail.montantTotal))}) ?\nLe stock réservé et le solde du client seront rétablis.`)) return;
+  // Tout statut (y compris soldé) : les remboursements partent avec le crédit.
+  const supprimerCredit = async (c: CreditRow | null = detail) => {
+    if (!c) return;
+    // Le détail (GET) n'a pas _count : on compte alors ses remboursements chargés.
+    const nbRemb = "remboursements" in c ? (c as CreditDetail).remboursements.length : c._count.remboursements;
+    if (!confirm(`Supprimer définitivement le crédit ${c.reference} de ${c.client.prenom} ${c.client.nom} (${formatCurrency(Number(c.montantTotal))}) ?`
+      + (nbRemb > 0 ? `\n\nSes ${nbRemb} remboursement(s) seront aussi supprimés.` : "")
+      + `\nLe stock réservé et le solde du client seront rétablis. Action irréversible.`)) return;
     setBusy(true);
     try {
-      await appel(`/api/admin/credits/${detail.id}`, "DELETE");
+      await appel(`/api/admin/credits/${c.id}`, "DELETE");
       toast.success("Crédit supprimé");
-      setDetail(null);
+      if (detail?.id === c.id) setDetail(null);
       refetch();
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
@@ -239,10 +246,20 @@ export default function RpvCreditsPage() {
                     <p>Total <span className="font-semibold">{formatCurrency(Number(c.montantTotal))}</span></p>
                     <p>Payé <span className="font-semibold text-emerald-700">{formatCurrency(Number(c.montantRembourse))}</span> · Reste <span className="font-semibold text-red-600">{formatCurrency(Number(c.soldeRestant))}</span></p>
                   </div>
-                  <button onClick={() => ouvrir(c.id)} disabled={detailLoading === c.id}
-                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-60">
-                    {detailLoading === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Settings2 className="w-3.5 h-3.5" />} Gérer
-                  </button>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button onClick={() => ouvrir(c.id)} disabled={detailLoading === c.id}
+                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-60">
+                      {detailLoading === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Settings2 className="w-3.5 h-3.5" />} Détail
+                    </button>
+                    <button onClick={() => modifierDepuisListe(c.id)} disabled={detailLoading === c.id || busy}
+                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-medium hover:bg-amber-100 disabled:opacity-60">
+                      <Pencil className="w-3.5 h-3.5" /> Modifier
+                    </button>
+                    <button onClick={() => supprimerCredit(c)} disabled={busy}
+                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100 disabled:opacity-60">
+                      <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -274,21 +291,23 @@ export default function RpvCreditsPage() {
               ) : (
                 <div className="space-y-1.5">
                   {detail.remboursements.map((r) => (
-                    <div key={r.id} className="flex items-center gap-3 bg-slate-50 rounded-lg px-3 py-2 text-xs">
+                    <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-slate-50 rounded-lg px-3 py-2 text-xs">
                       <span className="text-slate-600 w-20">{formatDate(r.dateRemboursement)}</span>
-                      <span className="flex-1 text-slate-500 truncate">
+                      <span className="flex-1 min-w-[8rem] text-slate-500 truncate">
                         {REMB_STATUTS[r.statut] ?? r.statut}
                         {r.enregistrePar && ` · par ${r.enregistrePar.prenom} ${r.enregistrePar.nom}`}
                       </span>
                       <span className="font-bold text-emerald-700">{formatCurrency(Number(r.montant))}</span>
-                      <button type="button" onClick={() => ouvrirEditRemb(r)} disabled={busy}
-                        className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded" title="Modifier ce remboursement">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button type="button" onClick={() => supprimerRemb(r)} disabled={busy}
-                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Supprimer ce remboursement">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1.5 ml-auto">
+                        <button type="button" onClick={() => ouvrirEditRemb(r)} disabled={busy}
+                          className="inline-flex items-center gap-1 px-2 py-1 font-medium text-amber-700 bg-white border border-amber-200 rounded-md hover:bg-amber-50 disabled:opacity-60" title="Modifier ce remboursement">
+                          <Pencil className="w-3.5 h-3.5" /> Modifier
+                        </button>
+                        <button type="button" onClick={() => supprimerRemb(r)} disabled={busy}
+                          className="inline-flex items-center gap-1 px-2 py-1 font-medium text-red-600 bg-white border border-red-200 rounded-md hover:bg-red-50 disabled:opacity-60" title="Supprimer ce remboursement">
+                          <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -296,11 +315,11 @@ export default function RpvCreditsPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-slate-100">
-              <button onClick={ouvrirEditCredit} disabled={busy}
+              <button onClick={() => ouvrirEditCredit()} disabled={busy}
                 className="flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm font-medium hover:bg-amber-100">
                 <Pencil className="w-4 h-4" /> Modifier le crédit
               </button>
-              <button onClick={supprimerCredit} disabled={busy}
+              <button onClick={() => supprimerCredit()} disabled={busy}
                 className="flex items-center justify-center gap-1.5 px-3 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-100">
                 <Trash2 className="w-4 h-4" /> Supprimer le crédit
               </button>
@@ -361,8 +380,9 @@ export default function RpvCreditsPage() {
             <textarea rows={2} value={creditForm.observations} onChange={(e) => setCreditForm({ ...creditForm, observations: e.target.value })} className={champ} />
           </label>
           <p className="text-xs text-slate-500">
-            Durée et date de début restent modifiables même avec des remboursements (l&apos;échéancier est régénéré).
-            Les frais (montant) ne sont modifiables que si le crédit n&apos;a encore aucun remboursement.
+            Modifiable quel que soit le statut, même soldé : l&apos;échéancier est régénéré, le déjà-payé réimputé et le
+            statut recalculé. Pour corriger un montant encaissé, modifiez le remboursement lui-même.
+            Crédit rejeté ou annulé : seules garantie et observations sont modifiables.
           </p>
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setEditCredit(false)} className="px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Annuler</button>
