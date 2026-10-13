@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 type Size = "sm" | "md" | "lg";
@@ -27,6 +27,14 @@ export default function Modal({
   zIndex?: number;
   children: ReactNode;
 }) {
+  // Échap ferme la modale
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
@@ -37,7 +45,7 @@ export default function Modal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-full ${SIZE_CLASSES[size]} max-h-[85vh] flex flex-col rounded-2xl bg-white shadow-xl border border-slate-200
+        className={`w-full ${SIZE_CLASSES[size]} max-h-[85vh] max-h-[85dvh] flex flex-col rounded-2xl bg-white shadow-xl border border-slate-200
           dark:bg-slate-800 dark:border-slate-700
           animate-[popIn_0.18s_ease-out]`}
       >
@@ -53,7 +61,7 @@ export default function Modal({
             </button>
           </div>
         )}
-        <div className="px-6 py-5 overflow-y-auto">{children}</div>
+        <div className="px-6 py-5 overflow-y-auto min-h-0">{children}</div>
       </div>
     </div>
   );
