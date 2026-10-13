@@ -68,7 +68,9 @@ export async function appliquerNouvelleDureeCredit(
     },
   });
 
-  const estEnRemboursement = credit.statut === StatutCredit.ACTIF || credit.statut === StatutCredit.EN_RETARD;
+  // SOLDE inclus : corriger un crédit soldé à tort le rouvre si le solde redevient > 0.
+  const estEnRemboursement = credit.statut === StatutCredit.ACTIF || credit.statut === StatutCredit.EN_RETARD
+    || credit.statut === StatutCredit.SOLDE;
   if (estEnRemboursement) {
     await tx.echeanceCredit.deleteMany({ where: { creditId: credit.id } });
     const residuel = Number((montantTotal - montantJournalier * duree).toFixed(2));

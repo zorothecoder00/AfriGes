@@ -636,6 +636,7 @@ export default function RVCCreditsPage() {
   });
   const [dureeLoading, setDureeLoading] = useState(false);
   const [dureeError,   setDureeError]   = useState("");
+  const dureeClos = dureeCredit?.statut === "REJETE" || dureeCredit?.statut === "ANNULE";
 
   // ── Ajout / Modification d'une ligne (EN_ATTENTE_VALIDATION) ──────────────
   type LigneEditResults = { id: number; nom: string; reference: string | null; prixVente: string | null }[];
@@ -728,10 +729,33 @@ export default function RVCCreditsPage() {
         body: JSON.stringify(payload),
       });
       const j = await r.json();
-      if (r.ok) { toast.success("Durée du crédit mise à jour"); setDureeCredit(null); refetch(); }
+      if (r.ok) { toast.success("Crédit mis à jour"); setDureeCredit(null); refetch(); }
       else setDureeError(j.error || "Erreur");
     } catch { setDureeError("Erreur réseau"); }
     finally { setDureeLoading(false); }
+  };
+
+  // ── Suppression d'un crédit (tout statut — erreur de saisie) ────────────────
+  const [deletingCreditId, setDeletingCreditId] = useState<number | null>(null);
+  const deleteCredit = async (credit: CreditClient) => {
+    const nbRemb = credit._count.remboursements;
+    if (!confirm(`Supprimer définitivement le crédit ${credit.reference} de ${credit.client.prenom} ${credit.client.nom} (${formatCurrency(Number(credit.montantTotal))}) ?`
+      + (nbRemb > 0 ? `
+
+Ses ${nbRemb} remboursement(s) seront aussi supprimés.` : "")
+      + `
+Le stock réservé et le solde du client seront réversés. Cette action est irréversible.`)) return;
+    setDeletingCreditId(credit.id);
+    try {
+      const r = await fetch(`/api/admin/credits/${credit.id}`, { method: "DELETE" });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success("Crédit supprimé");
+        if (detailCredit?.id === credit.id) setDetailCredit(null);
+        refetch();
+      } else toast.error(j.message ?? j.error ?? "Erreur lors de la suppression");
+    } catch { toast.error("Erreur réseau"); }
+    finally { setDeletingCreditId(null); }
   };
 
   const { data: collecteursRes } = useApi<{ data: { id: number; nom: string; prenom: string }[] }>("/api/rvc/collecteurs");
@@ -1318,12 +1342,14 @@ Le crédit et le solde du client seront recalculés.`)) return;
                                 className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50" title="Bordereau de remboursement">
                                 {bordereauLoadingId === credit.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                               </button>
-                              {(credit.statut === "EN_ATTENTE_VALIDATION" || credit.statut === "ACTIF" || credit.statut === "EN_RETARD") && (
-                                <button onClick={() => openDureeEdit(credit)}
-                                  className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Modifier la durée">
-                                  <Edit3 className="w-4 h-4" />
-                                </button>
-                              )}
+                              <button onClick={() => openDureeEdit(credit)}
+                                className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Modifier le crédit">
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => deleteCredit(credit)} disabled={deletingCreditId === credit.id}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50" title="Supprimer le crédit">
+                                {deletingCreditId === credit.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                              </button>
                               <button onClick={() => setFactureId(credit.id)}
                                 className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Facture crédit">
                                 <Receipt className="w-4 h-4" />
@@ -1631,26 +1657,30 @@ Le crédit et le solde du client seront recalculés.`)) return;
                             <span className="text-emerald-700">{formatCurrency(grp.total)}</span>
                           </button>
                           {rembMonths.isOpen(grp.key) && grp.items.map((r) => (
-                        <div key={r.id} className="flex items-center gap-3 bg-emerald-50 rounded-lg px-3 py-2 text-xs">
-                          <span className="text-gray-500">{formatDate(r.dateRemboursement)}</span>
-                          {r.numeroJour != null && <span className="text-gray-400">J{r.numeroJour}</span>}
-                          <span className="flex-1 text-gray-600 truncate">
-                            {r.agentCollecteur ? `${r.agentCollecteur.prenom} ${r.agentCollecteur.nom}` : "—"}
-                          </span>
-                          <span className="text-gray-400">{r.modePaiement.replace("_", " ")}</span>
-                          <span className="font-bold text-emerald-700">{formatCurrency(Number(r.montant))}</span>
-                          <a href={`/api/admin/credits/${detailCredit.id}/remboursements/${r.id}/pdf`} target="_blank" rel="noreferrer"
-                            className="p-1 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded" title="Imprimer le reçu">
-                            <Printer className="w-3.5 h-3.5" />
-                          </a>
-                          <button type="button" onClick={() => openEditRemb(r)}
-                            className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded" title="Corriger ce remboursement">
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button type="button" onClick={() => deleteRemb(r)}
-                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Supprimer ce remboursement">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                        <div key={r.id} className="bg-emerald-50 rounded-lg px-3 py-2 text-xs space-y-1.5">
+                          <div className="flex items-center gap-3">
+                            <span className="text-gray-500">{formatDate(r.dateRemboursement)}</span>
+                            {r.numeroJour != null && <span className="text-gray-400">J{r.numeroJour}</span>}
+                            <span className="flex-1 text-gray-600 truncate">
+                              {r.agentCollecteur ? `${r.agentCollecteur.prenom} ${r.agentCollecteur.nom}` : "—"}
+                            </span>
+                            <span className="text-gray-400">{r.modePaiement.replace("_", " ")}</span>
+                            <span className="font-bold text-emerald-700">{formatCurrency(Number(r.montant))}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center justify-end gap-1.5">
+                            <a href={`/api/admin/credits/${detailCredit.id}/remboursements/${r.id}/pdf`} target="_blank" rel="noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1 font-medium text-emerald-700 bg-white border border-emerald-200 rounded-md hover:bg-emerald-100" title="Imprimer le reçu">
+                              <Printer className="w-3.5 h-3.5" /> Reçu
+                            </a>
+                            <button type="button" onClick={() => openEditRemb(r)}
+                              className="inline-flex items-center gap-1 px-2 py-1 font-medium text-amber-700 bg-white border border-amber-200 rounded-md hover:bg-amber-50" title="Corriger ce remboursement">
+                              <Pencil className="w-3.5 h-3.5" /> Modifier
+                            </button>
+                            <button type="button" onClick={() => deleteRemb(r)}
+                              className="inline-flex items-center gap-1 px-2 py-1 font-medium text-red-600 bg-white border border-red-200 rounded-md hover:bg-red-50" title="Supprimer ce remboursement">
+                              <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                            </button>
+                          </div>
                         </div>
                           ))}
                         </div>
@@ -1853,7 +1883,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
         />
       )}
 
-      {/* ── Modal : modifier la durée / date du crédit ─────────────────────────── */}
+      {/* ── Modal : modifier le crédit (durée, dates, frais, garant…) ─────────── */}
       {dureeCredit && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
@@ -1880,22 +1910,30 @@ Le crédit et le solde du client seront recalculés.`)) return;
                 montantRembourse={Number(dureeCredit.montantRembourse)}
                 soldeRestant={Number(dureeCredit.soldeRestant)}
               />
-              {(dureeCredit.statut === "ACTIF" || dureeCredit.statut === "EN_RETARD") && dureeCredit._count.remboursements > 0 && (
+              {(dureeCredit.statut === "ACTIF" || dureeCredit.statut === "EN_RETARD" || dureeCredit.statut === "SOLDE") && dureeCredit._count.remboursements > 0 && (
                 <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-xs text-orange-700 flex items-start gap-2">
                   <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                  Ce crédit a déjà des remboursements : l&apos;échéancier sera régénéré et le déjà-payé réimputé (montant total et solde restant inchangés).
+                  Ce crédit a déjà des remboursements : l&apos;échéancier sera régénéré, le déjà-payé réimputé et le statut recalculé
+                  {dureeCredit.statut === "SOLDE" ? " (un crédit soldé à tort repassera en cours si le solde redevient positif)" : ""}.
+                  Pour corriger un montant encaissé, modifiez le remboursement lui-même (fiche du crédit).
+                </div>
+              )}
+              {(dureeCredit.statut === "REJETE" || dureeCredit.statut === "ANNULE") && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600 flex items-start gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  Crédit {dureeCredit.statut === "REJETE" ? "rejeté" : "annulé"} : seuls le garant et la pénalité sont modifiables.
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Durée (jours) <span className="text-red-500">*</span></label>
-                  <input type="number" min={1} value={dureeForm.dureeJours}
+                  <input type="number" min={1} value={dureeForm.dureeJours} disabled={dureeClos}
                     onChange={(e) => setDureeForm(f => ({ ...f, dureeJours: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Date de début <span className="text-red-500">*</span></label>
-                  <input type="date" value={dureeForm.dateDebut}
+                  <input type="date" value={dureeForm.dateDebut} disabled={dureeClos}
                     onChange={(e) => setDureeForm(f => ({ ...f, dateDebut: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400" />
                 </div>
@@ -1917,25 +1955,23 @@ Le crédit et le solde du client seront recalculés.`)) return;
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Frais & intérêts (bordereau)</label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <input type="number" min={0} step={100} value={dureeForm.fraisDossier} disabled={dureeCredit._count.remboursements > 0}
+                  <input type="number" min={0} step={100} value={dureeForm.fraisDossier} disabled={dureeClos}
                     onChange={(e) => setDureeForm(f => ({ ...f, fraisDossier: e.target.value }))} placeholder="Frais dossier"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50" />
-                  <input type="number" min={0} step={100} value={dureeForm.assurance} disabled={dureeCredit._count.remboursements > 0}
+                  <input type="number" min={0} step={100} value={dureeForm.assurance} disabled={dureeClos}
                     onChange={(e) => setDureeForm(f => ({ ...f, assurance: e.target.value }))} placeholder="Assurance"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50" />
-                  <input type="number" min={0} step={100} value={dureeForm.autresFrais} disabled={dureeCredit._count.remboursements > 0}
+                  <input type="number" min={0} step={100} value={dureeForm.autresFrais} disabled={dureeClos}
                     onChange={(e) => setDureeForm(f => ({ ...f, autresFrais: e.target.value }))} placeholder="Autres frais"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50" />
-                  <input type="number" min={0} step={100} value={dureeForm.fraisLivraison} disabled={dureeCredit._count.remboursements > 0}
+                  <input type="number" min={0} step={100} value={dureeForm.fraisLivraison} disabled={dureeClos}
                     onChange={(e) => setDureeForm(f => ({ ...f, fraisLivraison: e.target.value }))} placeholder="Frais livraison"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50" />
-                  <input type="number" min={0} step={0.1} value={dureeForm.tauxInteret} disabled={dureeCredit._count.remboursements > 0}
+                  <input type="number" min={0} step={0.1} value={dureeForm.tauxInteret} disabled={dureeClos}
                     onChange={(e) => setDureeForm(f => ({ ...f, tauxInteret: e.target.value }))} placeholder="Taux intérêt %"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50" />
                 </div>
-                {dureeCredit._count.remboursements > 0 && (
-                  <p className="text-xs text-amber-600 mt-1">Frais/intérêt verrouillés (crédit avec remboursements). Garant, délai et pénalité restent modifiables.</p>
-                )}
+
               </div>
 
               {/* Garant (bordereau de remboursement) */}

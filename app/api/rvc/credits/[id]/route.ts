@@ -81,10 +81,11 @@ export async function GET(_req: Request, { params }: Ctx) {
 /**
  * PATCH /api/rvc/credits/[id]
  *
- * Modifie les métadonnées d'un crédit (durée, date début, garantie, observations).
- * Autorisé sur EN_ATTENTE_VALIDATION, ACTIF et EN_RETARD. Recalcule montantJournalier,
- * dateEcheanceFin et — pour un crédit en remboursement — régénère l'échéancier en
- * réimputant le déjà-payé (montant total et solde restant inchangés).
+ * Modifie un crédit (durée, date début, frais/intérêt, garant, pénalité…), quel que
+ * soit son statut. Recalcule montantJournalier, dateEcheanceFin et — pour un crédit en
+ * cours ou soldé — régénère l'échéancier en réimputant le déjà-payé (le statut est
+ * recalculé : un crédit soldé à tort repasse ACTIF / EN_RETARD). Crédit REJETE / ANNULE :
+ * seuls les champs descriptifs (garant, pénalité, observations) sont modifiables.
  */
 export async function PATCH(req: Request, { params }: Ctx) {
   try {
@@ -139,17 +140,18 @@ export async function PATCH(req: Request, { params }: Ctx) {
       if (!credit) throw new Error("CREDIT_INTROUVABLE");
       // « En remboursement » = ACTIF ou EN_RETARD : l'échéancier existe et est régénéré
       // (avec réimputation du déjà-payé). EN_ATTENTE_VALIDATION reste éditable aussi.
-      const estEnRemboursement = credit.statut === StatutCredit.ACTIF || credit.statut === StatutCredit.EN_RETARD;
-      if (credit.statut !== StatutCredit.EN_ATTENTE_VALIDATION && !estEnRemboursement) throw new Error("CREDIT_NON_MODIFIABLE");
+      const estEnRemboursement = credit.statut === StatutCredit.ACTIF || credit.statut === StatutCredit.EN_RETARD
+        || credit.statut === StatutCredit.SOLDE;
+      const estClos = credit.statut === StatutCredit.REJETE || credit.statut === StatutCredit.ANNULE;
       if (rvcPdvId !== null && credit.pointDeVenteId !== rvcPdvId) throw new Error("ACCES_REFUSE");
 
       // ── Frais / intérêts → recomposition du montant total à rembourser ──
       const toucheFrais = body.fraisDossier !== undefined || body.assurance !== undefined || body.autresFrais !== undefined || body.fraisLivraison !== undefined || body.tauxInteret !== undefined;
+      const touchePlanning = body.dureeJours !== undefined || body.dateDebut !== undefined;
+      if (estClos && (toucheFrais || touchePlanning)) throw new Error("CREDIT_CLOS");
       let nouveauMontantTotal: number | undefined;
       let nouveauMontantInteret: number | undefined;
       if (toucheFrais) {
-        // Interdit si le crédit a déjà des remboursements (fausserait le suivi).
-        if (Number(credit.montantRembourse) > 0) throw new Error("ACTIF_AVEC_REMBOURSEMENT");
         const fraisD  = body.fraisDossier   !== undefined ? Math.max(0, Number(body.fraisDossier))   : Number(credit.fraisDossier);
         const assur   = body.assurance      !== undefined ? Math.max(0, Number(body.assurance))      : Number(credit.assurance);
         const autres  = body.autresFrais    !== undefined ? Math.max(0, Number(body.autresFrais))    : Number(credit.autresFrais);
@@ -160,9 +162,21 @@ export async function PATCH(req: Request, { params }: Ctx) {
         nouveauMontantInteret = Number((valeurProduits * tauxInt / 100).toFixed(2));
         nouveauMontantTotal   = Number((valeurProduits + fraisD + assur + autres + fraisLiv + nouveauMontantInteret).toFixed(2));
         if (nouveauMontantTotal <= 0) throw new Error("MONTANT_INVALIDE");
+        // Le déjà-remboursé est réimputé sur le nouvel échéancier : le total ne peut
+        // pas descendre en dessous (corriger d'abord les remboursements en trop).
+        if (nouveauMontantTotal + 0.01 < Number(credit.montantRembourse)) throw new Error("MONTANT_INFERIEUR_REMBOURSE");
       }
 
-      const updated = await appliquerNouvelleDureeCredit(tx, credit, { ...body, montantTotal: nouveauMontantTotal });
+      // Crédit clos : pas d'échéancier à régénérer, seules les métadonnées changent.
+      const updated = estClos
+        ? await tx.creditClient.update({
+            where: { id: creditId },
+            data: {
+              ...(body.garantie     !== undefined && { garantie:     body.garantie || null }),
+              ...(body.observations !== undefined && { observations: body.observations || null }),
+            },
+          })
+        : await appliquerNouvelleDureeCredit(tx, credit, { ...body, montantTotal: nouveauMontantTotal });
 
       // Répercuter un changement de montant total sur le solde du client (crédit en cours).
       if (estEnRemboursement && nouveauMontantTotal != null) {
@@ -199,10 +213,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (error instanceof Error) {
       const map: Record<string, [string, number]> = {
         CREDIT_INTROUVABLE:    ["Crédit introuvable", 404],
-        CREDIT_NON_MODIFIABLE: ["Seuls les crédits en attente de validation, actifs ou en retard peuvent être modifiés", 422],
+        CREDIT_CLOS:           ["Crédit rejeté ou annulé : seuls garant, pénalité et observations sont modifiables", 422],
         ACCES_REFUSE:          ["Accès refusé — PDV non autorisé", 403],
         DUREE_INVALIDE:        ["La durée doit être ≥ 1 jour", 400],
-        ACTIF_AVEC_REMBOURSEMENT: ["Ce crédit a déjà des remboursements : frais et intérêt non modifiables (le montant total serait faussé).", 422],
+        MONTANT_INFERIEUR_REMBOURSE: ["Le nouveau montant est inférieur à ce que le client a déjà remboursé : corrigez ou supprimez d'abord les remboursements en trop.", 422],
         MONTANT_INVALIDE:      ["Le montant total doit être positif", 400],
       };
       if (map[error.message]) {

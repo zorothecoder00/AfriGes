@@ -3,6 +3,7 @@ import { StatutCredit, StatutEcheanceCredit, TypeMouvement, TypeEntreeStock } fr
 import { prisma } from "@/lib/prisma";
 import { getCorrectionCreditSession, creditDansPerimetre } from "@/lib/authRVC";
 import { notifyAdmins } from "@/lib/notifications";
+import { supprimerTransactionClient } from "@/lib/clientTransaction";
 import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { resolveRvcPdv } from "@/lib/gestionnaireCredit";
 import { tariferLigne } from "@/lib/venteTarification";
@@ -75,7 +76,8 @@ export async function GET(_req: Request, { params }: Ctx) {
  * ==========================
  * PATCH /api/admin/credits/[id]
  * ==========================
- * Modifier un crédit (uniquement si statut = EN_ATTENTE_VALIDATION)
+ * Modifier un crédit, quel que soit son statut (en cours / soldé : échéancier régénéré
+ * et statut recalculé ; rejeté / annulé : champs descriptifs seulement)
  *
  * Body: {
  *   lignes?, dureeJours?, dateDebut?,
@@ -108,27 +110,30 @@ export async function PATCH(req: Request, { params }: Ctx) {
       if (!credit) throw new Error("CREDIT_INTROUVABLE");
       if (!creditDansPerimetre(acces.pdvIds, credit.pointDeVenteId)) throw new Error("HORS_PERIMETRE");
 
-      // « En remboursement » = ACTIF ou EN_RETARD : dans les deux cas l'échéancier existe
-      // et peut être régénéré (avec réimputation du déjà-payé).
-      const estActif = credit.statut === StatutCredit.ACTIF || credit.statut === StatutCredit.EN_RETARD;
-      if (credit.statut !== StatutCredit.EN_ATTENTE_VALIDATION && !estActif) throw new Error("CREDIT_NON_MODIFIABLE");
+      // « En cours » = ACTIF, EN_RETARD ou SOLDE : l'échéancier existe et peut être
+      // régénéré (avec réimputation du déjà-payé). SOLDE inclus pour corriger un crédit
+      // soldé à tort (mauvais montant saisi) : le statut est recalculé plus bas.
+      const estActif = credit.statut === StatutCredit.ACTIF || credit.statut === StatutCredit.EN_RETARD
+        || credit.statut === StatutCredit.SOLDE;
+      // Crédits clos sans effet financier (REJETE / ANNULE) : seuls les champs
+      // descriptifs (garantie, observations, gestionnaire…) restent modifiables.
+      const estClos = credit.statut === StatutCredit.REJETE || credit.statut === StatutCredit.ANNULE;
 
       const toucheFrais    = fraisDossier !== undefined || assurance !== undefined || autresFrais !== undefined || fraisLivraison !== undefined || tauxInteret !== undefined;
       const toucheMontant  = lignes !== undefined || toucheFrais;
       const touchePlanning = dureeJours !== undefined || dateDebut !== undefined;
       const dejaRembourse  = Number(credit.montantRembourse);
 
-      // Sur un crédit ACTIF, un changement de MONTANT (lignes) impacte le solde client,
-      // la réservation stock et un éventuel financement RIA : on ne l'autorise que s'il
-      // n'a aucun remboursement, aucune ligne livrée et aucun financement RIA.
-      // En revanche, un changement de PLANNING seul (durée / date de début, montant
-      // inchangé) reste autorisé même avec des remboursements : on régénère l'échéancier
-      // en réimputant le déjà-payé (voir plus bas).
-      if (estActif && toucheMontant) {
-        if (dejaRembourse > 0) throw new Error("ACTIF_AVEC_REMBOURSEMENT");
-        if (credit.lignes.some((l) => l.statut === "LIVRE")) throw new Error("ACTIF_LIGNE_LIVREE");
-        if (credit._count.financementsRIA > 0) throw new Error("ACTIF_FINANCE_RIA");
+      if (estClos && (toucheMontant || touchePlanning)) throw new Error("CREDIT_CLOS");
+
+      // Sur un crédit en cours, remplacer les LIGNES casserait le suivi des produits déjà
+      // livrés, et un changement de MONTANT désynchroniserait un financement RIA.
+      // Les remboursements, eux, ne bloquent plus : le déjà-payé est réimputé sur le
+      // nouvel échéancier et le solde client corrigé du delta.
+      if (estActif && lignes !== undefined && credit.lignes.some((l) => l.statut === "LIVRE")) {
+        throw new Error("ACTIF_LIGNE_LIVREE");
       }
+      if (estActif && toucheMontant && credit._count.financementsRIA > 0) throw new Error("ACTIF_FINANCE_RIA");
 
       const ancienMontant = Number(credit.montantTotal);
       let montantTotal = ancienMontant;
@@ -221,6 +226,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
         montantTotal   = Number((valeurProduits + fraisD + assur + autres + fraisLiv + montantInteret).toFixed(2));
         if (montantTotal <= 0) throw new Error("MONTANT_INVALIDE");
       }
+      if (estActif && toucheMontant && montantTotal + 0.01 < dejaRembourse) throw new Error("MONTANT_INFERIEUR_REMBOURSE");
 
       // ── Recalcul de l'échéancier ──────────────────────────────────────────
       const duree = dureeJours !== undefined ? Number(dureeJours) : credit.dureeJours;
@@ -237,12 +243,14 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const updated = await tx.creditClient.update({
         where: { id: creditId },
         data: {
-          montantTotal,
-          soldeRestant,
-          dureeJours: duree,
-          dateDebut:  debut,
-          dateEcheanceFin,
-          montantJournalier,
+          ...(!estClos && {
+            montantTotal,
+            soldeRestant,
+            dureeJours: duree,
+            dateDebut:  debut,
+            dateEcheanceFin,
+            montantJournalier,
+          }),
           ...(toucheFrais && { montantInteret }),
           ...(fraisDossier   !== undefined && { fraisDossier:   Math.max(0, Number(fraisDossier)) }),
           ...(assurance      !== undefined && { assurance:      Math.max(0, Number(assurance)) }),
@@ -327,9 +335,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
       const map: Record<string, [string, number]> = {
         CREDIT_INTROUVABLE:   ["Crédit introuvable", 404],
         HORS_PERIMETRE:       ["Ce crédit n'appartient pas à votre point de vente", 403],
-        CREDIT_NON_MODIFIABLE: ["Seuls les crédits en attente de validation ou actifs peuvent être modifiés", 422],
-        ACTIF_AVEC_REMBOURSEMENT: ["Crédit actif avec remboursement(s) : montant et échéancier non modifiables. Supprimez-le et recréez-le, ou ne changez que garantie/observations/pénalité.", 422],
-        ACTIF_LIGNE_LIVREE:   ["Crédit actif avec produit(s) déjà livré(s) : modification du montant impossible.", 422],
+        CREDIT_CLOS:          ["Crédit rejeté ou annulé : seuls garantie, observations et gestionnaire sont modifiables.", 422],
+        MONTANT_INFERIEUR_REMBOURSE: ["Le nouveau montant est inférieur à ce que le client a déjà remboursé : corrigez ou supprimez d'abord les remboursements en trop.", 422],
+        ACTIF_LIGNE_LIVREE:   ["Crédit avec produit(s) déjà livré(s) : les lignes de produits ne sont plus modifiables (frais, durée et dates restent corrigeables).", 422],
         ACTIF_FINANCE_RIA:    ["Crédit actif financé par un portefeuille RIA : montant non modifiable.", 422],
         LIGNES_INVALIDES:     ["Les lignes de produits sont invalides", 400],
         MONTANT_INVALIDE:     ["Le montant total doit être positif", 400],
@@ -349,18 +357,20 @@ export async function PATCH(req: Request, { params }: Ctx) {
  * ==========================
  * DELETE /api/admin/credits/[id]
  * ==========================
- * Supprime un crédit (EN_ATTENTE_VALIDATION, ACTIF ou REJETE).
- * Réverse proprement les effets de la validation avant suppression :
- *   - libère / restaure le stock réservé (par ligne)
- *   - décrémente client.soldeActuel du solde restant (si ACTIF)
+ * Supprime un crédit, quel que soit son statut (y compris SOLDE / EN_RETARD : crédit
+ * saisi ou soldé par erreur). Réverse proprement ses effets avant suppression :
+ *   - libère / restaure le stock réservé ou livré (par ligne)
+ *   - décrémente client.soldeActuel du solde restant (crédit en cours)
+ *   - efface les transactions client des remboursements confirmés
  * Bloqué si le crédit porte des opérations liées (livraisons, factures, financements RIA)
- * ou un remboursement déjà enregistré (utiliser « Annuler » à la place).
+ * ou des remboursements issus d'une collecte terrain / d'un compte courant (argent
+ * engagé ailleurs : à supprimer d'abord un par un).
  * Lignes / échéances / remboursements partent en cascade (schéma).
  */
-const STATUTS_SUPPRIMABLES: StatutCredit[] = [
-  StatutCredit.EN_ATTENTE_VALIDATION,
+const STATUTS_EN_COURS: StatutCredit[] = [
   StatutCredit.ACTIF,
-  StatutCredit.REJETE,
+  StatutCredit.EN_RETARD,
+  StatutCredit.SOLDE,
 ];
 
 export async function DELETE(_req: Request, { params }: Ctx) {
@@ -378,18 +388,28 @@ export async function DELETE(_req: Request, { params }: Ctx) {
         where: { id: creditId },
         include: {
           lignes: { select: { produitId: true, quantite: true, prixUnitaire: true, statut: true } },
-          _count: { select: { livraisons: true, facturesVente: true, financementsRIA: true, remboursements: true } },
+          remboursements: { select: { id: true, statut: true, compteCourantId: true, ligneCollecte: { select: { id: true } } } },
+          _count: { select: { livraisons: true, facturesVente: true, financementsRIA: true } },
         },
       });
       if (!credit) throw new Error("CREDIT_INTROUVABLE");
       if (!creditDansPerimetre(acces.pdvIds, credit.pointDeVenteId)) throw new Error("HORS_PERIMETRE");
-      if (!STATUTS_SUPPRIMABLES.includes(credit.statut)) throw new Error("CREDIT_NON_SUPPRIMABLE");
       if (credit._count.livraisons > 0 || credit._count.facturesVente > 0 || credit._count.financementsRIA > 0) {
         throw new Error("CREDIT_LIE");
       }
-      if (credit._count.remboursements > 0) throw new Error("CREDIT_AVEC_REMBOURSEMENT");
+      if (credit.remboursements.some((r) => r.compteCourantId || r.ligneCollecte)) {
+        throw new Error("REMBOURSEMENT_LIE");
+      }
 
-      const estActif = credit.statut === StatutCredit.ACTIF;
+      const estActif = STATUTS_EN_COURS.includes(credit.statut);
+
+      // ── Remboursements confirmés : on retire leurs traces côté client ──────
+      // (le solde client est corrigé globalement ci-dessous via soldeRestant).
+      for (const r of credit.remboursements) {
+        if (r.statut === "CONFIRME") {
+          await supprimerTransactionClient(tx, { sourceType: "REMBOURSEMENT_CREDIT", sourceId: r.id });
+        }
+      }
 
       // ── Réversion du stock réservé / livré (comme une annulation) ──────────
       if (credit.pointDeVenteId) {
@@ -464,9 +484,8 @@ export async function DELETE(_req: Request, { params }: Ctx) {
       const map: Record<string, [string, number]> = {
         CREDIT_INTROUVABLE:    ["Crédit introuvable", 404],
         HORS_PERIMETRE:        ["Ce crédit n'appartient pas à votre point de vente", 403],
-        CREDIT_NON_SUPPRIMABLE: ["Seuls les crédits en attente de validation, actifs ou rejetés peuvent être supprimés", 422],
         CREDIT_LIE:            ["Ce crédit est lié à des opérations (livraisons, factures ou financements) — suppression impossible", 422],
-        CREDIT_AVEC_REMBOURSEMENT: ["Ce crédit a déjà des remboursements — utilisez « Annuler » pour préserver l'historique", 422],
+        REMBOURSEMENT_LIE:     ["Ce crédit a des remboursements issus d'une collecte terrain ou d'un compte courant — supprimez-les d'abord un par un (fiche du crédit)", 422],
       };
       if (map[error.message]) {
         const [msg, status] = map[error.message];
