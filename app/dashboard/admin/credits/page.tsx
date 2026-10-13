@@ -641,6 +641,23 @@ export default function CreditsPage() {
     return () => clearTimeout(timer);
   }, [creditClientSearch, creditSelectedClient, newCreditOpen]);
 
+  // Échap ferme la modale du dessus (puis le drawer détail). La création de
+  // crédit est volontairement exclue : formulaire long, perte de saisie.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || newCreditOpen) return;
+      if (ligneActionOpen) setLigneActionOpen(false);
+      else if (deleteCredit) setDeleteCredit(null);
+      else if (editRemb) setEditRemb(null);
+      else if (editCredit) setEditCredit(null);
+      else if (modalActionOpen) setModalActionOpen(false);
+      else if (modalRembOpen) setModalRembOpen(false);
+      else if (detailCredit) setDetailCredit(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [newCreditOpen, ligneActionOpen, deleteCredit, editRemb, editCredit, modalActionOpen, modalRembOpen, detailCredit]);
+
   // ── API principale ─────────────────────────────────────────────────────────
   const query = new URLSearchParams({
     page: String(page), limit: String(LIMIT),
@@ -1680,8 +1697,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
           MODAL — Correction d'un remboursement
       ══════════════════════════════════════════════════════════════════ */}
       {editRemb && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[170] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex z-[170] p-4 overflow-y-auto overscroll-contain" onClick={(e) => { if (e.target === e.currentTarget) setEditRemb(null); }}>
+          <div className="m-auto bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-amber-600" />
@@ -1727,8 +1744,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
           MODAL — Remboursement
       ══════════════════════════════════════════════════════════════════ */}
       {modalRembOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[160] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-black/50 flex z-[160] p-4 overflow-y-auto overscroll-contain" onClick={(e) => { if (e.target === e.currentTarget) setModalRembOpen(false); }}>
+          <div className="m-auto bg-white rounded-2xl w-full max-w-md shadow-xl flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-2">
                 <Banknote className="w-5 h-5 text-teal-600" />
@@ -1836,8 +1853,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
           MODAL — Nouvelle vente à crédit (4 étapes)
       ══════════════════════════════════════════════════════════════════ */}
       {newCreditOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[160] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl flex flex-col max-h-[94vh]">
+        <div className="fixed inset-0 bg-black/50 flex z-[160] p-4 overflow-y-auto overscroll-contain">
+          <div className="m-auto bg-white rounded-2xl w-full max-w-2xl shadow-xl flex flex-col max-h-[94vh]">
 
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0">
               <div className="flex items-center gap-3">
@@ -2086,7 +2103,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                     <div><p className="text-xs text-blue-600">Montant total</p><p className="text-2xl font-bold text-blue-700">{formatCurrency(creditMontantTotal)}</p></div>
                     <Info className="w-8 h-8 text-blue-200" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Formule <span className="text-red-500">*</span></label>
                       <select value={creditParams.formule}
@@ -2163,7 +2180,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                       )}
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Taux pénalité (% / jour)</label>
                       <input type="number" min={0} step={0.1} value={creditParams.tauxPenalite}
@@ -2179,7 +2196,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                   </div>
 
                   {/* Frais & intérêts (inclus dans le total à rembourser) */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Frais de dossier</label>
                       <input type="number" min={0} step={100} value={creditParams.fraisDossier}
@@ -2233,7 +2250,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                   {/* Garant (garantie) */}
                   <div className="border border-slate-100 rounded-xl p-3 bg-slate-50/60 space-y-3">
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Garant</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1">Nom du garant</label>
                         <input type="text" value={creditParams.garantNom}
@@ -2371,8 +2388,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
           MODAL — Valider / Rejeter / Annuler
       ══════════════════════════════════════════════════════════════════ */}
       {modalActionOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[160] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex z-[160] p-4 overflow-y-auto overscroll-contain" onClick={(e) => { if (e.target === e.currentTarget) setModalActionOpen(false); }}>
+          <div className="m-auto bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 {actionType === 'valider'  && <BadgeCheck className="w-5 h-5 text-emerald-600" />}
@@ -2429,8 +2446,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
           MODAL — Action sur une ligne de crédit
       ══════════════════════════════════════════════════════════════════ */}
       {ligneActionOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex z-[200] p-4 overflow-y-auto overscroll-contain" onClick={(e) => { if (e.target === e.currentTarget) setLigneActionOpen(false); }}>
+          <div className="m-auto bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 {ligneActionStatut === 'LIVRE'        && <PackageCheck className="w-5 h-5 text-emerald-600" />}
@@ -2533,8 +2550,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
           MODAL — Modifier un crédit (EN_ATTENTE_VALIDATION)
       ══════════════════════════════════════════════════════════════════ */}
       {editCredit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[170] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl flex flex-col max-h-[92vh]">
+        <div className="fixed inset-0 bg-black/50 flex z-[170] p-4 overflow-y-auto overscroll-contain" onClick={(e) => { if (e.target === e.currentTarget) setEditCredit(null); }}>
+          <div className="m-auto bg-white rounded-2xl w-full max-w-lg shadow-xl flex flex-col max-h-[92vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-indigo-600" />
@@ -2567,7 +2584,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                   Les produits ne sont pas modifiables ici. L&apos;échéancier sera recalculé d&apos;après la nouvelle durée et date de début.
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Durée (jours) <span className="text-red-500">*</span></label>
                   <input type="number" min={1} value={editForm.dureeJours} disabled={editClos}
@@ -2598,7 +2615,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
               {/* Frais & intérêts (recomposent le total à rembourser) */}
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Frais & intérêts (bordereau)</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <input type="number" min={0} step={100} value={editForm.fraisDossier} disabled={editClos}
                     onChange={(e) => setEditForm(f => ({ ...f, fraisDossier: e.target.value }))} placeholder="Frais dossier"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50" />
@@ -2623,7 +2640,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
               {/* Garant (structuré — bordereau de remboursement) */}
               <div className="border border-slate-100 rounded-lg p-3 bg-slate-50/60">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Garant</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <input type="text" value={editForm.garantNom} onChange={(e) => setEditForm(f => ({ ...f, garantNom: e.target.value }))} placeholder="Nom du garant"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-400" />
                   <input type="text" value={editForm.garantTelephone} onChange={(e) => setEditForm(f => ({ ...f, garantTelephone: e.target.value }))} placeholder="Téléphone"
@@ -2675,8 +2692,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
           MODAL — Supprimer un crédit
       ══════════════════════════════════════════════════════════════════ */}
       {deleteCredit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[180] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex z-[180] p-4 overflow-y-auto overscroll-contain" onClick={(e) => { if (e.target === e.currentTarget) setDeleteCredit(null); }}>
+          <div className="m-auto bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Trash className="w-5 h-5 text-red-600" />
