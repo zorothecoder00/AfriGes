@@ -1095,6 +1095,22 @@ Le crédit et le solde du client seront recalculés.`)) return;
     return () => clearTimeout(t);
   }, [ligneEditProdSearch, ligneEditType]);
 
+  // Échap ferme la modale du dessus (puis le drawer détail)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (editRemb) setEditRemb(null);
+      else if (ligneActionOpen) setLigneActionOpen(false);
+      else if (ligneEditOpen) setLigneEditOpen(false);
+      else if (refuserOpen) setRefuserOpen(false);
+      else if (rembCredit) setRembCredit(null);
+      else if (dureeCredit) setDureeCredit(null);
+      else if (detailCredit) setDetailCredit(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editRemb, ligneActionOpen, ligneEditOpen, refuserOpen, rembCredit, dureeCredit, detailCredit]);
+
   return (
     <div className="min-h-screen bg-[#dbe7f5] lg:flex">
       {/* Overlay sidebar (mobile) */}
@@ -1724,8 +1740,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
 
       {/* ── Modal correction d'un remboursement ────────────────────────────────── */}
       {editRemb && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex z-[200] p-4 overflow-y-auto overscroll-contain" onClick={(e) => { if (e.target === e.currentTarget) setEditRemb(null); }}>
+          <div className="m-auto bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-amber-600" />
@@ -1788,8 +1804,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
 
       {/* ── Modal ligne action ─────────────────────────────────────────────────── */}
       {ligneActionOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex z-[200] p-4 overflow-y-auto overscroll-contain" onClick={(e) => { if (e.target === e.currentTarget) setLigneActionOpen(false); }}>
+          <div className="m-auto bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 {ligneActionStatut === "LIVRE"        && <PackageCheck  className="w-5 h-5 text-emerald-600" />}
@@ -1903,8 +1919,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
 
       {/* ── Modal : modifier le crédit (durée, dates, frais, garant…) ─────────── */}
       {dureeCredit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex z-[200] p-4 overflow-y-auto overscroll-contain" onClick={(e) => { if (e.target === e.currentTarget) setDureeCredit(null); }}>
+          <div className="m-auto bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <Edit3 className="w-5 h-5 text-amber-600" />
@@ -1942,7 +1958,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                   Crédit {dureeCredit.statut === "REJETE" ? "rejeté" : "annulé"} : seuls le garant et la pénalité sont modifiables.
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Durée (jours) <span className="text-red-500">*</span></label>
                   <input type="number" min={1} value={dureeForm.dureeJours} disabled={dureeClos}
@@ -1972,7 +1988,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
               {/* Frais & intérêts (recomposent le total à rembourser) */}
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Frais & intérêts (bordereau)</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input type="number" min={0} step={100} value={dureeForm.fraisDossier} disabled={dureeClos}
                     onChange={(e) => setDureeForm(f => ({ ...f, fraisDossier: e.target.value }))} placeholder="Frais dossier"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50" />
@@ -1995,7 +2011,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
               {/* Garant (bordereau de remboursement) */}
               <div className="border border-gray-100 rounded-lg p-3 bg-gray-50/60">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Garant</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input type="text" value={dureeForm.garantNom} onChange={(e) => setDureeForm(f => ({ ...f, garantNom: e.target.value }))} placeholder="Nom du garant"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   <input type="text" value={dureeForm.garantTelephone} onChange={(e) => setDureeForm(f => ({ ...f, garantTelephone: e.target.value }))} placeholder="Téléphone"
@@ -2032,8 +2048,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
 
       {/* ── Modal refus ────────────────────────────────────────────────────────── */}
       {refuserOpen && detailCredit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex z-[200] p-4 overflow-y-auto overscroll-contain" onClick={(e) => { if (e.target === e.currentTarget) setRefuserOpen(false); }}>
+          <div className="m-auto bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <XCircle className="w-5 h-5 text-red-500" />
@@ -2075,8 +2091,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
 
       {/* ── Modal encaissement remboursement ───────────────────────────────────── */}
       {rembCredit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex z-[200] p-4 overflow-y-auto overscroll-contain" onClick={(e) => { if (e.target === e.currentTarget) setRembCredit(null); }}>
+          <div className="m-auto bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <Banknote className="w-5 h-5 text-indigo-600" />
@@ -2095,7 +2111,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                 montantRembourse={Number(rembCredit.montantRembourse)}
                 soldeRestant={Number(rembCredit.soldeRestant)}
               />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Date de collecte</label>
                   <input type="date" value={rembDate} onChange={(e) => setRembDate(e.target.value)}
@@ -2185,8 +2201,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
 
       {/* ── Modal ajout / édition ligne ────────────────────────────────────────── */}
       {ligneEditOpen && detailCredit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex z-[200] p-4 overflow-y-auto overscroll-contain" onClick={(e) => { if (e.target === e.currentTarget) setLigneEditOpen(false); }}>
+          <div className="m-auto bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h3 className="text-base font-bold text-gray-900">
                 {ligneEditId ? "Modifier la ligne" : "Ajouter une ligne"}
