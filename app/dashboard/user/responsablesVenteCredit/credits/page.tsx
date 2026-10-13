@@ -82,7 +82,7 @@ interface CreditDetail extends CreditClient {
   observations: string | null;
   lignes: LigneCreditDetail[];
   echeances: { id: number; numeroEcheance: number; dateEcheance: string; montantDu: number; montantPaye: number; statut: string }[];
-  remboursements: { id: number; montant: number; dateRemboursement: string; modePaiement: string; numeroJour: number | null; enregistrePar: { id: number; nom: string; prenom: string }; agentCollecteur: { id: number; nom: string; prenom: string } | null }[];
+  remboursements: { id: number; montant: number; dateRemboursement: string; modePaiement: string; numeroJour: number | null; notes: string | null; enregistrePar: { id: number; nom: string; prenom: string }; agentCollecteur: { id: number; nom: string; prenom: string } | null }[];
 }
 
 interface CreditsResponse {
@@ -590,7 +590,7 @@ export default function RVCCreditsPage() {
   // Édition d'un remboursement déjà enregistré (correction montant/date)
   type RembItem = CreditDetail['remboursements'][number];
   const [editRemb, setEditRemb] = useState<RembItem | null>(null);
-  const [editRembForm, setEditRembForm] = useState({ montant: '', dateCollecte: '' });
+  const [editRembForm, setEditRembForm] = useState({ montant: '', dateCollecte: '', numeroJour: '', agentCollecteurId: '', observation: '' });
   const [editRembSaving, setEditRembSaving] = useState(false);
   const [factureId,       setFactureId]       = useState<number | null>(null);
   const { can } = usePermissions();
@@ -948,6 +948,9 @@ export default function RVCCreditsPage() {
     setEditRembForm({
       montant: String(Number(r.montant)),
       dateCollecte: r.dateRemboursement ? r.dateRemboursement.slice(0, 10) : '',
+      numeroJour: r.numeroJour != null ? String(r.numeroJour) : '',
+      agentCollecteurId: r.agentCollecteur ? String(r.agentCollecteur.id) : '',
+      observation: r.notes ?? '',
     });
   };
   const saveEditRemb = async () => {
@@ -962,6 +965,9 @@ export default function RVCCreditsPage() {
         body: JSON.stringify({
           montant: montantNum !== Number(editRemb.montant) ? montantNum : undefined,
           dateCollecte: editRembForm.dateCollecte || undefined,
+          numeroJour: editRembForm.numeroJour === '' ? null : Number(editRembForm.numeroJour),
+          agentCollecteurId: editRembForm.agentCollecteurId === '' ? null : Number(editRembForm.agentCollecteurId),
+          observation: editRembForm.observation,
         }),
       });
       const j = await r.json();
@@ -1695,6 +1701,31 @@ Le crédit et le solde du client seront recalculés.`)) return;
                   onChange={(e) => setEditRembForm((f) => ({ ...f, dateCollecte: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
               </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">N° de jour (1 à {detailCredit?.dureeJours ?? "…"})</label>
+                <input type="number" min={1} max={detailCredit?.dureeJours} value={editRembForm.numeroJour} placeholder="Optionnel"
+                  onChange={(e) => setEditRembForm((f) => ({ ...f, numeroJour: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Agent collecteur</label>
+                <select value={editRembForm.agentCollecteurId}
+                  onChange={(e) => setEditRembForm((f) => ({ ...f, agentCollecteurId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value="">— Aucun —</option>
+                  {editRemb.agentCollecteur && !collecteurs.some((c) => c.id === editRemb.agentCollecteur!.id) && (
+                    <option value={editRemb.agentCollecteur.id}>{editRemb.agentCollecteur.prenom} {editRemb.agentCollecteur.nom}</option>
+                  )}
+                  {collecteurs.map((c) => <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Observation</label>
+                <textarea rows={2} value={editRembForm.observation}
+                  onChange={(e) => setEditRembForm((f) => ({ ...f, observation: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+              <p className="text-xs text-gray-500">Si le client n&apos;a rien payé, supprimez plutôt le remboursement (icône corbeille).</p>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
               <button onClick={() => setEditRemb(null)} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Annuler</button>
