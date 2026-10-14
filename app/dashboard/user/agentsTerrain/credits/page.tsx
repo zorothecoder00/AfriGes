@@ -14,6 +14,7 @@ import DashboardBackButton from "@/components/DashboardBackButton";
 import FactureModal from "@/components/FactureModal";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { montantCreditReel } from "@/lib/formuleCredit";
 import { toast } from "sonner";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ interface CreditItem {
   reference: string;
   statut: StatutCredit;
   montantTotal: number;
+  montantInteret?: number | string;
   montantRembourse: number;
   soldeRestant: number;
   montantJournalier: number;
@@ -143,7 +145,7 @@ function CreditCard_({
           </div>
         </div>
         <div className="text-right shrink-0">
-          <p className="text-lg font-bold text-gray-900">{formatCurrency(credit.montantTotal)}</p>
+          <p className="text-lg font-bold text-gray-900">{formatCurrency(montantCreditReel(credit))}</p>
           {credit.statut !== "EN_ATTENTE_VALIDATION" && (
             <p className="text-xs text-gray-500">
               Reste : <span className="font-semibold text-red-600">{formatCurrency(credit.soldeRestant)}</span>

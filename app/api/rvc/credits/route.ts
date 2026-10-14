@@ -6,7 +6,7 @@ import { MemberStatus, NiveauRisque, Prisma, StatutCredit, PrioriteNotification 
 import { notifyRoles, notifyAdminsEtComptables, auditLog } from "@/lib/notifications";
 import { getFidelite } from "@/lib/fidelite";
 import { tariferLigne } from "@/lib/venteTarification";
-import { estFormuleValide, dureeJoursPourFormule, remunerationFormule } from "@/lib/formuleCredit";
+import { estFormuleValide, dureeJoursPourFormule, remunerationFormule, montantCreditReel } from "@/lib/formuleCredit";
 import { randomUUID } from "crypto";
 import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 import { enregistrerTransactionClient } from "@/lib/clientTransaction";
@@ -69,7 +69,7 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "desc" },
         select: {
           id: true, reference: true, statut: true,
-          montantTotal: true, montantRembourse: true, soldeRestant: true,
+          montantTotal: true, montantInteret: true, montantRembourse: true, soldeRestant: true,
           dureeJours: true, dateDebut: true, dateEcheanceFin: true,
           montantJournalier: true, createdAt: true,
           tauxPenalite: true, delaiGraceJours: true,
@@ -85,7 +85,7 @@ export async function GET(req: Request) {
       // les sous-totaux par mois doivent refléter tout le mois, pas seulement la page.
       prisma.creditClient.findMany({
         where,
-        select: { dateDebut: true, montantTotal: true },
+        select: { dateDebut: true, montantTotal: true, montantInteret: true },
       }),
       // Totaux par statut (tous statuts, indépendant du filtre `statut` en cours),
       // scopés au PDV du RVC + agent/recherche courants.
@@ -93,7 +93,7 @@ export async function GET(req: Request) {
         by: ["statut"],
         where: whereBase,
         _count: true,
-        _sum: { montantTotal: true, soldeRestant: true },
+        _sum: { montantTotal: true, montantInteret: true, soldeRestant: true },
       }),
     ]);
 
@@ -107,7 +107,7 @@ export async function GET(req: Request) {
         ? `${d!.getUTCFullYear()}-${String(d!.getUTCMonth() + 1).padStart(2, "0")}`
         : "0000-00";
       const e = parMoisMap.get(key) ?? { total: 0, count: 0 };
-      e.total += Number(c.montantTotal);
+      e.total += montantCreditReel(c);
       e.count += 1;
       parMoisMap.set(key, e);
     }
@@ -119,7 +119,8 @@ export async function GET(req: Request) {
     for (const g of statsGroup) {
       statsParStatut[g.statut] = {
         nb: g._count,
-        montantTotal: Number(g._sum.montantTotal ?? 0),
+        // Montant réel émis, hors rémunération 16ème/31ème (cf. montantCreditReel).
+        montantTotal: Number(g._sum.montantTotal ?? 0) - Number(g._sum.montantInteret ?? 0),
         soldeRestant: Number(g._sum.soldeRestant ?? 0),
       };
     }

@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
 import { usePermissions } from '@/hooks/usePermissions';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { dureeJoursPourFormule, remunerationFormule } from '@/lib/formuleCredit';
+import { dureeJoursPourFormule, remunerationFormule, montantCreditReel } from '@/lib/formuleCredit';
 import { toast } from 'sonner';
 import { exportToXlsx } from '@/lib/exportXlsx';
 import { printToPdf, tableHtml, kpisHtml } from '@/lib/exportPdf';
@@ -34,6 +34,7 @@ interface CreditClient {
   reference: string;
   statut: string;
   montantTotal: string | number;
+  montantInteret?: string | number;
   montantRembourse: string | number;
   soldeRestant: string | number;
   dureeJours: number;
@@ -1173,7 +1174,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {groupByMonth(credits, (c) => c.dateDebut, (c) => Number(c.montantTotal)).map((grp) => (
+                    {groupByMonth(credits, (c) => c.dateDebut, (c) => montantCreditReel(c)).map((grp) => (
                       <React.Fragment key={grp.key}>
                         <MonthGroupHeaderRow
                           label={grp.label}
@@ -1226,7 +1227,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
 
                           {/* Montant total */}
                           <td className="px-5 py-4 text-right">
-                            <p className="font-semibold text-slate-800">{formatCurrency(Number(credit.montantTotal))}</p>
+                            <p className="font-semibold text-slate-800">{formatCurrency(montantCreditReel(credit))}</p>
                             <p className="text-xs text-slate-400">{credit._count.lignes} produit(s)</p>
                           </td>
 
@@ -1457,7 +1458,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
                   {/* Infos générales */}
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { label: 'Montant total',      value: formatCurrency(Number(detailCredit.montantTotal)),     icon: <CreditCard className="w-3.5 h-3.5" /> },
+                      { label: 'Montant du crédit',  value: formatCurrency(montantCreditReel(detailCredit)),      icon: <CreditCard className="w-3.5 h-3.5" />,
+                        sub: Number(detailCredit.montantInteret ?? 0) > 0 ? `+ ${formatCurrency(Number(detailCredit.montantInteret))} de 16ème/31ème (dernière échéance)` : undefined },
                       { label: 'Solde restant',       value: formatCurrency(Number(detailCredit.soldeRestant)),     icon: <TrendingDown className="w-3.5 h-3.5" /> },
                       { label: 'Remboursé',           value: formatCurrency(Number(detailCredit.montantRembourse)), icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
                       { label: 'Montant/jour',        value: formatCurrency(Number(detailCredit.montantJournalier)),icon: <Calendar className="w-3.5 h-3.5" /> },
@@ -1467,6 +1469,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                       <div key={f.label} className="bg-slate-50 rounded-lg px-3 py-2.5">
                         <p className="text-xs text-slate-400 flex items-center gap-1">{f.icon}{f.label}</p>
                         <p className="text-sm font-semibold text-slate-800 mt-0.5">{f.value}</p>
+                        {f.sub && <p className="text-[11px] text-emerald-700 mt-0.5">{f.sub}</p>}
                       </div>
                     ))}
                   </div>

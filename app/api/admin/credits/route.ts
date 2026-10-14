@@ -6,7 +6,7 @@ import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { chargerParametrageCC, preleverCompteCourant, extraireMetaRequete } from "@/lib/compteCourant";
 import { getFidelite } from "@/lib/fidelite";
 import { tariferLigne } from "@/lib/venteTarification";
-import { estFormuleValide, dureeJoursPourFormule, remunerationFormule } from "@/lib/formuleCredit";
+import { estFormuleValide, dureeJoursPourFormule, remunerationFormule, montantCreditReel } from "@/lib/formuleCredit";
 import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 import { notifyGestionnaires, ROLES_COMPTABLES } from "@/lib/notifications";
 
@@ -92,7 +92,7 @@ export async function GET(req: Request) {
       // refléter l'ensemble des crédits du mois, pas seulement la page visible.
       prisma.creditClient.findMany({
         where,
-        select: { dateDebut: true, montantTotal: true, montantRembourse: true },
+        select: { dateDebut: true, montantTotal: true, montantInteret: true, montantRembourse: true },
       }),
       // Totaux par statut (tous statuts, indépendant du filtre `statut` en cours) —
       // alimente les cartes KPI de /dashboard/admin/credits ; scopé aux mêmes
@@ -101,7 +101,7 @@ export async function GET(req: Request) {
         by: ["statut"],
         where: whereBase,
         _count: true,
-        _sum: { montantTotal: true, soldeRestant: true },
+        _sum: { montantTotal: true, montantInteret: true, soldeRestant: true },
       }),
     ]);
 
@@ -116,7 +116,7 @@ export async function GET(req: Request) {
         ? `${d!.getUTCFullYear()}-${String(d!.getUTCMonth() + 1).padStart(2, "0")}`
         : "0000-00";
       const e = parMoisMap.get(key) ?? { total: 0, rembourse: 0, count: 0 };
-      e.total += Number(c.montantTotal);
+      e.total += montantCreditReel(c);
       e.rembourse += Number(c.montantRembourse);
       e.count += 1;
       parMoisMap.set(key, e);
@@ -131,7 +131,8 @@ export async function GET(req: Request) {
     for (const g of statsGroup) {
       statsParStatut[g.statut] = {
         nb: g._count,
-        montantTotal: Number(g._sum.montantTotal ?? 0),
+        // Montant réel émis, hors rémunération 16ème/31ème (cf. montantCreditReel).
+        montantTotal: Number(g._sum.montantTotal ?? 0) - Number(g._sum.montantInteret ?? 0),
         soldeRestant: Number(g._sum.soldeRestant ?? 0),
       };
     }

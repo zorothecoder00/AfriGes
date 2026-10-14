@@ -49,7 +49,7 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "desc" },
         select: {
           id: true, reference: true, statut: true,
-          montantTotal: true, montantRembourse: true, soldeRestant: true,
+          montantTotal: true, montantInteret: true, montantRembourse: true, soldeRestant: true,
           dureeJours: true, dateDebut: true, createdAt: true,
           client: { select: { id: true, nom: true, prenom: true, codeClient: true, telephone: true } },
           _count: { select: { remboursements: true } },

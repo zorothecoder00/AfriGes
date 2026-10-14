@@ -13,6 +13,7 @@ import DashboardBackButton from "@/components/DashboardBackButton";
 import AfriSimeLogo from "@/components/AfriSimeLogo";
 import { useApi } from "@/hooks/useApi";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { montantCreditReel } from "@/lib/formuleCredit";
 import { toast } from "sonner";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -30,6 +31,7 @@ interface CreditALivrer {
   id: number;
   reference: string;
   montantTotal: number;
+  montantInteret?: number;
   createdAt: string;
   client: { id: number; nom: string; telephone: string | null } | null;
   creePar: string | null;
@@ -74,7 +76,7 @@ function CreditLivraisonCard({
         </div>
         <p className="text-lg font-bold text-gray-900 flex-shrink-0 flex items-center gap-1">
           <Banknote size={15} className="text-indigo-400" />
-          {formatCurrency(credit.montantTotal)}
+          {formatCurrency(montantCreditReel(credit))}
         </p>
       </div>
 

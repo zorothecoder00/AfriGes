@@ -79,3 +79,23 @@ export function libelleFormule(f: Formule | null | undefined): string {
   if (!f) return "—";
   return FORMULE_CONFIG[f].label;
 }
+
+// Accepte aussi un Prisma.Decimal côté serveur (converti via Number/valueOf), sans
+// import valeur de @prisma/client (lib utilisée côté client).
+type Montant = number | string | { valueOf(): string | number };
+
+/**
+ * Montant RÉEL du crédit affiché au client/gestionnaire, hors rémunération
+ * 16ème/31ème : montantTotal − montantInteret. Le montantTotal stocké (et donc
+ * l'échéancier / le solde restant) inclut toujours la rémunération ; seul
+ * l'affichage du « montant du crédit » l'exclut, par transparence.
+ * Crédits historiques : montantInteret = 0 → identique à montantTotal.
+ */
+export function montantCreditReel(c: {
+  montantTotal: Montant;
+  montantInteret?: Montant | null;
+}): number {
+  const total = Number(c.montantTotal) || 0;
+  const interet = Number(c.montantInteret ?? 0) || 0;
+  return Number((total - interet).toFixed(2));
+}

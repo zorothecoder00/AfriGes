@@ -8,6 +8,7 @@ import RetourLien from "@/components/RetourLien";
 import Modal from "@/components/ui/Modal";
 import Pagination from "@/components/ui/Pagination";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { montantCreditReel } from "@/lib/formuleCredit";
 
 /**
  * Crédits clients de l'agence du RPV — correction des erreurs de saisie :
@@ -18,7 +19,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 
 interface CreditRow {
   id: number; reference: string; statut: string;
-  montantTotal: string; montantRembourse: string; soldeRestant: string;
+  montantTotal: string; montantInteret?: string; montantRembourse: string; soldeRestant: string;
   dureeJours: number; dateDebut: string; createdAt: string;
   client: { id: number; nom: string; prenom: string; codeClient: string | null; telephone: string };
   _count: { remboursements: number };
@@ -243,7 +244,7 @@ export default function RpvCreditsPage() {
                     </p>
                   </div>
                   <div className="text-xs text-slate-600 sm:text-right">
-                    <p>Total <span className="font-semibold">{formatCurrency(Number(c.montantTotal))}</span></p>
+                    <p>Crédit <span className="font-semibold">{formatCurrency(montantCreditReel(c))}</span></p>
                     <p>Payé <span className="font-semibold text-emerald-700">{formatCurrency(Number(c.montantRembourse))}</span> · Reste <span className="font-semibold text-red-600">{formatCurrency(Number(c.soldeRestant))}</span></p>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -277,7 +278,7 @@ export default function RpvCreditsPage() {
           <div className="space-y-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               <div><p className="text-xs text-slate-500">Statut</p><p className="font-semibold">{(STATUTS[detail.statut] ?? STATUTS.ACTIF).label}</p></div>
-              <div><p className="text-xs text-slate-500">Total</p><p className="font-semibold">{formatCurrency(Number(detail.montantTotal))}</p></div>
+              <div><p className="text-xs text-slate-500">Crédit</p><p className="font-semibold">{formatCurrency(montantCreditReel(detail))}</p>{Number(detail.montantInteret ?? 0) > 0 && <p className="text-[11px] text-emerald-700">+ {formatCurrency(Number(detail.montantInteret))} de 16ème/31ème</p>}</div>
               <div><p className="text-xs text-slate-500">Remboursé</p><p className="font-semibold text-emerald-700">{formatCurrency(Number(detail.montantRembourse))}</p></div>
               <div><p className="text-xs text-slate-500">Reste</p><p className="font-semibold text-red-600">{formatCurrency(Number(detail.soldeRestant))}</p></div>
             </div>

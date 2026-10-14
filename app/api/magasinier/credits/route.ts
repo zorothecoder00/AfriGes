@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
         reference: true,
         statut: true,
         montantTotal: true,
+        montantInteret: true,
         createdAt: true,
         client: { select: { id: true, nom: true, prenom: true, telephone: true } },
         creePar: { select: { id: true, nom: true, prenom: true } },
@@ -61,6 +62,7 @@ export async function GET(req: NextRequest) {
       reference:    c.reference,
       statut:       c.statut,
       montantTotal: Number(c.montantTotal),
+      montantInteret: Number(c.montantInteret),
       createdAt:    c.createdAt.toISOString(),
       client:       c.client
         ? { id: c.client.id, nom: `${c.client.prenom} ${c.client.nom}`, telephone: c.client.telephone }

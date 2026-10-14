@@ -18,7 +18,7 @@ import { useApi } from "@/hooks/useApi";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { groupByMonth } from "@/lib/groupByMonth";
-import { remunerationFormule } from "@/lib/formuleCredit";
+import { remunerationFormule, montantCreditReel } from "@/lib/formuleCredit";
 import { MonthGroupHeaderRow, useCollapsedMonths } from "@/components/MonthGroupHeaderRow";
 import { CreditRappelInfo } from "@/components/CreditRappelInfo";
 import BordereauRemboursement, { type BordereauCredit, type BordereauClient } from "@/components/BordereauRemboursement";
@@ -49,6 +49,7 @@ interface CreditClient {
   reference: string;
   statut: string;
   montantTotal: number;
+  montantInteret?: number | string;
   montantRembourse: number;
   soldeRestant: number;
   dureeJours: number;
@@ -1299,7 +1300,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {groupByMonth(credits, (c) => c.dateDebut, (c) => Number(c.montantTotal)).map((grp) => (
+                    {groupByMonth(credits, (c) => c.dateDebut, (c) => montantCreditReel(c)).map((grp) => (
                       <React.Fragment key={grp.key}>
                         <MonthGroupHeaderRow
                           label={grp.label}
@@ -1323,7 +1324,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                             <p className="text-xs text-gray-400">{credit.client.telephone}</p>
                           </td>
                           <td className="px-5 py-4 text-right">
-                            <p className="font-semibold text-gray-800">{formatCurrency(Number(credit.montantTotal))}</p>
+                            <p className="font-semibold text-gray-800">{formatCurrency(montantCreditReel(credit))}</p>
                             <p className="text-xs text-gray-400">{credit._count.lignes} produit(s)</p>
                           </td>
                           <td className="px-5 py-4 text-right">
@@ -1492,7 +1493,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
                 {/* Infos générales */}
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { label: "Montant total",  value: formatCurrency(Number(detailCredit.montantTotal)),     icon: <CreditCard className="w-3.5 h-3.5" /> },
+                    { label: "Montant du crédit", value: formatCurrency(montantCreditReel(detailCredit)), icon: <CreditCard className="w-3.5 h-3.5" />,
+                      sub: Number(detailCredit.montantInteret ?? 0) > 0 ? `+ ${formatCurrency(Number(detailCredit.montantInteret))} de 16ème/31ème (dernière échéance)` : undefined },
                     { label: "Solde restant",   value: formatCurrency(Number(detailCredit.soldeRestant)),     icon: <TrendingDown className="w-3.5 h-3.5" /> },
                     { label: "Remboursé",       value: formatCurrency(Number(detailCredit.montantRembourse)), icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
                     { label: "Montant/jour",    value: formatCurrency(Number(detailCredit.montantJournalier)),icon: <Banknote className="w-3.5 h-3.5" /> },
@@ -1502,6 +1504,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                     <div key={f.label} className="bg-gray-50 rounded-lg px-3 py-2.5">
                       <p className="text-xs text-gray-400 flex items-center gap-1">{f.icon}{f.label}</p>
                       <p className="text-sm font-semibold text-gray-800 mt-0.5">{f.value}</p>
+                      {f.sub && <p className="text-[11px] text-emerald-700 mt-0.5">{f.sub}</p>}
                     </div>
                   ))}
                 </div>
