@@ -18,7 +18,7 @@ import { useApi } from "@/hooks/useApi";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { groupByMonth } from "@/lib/groupByMonth";
-import { remunerationFormule, montantCreditReel } from "@/lib/formuleCredit";
+import { remunerationFormule, montantCreditReel, decomposerSoldeCredit } from "@/lib/formuleCredit";
 import { MonthGroupHeaderRow, useCollapsedMonths } from "@/components/MonthGroupHeaderRow";
 import { CreditRappelInfo } from "@/components/CreditRappelInfo";
 import BordereauRemboursement, { type BordereauCredit, type BordereauClient } from "@/components/BordereauRemboursement";
@@ -1310,9 +1310,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
                           open={credMonths.isOpen(grp.key)} onToggle={() => credMonths.toggle(grp.key)}
                         />
                         {credMonths.isOpen(grp.key) && grp.items.map((credit) => {
-                      const pct = Number(credit.montantTotal) > 0
-                        ? Math.min(100, Math.round((Number(credit.montantRembourse) / Number(credit.montantTotal)) * 100))
-                        : 0;
+                      const dec = decomposerSoldeCredit(credit);
+                      const pct = dec.pctReel;
                       return (
                         <tr key={credit.id} className="hover:bg-gray-50/60 transition-colors">
                           <td className="px-5 py-4">
@@ -1329,8 +1328,11 @@ Le crédit et le solde du client seront recalculés.`)) return;
                           </td>
                           <td className="px-5 py-4 text-right">
                             <p className={`font-bold ${Number(credit.soldeRestant) > 0 && credit.statut !== "SOLDE" ? "text-red-600" : "text-gray-500"}`}>
-                              {formatCurrency(Number(credit.soldeRestant))}
+                              {formatCurrency(dec.soldeReel)}
                             </p>
+                            {dec.remunerationRestante > 0 && (
+                              <p className="text-[11px] text-emerald-700 whitespace-nowrap">+ {formatCurrency(dec.remunerationRestante)} de 16ème/31ème</p>
+                            )}
                             <div className="w-16 ml-auto mt-1">
                               <div className="w-full bg-gray-100 rounded-full h-1">
                                 <div className={`h-1 rounded-full ${pct >= 100 ? "bg-emerald-500" : pct >= 50 ? "bg-blue-500" : "bg-amber-400"}`}
@@ -1495,8 +1497,10 @@ Le crédit et le solde du client seront recalculés.`)) return;
                   {[
                     { label: "Montant du crédit", value: formatCurrency(montantCreditReel(detailCredit)), icon: <CreditCard className="w-3.5 h-3.5" />,
                       sub: Number(detailCredit.montantInteret ?? 0) > 0 ? `+ ${formatCurrency(Number(detailCredit.montantInteret))} de 16ème/31ème (dernière échéance)` : undefined },
-                    { label: "Solde restant",   value: formatCurrency(Number(detailCredit.soldeRestant)),     icon: <TrendingDown className="w-3.5 h-3.5" /> },
-                    { label: "Remboursé",       value: formatCurrency(Number(detailCredit.montantRembourse)), icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+                    { label: "Solde restant",   value: formatCurrency(decomposerSoldeCredit(detailCredit).soldeReel),     icon: <TrendingDown className="w-3.5 h-3.5" />,
+                      sub: decomposerSoldeCredit(detailCredit).remunerationRestante > 0 ? `+ ${formatCurrency(decomposerSoldeCredit(detailCredit).remunerationRestante)} de 16ème/31ème restant dû` : undefined },
+                    { label: "Remboursé",       value: formatCurrency(decomposerSoldeCredit(detailCredit).rembourseReel), icon: <CheckCircle2 className="w-3.5 h-3.5" />,
+                      sub: decomposerSoldeCredit(detailCredit).remunerationPayee > 0 ? `+ ${formatCurrency(decomposerSoldeCredit(detailCredit).remunerationPayee)} de 16ème/31ème payé` : undefined },
                     { label: "Montant/jour",    value: formatCurrency(Number(detailCredit.montantJournalier)),icon: <Banknote className="w-3.5 h-3.5" /> },
                     { label: "Début",           value: formatDate(detailCredit.dateDebut),                   icon: <Calendar className="w-3.5 h-3.5" /> },
                     { label: "Fin d'échéance",  value: formatDate(detailCredit.dateEcheanceFin),              icon: <Calendar className="w-3.5 h-3.5" /> },

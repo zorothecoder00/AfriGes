@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
-import { montantCreditReel } from '@/lib/formuleCredit';
+import { montantCreditReel, decomposerSoldeCredit } from '@/lib/formuleCredit';
 import CreditEcheancier from '@/components/CreditEcheancier';
 import BordereauRemboursement from '@/components/BordereauRemboursement';
 import { MonthGroupHeaderRow, useCollapsedMonths } from '@/components/MonthGroupHeaderRow';
@@ -710,7 +710,8 @@ export default function ClientDetails({
                           )}
                           <div className="text-right">
                             <p className="text-sm font-bold text-slate-800">{formatCurrency(montantCreditReel(credit))}</p>
-                            <p className="text-xs text-slate-500">Restant : <span className={Number(credit.soldeRestant) > 0 ? 'text-red-600 font-semibold' : 'text-emerald-600'}>{formatCurrency(Number(credit.soldeRestant))}</span></p>
+                            <p className="text-xs text-slate-500">Restant : <span className={Number(credit.soldeRestant) > 0 ? 'text-red-600 font-semibold' : 'text-emerald-600'}>{formatCurrency(decomposerSoldeCredit(credit).soldeReel)}</span></p>
+                            {decomposerSoldeCredit(credit).remunerationRestante > 0 && <p className="text-[11px] text-emerald-700">+ {formatCurrency(decomposerSoldeCredit(credit).remunerationRestante)} de 16ème/31ème</p>}
                           </div>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${CREDIT_STATUT_STYLE[credit.statut] ?? 'bg-slate-100 text-slate-600'}`}>
                             {CREDIT_STATUT_LABEL[credit.statut] ?? credit.statut}

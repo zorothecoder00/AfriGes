@@ -99,3 +99,35 @@ export function montantCreditReel(c: {
   const interet = Number(c.montantInteret ?? 0) || 0;
   return Number((total - interet).toFixed(2));
 }
+
+/**
+ * Décompose le solde restant / le remboursé d'un crédit entre la part « crédit
+ * réel » et la part rémunération (16ème/31ème). La rémunération étant la DERNIÈRE
+ * échéance, elle est réglée en dernier : tant que le solde couvre la rémunération,
+ * elle reste entièrement due.
+ *  - remunerationRestante = min(soldeRestant, montantInteret)
+ *  - soldeReel            = soldeRestant − remunerationRestante
+ *  - rembourseReel        = montantCreditReel − soldeReel
+ *  - remunerationPayee    = montantInteret − remunerationRestante
+ *  - pctReel              = % du crédit réel remboursé (0–100)
+ */
+export function decomposerSoldeCredit(c: {
+  montantTotal: Montant;
+  montantInteret?: Montant | null;
+  soldeRestant: Montant;
+}) {
+  const r2 = (n: number) => Number(n.toFixed(2));
+  const reel = montantCreditReel(c);
+  const interet = Math.max(0, Number(c.montantInteret ?? 0) || 0);
+  const solde = Math.max(0, Number(c.soldeRestant) || 0);
+  const remunerationRestante = Math.min(solde, interet);
+  const soldeReel = Math.max(0, solde - remunerationRestante);
+  const rembourseReel = Math.max(0, reel - soldeReel);
+  return {
+    soldeReel: r2(soldeReel),
+    remunerationRestante: r2(remunerationRestante),
+    rembourseReel: r2(rembourseReel),
+    remunerationPayee: r2(interet - remunerationRestante),
+    pctReel: reel > 0 ? Math.min(100, Math.round((rembourseReel / reel) * 100)) : 0,
+  };
+}

@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { useApi } from '@/hooks/useApi';
 import { usePermissions } from '@/hooks/usePermissions';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { dureeJoursPourFormule, remunerationFormule, montantCreditReel } from '@/lib/formuleCredit';
+import { dureeJoursPourFormule, remunerationFormule, montantCreditReel, decomposerSoldeCredit } from '@/lib/formuleCredit';
 import { toast } from 'sonner';
 import { exportToXlsx } from '@/lib/exportXlsx';
 import { printToPdf, tableHtml, kpisHtml } from '@/lib/exportPdf';
@@ -1184,9 +1184,8 @@ Le crédit et le solde du client seront recalculés.`)) return;
                           open={credMonths.isOpen(grp.key)} onToggle={() => credMonths.toggle(grp.key)}
                         />
                         {credMonths.isOpen(grp.key) && grp.items.map((credit) => {
-                      const pct = Number(credit.montantTotal) > 0
-                        ? Math.min(100, Math.round((Number(credit.montantRembourse) / Number(credit.montantTotal)) * 100))
-                        : 0;
+                      const dec = decomposerSoldeCredit(credit);
+                      const pct = dec.pctReel;
                       const canValider  = credit.statut === 'EN_ATTENTE_VALIDATION';
                       const canRembourser = credit.statut === 'ACTIF' || credit.statut === 'EN_RETARD';
 
@@ -1246,8 +1245,11 @@ Le crédit et le solde du client seront recalculés.`)) return;
                           {/* Solde restant */}
                           <td className="px-5 py-4 text-right">
                             <p className={`font-bold ${Number(credit.soldeRestant) > 0 && credit.statut !== 'SOLDE' ? 'text-red-600' : 'text-slate-500'}`}>
-                              {formatCurrency(Number(credit.soldeRestant))}
+                              {formatCurrency(dec.soldeReel)}
                             </p>
+                            {dec.remunerationRestante > 0 && (
+                              <p className="text-[11px] text-emerald-700 whitespace-nowrap">+ {formatCurrency(dec.remunerationRestante)} de 16ème/31ème</p>
+                            )}
                             <p className="text-xs text-slate-400">{formatCurrency(Number(credit.montantJournalier))}/j</p>
                           </td>
 
@@ -1460,8 +1462,10 @@ Le crédit et le solde du client seront recalculés.`)) return;
                     {[
                       { label: 'Montant du crédit',  value: formatCurrency(montantCreditReel(detailCredit)),      icon: <CreditCard className="w-3.5 h-3.5" />,
                         sub: Number(detailCredit.montantInteret ?? 0) > 0 ? `+ ${formatCurrency(Number(detailCredit.montantInteret))} de 16ème/31ème (dernière échéance)` : undefined },
-                      { label: 'Solde restant',       value: formatCurrency(Number(detailCredit.soldeRestant)),     icon: <TrendingDown className="w-3.5 h-3.5" /> },
-                      { label: 'Remboursé',           value: formatCurrency(Number(detailCredit.montantRembourse)), icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+                      { label: 'Solde restant',       value: formatCurrency(decomposerSoldeCredit(detailCredit).soldeReel),     icon: <TrendingDown className="w-3.5 h-3.5" />,
+                      sub: decomposerSoldeCredit(detailCredit).remunerationRestante > 0 ? `+ ${formatCurrency(decomposerSoldeCredit(detailCredit).remunerationRestante)} de 16ème/31ème restant dû` : undefined },
+                      { label: 'Remboursé',           value: formatCurrency(decomposerSoldeCredit(detailCredit).rembourseReel), icon: <CheckCircle2 className="w-3.5 h-3.5" />,
+                      sub: decomposerSoldeCredit(detailCredit).remunerationPayee > 0 ? `+ ${formatCurrency(decomposerSoldeCredit(detailCredit).remunerationPayee)} de 16ème/31ème payé` : undefined },
                       { label: 'Montant/jour',        value: formatCurrency(Number(detailCredit.montantJournalier)),icon: <Calendar className="w-3.5 h-3.5" /> },
                       { label: 'Début',               value: formatDate(detailCredit.dateDebut),                   icon: <Calendar className="w-3.5 h-3.5" /> },
                       { label: 'Fin d\'échéance',     value: formatDate(detailCredit.dateEcheanceFin),              icon: <Calendar className="w-3.5 h-3.5" /> },
@@ -1476,8 +1480,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
 
                   {/* Barre progression */}
                   {(() => {
-                    const pct = Number(detailCredit.montantTotal) > 0
-                      ? Math.min(100, Math.round((Number(detailCredit.montantRembourse) / Number(detailCredit.montantTotal)) * 100)) : 0;
+                    const pct = decomposerSoldeCredit(detailCredit).pctReel;
                     return (
                       <div>
                         <div className="flex justify-between text-xs text-slate-400 mb-1">

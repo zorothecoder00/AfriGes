@@ -6,7 +6,7 @@ import { montantJournalierArrondi } from "@/lib/echeancierCredit";
 import { chargerParametrageCC, preleverCompteCourant, extraireMetaRequete } from "@/lib/compteCourant";
 import { getFidelite } from "@/lib/fidelite";
 import { tariferLigne } from "@/lib/venteTarification";
-import { estFormuleValide, dureeJoursPourFormule, remunerationFormule, montantCreditReel } from "@/lib/formuleCredit";
+import { estFormuleValide, dureeJoursPourFormule, remunerationFormule, montantCreditReel, decomposerSoldeCredit } from "@/lib/formuleCredit";
 import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 import { notifyGestionnaires, ROLES_COMPTABLES } from "@/lib/notifications";
 
@@ -97,11 +97,10 @@ export async function GET(req: Request) {
       // Totaux par statut (tous statuts, indépendant du filtre `statut` en cours) —
       // alimente les cartes KPI de /dashboard/admin/credits ; scopé aux mêmes
       // filtres client/PDV/agent/recherche que la liste, via whereBase.
-      prisma.creditClient.groupBy({
-        by: ["statut"],
+      prisma.creditClient.findMany({
         where: whereBase,
-        _count: true,
-        _sum: { montantTotal: true, montantInteret: true, soldeRestant: true },
+        // Agrégé en JS : le solde « réel » (hors 16ème/31ème restant dû) n'est pas une somme SQL.
+        select: { statut: true, montantTotal: true, montantInteret: true, soldeRestant: true },
       }),
     ]);
 
@@ -128,13 +127,12 @@ export async function GET(req: Request) {
     const statsParStatut: Record<string, { nb: number; montantTotal: number; soldeRestant: number }> = Object.fromEntries(
       Object.values(StatutCredit).map((s) => [s, { nb: 0, montantTotal: 0, soldeRestant: 0 }])
     );
-    for (const g of statsGroup) {
-      statsParStatut[g.statut] = {
-        nb: g._count,
-        // Montant réel émis, hors rémunération 16ème/31ème (cf. montantCreditReel).
-        montantTotal: Number(g._sum.montantTotal ?? 0) - Number(g._sum.montantInteret ?? 0),
-        soldeRestant: Number(g._sum.soldeRestant ?? 0),
-      };
+    // Montants réels, hors rémunération 16ème/31ème (cf. montantCreditReel / decomposerSoldeCredit).
+    for (const c of statsGroup) {
+      const s = statsParStatut[c.statut];
+      s.nb += 1;
+      s.montantTotal += montantCreditReel(c);
+      s.soldeRestant += decomposerSoldeCredit(c).soldeReel;
     }
 
     return NextResponse.json({

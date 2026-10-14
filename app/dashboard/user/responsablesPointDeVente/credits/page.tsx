@@ -8,7 +8,7 @@ import RetourLien from "@/components/RetourLien";
 import Modal from "@/components/ui/Modal";
 import Pagination from "@/components/ui/Pagination";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { montantCreditReel } from "@/lib/formuleCredit";
+import { montantCreditReel, decomposerSoldeCredit } from "@/lib/formuleCredit";
 
 /**
  * Crédits clients de l'agence du RPV — correction des erreurs de saisie :
@@ -245,7 +245,8 @@ export default function RpvCreditsPage() {
                   </div>
                   <div className="text-xs text-slate-600 sm:text-right">
                     <p>Crédit <span className="font-semibold">{formatCurrency(montantCreditReel(c))}</span></p>
-                    <p>Payé <span className="font-semibold text-emerald-700">{formatCurrency(Number(c.montantRembourse))}</span> · Reste <span className="font-semibold text-red-600">{formatCurrency(Number(c.soldeRestant))}</span></p>
+                    <p>Payé <span className="font-semibold text-emerald-700">{formatCurrency(decomposerSoldeCredit(c).rembourseReel)}</span> · Reste <span className="font-semibold text-red-600">{formatCurrency(decomposerSoldeCredit(c).soldeReel)}</span></p>
+                    {decomposerSoldeCredit(c).remunerationRestante > 0 && <p className="text-[11px] text-emerald-700">+ {formatCurrency(decomposerSoldeCredit(c).remunerationRestante)} de 16ème/31ème restant dû</p>}
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <button onClick={() => ouvrir(c.id)} disabled={detailLoading === c.id}
@@ -279,8 +280,8 @@ export default function RpvCreditsPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               <div><p className="text-xs text-slate-500">Statut</p><p className="font-semibold">{(STATUTS[detail.statut] ?? STATUTS.ACTIF).label}</p></div>
               <div><p className="text-xs text-slate-500">Crédit</p><p className="font-semibold">{formatCurrency(montantCreditReel(detail))}</p>{Number(detail.montantInteret ?? 0) > 0 && <p className="text-[11px] text-emerald-700">+ {formatCurrency(Number(detail.montantInteret))} de 16ème/31ème</p>}</div>
-              <div><p className="text-xs text-slate-500">Remboursé</p><p className="font-semibold text-emerald-700">{formatCurrency(Number(detail.montantRembourse))}</p></div>
-              <div><p className="text-xs text-slate-500">Reste</p><p className="font-semibold text-red-600">{formatCurrency(Number(detail.soldeRestant))}</p></div>
+              <div><p className="text-xs text-slate-500">Remboursé</p><p className="font-semibold text-emerald-700">{formatCurrency(decomposerSoldeCredit(detail).rembourseReel)}</p></div>
+              <div><p className="text-xs text-slate-500">Reste</p><p className="font-semibold text-red-600">{formatCurrency(decomposerSoldeCredit(detail).soldeReel)}</p>{decomposerSoldeCredit(detail).remunerationRestante > 0 && <p className="text-[11px] text-emerald-700">+ {formatCurrency(decomposerSoldeCredit(detail).remunerationRestante)} de 16ème/31ème</p>}</div>
             </div>
 
             <div>
