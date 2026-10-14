@@ -6,6 +6,7 @@ import QRCode from "qrcode";
 import { toCanvas as barcodeToCanvas } from "bwip-js/browser";
 import { buildCalendrier } from "@/lib/calendrierRemboursement";
 import { SOCIETE_PIED } from "@/lib/societe";
+import { montantCreditReel } from "@/lib/formuleCredit";
 
 // ─── Types (sous-ensembles de CreditItem / Client de ClientDetails) ────────────
 
@@ -115,6 +116,8 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
   // ── D. Résumé financier ──
   const valeurProduits = credit.lignes.reduce((s, l) => s + N(l.montantLigne), 0);
   const montantTotal   = N(credit.montantTotal);
+  // Crédit accordé = hors 16ème/31ème (rémunération, déjà détaillée en « Intérêt total »).
+  const montantAccorde = montantCreditReel(credit);
 
   // ── F. Historique des remboursements enregistrés (données réelles, traçables) ──
   // Contrairement au calendrier (E, théorique/estimé par échéance), cette section
@@ -267,7 +270,7 @@ function buildBordereauHtml(credit: BordereauCredit, client: BordereauClient, or
     kv("Frais de livraison", fmt(credit.fraisLivraison)) +
     kv("Taux d'intérêt appliqué", `${N(credit.tauxInteret)} %`) +
     kv("Intérêt total", fmt(credit.montantInteret)) +
-    kv("Montant total du crédit accordé", fmt(montantTotal)),
+    kv("Montant total du crédit accordé", fmt(montantAccorde)),
     kv("Taux de pénalité appliqué", `${tauxPen} % / jour`) +
     kv("Montant total à rembourser", fmt(montantTotal)) +
     kv("Durée du remboursement", `${credit.dureeJours} jour(s)`) +

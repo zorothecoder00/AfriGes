@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApi, useMutation } from '@/hooks/useApi';
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/format';
+import { montantCreditReel } from '@/lib/formuleCredit';
 import CreditEcheancier from '@/components/CreditEcheancier';
 import BordereauRemboursement from '@/components/BordereauRemboursement';
 import { MonthGroupHeaderRow, useCollapsedMonths } from '@/components/MonthGroupHeaderRow';
@@ -708,7 +709,7 @@ export default function ClientDetails({
                             </span>
                           )}
                           <div className="text-right">
-                            <p className="text-sm font-bold text-slate-800">{formatCurrency(Number(credit.montantTotal))}</p>
+                            <p className="text-sm font-bold text-slate-800">{formatCurrency(montantCreditReel(credit))}</p>
                             <p className="text-xs text-slate-500">Restant : <span className={Number(credit.soldeRestant) > 0 ? 'text-red-600 font-semibold' : 'text-emerald-600'}>{formatCurrency(Number(credit.soldeRestant))}</span></p>
                           </div>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${CREDIT_STATUT_STYLE[credit.statut] ?? 'bg-slate-100 text-slate-600'}`}>
@@ -958,7 +959,7 @@ export default function ClientDetails({
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-slate-800 font-mono">{credit.reference}</p>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        {formatDate(credit.dateDebut)} → {formatDate(credit.dateEcheanceFin)} · {credit.dureeJours}j · {formatCurrency(Number(credit.montantTotal))}
+                        {formatDate(credit.dateDebut)} → {formatDate(credit.dateEcheanceFin)} · {credit.dureeJours}j · {formatCurrency(montantCreditReel(credit))}
                       </p>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">

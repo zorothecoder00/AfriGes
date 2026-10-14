@@ -62,6 +62,7 @@ export interface CreditAEncaisser {
   dureeJours: number;
   // Infos crédit (utiles quand un client a plusieurs crédits)
   montantTotal: number;
+  montantInteret: number; // 16ème/31ème inclus dans montantTotal (affichage : montantCreditReel)
   montantRembourse: number;
   montantJournalier: number; // sert au calcul du montant attendu multi-jours
   tauxPaye: number;      // % remboursé (0–100)
@@ -93,7 +94,7 @@ export async function chargerCreditsAEncaisser(
     },
     select: {
       id: true, reference: true, soldeRestant: true, dureeJours: true,
-      montantTotal: true, montantRembourse: true, montantJournalier: true, dateDebut: true,
+      montantTotal: true, montantInteret: true, montantRembourse: true, montantJournalier: true, dateDebut: true,
       client: { select: { id: true, nom: true, prenom: true, telephone: true, codeClient: true } },
       echeances: {
         where: { statut: { not: StatutEcheanceCredit.PAYE } },
@@ -120,6 +121,7 @@ export async function chargerCreditsAEncaisser(
       soldeRestant: Number(c.soldeRestant),
       dureeJours:   c.dureeJours,
       montantTotal: total,
+      montantInteret: Number(c.montantInteret),
       montantRembourse: rembourse,
       montantJournalier: Number(c.montantJournalier),
       tauxPaye:     total > 0 ? Math.round((rembourse / total) * 100) : 0,

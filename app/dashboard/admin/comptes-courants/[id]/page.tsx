@@ -47,7 +47,7 @@ interface Mouvement {
 }
 interface CreditPayable {
   creditId: number; reference: string; soldeRestant: number;
-  montantTotal: number; montantRembourse: number; tauxPaye: number;
+  montantTotal: number; montantInteret?: number; montantRembourse: number; tauxPaye: number;
   montantAttendu: number;
 }
 interface RetraitPending {

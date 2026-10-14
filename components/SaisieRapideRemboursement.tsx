@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useApi } from "@/hooks/useApi";
+import { montantCreditReel } from "@/lib/formuleCredit";
 import { toast } from "sonner";
 import { Banknote, RefreshCw, Loader2, Users, Calendar, Wand2, Search, CheckCircle2, XCircle, MinusCircle, X, ArrowLeft } from "lucide-react";
 
@@ -9,7 +10,7 @@ interface CreditAEncaisser {
   clientId: number; clientNom: string; clientPrenom: string; telephone: string;
   creditId: number; reference: string; soldeRestant: number;
   dureeJours: number; numeroJour: number | null; montantAttendu: number;
-  montantTotal: number; montantRembourse: number; montantJournalier: number; tauxPaye: number; dateDebut: string;
+  montantTotal: number; montantInteret?: number; montantRembourse: number; montantJournalier: number; tauxPaye: number; dateDebut: string;
 }
 interface ResultatBatch {
   enregistres: number; ignores: number; montantTotal: number;
@@ -257,7 +258,7 @@ export default function SaisieRapideRemboursement({ apiBase, collecteursApi, acc
                       <p className="font-medium text-slate-800">{it.clientPrenom} {it.clientNom}</p>
                       <p className="text-xs text-slate-400">{it.reference} · début le {jourDe(it.dateDebut)}</p>
                       <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500">
-                        <span>Total {fmt(it.montantTotal)}</span>
+                        <span>Crédit {fmt(montantCreditReel(it))}</span>
                         <span className="text-slate-300">·</span>
                         <span className="inline-flex items-center gap-1">
                           <span className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">

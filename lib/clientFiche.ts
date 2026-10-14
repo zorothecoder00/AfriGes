@@ -1,5 +1,6 @@
 import { StatutCredit } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { montantCreditReel } from "@/lib/formuleCredit";
 
 /**
  * Logique partagée de la fiche client (détail, crédits, historique), réutilisée
@@ -93,14 +94,14 @@ export async function chargerClientCredits(clientId: number) {
     enAttente: credits.filter((c) => c.statut === StatutCredit.EN_ATTENTE_VALIDATION).length,
     montantTotalEmprunte: credits
       .filter((c) => c.statut !== StatutCredit.ANNULE && c.statut !== StatutCredit.REJETE)
-      .reduce((s, c) => s + Number(c.montantTotal), 0),
+      .reduce((s, c) => s + montantCreditReel(c), 0),
     montantTotalRembourse: credits.reduce((s, c) => s + Number(c.montantRembourse), 0),
     soldeRestantTotal: credits
       .filter((c) => c.statut === StatutCredit.ACTIF || c.statut === StatutCredit.EN_RETARD)
       .reduce((s, c) => s + Number(c.soldeRestant), 0),
     montantEnCours: credits
       .filter((c) => c.statut === StatutCredit.ACTIF || c.statut === StatutCredit.EN_RETARD)
-      .reduce((s, c) => s + Number(c.montantTotal), 0),
+      .reduce((s, c) => s + montantCreditReel(c), 0),
     echeancesEnRetard: credits.flatMap((c) =>
       c.echeances.filter((e) => e.statut !== "PAYE" && new Date(e.dateEcheance) < now)
     ).length,

@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { X, Loader2, CreditCard, Hash, Phone, Calendar, Wallet } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { montantCreditReel } from "@/lib/formuleCredit";
 
 interface CreditPayable {
   creditId: number;
   reference: string;
   soldeRestant: number;
   montantTotal: number;
+  montantInteret?: number;
   montantRembourse: number;
   montantAttendu: number;
   tauxPaye: number;
@@ -160,7 +162,7 @@ export default function PayerCreditsModal({
                         <span className="inline-flex items-center gap-1"><Calendar className="w-3 h-3" />échéances dès le {formatDate(c.dateDebut)}</span>
                       </p>
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                        <span className="text-slate-500">Total <span className="font-semibold text-slate-700">{formatCurrency(c.montantTotal)}</span></span>
+                        <span className="text-slate-500">Crédit <span className="font-semibold text-slate-700">{formatCurrency(montantCreditReel(c))}</span></span>
                         <span className="text-slate-500">Reste <span className="font-semibold text-red-600">{formatCurrency(c.soldeRestant)}</span></span>
                       </div>
 
