@@ -5,8 +5,29 @@ import { ecritureRemboursementCreditConfirme, ecripturePenaliteRetardCredit } fr
 import { obtenirOuCreerCompteAuxiliaireClient } from "@/lib/comptabilite/auxiliaire";
 import { proposerLettrage, appliquerLettrage } from "@/lib/comptabilite/lettrage";
 import { enregistrerTransactionClient, mettreAJourTransactionClient, supprimerTransactionClient } from "@/lib/clientTransaction";
+import { regulariserCCPourCorrectionCredit } from "@/lib/compteCourant";
 
 type TX = Omit<Prisma.TransactionClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
+
+/**
+ * Compte courant débité par un remboursement CONFIRME payé via CC, ou null.
+ * Deux origines : demande agent terrain (compteCourantId renseigné) ou paiement
+ * depuis le module CC (pas de lien direct → mouvement PAIEMENT_CREDIT du crédit).
+ */
+async function compteCourantDuRemboursement(
+  tx: TX,
+  remb: { compteCourantId: number | null; modePaiement: TypePaiement | null },
+  creditId: number,
+): Promise<number | null> {
+  if (remb.compteCourantId) return remb.compteCourantId;
+  if (remb.modePaiement !== TypePaiement.WALLET_GENERAL) return null;
+  const mvt = await tx.mouvementCompteCourant.findFirst({
+    where: { creditId, nature: "PAIEMENT_CREDIT", statut: "VALIDE" },
+    orderBy: { createdAt: "desc" },
+    select: { compteId: true },
+  });
+  return mvt?.compteId ?? null;
+}
 
 /**
  * Valide le N° de jour d'un encaissement journalier (1..dureeJours du crédit).
@@ -627,10 +648,7 @@ export async function modifierRemboursementCredit(p: ParamsModification): Promis
         // CONFIRME → recalcul financier complet.
         recalcul = true;
 
-        // 1. Annuler l'effet RIA de ce remboursement.
-        await reverserEffetRIA(tx, remb.id, credit.reference);
-
-        // 2. Plafonner : total remboursé ≤ montant total du crédit.
+        // 1. Plafonner : total remboursé ≤ montant total du crédit.
         const agg = await tx.remboursementCredit.aggregate({
           where:  { creditId: credit.id, statut: "CONFIRME", id: { not: remb.id } },
           _sum:   { montant: true },
@@ -639,6 +657,33 @@ export async function modifierRemboursementCredit(p: ParamsModification): Promis
         const maxForThis = Math.max(0, Number((Number(credit.montantTotal) - otherSum).toFixed(2)));
         montantEffectif  = Number(Math.min(requested, maxForThis).toFixed(2));
         data.montant     = montantEffectif;
+
+        // Paiement via compte courant : le CC doit suivre la correction. Contrôle
+        // du solde AVANT toute écriture (un retour d'erreur ne rollback pas).
+        const compteCCId = await compteCourantDuRemboursement(tx, remb, credit.id);
+        const deltaCC    = Number((oldMontant - montantEffectif).toFixed(2));
+        if (compteCCId && deltaCC < 0) {
+          const cc = await tx.compteCourant.findUnique({ where: { id: compteCCId }, select: { solde: true } });
+          if (Number(cc?.solde ?? 0) < -deltaCC) {
+            return {
+              ok: false as const,
+              error: `Solde du compte courant insuffisant pour augmenter ce paiement de ${(-deltaCC).toLocaleString("fr-FR")} FCFA`,
+              status: 422,
+            };
+          }
+        }
+
+        // 2. Annuler l'effet RIA de ce remboursement.
+        await reverserEffetRIA(tx, remb.id, credit.reference);
+
+        // 2bis. Restituer (ou débiter en complément) l'écart sur le compte courant.
+        if (compteCCId) {
+          await regulariserCCPourCorrectionCredit(tx, {
+            compteId: compteCCId, creditId: credit.id, creditRef: credit.reference,
+            delta: deltaCC, userId: p.userId,
+            motif: `Correction remboursement ${oldMontant.toLocaleString("fr-FR")} → ${montantEffectif.toLocaleString("fr-FR")} FCFA`,
+          });
+        }
 
         const newTotal = Number((otherSum + montantEffectif).toFixed(2));
 
@@ -707,10 +752,12 @@ export type ResultatSuppression =
  *   CONFIRME restants (le crédit peut se rouvrir si celui-ci l'avait soldé),
  *   et soldeActuel du client recrédité du montant.
  *
- * Bloquée si le remboursement est lié à une collecte terrain (LigneCollecte)
- * ou provient d'un paiement par compte courant : ces flux ont des effets de
- * bord propres (session de collecte, blocage/débit CC) que cette fonction ne
- * couvre pas — la suppression relève alors d'un administrateur.
+ * Payé via compte courant : le montant est restitué sur le CC du client
+ * (mouvement CORRECTION + écriture inverse).
+ *
+ * Bloquée si le remboursement est lié à une collecte terrain (LigneCollecte) :
+ * effet de bord sur la session de collecte que cette fonction ne couvre pas —
+ * la suppression relève alors d'un administrateur.
  */
 export async function supprimerRemboursementCredit(p: ParamsSuppression): Promise<ResultatSuppression> {
   return prisma.$transaction(async (tx) => {
@@ -744,20 +791,22 @@ export async function supprimerRemboursementCredit(p: ParamsSuppression): Promis
         status: 400,
       };
     }
-    if (remb.compteCourantId) {
-      return {
-        ok: false as const,
-        error: "Ce remboursement provient d'un paiement par compte courant : suppression impossible depuis cet écran. Contactez un administrateur.",
-        status: 400,
-      };
-    }
-
     const montant = Number(remb.montant);
     const recalcul = remb.statut === "CONFIRME";
 
     if (recalcul) {
       // 1. Annuler l'effet RIA de ce remboursement.
       await reverserEffetRIA(tx, remb.id, credit.reference);
+
+      // 1bis. Payé via compte courant → restituer le montant sur le CC du client.
+      //       (EN_ATTENTE_CAISSIER : le CC n'a pas encore été débité, rien à faire.)
+      const compteCCId = await compteCourantDuRemboursement(tx, remb, credit.id);
+      if (compteCCId) {
+        await regulariserCCPourCorrectionCredit(tx, {
+          compteId: compteCCId, creditId: credit.id, creditRef: credit.reference,
+          delta: montant, userId: p.userId, motif: "Suppression du remboursement (erreur de saisie)",
+        });
+      }
 
       // 2. Réimputer intégralement l'échéancier à partir du total CONFIRME restant
       //    (hors ce remboursement) — recalcule montantRembourse/soldeRestant/statut,

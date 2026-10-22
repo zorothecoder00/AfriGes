@@ -1006,7 +1006,40 @@ export default function CaissierPage() {
     return `Aujourd'hui · ${jour(new Date())}`;
   }, [filtreAujourdHui, dateDebut, dateFin]);
 
-  // Édition d'un remboursement crédit depuis l'historique (champs non financiers)
+  // Paiements d'un crédit (depuis l'onglet Crédits clients) — corrigeables/supprimables
+  type PaiementCredit = {
+    id: number; montant: number | string; dateRemboursement: string; statut: string;
+    modePaiement: string | null; numeroJour: number | null; notes: string | null; agentCollecteurId: number | null;
+    enregistrePar: { nom: string; prenom: string } | null;
+  };
+  const [paiementsCredit, setPaiementsCredit] = useState<{ id: number; reference: string; clientNom: string } | null>(null);
+  const [paiementsList, setPaiementsList] = useState<PaiementCredit[]>([]);
+  const [paiementsLoading, setPaiementsLoading] = useState(false);
+  const loadPaiements = async (creditId: number) => {
+    setPaiementsLoading(true);
+    try {
+      const r = await fetch(`/api/caissier/credits/${creditId}`);
+      const j = await r.json();
+      if (r.ok) setPaiementsList((j.data.remboursements ?? []) as PaiementCredit[]);
+      else toast.error(j.error ?? "Erreur");
+    } catch { toast.error("Erreur réseau"); }
+    finally { setPaiementsLoading(false); }
+  };
+  const openPaiements = (c: { id: number; reference: string; client: { nom: string; prenom: string } }) => {
+    setPaiementsCredit({ id: c.id, reference: c.reference, clientNom: `${c.client.prenom} ${c.client.nom}` });
+    setPaiementsList([]);
+    loadPaiements(c.id);
+  };
+  // Adapte un paiement au format de l'historique pour réutiliser la modale de correction / la suppression
+  const paiementToHistoItem = (p: PaiementCredit): HistoEncItem => ({
+    key: `REMB-${p.id}`, type: "REMBOURSEMENT_CREDIT", typeLabel: "Remboursement crédit", sourceId: p.id,
+    client: paiementsCredit?.clientNom ?? "", libelle: `Crédit ${paiementsCredit?.reference ?? ""}`,
+    reference: paiementsCredit?.reference ?? "", mode: p.modePaiement, montant: Number(p.montant), date: p.dateRemboursement,
+    editable: true, numeroJour: p.numeroJour, observation: p.notes, agentCollecteurId: p.agentCollecteurId,
+    creditId: paiementsCredit?.id ?? null,
+  });
+
+  // Édition d'un remboursement crédit (historique ou paiements d'un crédit) — montant inclus
   const [editRemb, setEditRemb] = useState<HistoEncItem | null>(null);
   const [editRembForm, setEditRembForm] = useState({ montant: "", dateCollecte: "", numeroJour: "", agentCollecteurId: "", observation: "" });
   const [editRembSaving, setEditRembSaving] = useState(false);
@@ -1038,7 +1071,14 @@ export default function CaissierPage() {
         }),
       });
       const j = await r.json();
-      if (r.ok) { toast.success("Remboursement corrigé"); setEditRemb(null); refetchHistoEnc(); }
+      if (r.ok) {
+        const eff = j.data?.montantEffectif;
+        if (montantChange && eff != null && Number(eff) !== montantNum) {
+          toast.warning(`Montant plafonné à ${formatCurrency(Number(eff))} (total du crédit atteint)`);
+        } else toast.success("Remboursement corrigé");
+        setEditRemb(null); refetchHistoEnc(); refetchCredits(); refetchDashboard();
+        if (paiementsCredit) loadPaiements(paiementsCredit.id);
+      }
       else toast.error(j.error ?? "Erreur");
     } catch { toast.error("Erreur réseau"); }
     finally { setEditRembSaving(false); }
@@ -1270,6 +1310,7 @@ export default function CaissierPage() {
         refetchHistoEnc();
         refetchCredits();
         refetchDashboard();
+        if (paiementsCredit) loadPaiements(paiementsCredit.id);
       } else toast.error(j.error ?? "Erreur lors de la suppression");
     } catch { toast.error("Erreur réseau"); }
     finally { setSuppressionRembId(null); }
@@ -1787,7 +1828,72 @@ export default function CaissierPage() {
         </div>
       )}
 
-      {/* ── Modal correction d'un remboursement crédit (depuis l'historique) ── */}
+      {/* ── Modal paiements d'un crédit (corriger / supprimer un remboursement) ── */}
+      {paiementsCredit && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[150] p-4" onClick={() => setPaiementsCredit(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl max-h-[90dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <h3 className="font-bold text-gray-900">Paiements — {paiementsCredit.reference}</h3>
+                <p className="text-xs text-gray-500">{paiementsCredit.clientNom}</p>
+              </div>
+              <button onClick={() => setPaiementsCredit(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="overflow-y-auto">
+              {paiementsLoading ? (
+                <div className="py-10 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
+              ) : paiementsList.length === 0 ? (
+                <p className="py-10 text-center text-sm text-slate-400">Aucun remboursement enregistré</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>{["Date", "Montant", "Jour", "Mode", "Statut", ""].map((h) => (
+                        <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                      ))}</tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paiementsList.map((p) => {
+                        const modifiable = p.statut !== "REJETE";
+                        return (
+                          <tr key={p.id} className="hover:bg-slate-50">
+                            <td className="px-4 py-2.5 text-xs text-slate-600">{formatDate(p.dateRemboursement)}</td>
+                            <td className="px-4 py-2.5 font-bold text-emerald-600">{formatCurrency(Number(p.montant))}</td>
+                            <td className="px-4 py-2.5 text-xs text-slate-500">{p.numeroJour ?? "—"}</td>
+                            <td className="px-4 py-2.5 text-xs text-slate-500">{p.modePaiement ? modePaiementLabel(p.modePaiement) : "—"}</td>
+                            <td className="px-4 py-2.5 text-xs">
+                              <span className={`px-2 py-0.5 rounded-full font-medium ${p.statut === "CONFIRME" ? "bg-emerald-100 text-emerald-700" : p.statut === "REJETE" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                                {p.statut === "CONFIRME" ? "Confirmé" : p.statut === "REJETE" ? "Rejeté" : "En attente"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5">
+                              {modifiable && (
+                                <div className="flex items-center gap-1">
+                                  <button onClick={() => openEditRemb(paiementToHistoItem(p))} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg" title="Corriger le remboursement"><Pencil size={14} /></button>
+                                  <button
+                                    onClick={() => handleSupprimerRemboursement(paiementToHistoItem(p))}
+                                    disabled={suppressionRembId === p.id}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40"
+                                    title="Supprimer ce remboursement"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal correction d'un remboursement crédit (historique ou paiements d'un crédit) ── */}
       {editRemb && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
@@ -4131,6 +4237,13 @@ export default function CaissierPage() {
                                   className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition-colors"
                                 >
                                   <Banknote size={12} /> Rembourser
+                                </button>
+                                <button
+                                  onClick={() => openPaiements(c)}
+                                  className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-100 transition-colors"
+                                  title="Voir / corriger les paiements"
+                                >
+                                  <Clock size={12} /> Paiements
                                 </button>
                                 <button
                                   onClick={() => openDureeEdit(c)}

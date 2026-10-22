@@ -547,6 +547,70 @@ export async function debiterCCPourCredit(
 }
 
 /**
+ * Répercute sur le compte courant la correction (ou la suppression) d'un
+ * remboursement crédit payé via CC — erreur de saisie :
+ *  - `delta` > 0 : le client est recrédité (mouvement CORRECTION, écriture
+ *    inverse Débit Ventes 701 / Crédit CC client 419, totalUtilise diminué) ;
+ *  - `delta` < 0 : débit complémentaire (mouvement PAIEMENT_CREDIT).
+ * L'appelant vérifie le solde disponible avant un débit complémentaire.
+ */
+export async function regulariserCCPourCorrectionCredit(
+  tx: TxClient,
+  opts: { compteId: number; creditId: number; creditRef: string; delta: number; userId: number; motif: string },
+): Promise<void> {
+  if (Math.abs(opts.delta) < 0.01) return;
+  const cc = await tx.compteCourant.findUnique({
+    where: { id: opts.compteId },
+    select: { numeroCompte: true, codeAgence: true, solde: true },
+  });
+  if (!cc) return;
+  const param = await chargerParametrageCC();
+
+  if (opts.delta < 0) {
+    await debiterCCPourCredit(tx, {
+      compteId: opts.compteId, numeroCompte: cc.numeroCompte, codeAgence: cc.codeAgence,
+      creditId: opts.creditId, creditRef: opts.creditRef, montant: -opts.delta,
+      userId: opts.userId, param, observation: opts.motif,
+    });
+    return;
+  }
+
+  const avant = Number(cc.solde);
+  const apres = avant + opts.delta;
+  const ecritureId = await creerEcritureCC(tx, {
+    journal: "OD",
+    date: new Date(),
+    libelle: `Régularisation paiement crédit ${opts.creditRef} — compte courant ${cc.numeroCompte}`,
+    userId: opts.userId,
+    lignes: [
+      { numero: param.compteVentesNumero,        debit:  opts.delta, libelle: `Correction règlement crédit ${opts.creditRef}` },
+      { numero: param.compteCourantClientNumero, credit: opts.delta, libelle: `Restitution CC ${cc.numeroCompte}` },
+    ],
+  });
+
+  const reference = await genererReferenceMouvementCC(tx, "COR");
+  const agenceOp = (await resoudreAgenceOperation(tx, opts.userId)) ?? cc.codeAgence;
+  await tx.mouvementCompteCourant.create({
+    data: {
+      reference, compteId: opts.compteId, nature: "CORRECTION",
+      montant: opts.delta, soldeAvant: avant, soldeApres: apres,
+      observation: `Crédit ${opts.creditRef} · ${opts.motif}`,
+      statut: "VALIDE", userId: opts.userId, agence: agenceOp, ecritureId, creditId: opts.creditId,
+    },
+  });
+
+  await tx.compteCourant.update({
+    where: { id: opts.compteId },
+    data: {
+      solde: apres,
+      totalUtilise: { decrement: opts.delta },
+      nbMouvements: { increment: 1 },
+      derniereOperationAt: new Date(),
+    },
+  });
+}
+
+/**
  * Paie UN crédit du client en tirant sur le solde du compte courant (CDC §8),
  * dans une transaction fournie : applique le remboursement (échéances + cascade
  * RIA via enregistrerRemboursementCredit) puis débite le CC via debiterCCPourCredit.
