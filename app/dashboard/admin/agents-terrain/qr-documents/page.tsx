@@ -9,26 +9,51 @@ interface Agent { id: number; nom: string; prenom: string; email: string }
 interface Reponse { modeles: Modele[]; modele: Modele; url: string; qr: string; agents: Agent[] }
 
 export default function QrDocumentsPage() {
-  const [code, setCode] = useState("BCC");
+  const [code, setCode] = useState("BCC");     
   const [data, setData] = useState<Reponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let actif = true;
-    setLoading(true);
-    fetch(`/api/admin/agents-terrain/qr-documents?code=${code}`)
-      .then(async (r) => {
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error ?? "Erreur");
-        if (actif) setData(j as Reponse);
-      })
-      .catch((e) => { if (actif) setError(e instanceof Error ? e.message : "Erreur"); })
-      .finally(() => { if (actif) setLoading(false); });
-    return () => { actif = false; };
+    const controller = new AbortController();
+
+    async function chargerDocuments() {
+      try {
+        const response = await fetch(
+          `/api/admin/agents-terrain/qr-documents?code=${encodeURIComponent(code)}`,
+          { signal: controller.signal }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error ?? "Erreur de chargement");
+        }
+
+        setData(result as Reponse);
+      } catch (e) {
+        if (e instanceof Error && e.name !== "AbortError") {
+          setError(e.message);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    chargerDocuments();
+
+    return () => controller.abort();
   }, [code]);
 
   const agents = data?.agents ?? [];
+
+  function changerModele(nouveauCode: string) {
+    setLoading(true);
+    setError(null);
+    setCode(nouveauCode);
+  }
 
   return (
     <div className="min-h-screen bg-[#dbe7f5]">
@@ -41,7 +66,7 @@ export default function QrDocumentsPage() {
           {data && (
             <select
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => changerModele(e.target.value)}
               className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
             >
               {data.modeles.map((m) => (
@@ -50,7 +75,7 @@ export default function QrDocumentsPage() {
             </select>
           )}
           <span className="text-sm text-slate-400">{agents.length} agent(s)</span>
-          <button onClick={() => window.print()} disabled={agents.length === 0}
+          <button onClick={() => window.print()} disabled={agents.length === 0 || loading}
             className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-sm font-medium">
             <Printer className="w-4 h-4" /> Imprimer la planche
           </button>

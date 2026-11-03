@@ -175,17 +175,22 @@ Modifier les identifiants — deux cas différents
 Que toutes les sidebars prennent toute la longueur verticale 
 
 
-Au niveau des tableaux de /dashboard/admin/clients ( et même les autres pages ), les tableaux ont plusieurs lignes donc quand on descend on a du mal à voir les head ( les titres ) donc ça devient illisble ; c'est possible d'avoir un moyen de fixer juste le head mais pouvoir défiler les données ?? Aussi bien séparer les lignes ( un séparateur ou je ne sais pas ce qui serait péférable) ; donner aussi des styles hover aux lignes de données
-
-Préférer les couleurs plus nettes au lieu des dégradés
-
-Donner plus de couleurs et plus d'effets aux différents blocs( tout est trop blanc ou trop gris) SUR LE dashboard/admin
-
 Design-er un peu le centre de commandement
 
+Sur mobile ( même en gros écran je pense ), lorsqu'on veut faire une noivelle vente dans dashboard/admin/vente , le select de produit peut causer des ^problmes si on avait des miliers de produits par exempke ; trouve alors une façon pour limiter le nombre affiché 
 
 
+j'ai une requête ; en fait sur la messagerie (admin et user
+  ) , c'est impossible de voir la date et l'heure des anciens
+  messages ; en plus quand on scroll vers le haut , après quelques secondes le
+  curseur revient au dernier message tout en bas ; les recherches de textes dans les messages
+  aussi ne sont pas implémentés ( toutes ces fonctionnalités sont sur n'importe
+  quel réseau social donc ça ne devrait pas être grand chose à implélenter
+  n'est ce pas
 
 
+  dans dashboard décisionnel , REMPLAcer collecté aujourd'hui par collecté hier et attendu aujourd'hui
 
-
+  Souscriptions actives par pack famille ( couleur jaune )
+  pack total en total crédit en cours ( nombre et montant total)
+  total collecté + total recoyuvrement dans Versement

@@ -9,13 +9,13 @@ import { ecritureVenteCreditValidee } from "@/lib/comptabilite/moteur";
 import { enregistrerTransactionClient } from "@/lib/clientTransaction";
 
 type Ctx = { params: Promise<{ id: string }> };
-
-/**
+   
+/**  
  * ==========================
  * POST /api/admin/credits/[id]/valider
  * ==========================
  * Valide un crédit EN_ATTENTE_VALIDATION :
- *  1. Re-vérifie l'éligibilité (plafond, dettes, score, niveau risque)
+ *  1. Re-vérifie l'éligibilité (plafond, score, niveau risque)
  *  2. Génère les EcheanceCredit journalières
  *  3. Met à jour client.soldeActuel += montantTotal
  *  4. Décrémente le stock des lignes (si produitId + pointDeVenteId)
@@ -29,7 +29,7 @@ export async function POST(_req: Request, { params }: Ctx) {
 
     const { id } = await params;
     const creditId = Number(id);
-    if (isNaN(creditId)) return NextResponse.json({ message: "ID invalide" }, { status: 400 });
+    if (!Number.isInteger(creditId) || creditId <= 0) return NextResponse.json({ message: "ID invalide" }, { status: 400 });
 
     const result = await prisma.$transaction(async (tx) => {
       const credit = await tx.creditClient.findUnique({
@@ -53,31 +53,37 @@ export async function POST(_req: Request, { params }: Ctx) {
 
       const client = credit.client;
 
-      // ── 1. Client actif ───────────────────────────────────────────────────
-      if (client.etat !== MemberStatus.ACTIF) throw new Error("CLIENT_INACTIF");
-
-      // ── 2. Plafond crédit ─────────────────────────────────────────────────
-      if (client.limiteCredit !== null && client.soldeActuel !== null) {
-        const soldeApres = Number(client.soldeActuel) + Number(credit.montantTotal);
-        if (soldeApres > Number(client.limiteCredit)) throw new Error("LIMITE_CREDIT_DEPASSEE");
+      // ── 1. Client actif ────────────────────────────────────────────────
+      if (client.etat !== MemberStatus.ACTIF) {
+        throw new Error("CLIENT_INACTIF");
       }
 
-      // ── 3. Vérification des dettes : tout client avec un crédit EN_RETARD ─
-      const creditEnRetard = await tx.creditClient.findFirst({
-        where: { clientId: client.id, statut: StatutCredit.EN_RETARD, id: { not: creditId } },
-        select: { id: true, reference: true },
-      });
-      if (creditEnRetard) throw new Error("CLIENT_EN_RETARD");
+      // ── 2. Plafond crédit ───────────────────────────────────────────────
+      if (client.limiteCredit !== null && client.soldeActuel !== null) {
+        const soldeApres =
+          Number(client.soldeActuel) + Number(credit.montantTotal);
 
-      // ── 4. Score de solvabilité ───────────────────────────────────────────
+        if (soldeApres > Number(client.limiteCredit)) {
+          throw new Error("LIMITE_CREDIT_DEPASSEE");
+        }
+      }
+
+      // ── 3. Score de solvabilité ─────────────────────────────────────────
       const score = client.scoreSolvabilite ?? 100;
-      if (score < 20) throw new Error("SCORE_INSUFFISANT");
 
-      // ── 5. Règles par niveau de risque ───────────────────────────────────
+      if (score < 20) {
+        throw new Error("SCORE_INSUFFISANT");
+      }
+
+          // ── 4. Règles de blocage selon le niveau de risque ──────────────────
       if (client.niveauRisque === NiveauRisque.CRITIQUE) {
         throw new Error("CLIENT_RISQUE_CRITIQUE");
       }
-      if (client.niveauRisque === NiveauRisque.ELEVE && score < 40) {
+
+      if (
+        client.niveauRisque === NiveauRisque.ELEVE &&
+        score < 40
+      ) {
         throw new Error("CLIENT_RISQUE_ELEVE_SCORE_FAIBLE");
       }
 
@@ -307,7 +313,6 @@ export async function POST(_req: Request, { params }: Ctx) {
         CREDIT_DEJA_TRAITE:             ["Seuls les crédits EN_ATTENTE_VALIDATION peuvent être validés", 422],
         CLIENT_INACTIF:                 ["Ce client n'est plus actif — validation impossible", 422],
         LIMITE_CREDIT_DEPASSEE:         ["Ce crédit dépasse le plafond autorisé pour ce client", 422],
-        CLIENT_EN_RETARD:               ["Ce client a déjà un crédit en retard — remboursement requis avant toute nouvelle validation", 422],
         SCORE_INSUFFISANT:              ["Score de solvabilité insuffisant (< 20) — validation impossible", 422],
         CLIENT_RISQUE_CRITIQUE:         ["Client classé CRITIQUE — validation automatique bloquée, intervention manuelle requise", 422],
         CLIENT_RISQUE_ELEVE_SCORE_FAIBLE: ["Client ÉLEVÉ avec score < 40 — risque trop élevé pour validation", 422],

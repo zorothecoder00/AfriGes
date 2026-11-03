@@ -30,17 +30,44 @@ export default function AnimationAgencesMarketing() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    const { debut, fin } = bornesDuMois(mois);
-    fetch(`/api/admin/marketing/stats?debut=${debut}&fin=${fin}`)
-      .then(async (r) => {
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error ?? "Erreur");
-        setRows(j.data.parAgence);
-      })
-      .catch((e) => toast.error(e instanceof Error ? e.message : "Chargement impossible"))
-      .finally(() => setLoading(false));
+    const controller = new AbortController();
+
+    async function chargerStatistiques() {
+      try {
+        const { debut, fin } = bornesDuMois(mois);
+
+        const response = await fetch(
+          `/api/admin/marketing/stats?debut=${encodeURIComponent(debut)}&fin=${encodeURIComponent(fin)}`,
+          { signal: controller.signal }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error ?? "Erreur de chargement");
+        }
+
+        setRows(result.data.parAgence);
+      } catch (e) {
+        if (e instanceof Error && e.name !== "AbortError") {
+          toast.error(e.message || "Chargement impossible");
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    chargerStatistiques();
+
+    return () => controller.abort();
   }, [mois]);
+
+  function changerMois(nouveauMois: string) {
+    setLoading(true);
+    setMois(nouveauMois);
+  }
 
   return (
     <div className="space-y-4">
@@ -49,7 +76,7 @@ export default function AnimationAgencesMarketing() {
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Building2 className="w-5 h-5 text-fuchsia-600" /> Animation des agences</h2>
           <p className="text-sm text-slate-400">Pilotage marketing local — comparatif budget/leads/clients/CA/ROI par agence.</p>
         </div>
-        <input type="month" value={mois} onChange={(e) => setMois(e.target.value)}
+        <input type="month" value={mois} onChange={(e) => changerMois(e.target.value)}
           className="px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white" />
       </div>
       {loading ? <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div> : (

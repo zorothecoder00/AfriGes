@@ -9,7 +9,8 @@ import { tariferLigne } from "@/lib/venteTarification";
 import { estFormuleValide, dureeJoursPourFormule, remunerationFormule, montantCreditReel, decomposerSoldeCredit } from "@/lib/formuleCredit";
 import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 import { notifyGestionnaires, ROLES_COMPTABLES } from "@/lib/notifications";
-
+import { randomUUID } from "crypto";
+  
 /**
  * ==========================
  * GET /api/admin/credits
@@ -290,10 +291,13 @@ export async function POST(req: Request) {
       const dateEcheanceFin   = new Date(debut);
       dateEcheanceFin.setDate(dateEcheanceFin.getDate() + duree);
 
-      // ── Référence unique ──────────────────────────────────────────────────
+      // ── Référence unique ─────────────────────────────────────
       const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-      const count   = await tx.creditClient.count();
-      const reference = `CRD-${dateStr}-${String(count + 1).padStart(4, "0")}`;
+
+      const reference = `CRD-${dateStr}-${randomUUID()
+        .replace(/-/g, "")
+        .slice(0, 12)
+        .toUpperCase()}`;
 
       // ── Réservation de stock (EN_ATTENTE_VALIDATION) ─────────────────────
       // Incrémenter quantiteReservee pour bloquer le stock en attente de validation
