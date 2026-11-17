@@ -29,7 +29,7 @@ export async function GET(_req: Request, { params }: Ctx) {
       where: { id: creditId },
       include: {
         client:   { select: {
-          id: true, nom: true, prenom: true, codeClient: true, telephone: true, niveauRisque: true, limiteCredit: true, soldeActuel: true,
+          id: true, nom: true, prenom: true, codeClient: true, telephone: true, niveauRisque: true, 
           sexe: true, adresse: true, quartier: true, activite: true, nomCommerce: true, numeroCNI: true, numeroCarteAfrisime: true,
           agentTerrain:  { select: { nom: true, prenom: true, telephone: true } },
           pointDeVente:  { select: { nom: true, code: true } },

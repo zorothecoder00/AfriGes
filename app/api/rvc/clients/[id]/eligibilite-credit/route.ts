@@ -36,7 +36,7 @@ export async function GET(_req: Request, { params }: Ctx) {
       where: { id: clientId },
       select: {
         id: true, nom: true, prenom: true, codeClient: true, telephone: true,
-        etat: true, niveauRisque: true, limiteCredit: true, soldeActuel: true,
+        etat: true, niveauRisque: true,
         pointDeVenteId: true,
       },
     });
@@ -56,19 +56,19 @@ export async function GET(_req: Request, { params }: Ctx) {
     }
 
     // Règle 2 : solde < limite
-    let tauxUtilisation: number | null = null;
-    if (client.limiteCredit !== null && client.soldeActuel !== null) {
-      tauxUtilisation = Number(client.limiteCredit) > 0
-        ? Math.round((Number(client.soldeActuel) / Number(client.limiteCredit)) * 100)
-        : 100;
-      if (Number(client.soldeActuel) >= Number(client.limiteCredit)) {
-        raisons.push(
-          `La limite de crédit (${Number(client.limiteCredit).toLocaleString("fr-FR")} FCFA) est atteinte — solde actuel : ${Number(client.soldeActuel).toLocaleString("fr-FR")} FCFA.`
-        );
-      }
-    } else if (client.limiteCredit === null) {
-      alertes.push("Aucune limite de crédit configurée — le crédit sera accordé sans plafond.");
-    }
+    //let tauxUtilisation: number | null = null;
+    //if (client.limiteCredit !== null && client.soldeActuel !== null) {
+    //  tauxUtilisation = Number(client.limiteCredit) > 0
+    //    ? Math.round((Number(client.soldeActuel) / Number(client.limiteCredit)) * 100)
+    //    : 100;
+   //   if (Number(client.soldeActuel) >= Number(client.limiteCredit)) {
+    //    raisons.push(
+    //      `La limite de crédit (${Number(client.limiteCredit).toLocaleString("fr-FR")} FCFA) est atteinte — solde actuel : ${Number(client.soldeActuel).toLocaleString("fr-FR")} FCFA.`
+    //    );
+    //  }
+    //} else if (client.limiteCredit === null) {
+    //  alertes.push("Aucune limite de crédit configurée — le crédit sera accordé sans plafond.");
+    //}
 
     // Règle 3 : CRITIQUE + EN_RETARD
     if (client.niveauRisque === NiveauRisque.CRITIQUE) {
@@ -101,12 +101,9 @@ export async function GET(_req: Request, { params }: Ctx) {
       eligible: raisons.length === 0,
       raisons,
       alertes,
-      tauxUtilisation,
+      
       creditsActifs,
-      client: {
-        limiteCredit: client.limiteCredit,
-        soldeActuel:  client.soldeActuel,
-      },
+      client,  
       fidelite: {
         niveau: fid.niveau,
         reductionFraisDossier: fid.avantages.reductionFraisDossier,

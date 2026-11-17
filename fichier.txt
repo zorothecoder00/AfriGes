@@ -7,7 +7,7 @@ Identifiants sur Afriges en production : email = developpeurteste@gmail.com
 -bibliothèque i18n (next-intl, i18next...)
 -extension PostgreSQL pg_trgm (similarite trigramme) pour tolerer fautes de frappe/variantes
 - Serwist pour le mode hors ligne
-La dictée vocale (ConversationalAssistantBar, client) — utilise directement l'API navigateur SpeechRecognition (Web Speech API, native Chrome/Edge,aucune clé requise). Pas supportée partout (Firefox notamment)
+La dictée vocale (ConversationalAssistantBar, client) — utilise directement l'API navigateur SpeechRecognition (Web Speech API, native Chrome/Edge,aucune clé requise). Pas supportée partout (Firefox notamment)   
 -"test": "vitest run",
  11 +    "test:watch": "vitest",
 -Playwright pour les tests visuels
@@ -194,3 +194,11 @@ j'ai une requête ; en fait sur la messagerie (admin et user
   Souscriptions actives par pack famille ( couleur jaune )
   pack total en total crédit en cours ( nombre et montant total)
   total collecté + total recoyuvrement dans Versement
+
+
+
+
+au niveau de admin/comptescourants(mais au niveau du rôle caissier je crois , je ne sais plus trop vraiment ) , plus précisément au niveau de l'historique de mouvements   ;  je veux supprimer 3 mouvements de comptes courant( deux mouvements aujourd'hui dû à une correction d'erreur :  un dépôt de 1075 pour la cliente AFENYIVE Kafui  je crois qui est en fait une erreur de dépôt qui est le troisième mouvement que j'aimerais supprimer )depuis ma base neon mais je veux que ça agisse dynamiquement avec le solde du compte courant ( c'est possible ??? ) . J'ai un projet très large et une base neon très large ; dis moi si c'est possible et montre moi comment m'y prendre 
+
+
+Donner la main à la caissière de pouvoir modifier les crédits clients depuis l'historique de mouvement ( nom du client , montant total , date de début , échéance etc etc )

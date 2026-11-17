@@ -1,13 +1,13 @@
 {
   "name": "afriges",
   "version": "0.1.0",
-  "private": true,
-  "scripts": {
+  "private": true,  
+  "scripts": {  
     "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev",
     "build": "prisma generate && cross-env NODE_OPTIONS=--max-old-space-size=6656 next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
-    "check": "npm run lint && tsc --noEmit && next build",
+    "check": "npm run lint && cross-env NODE_OPTIONS=--max-old-space-size=6144 tsc --noEmit && npm run build",
     "migrate:deploy:prod": "node scripts/migrate-deploy-prod.js",
     "backfill:codes": "node scripts/backfill-code-client.js",
     "backfill:codes:prod": "node scripts/backfill-code-client.js --prod",

@@ -33,7 +33,7 @@ export async function GET(_req: Request, { params }: Ctx) {
       where: { id: clientId },
       select: {
         id: true, nom: true, prenom: true, codeClient: true, telephone: true,
-        etat: true, niveauRisque: true, limiteCredit: true, soldeActuel: true,
+        etat: true, niveauRisque: true,
         typeClient: true,
       },
     });
@@ -48,22 +48,22 @@ export async function GET(_req: Request, { params }: Ctx) {
     }
 
     // ── Règle 2 : soldeActuel < limiteCredit ─────────────────────────────
-    let tauxUtilisation: number | null = null;
-    if (client.limiteCredit !== null && client.soldeActuel !== null) {
-      tauxUtilisation = Number(client.limiteCredit) > 0
-        ? Math.round((Number(client.soldeActuel) / Number(client.limiteCredit)) * 100)
-        : 100;
+    //let tauxUtilisation: number | null = null;
+    //if (client.limiteCredit !== null && client.soldeActuel !== null) {
+    //  tauxUtilisation = Number(client.limiteCredit) > 0
+    //    ? Math.round((Number(client.soldeActuel) / Number(client.limiteCredit)) * 100)
+    //    : 100;
 
-      if (Number(client.soldeActuel) >= Number(client.limiteCredit)) {
-        raisons.push(
-          `La limite de crédit (${client.limiteCredit} FCFA) est atteinte — solde actuel : ${client.soldeActuel} FCFA.`
-        );
-      }
-    } else if (client.limiteCredit === null) {
+    //  if (Number(client.soldeActuel) >= Number(client.limiteCredit)) {
+    //    raisons.push(
+    //      `La limite de crédit (${client.limiteCredit} FCFA) est atteinte — solde actuel : ${client.soldeActuel} FCFA.`
+    //    );
+    //  }
+    //} else if (client.limiteCredit === null) {
       // Pas de plafond configuré : informatif uniquement, pas bloquant
       // (l'API de création accepte les clients sans limite — aucun plafond = aucune contrainte)
-      alertes.push("Aucune limite de crédit n'est configurée sur ce client — le crédit sera accordé sans plafond.");
-    }
+     // alertes.push("Aucune limite de crédit n'est configurée sur ce client — le crédit sera accordé sans plafond.");
+    //}
 
     // ── Règle 3 : CRITIQUE + crédit EN_RETARD ────────────────────────────
     let creditEnRetard = null;
@@ -102,7 +102,7 @@ export async function GET(_req: Request, { params }: Ctx) {
       raisons,
       alertes,
       client,
-      tauxUtilisation,
+      
       creditsActifs,
       creditEnRetard,
       fidelite: {

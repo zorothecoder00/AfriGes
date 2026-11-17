@@ -11,7 +11,7 @@ import { conditionsNomPrenom } from "@/lib/clientNameSearch";
 import { notifyGestionnaires, ROLES_COMPTABLES } from "@/lib/notifications";
 import { randomUUID } from "crypto";
   
-/**
+/**  
  * ==========================
  * GET /api/admin/credits
  * ==========================
@@ -206,7 +206,7 @@ export async function POST(req: Request) {
         select: {
           id: true, nom: true, prenom: true,
           etat: true, niveauRisque: true,
-          limiteCredit: true, soldeActuel: true,
+          
         },
       });
       if (!client) throw new Error("CLIENT_INTROUVABLE");
@@ -215,11 +215,7 @@ export async function POST(req: Request) {
       if (client.etat !== MemberStatus.ACTIF) {
         throw new Error("CLIENT_INACTIF");
       }
-      if (client.limiteCredit !== null && client.soldeActuel !== null) {
-        if (Number(client.soldeActuel) >= Number(client.limiteCredit)) {
-          throw new Error("LIMITE_CREDIT_ATTEINTE");
-        }
-      }
+      
       if (client.niveauRisque === NiveauRisque.CRITIQUE) {
         const creditEnRetard = await tx.creditClient.findFirst({
           where: { clientId: client.id, statut: StatutCredit.EN_RETARD },
@@ -449,8 +445,8 @@ export async function POST(req: Request) {
         actionUrl: "/dashboard/user/comptables/journaux",
       });
 
-      return credit;
-    });
+      return credit;   
+    });   
 
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (error: unknown) {
@@ -459,7 +455,7 @@ export async function POST(req: Request) {
       const map: Record<string, [string, number]> = {
         CLIENT_INTROUVABLE:      ["Client introuvable", 404],
         CLIENT_INACTIF:          ["Ce client n'est pas actif", 422],
-        LIMITE_CREDIT_ATTEINTE:  ["La limite de crédit de ce client est atteinte", 422],
+        
         CLIENT_CRITIQUE_EN_RETARD: ["Client en risque CRITIQUE avec un crédit en retard", 422],
         MONTANT_INVALIDE:        ["Le montant total des lignes doit être positif", 400],
         CC_COUVRE_TOUT:          ["Le compte courant couvre la totalité de l'achat : enregistrez plutôt une vente comptant (100% CC)", 422],

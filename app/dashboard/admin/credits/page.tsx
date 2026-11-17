@@ -131,9 +131,7 @@ interface EligibiliteData {
   eligible: boolean;
   raisons: string[];
   alertes: string[];
-  tauxUtilisation: number | null;
   creditsActifs: { id: number; reference: string; statut: string; montantTotal: string | number; soldeRestant: string | number }[];
-  client: { limiteCredit: string | number | null; soldeActuel: string | number | null };
   fidelite?: { niveau: string; reductionFraisDossier: number; prioriteCredit: boolean };
 }
 
@@ -262,9 +260,7 @@ export default function CreditsPage() {
   const [creditClientSearchLoading, setCreditClientSearchLoading] = useState(false);
   const [eligibilite,     setEligibilite]     = useState<EligibiliteData | null>(null);
   const [eligibiliteLoading, setEligibiliteLoading] = useState(false);
-  const [showSetLimite,   setShowSetLimite]   = useState(false);
-  const [limiteInput,     setLimiteInput]     = useState('');
-  const [limiteLoading,   setLimiteLoading]   = useState(false);
+  
   const [creditPdvId,     setCreditPdvId]     = useState('');
   const [creditStockPdv,  setCreditStockPdv]  = useState<StockPdvItem[]>([]);
   const [creditStockLoading, setCreditStockLoading] = useState(false);
@@ -513,38 +509,34 @@ export default function CreditsPage() {
 
   const resetNewCredit = () => {
     setCreditStep(1); setCreditClientId(null); setCreditClientSearch('');
-    setCreditSelectedClient(null); setEligibilite(null); setShowSetLimite(false); setLimiteInput(''); setCreditError('');
+    setCreditSelectedClient(null); setEligibilite(null);  setCreditError('');
     setCreditPdvId(''); setCreditStockPdv([]); setCreditClientResults([]);
     setCreditLignes([{ produitId: null, produitNom: '', quantite: 1, prixUnitaire: 0, remise: 0, stockDisponible: Infinity }]);
     setCreditParams({ formule: 'TRENTAINE', dateDebut: new Date().toISOString().slice(0, 10), fraisDossier: '0', assurance: '0', autresFrais: '0', fraisLivraison: '0', tauxInteret: '0', delaiGraceJours: '0', garantNom: '', garantTelephone: '', garantAdresse: '', garantTypeGarantie: '', garantValeurEstimee: '0', tauxPenalite: '0', garantie: '', observations: '', campagneId: '' });
   };
 
   const checkEligibilite = async (clientId: number) => {
-    setEligibiliteLoading(true); setEligibilite(null); setShowSetLimite(false); setLimiteInput('');
+    setEligibiliteLoading(true);
+    setEligibilite(null);
+
     try {
       const r = await fetch(`/api/admin/clients/${clientId}/eligibilite-credit`);
       const data = await r.json();
+
+      if (!r.ok) {
+        setEligibilite(null);
+        toast.error(data.message ?? "Erreur lors de la vérification de l'éligibilité");
+        return;
+      }
+
       setEligibilite(data);
-      // Pas de plafond configuré → action requise avant de continuer (comme côté RVC).
-      if (r.ok) setShowSetLimite(data?.client?.limiteCredit == null);
-    } catch { /* ignore */ }
-    finally { setEligibiliteLoading(false); }
+    } catch {
+      toast.error("Erreur réseau lors de la vérification de l'éligibilité");
+    } finally {
+      setEligibiliteLoading(false);
+    }
   };
 
-  const handleSetLimite = async () => {
-    if (!creditClientId || !limiteInput || Number(limiteInput) <= 0) { toast.error('Montant de plafond invalide'); return; }
-    setLimiteLoading(true);
-    try {
-      const r = await fetch(`/api/admin/clients/${creditClientId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limiteCredit: Number(limiteInput) }),
-      });
-      if (r.ok) { toast.success('Plafond de crédit défini'); setLimiteInput(''); await checkEligibilite(creditClientId); }
-      else { const j = await r.json().catch(() => ({})); toast.error(j.message ?? 'Erreur lors de la définition du plafond'); }
-    } catch { toast.error('Erreur réseau'); }
-    finally { setLimiteLoading(false); }
-  };
 
   const creditMontantTotal = creditLignes.reduce((s, l) => s + (l.prixUnitaire * l.quantite - l.remise), 0);
   // Rémunération (CDC : 1 mise supplémentaire) — auto-calculée selon la formule, comme côté serveur.
@@ -1907,7 +1899,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input type="text" value={creditClientSearch}
-                        onChange={(e) => { setCreditClientSearch(e.target.value); if (creditSelectedClient) { setCreditSelectedClient(null); setCreditClientId(null); setEligibilite(null); setShowSetLimite(false); } }}
+                        onChange={(e) => { setCreditClientSearch(e.target.value); if (creditSelectedClient) { setCreditSelectedClient(null); setCreditClientId(null); setEligibilite(null); } }}
                         placeholder="Nom, prénom, téléphone…"
                         className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
                       />
@@ -1933,7 +1925,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                         <span className="text-sm font-semibold text-blue-800">{creditSelectedClient.prenom} {creditSelectedClient.nom}</span>
                         <span className="text-xs text-blue-500 font-mono">{creditSelectedClient.telephone}</span>
                         <button type="button" className="ml-auto text-blue-400 hover:text-blue-600"
-                          onClick={() => { setCreditSelectedClient(null); setCreditClientId(null); setCreditClientSearch(''); setEligibilite(null); setShowSetLimite(false); setLimiteInput(''); setCreditPdvId(''); setCreditStockPdv([]); }}>
+                          onClick={() => { setCreditSelectedClient(null); setCreditClientId(null); setCreditClientSearch(''); setEligibilite(null); setCreditPdvId(''); setCreditStockPdv([]); }}>
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -1943,26 +1935,9 @@ Le crédit et le solde du client seront recalculés.`)) return;
                   {creditClientId && (
                     <div>
                       {eligibiliteLoading ? (
-                        <div className="flex items-center gap-2 text-sm text-slate-400 py-2"><Loader2 className="w-4 h-4 animate-spin" /> Vérification de l&apos;éligibilité…</div>
-                      ) : showSetLimite ? (
-                        <div className="rounded-xl p-4 border bg-amber-50 border-amber-200">
-                          <div className="flex items-center gap-2 mb-1">
-                            <AlertCircle className="w-5 h-5 text-amber-600" />
-                            <span className="text-sm font-semibold text-amber-700">Plafond de crédit requis</span>
-                          </div>
-                          <p className="text-xs text-amber-700 ml-7 mb-2">Ce client n&apos;a pas encore de plafond de crédit. Définissez-en un pour débloquer la création du crédit.</p>
-                          <div className="flex items-center gap-2 ml-7">
-                            <input type="number" min={0} step={1000} value={limiteInput}
-                              onChange={(e) => setLimiteInput(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && handleSetLimite()}
-                              placeholder="Montant du plafond (FCFA)"
-                              className="flex-1 px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white" />
-                            <button onClick={handleSetLimite} disabled={limiteLoading || !limiteInput || Number(limiteInput) <= 0}
-                              className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap">
-                              {limiteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Définir le plafond
-                            </button>
-                          </div>
+                        <div className="flex items-center gap-2 text-sm text-slate-400 py-2"><Loader2 className="w-4 h-4 animate-spin" /> Vérification de l&apos;éligibilité…
                         </div>
+                      
                       ) : eligibilite ? (
                         <div className={`rounded-xl p-4 border ${eligibilite.eligible ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
                           <div className="flex items-center gap-2 mb-2">
@@ -1981,18 +1956,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                               {eligibilite.alertes.map((a, i) => <li key={i} className="text-xs text-amber-600 flex items-start gap-1"><span>·</span>{a}</li>)}
                             </ul>
                           )}
-                          {eligibilite.tauxUtilisation != null && (
-                            <div className="mt-3 ml-7">
-                              <div className="flex justify-between text-xs text-slate-500 mb-1"><span>Utilisation du crédit</span><span>{eligibilite.tauxUtilisation}%</span></div>
-                              <div className="w-full bg-slate-200 rounded-full h-1.5">
-                                <div className={`h-1.5 rounded-full ${eligibilite.tauxUtilisation >= 100 ? 'bg-red-500' : eligibilite.tauxUtilisation >= 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, eligibilite.tauxUtilisation)}%` }} />
-                              </div>
-                              <div className="flex justify-between text-xs text-slate-400 mt-1">
-                                <span>Solde actuel : {formatCurrency(Number(eligibilite.client.soldeActuel ?? 0))}</span>
-                                <span>Limite : {formatCurrency(Number(eligibilite.client.limiteCredit ?? 0))}</span>
-                              </div>
-                            </div>
-                          )}
+                          
                           {eligibilite.creditsActifs.length > 0 && (
                             <div className="mt-3 ml-7">
                               <p className="text-xs font-medium text-slate-600 mb-1">Crédits en cours :</p>
@@ -2009,7 +1973,7 @@ Le crédit et le solde du client seront recalculés.`)) return;
                     </div>
                   )}
 
-                  {creditClientId && eligibilite?.eligible && !showSetLimite && (
+                  {creditClientId && eligibilite?.eligible && (
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">
                         Point de vente source <span className="text-red-500">*</span>
@@ -2371,9 +2335,22 @@ Le crédit et le solde du client seront recalculés.`)) return;
               {creditStep < 4 ? (
                 <button type="button"
                   disabled={
-                    (creditStep === 1 && (!creditClientId || !creditPdvId || eligibiliteLoading || showSetLimite || eligibilite?.eligible === false)) ||
-                    (creditStep === 2 && (creditMontantTotal <= 0 || !creditLignes.some(l => l.produitNom.trim()) || creditLignesInvalid)) ||
-                    (creditStep === 3 && (!creditParams.dateDebut || creditCcCouvreTout))
+                    (creditStep === 1 && (
+                      !creditClientId ||
+                      !creditPdvId ||
+                      eligibiliteLoading ||
+                      !eligibilite ||
+                      eligibilite.eligible === false
+                    )) ||
+                    (creditStep === 2 && (
+                      creditMontantTotal <= 0 ||
+                      !creditLignes.some(l => l.produitNom.trim()) ||
+                      creditLignesInvalid
+                    )) ||
+                    (creditStep === 3 && (
+                      !creditParams.dateDebut ||
+                      creditCcCouvreTout
+                    ))
                   }
                   onClick={() => { setCreditError(''); setCreditStep(s => s + 1); }}
                   className="flex items-center gap-1 px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40">

@@ -39,7 +39,7 @@ export async function POST(_req: Request, { params }: Ctx) {
             select: {
               id: true, nom: true, prenom: true,
               etat: true, niveauRisque: true, scoreSolvabilite: true,
-              limiteCredit: true, soldeActuel: true,
+              
               agentTerrainId: true,
             },
           },
@@ -59,14 +59,14 @@ export async function POST(_req: Request, { params }: Ctx) {
       }
 
       // ── 2. Plafond crédit ───────────────────────────────────────────────
-      if (client.limiteCredit !== null && client.soldeActuel !== null) {
-        const soldeApres =
-          Number(client.soldeActuel) + Number(credit.montantTotal);
+      //if (client.limiteCredit !== null && client.soldeActuel !== null) {
+      //  const soldeApres =
+      //    Number(client.soldeActuel) + Number(credit.montantTotal);
 
-        if (soldeApres > Number(client.limiteCredit)) {
-          throw new Error("LIMITE_CREDIT_DEPASSEE");
-        }
-      }
+      //  if (soldeApres > Number(client.limiteCredit)) {
+      //    throw new Error("LIMITE_CREDIT_DEPASSEE");
+      //  }
+      //}
 
       // ── 3. Score de solvabilité ─────────────────────────────────────────
       const score = client.scoreSolvabilite ?? 100;
@@ -312,7 +312,7 @@ export async function POST(_req: Request, { params }: Ctx) {
         CREDIT_INTROUVABLE:             ["Crédit introuvable", 404],
         CREDIT_DEJA_TRAITE:             ["Seuls les crédits EN_ATTENTE_VALIDATION peuvent être validés", 422],
         CLIENT_INACTIF:                 ["Ce client n'est plus actif — validation impossible", 422],
-        LIMITE_CREDIT_DEPASSEE:         ["Ce crédit dépasse le plafond autorisé pour ce client", 422],
+        
         SCORE_INSUFFISANT:              ["Score de solvabilité insuffisant (< 20) — validation impossible", 422],
         CLIENT_RISQUE_CRITIQUE:         ["Client classé CRITIQUE — validation automatique bloquée, intervention manuelle requise", 422],
         CLIENT_RISQUE_ELEVE_SCORE_FAIBLE: ["Client ÉLEVÉ avec score < 40 — risque trop élevé pour validation", 422],
